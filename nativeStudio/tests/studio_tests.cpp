@@ -28,9 +28,14 @@
 #include <set>
 #include <string_view>
 #include <thread>
+#ifndef _WIN32
+#include <sys/resource.h>
+#endif
 
 bool TestExtendedMarkdown();
 bool TestChatStore();
+bool TestStudioLifecycle();
+bool TestModelLifecycle();
 namespace {
 
 void CaptureClipboard(void* user_data, const char* text) {
@@ -1173,8 +1178,23 @@ bool TestStreamingClient() {
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
+#ifndef _WIN32
+  // Host UI tests must never exhaust the desktop's RAM, even on malformed
+  // input.
+  rlimit memory{};
+  if (getrlimit(RLIMIT_AS, &memory) != 0) return 1;
+  constexpr rlim_t cap = 2ULL * 1024ULL * 1024ULL * 1024ULL;
+  memory.rlim_cur = std::min(memory.rlim_cur, cap);
+  memory.rlim_max = std::min(memory.rlim_max, cap);
+  if (setrlimit(RLIMIT_AS, &memory) != 0) return 1;
+#endif
+  if (argc == 2 && std::string_view(argv[1]) == "--studio-lifecycle")
+    return TestStudioLifecycle() ? 0 : 1;
+  if (argc == 2 && std::string_view(argv[1]) == "--markdown")
+    return TestExtendedMarkdown() ? 0 : 1;
   if (!TestChatStore()) return 1;
+  if (!TestModelLifecycle()) return 1;
   if (!TestFailedChatHistory() || !TestStreamingErrorPreservesPartial() || !TestCancelBeforeChatDispatch() || !TestReverifySameSizeCorruption()) {
     std::fprintf(stderr, "chat cancellation/history or model re-verification regression failed\n");
     return 1;
@@ -1199,7 +1219,7 @@ int main() {
     std::fprintf(stderr, "markdown parser test failed\n");
     return 1;
   }
-  if (!TestExtendedMarkdown()) return 1;
+
   if (!TestChatFontsAndSpacing()) {
     std::fprintf(stderr, "chat font/emoji and Markdown spacing test failed\n");
     return 1;

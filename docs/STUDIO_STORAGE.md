@@ -33,7 +33,9 @@ Validation: `cmake --build build/native-studio --parallel 4` and
 `ctest --test-dir build/native-studio --output-on-failure`. Host tests cover persistence,
 partial recovery, attempt/settings/media roundtrips, same-size corruption, missing media,
 archive/pin/delete, duplicate-instance exclusion, schema rejection and transaction rollback.
-Windows runtime and desktop interaction qualification remains separate.
+The real Studio lifecycle, Markdown renderer and host fixtures run as three separate
+CTest processes. Linux test executables cap virtual memory at 2 GiB and each CTest has
+a 60-second timeout. Windows runtime and interactive desktop qualification remains separate.
 
 ## Search, export and backup
 

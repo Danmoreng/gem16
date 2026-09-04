@@ -55,7 +55,21 @@ Removing a profile's runtime view preserves shared Hub blobs used elsewhere.
 
 **Verify again** performs a fresh SHA-256 scan of installed payloads and runtime
 views, including same-size corruption. It runs in the background with progress
-and cancellation. Ordinary refresh uses cached installation state. Runtime
+and cancellation. Ordinary refresh uses cached installation state. Components distinguish missing,
+partial/resumable, unverified, damaged and verified files. **Install / resume / repair**
+reuses valid shared blobs; a detected hash failure remains visible across refreshes.
+Cards show unique profile payloads and bytes reusable across catalog profiles.
+
+**Remove profile views** preserves shared blobs and components required by another
+installed profile. **Review unused cache** previews removable known files; cleanup
+rechecks references, hardlinks and download locks and keeps files changed since review.
+It preserves Hub snapshots and files belonging to unknown cache clients.
+
+Model activation saves the complete selection atomically and retains the previous
+selection for rollback. A chat can install/restore its exact current-catalog model.
+Unknown, custom or no-longer-qualified revisions require explicit configuration and
+are never substituted automatically. Downloads stay pinned to the build's qualified
+catalog; no migration to the normalized 26B Hub layout is implied. Runtime
 startup does not repeat full multi-gigabyte payload hashing.
 
 ## Settings and diagnostics

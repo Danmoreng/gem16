@@ -66,7 +66,7 @@ bool TestChatStore() {
       ChatStore second(root);
       Fails([&] { second.List().get(); });
       auto read = store.Load(c.id).get();
-      Require(read.messages[1].error, "unfinished response is recoverable");
+      Require(read.messages[1].error && read.messages[1].interrupted, "unfinished response is recoverable");
       Require(read.messages[0].attachments[0].bytes == a.bytes,
               "attachment roundtrip");
       Require(SavedGeneration(read.messages[1].generation).max_output_tokens ==

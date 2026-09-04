@@ -173,8 +173,14 @@ namespace gem16::studio {
 struct MathData { std::unique_ptr<tex::TeXRender> render; };
 static std::map<std::string,MathLayout> cache;
 void InitializeMathFonts() {
+  // The pinned MicroTeX release leaves dangling global pointers after
+  // release(). A second init would return early and use freed font mappings.
+  // Studio owns one atlas per process; independent GUI fixtures must run in
+  // separate processes.
+  if (initialized)
+    throw std::logic_error(
+        "Math fonts may only be initialized once per process.");
   cache.clear();
-  if(initialized) { tex::LaTeX::release(); initialized=false; }
   fonts.clear();default_font=ImGui::GetIO().Fonts->Fonts[0];resource_root=Resources();
   if(!std::filesystem::is_regular_file(resource_root/".clatexmath-res_root"))return;
   static const ImWchar ranges[]={1,0x3ff,0};
@@ -199,7 +205,9 @@ MathLayout LayoutMath(std::string_view source,bool display,float size,float widt
     if(data->render->getWidth()>width)data->render->setTextSize(size*width/data->render->getWidth());
     MathLayout layout{static_cast<float>(data->render->getWidth()),static_cast<float>(data->render->getHeight()),data};
     if(!std::isfinite(layout.width)||!std::isfinite(layout.height)||layout.height>4096)return {};
-    if(cache.size()>=128)cache.clear();cache.emplace(key,layout);return layout;
+    if(cache.size()>=128)cache.clear();
+    cache.emplace(key,layout);
+    return layout;
   } catch (...) { return {}; }
 }
 void DrawMath(const MathLayout& layout,ImVec2 origin,ImU32 color) {

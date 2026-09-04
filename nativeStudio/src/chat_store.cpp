@@ -14,7 +14,9 @@
 #include "sqlite3.h"
 #include "util/json.h"
 #ifdef _WIN32
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #else
 #include <fcntl.h>
@@ -109,7 +111,7 @@ void WriteBlob(const std::filesystem::path& root, const std::string& hash,
       throw std::runtime_error("Stored attachment is damaged.");
     return;
   }
-  const auto tmp = root / (hash + "." + NewChatId() + ".tmp");
+  const auto tmp = root / (".tmp-" + NewChatId().substr(0, 24));
   try {
     {
       std::ofstream out(tmp, std::ios::binary);
@@ -177,6 +179,7 @@ J MessageJson(const ChatMessage& m, const std::filesystem::path& root) {
     attempts.emplace_back(J::Object{{"content", J(a.content)},
                                     {"reasoning", J(a.reasoning)},
                                     {"error", J(a.error)},
+                                    {"interrupted", J(a.interrupted)},
                                     {"error_message", J(a.error_message)},
                                     {"generation", J(a.generation)},
                                     {"created", J(a.created)}});
@@ -305,6 +308,7 @@ std::string GenerationIdentity(const StudioSettings& s) {
   return json::Stringify(J(J::Object{
       {"model", J(ModelIdentity(s.server))},
       {"model_name", J(s.server.model_name)},
+      {"max_sessions", J(static_cast<std::int64_t>(s.server.max_sessions))},
       {"context", J(s.server.max_context_tokens)},
       {"greedy", J(s.server.greedy)},
       {"draft_tokens", J(static_cast<std::int64_t>(s.server.mtp_draft_tokens))},
@@ -332,11 +336,12 @@ GenerationConfig SavedGeneration(const std::string& metadata) {
 }
 void PreserveAttempt(ChatMessage& m) {
   m.attempts.push_back({m.content, m.reasoning, m.error_message, m.generation,
-                        m.created, m.error});
+                        m.created, m.error, m.interrupted});
   m.content.clear();
   m.reasoning.clear();
   m.error_message.clear();
   m.error = false;
+  m.interrupted = false;
   m.streaming = true;
   m.created = Now();
 }
@@ -452,7 +457,7 @@ void ChatStore::Open() {
       throw;
     }
   }
-  Exec(db_, "UPDATE messages SET state=2 WHERE state=1;");
+  Exec(db_, "UPDATE messages SET state=3 WHERE state=1;");
 }
 void ChatStore::SaveNow(const Conversation& c) {
   if (!open_error_.empty()) throw std::runtime_error(open_error_);
@@ -523,7 +528,7 @@ void ChatStore::SaveNow(const Conversation& c) {
       insert.Text(3, m.role);
       insert.Text(4, m.content);
       insert.Text(5, m.reasoning);
-      insert.Int(6, m.error ? 2 : m.streaming ? 1 : 0);
+      insert.Int(6, m.streaming ? 1 : m.interrupted ? 3 : m.error ? 2 : 0);
       insert.Text(7, details[i]);
       insert.Row();
       if (sqlite3_changes(db_) != 0)
@@ -572,6 +577,7 @@ Conversation ChatStore::LoadNow(const std::string& id) {
     m.content = ms.Text(1);
     m.reasoning = ms.Text(2);
     m.error = ms.Int(3) != 0;
+    m.interrupted = ms.Int(3) == 1 || ms.Int(3) == 3;
     const auto metadata = ms.Text(4);
     total_text += metadata.size() + m.content.size() + m.reasoning.size();
     if (total_text > 32U * 1024U * 1024U)
@@ -589,8 +595,9 @@ Conversation ChatStore::LoadNow(const std::string& id) {
       m.error_message = "Interrupted before completion. Retry to continue.";
     for (const auto& a : Array(d, "attachments")) {
       MediaAttachment v;
-      v.id = static_cast<std::uint64_t>(c.messages.size() * 1024 +
-                                        m.attachments.size() + 1);
+      v.id =
+          (1ULL << 62U) + static_cast<std::uint64_t>(c.messages.size() * 1024 +
+                                                     m.attachments.size() + 1);
       auto kind = Num(a, "kind");
       if (kind < 0 || kind > 2)
         throw std::runtime_error("Invalid attachment kind.");
@@ -633,9 +640,10 @@ Conversation ChatStore::LoadNow(const std::string& id) {
       m.attachments.push_back(std::move(v));
     }
     for (const auto& a : Array(d, "attempts"))
-      m.attempts.push_back({Str(a, "content"), Str(a, "reasoning"),
-                            Str(a, "error_message"), Str(a, "generation"),
-                            Num(a, "created"), Flag(a, "error")});
+      m.attempts.push_back(
+          {Str(a, "content"), Str(a, "reasoning"), Str(a, "error_message"),
+           Str(a, "generation"), Num(a, "created"), Flag(a, "error"),
+           a.find("interrupted") ? Flag(a, "interrupted") : false});
     c.messages.push_back(std::move(m));
   }
   return c;
@@ -712,7 +720,8 @@ std::future<std::filesystem::path> ChatStore::Export(
       throw std::runtime_error("Choose an existing export directory.");
     if (chat.messages.size() > 10000)
       throw std::runtime_error("Too many messages to export.");
-    const auto output = destination / ("gem16-chat-" + NewChatId());
+    const auto output =
+        destination / ("gem16-chat-" + NewChatId().substr(0, 24));
     const auto staging = std::filesystem::path(output.string() + ".incomplete");
     std::filesystem::create_directory(staging);
 #ifndef _WIN32
@@ -733,7 +742,8 @@ std::future<std::filesystem::path> ChatStore::Export(
             J::Object{{"role", J(m.role)},
                       {"content", J(m.content)},
                       {"reasoning", J(m.reasoning)},
-                      {"status", J(std::string(m.error       ? "failed"
+                      {"status", J(std::string(m.interrupted ? "interrupted"
+                                               : m.error     ? "failed"
                                                : m.streaming ? "interrupted"
                                                              : "complete"))},
                       {"details", std::move(details)}});
@@ -741,9 +751,11 @@ std::future<std::filesystem::path> ChatStore::Export(
         if (!m.reasoning.empty())
           markdown += "### Reasoning\n\n" + m.reasoning + "\n\n";
         if (m.error || m.streaming)
-          markdown +=
-              "Status: " + std::string(m.error ? "failed" : "interrupted") +
-              ". " + m.error_message + "\n\n";
+          markdown += "Status: " +
+                      std::string(m.interrupted ? "interrupted"
+                                  : m.error     ? "failed"
+                                                : "interrupted") +
+                      ". " + m.error_message + "\n\n";
         for (const auto& a : m.attachments) {
           const auto hash =
               a.missing ? a.storage_hash
@@ -786,7 +798,8 @@ std::future<std::filesystem::path> ChatStore::Backup(
     if (!open_error_.empty()) throw std::runtime_error(open_error_);
     if (!std::filesystem::is_directory(destination))
       throw std::runtime_error("Choose an existing backup directory.");
-    const auto output = destination / ("gem16-backup-" + NewChatId());
+    const auto output =
+        destination / ("gem16-backup-" + NewChatId().substr(0, 24));
     const auto staging = std::filesystem::path(output.string() + ".incomplete");
     std::filesystem::create_directory(staging);
 #ifndef _WIN32

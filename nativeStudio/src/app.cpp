@@ -1,23 +1,23 @@
 #include "app.h"
 
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <numbers>
+
 #include "chat_history.h"
 #include "gem16_logo.generated.h"
+#include "imgui.h"
 #include "markdown.h"
 #include "media_loader.h"
 #include "model_catalog.h"
+#include "model_selection.h"
 #include "model_widgets.h"
+#include "platform_ui.h"
 #include "selectable_text.h"
 #include "settings.h"
-#include "platform_ui.h"
-
-#include "imgui.h"
-
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-#include <cstdio>
-#include <cstring>
-#include <numbers>
 
 namespace gem16::studio {
 namespace {
@@ -540,6 +540,16 @@ void StudioApp::Render() {
     pending_profile_.reset();
     SelectProfile(profile);
   }
+  if (pending_chat_model_ && !models_.State().Busy() && CanNavigateChats()) {
+    const auto config = *pending_chat_model_;
+    pending_chat_model_.reset();
+    if (!models_.State().cancel_requested && ModelSelectionReady(config))
+      ActivateModel(config, true);
+    else
+      model_selection_error_ =
+          "The requested model installation did not complete. Resume or repair "
+          "it before continuing this chat.";
+  }
   if (recorder_.Active() && !recorder_.Recording()) FinishRecording();
   PruneAttachmentTextures();
   const auto dropped = DrainDroppedFiles();
@@ -645,10 +655,11 @@ void StudioApp::DrawSidebar() {
 }
 
 void StudioApp::DrawChat() {
-  ImGui::BeginDisabled(!CanNavigateChats());
-  ImGui::InputText("Title", chat_title_.data(), chat_title_.size());
-  if (ImGui::IsItemDeactivatedAfterEdit()) {
-    conversation_.title = chat_title_.data(); ++chat_revision_; last_chat_save_ = {};
+  ImGui::BeginDisabled(api_.Busy() || pending_send_ || chat_load_.valid());
+  if (ImGui::InputText("Title", chat_title_.data(), chat_title_.size())) {
+    conversation_.title = chat_title_.data();
+    ++chat_revision_;
+    last_chat_save_ = std::chrono::steady_clock::now();
   }
   ImGui::SameLine();
   if (ImGui::SmallButton(conversation_.pinned ? "Unpin" : "Pin")) { conversation_.pinned = !conversation_.pinned; ++chat_revision_; last_chat_save_ = {}; }
@@ -672,9 +683,19 @@ void StudioApp::DrawChat() {
   ImGui::EndDisabled();
   ImGui::EndDisabled();
   if(!export_status_.empty())ImGui::TextWrapped("%s",export_status_.c_str());
+  if (!model_selection_error_.empty())
+    ImGui::TextWrapped("%s", model_selection_error_.c_str());
   const auto chat_mismatch = ChatCompatibilityError();
-  if (!chat_mismatch.empty()) ImGui::TextWrapped("%s", chat_mismatch.c_str());
-  else if (!messages_.empty() && session_id_.empty()) ImGui::TextDisabled("Continuing will rebuild the model context from the saved conversation.");
+  if (!chat_mismatch.empty()) {
+    ImGui::TextWrapped("%s", chat_mismatch.c_str());
+    ImGui::BeginDisabled(!CanNavigateChats() || models_.State().Busy());
+    if (ImGui::SmallButton("Install / restore this chat's model"))
+      RestoreChatModel();
+    ImGui::EndDisabled();
+  } else if (!messages_.empty() && session_id_.empty())
+    ImGui::TextDisabled(
+        "Continuing will rebuild the model context from the saved "
+        "conversation.");
   if (delete_chat_requested_) { ImGui::OpenPopup("Delete this chat?"); delete_chat_requested_ = false; }
   if (ImGui::BeginPopupModal("Delete this chat?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
     ImGui::TextUnformatted("Delete this conversation and all saved attempts?");
@@ -739,7 +760,12 @@ void StudioApp::DrawChat() {
     }
   }
   for (std::size_t index = 0; index < messages_.size(); ++index) {
-    if (static_cast<std::int64_t>(index) == jump_to_message_) { ImGui::SetScrollHereY(0.0f); jump_to_message_ = -1; scroll_to_bottom_ = false; auto_follow_ = false; }
+    if (static_cast<std::int64_t>(index) == jump_to_message_) {
+      ImGui::SetScrollFromPosY(ImGui::GetCursorPosY(), 0.0f);
+      jump_to_message_ = -1;
+      scroll_to_bottom_ = false;
+      auto_follow_ = false;
+    }
     DrawMessage(messages_[index], index);
   }
   if (retry_requested_) {
@@ -1383,11 +1409,10 @@ void StudioApp::DrawModels() {
                settings_.onboarding_complete
                    ? "Install either profile or keep both side by side in the shared Hugging Face cache."
                    : "Choose and install a model profile. Nothing is selected by default on a new system.");
-  ImGui::TextDisabled("Hub cache: %s", hub_root_label.c_str());
-  ImGui::SameLine();
+  ImGui::TextWrapped("Hub cache: %s", hub_root_label.c_str());
   if (ImGui::SmallButton("Open cache")) OpenInFileManager(hub_root);
   ImGui::SameLine();
-  ImGui::BeginDisabled(install.downloading || install.verifying);
+  ImGui::BeginDisabled(install.Busy());
   if (ImGui::SmallButton("Verify again")) models_.VerifyInstalled();
   ImGui::EndDisabled();
   ImGui::Dummy({0, Ui(8)});
@@ -1399,8 +1424,58 @@ void StudioApp::DrawModels() {
   } else if (!install.verification_status.empty()) {
     ImGui::TextWrapped("%s", install.verification_status.c_str());
   }
-  const auto draw_profile = [this, &install](const ModelProfileCatalog& catalog) {
-    ImGui::BeginDisabled(install.verifying);
+  ImGui::BeginDisabled(install.Busy());
+  if (ImGui::SmallButton("Review unused cache")) models_.ReviewCache();
+  ImGui::SameLine();
+  ImGui::BeginDisabled(!CanNavigateChats() ||
+                       settings_.previous_model_selection.empty());
+  if (ImGui::SmallButton("Restore previous model selection")) {
+    try {
+      const auto config = SavedServerSelection(
+          settings_.previous_model_selection, settings_.server);
+      models_.Refresh();
+      if (ModelSelectionReady(config))
+        ActivateModel(config, false);
+      else
+        model_selection_error_ =
+            "The previous model is no longer fully installed. Install its "
+            "pinned components before restoring it.";
+    } catch (const std::exception& e) {
+      model_selection_error_ = e.what();
+    }
+  }
+  ImGui::EndDisabled();
+  ImGui::EndDisabled();
+  if (install.cache_review_ready || install.maintenance ||
+      !install.cache_status.empty()) {
+    ImGui::TextWrapped("%s", install.cache_status.c_str());
+    if (install.cache_review_ready) {
+      ImGui::TextWrapped(
+          "Known cached files: %s · unfinished: %s · removable now: %s",
+          FormatBytes(install.cache_plan.cached_bytes).c_str(),
+          FormatBytes(install.cache_plan.partial_bytes).c_str(),
+          FormatBytes(install.cache_plan.reclaimable_bytes).c_str());
+      ImGui::BeginDisabled(install.Busy() || install.cache_plan.files.empty() ||
+                           server_.Phase() == ServerPhase::kRunning ||
+                           server_.Phase() == ServerPhase::kStarting ||
+                           server_.Phase() == ServerPhase::kExternal);
+      if (ImGui::SmallButton("Remove reviewed unused files"))
+        models_.CleanCache();
+      ImGui::EndDisabled();
+    }
+  }
+  if (!model_selection_error_.empty())
+    ImGui::TextWrapped("%s", model_selection_error_.c_str());
+  if (pending_chat_model_)
+    ImGui::TextWrapped(
+        "Installing the exact pinned model for the open chat. It will be "
+        "selected only when all requested components are verified.");
+  ImGui::TextDisabled(
+      "Updates use this build's qualified revision pins; older Hub snapshots "
+      "are retained.");
+  const auto draw_profile = [this,
+                             &install](const ModelProfileCatalog& catalog) {
+    ImGui::BeginDisabled(install.verifying || install.maintenance);
     const ModelProfile profile = catalog.profile;
     const ProfileInstallState& profile_state = install.For(profile);
     const bool selected = settings_.onboarding_complete &&
@@ -1431,8 +1506,11 @@ void StudioApp::DrawModels() {
     bool first_component = true;
     for (const auto& component : catalog.components) {
       const bool ready = profile_state.ComponentReady(component.kind);
-      const std::string status = std::string(ComponentKindLabel(component.kind)) +
-          ": " + (ready ? "Verified" : "Missing") +
+      const std::string status =
+          std::string(ComponentKindLabel(component.kind)) + ": " +
+          ComponentStatusLabel(
+              profile_state
+                  .component_status[ModelComponentKindIndex(component.kind)]) +
           (component.required ? "" : " (optional)");
       const float component_width = ImGui::CalcTextSize(status.c_str()).x +
           (ready ? ImGui::GetStyle().ItemSpacing.x +
@@ -1442,9 +1520,15 @@ void StudioApp::DrawModels() {
       first_component = false;
       ImGui::BeginGroup();
       ImGui::TextUnformatted(status.c_str());
+      if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s\nRevision: %s", component.catalog->repository,
+                          component.catalog->revision);
       if (ready) {
         bool component_in_use = false;
-        if (settings_.onboarding_complete) {
+        if (settings_.onboarding_complete &&
+            (server_.Phase() == ServerPhase::kRunning ||
+             server_.Phase() == ServerPhase::kStarting ||
+             server_.Phase() == ServerPhase::kExternal)) {
           for (const auto& active_component :
                CatalogForProfile(settings_.server.profile).components) {
             component_in_use |=
@@ -1483,12 +1567,14 @@ void StudioApp::DrawModels() {
         ImGui::TextWrapped("%s", install.current_file.c_str());
         ImGui::PopStyleColor();
       }
-    } else if (!profile_state.Ready()) {
+    } else if (!profile_state.all_ready) {
       const bool blocked = install.downloading || !profile_state.storage_available ||
                            !profile_state.sufficient_space;
       ImGui::BeginDisabled(blocked);
-      const std::string button = "Install " + FormatBytes(profile_state.required_download_bytes) +
-                                 "##" + ProfileWireName(profile);
+      const std::string button =
+          "Install / resume / repair " +
+          FormatBytes(profile_state.required_download_bytes) + "##" +
+          ProfileWireName(profile);
       if (ImGui::Button(button.c_str())) models_.DownloadProfile(profile);
       ImGui::EndDisabled();
       ModelComponentSameLine(Ui(310.0f), ImGui::GetStyle().ItemSpacing.x);
@@ -1504,16 +1590,39 @@ void StudioApp::DrawModels() {
                             FormatBytes(profile_state.available_disk_bytes).c_str());
       }
       ImGui::PopTextWrapPos();
-    } else if (selected) {
+    }
+    if (!downloading && profile_state.Ready() && selected) {
       ImGui::TextColored(kAccent, "Installed and selected");
-    } else {
-      const std::string button = "Use this profile##" +
-                                 std::string(ProfileWireName(profile));
+    } else if (!downloading && profile_state.Ready()) {
+      const std::string button =
+          std::string(
+              profile_state.ComponentReady(ModelComponentKind::kAssistant)
+                  ? "Use this profile##"
+                  : "Use without Assistant (ordinary decode)##") +
+          std::string(ProfileWireName(profile));
       if (ImGui::Button(button.c_str())) SelectProfile(profile);
       ModelComponentSameLine(ImGui::CalcTextSize("Installed in the shared Hub cache").x,
                              ImGui::GetStyle().ItemSpacing.x);
       ImGui::TextDisabled("Installed in the shared Hub cache");
     }
+    ImGui::TextWrapped(
+        "Unique profile payloads: %s · reusable across profiles: %s",
+        FormatBytes(profile_state.unique_bytes).c_str(),
+        FormatBytes(profile_state.shared_bytes).c_str());
+    ImGui::BeginDisabled(
+        install.Busy() ||
+        (selected && (server_.Phase() == ServerPhase::kRunning ||
+                      server_.Phase() == ServerPhase::kStarting ||
+                      server_.Phase() == ServerPhase::kExternal)));
+    if (ImGui::SmallButton(
+            (std::string("Remove profile views##") + ProfileWireName(profile))
+                .c_str()))
+      models_.RemoveProfile(profile);
+    if (ImGui::IsItemHovered())
+      ImGui::SetTooltip(
+          "Remove this profile's runtime views. Other installed profiles and "
+          "shared Hub blobs are kept. Cache cleanup is a separate action.");
+    ImGui::EndDisabled();
     EndModelCard();
     ImGui::PopStyleColor(2);
     ImGui::Dummy({0, Ui(3)});
@@ -1905,26 +2014,80 @@ void StudioApp::RemoveLastExchange() {
   expanded_reasoning_.clear();
 }
 
+bool StudioApp::ModelSelectionReady(const ServerConfig& config) const {
+  if (!UsesCatalogPaths(config)) return false;
+  const auto state = models_.State();
+  if (state.Busy()) return false;
+  const auto& profile = state.For(config.profile);
+  return profile.Ready() &&
+         (config.assistant_directory.empty() ||
+          profile.ComponentReady(ModelComponentKind::kAssistant));
+}
+void StudioApp::ActivateModel(const ServerConfig& config, bool keep_chat) {
+  if (!CanNavigateChats() || !ModelSelectionReady(config)) return;
+  SyncSettingsFromBuffers();
+  auto next = settings_;
+  next.server = config;
+  next.onboarding_complete = true;
+  if (settings_.onboarding_complete && UsesCatalogPaths(settings_.server))
+    next.previous_model_selection = GenerationIdentity(settings_);
+  if (!SaveSettings(next)) {
+    model_selection_error_ =
+        "Could not save the model selection. The current selection was kept.";
+    return;
+  }
+  const bool restart = server_.Phase() == ServerPhase::kRunning;
+  if (restart) server_.Stop();
+  settings_ = std::move(next);
+  SyncBuffersFromSettings();
+  server_.Configure(settings_.server);
+  session_id_.clear();
+  model_selection_error_.clear();
+  if (!keep_chat)
+    NewConversation();
+  else
+    screen_ = Screen::kChat;
+  if (restart) server_.Start(settings_.server);
+}
 void StudioApp::SelectProfile(ModelProfile profile) {
   if (!CanNavigateChats()) {
     pending_profile_ = profile;
     api_.Cancel();
     return;
   }
+  models_.Refresh();
   if (!models_.State().For(profile).Ready()) return;
-  const bool restart_managed_server = server_.Phase() == ServerPhase::kRunning;
-  if (restart_managed_server) server_.Stop();
-  SyncSettingsFromBuffers();
-  ApplyProfileDefaults(settings_.server, profile);
-  settings_.onboarding_complete = true;
-  SyncBuffersFromSettings();
-  server_.Configure(settings_.server);
-  if (api_.Busy()) api_.Cancel();
-  NewConversation();
-  (void)SaveSettings(settings_);
-  if (restart_managed_server) server_.Start(settings_.server);
+  auto config = settings_.server;
+  ApplyProfileDefaults(config, profile);
+  if (!models_.State().For(profile).ComponentReady(
+          ModelComponentKind::kAssistant)) {
+    config.assistant_directory.clear();
+    config.mtp_draft_tokens = 0;
+  }
+  ActivateModel(config, false);
 }
-
+void StudioApp::RestoreChatModel() {
+  if (!CanNavigateChats() || models_.State().Busy()) return;
+  try {
+    for (auto m = messages_.rbegin(); m != messages_.rend(); ++m)
+      if (!m->generation.empty()) {
+        const auto config =
+            SavedServerSelection(m->generation, settings_.server);
+        models_.Refresh();
+        if (ModelSelectionReady(config))
+          ActivateModel(config, true);
+        else {
+          pending_chat_model_ = config;
+          models_.DownloadProfile(config.profile);
+          screen_ = Screen::kModels;
+        }
+        return;
+      }
+    model_selection_error_ = "This chat has no saved model request to restore.";
+  } catch (const std::exception& e) {
+    model_selection_error_ = e.what();
+  }
+}
 
 namespace {
 template<class T> bool FutureReady(std::future<T>& f) { return f.valid() && f.wait_for(std::chrono::seconds(0)) == std::future_status::ready; }
@@ -1939,8 +2102,27 @@ std::string StudioApp::ChatCompatibilityError() const {
 }
 void StudioApp::SaveChat() {
   if (temporary_chat_ || chat_save_.valid() || conversation_.id.empty()) return;
-  try { auto snapshot = conversation_; snapshot.messages = messages_; saving_revision_ = chat_revision_; chat_save_ = chat_store_.Save(std::move(snapshot)); last_chat_save_ = std::chrono::steady_clock::now(); }
-  catch (const std::exception& e) { storage_error_ = e.what(); if (pending_send_ && !messages_.empty()) { messages_.back().streaming = false; messages_.back().error = true; messages_.back().error_message = "Request was not sent because local saving failed."; ++chat_revision_; } pending_send_ = false; }
+  try {
+    conversation_.updated =
+        std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    auto snapshot = conversation_;
+    snapshot.messages = messages_;
+    saving_revision_ = chat_revision_;
+    chat_save_ = chat_store_.Save(std::move(snapshot));
+    last_chat_save_ = std::chrono::steady_clock::now();
+  } catch (const std::exception& e) {
+    storage_error_ = e.what();
+    if (pending_send_ && !messages_.empty()) {
+      messages_.back().streaming = false;
+      messages_.back().error = true;
+      messages_.back().error_message =
+          "Request was not sent because local saving failed.";
+      ++chat_revision_;
+    }
+    pending_send_ = false;
+  }
 }
 void StudioApp::StartSavedRequest() {
   if (!pending_send_) return;
@@ -1972,7 +2154,12 @@ void StudioApp::PollChatStore() {
       auto loaded = chat_load_.get();
       for (auto i=loaded.messages.rbegin();i!=loaded.messages.rend();++i) if (!i->generation.empty()) { settings_.generation=SavedGeneration(i->generation); CopyTo(system_prompt_,settings_.generation.system_prompt); break; }
       conversation_ = std::move(loaded); messages_ = std::move(conversation_.messages); temporary_chat_ = false;
-      session_id_.clear(); expanded_reasoning_.clear(); pending_attachments_.clear(); composer_[0] = 0;
+      session_id_.clear();
+      expanded_reasoning_.clear();
+      attachment_textures_.clear();
+      svg_previews_.Clear();
+      pending_attachments_.clear();
+      composer_[0] = 0;
       CopyTo(chat_title_, conversation_.title); chat_revision_ = saved_revision_ = 0; scroll_to_bottom_ = true;
     }
     if (chat_revision_ != saved_revision_ && storage_error_.empty() && !chat_save_.valid() &&
@@ -1987,6 +2174,8 @@ void StudioApp::NewConversation(bool temporary) {
   if (!CanNavigateChats()) return;
   restore_latest_ = false; temporary_chat_ = temporary;
   conversation_ = {}; conversation_.id = NewChatId(); conversation_.created = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count(); conversation_.profile = settings_.server.profile; conversation_.identity = ModelIdentity(settings_.server);
+  attachment_textures_.clear();
+  svg_previews_.Clear();
   messages_.clear(); pending_attachments_.clear(); session_id_.clear(); composer_[0] = 0; chat_title_[0] = 0;
   expanded_reasoning_.clear(); performance_.reset(); attachment_error_.clear();
   chat_revision_ = saved_revision_ = 0; screen_ = Screen::kChat;
@@ -1995,9 +2184,12 @@ void StudioApp::DrawChatLibrary() {
   ImGui::Separator();
   ImGui::BeginDisabled(!CanNavigateChats());
   if (ImGui::SmallButton("New chat")) NewConversation();
-  ImGui::SameLine(); if (ImGui::SmallButton("Temporary")) NewConversation(true);
+  if (ImGui::SmallButton("Temporary chat")) NewConversation(true);
   ImGui::Checkbox("Archived", &show_archived_);
-  if(ImGui::InputTextWithHint("##chat-search","Search chats / documents",chat_search_.data(),chat_search_.size()))search_changed_=std::chrono::steady_clock::now();
+  ImGui::SetNextItemWidth(-1);
+  if (ImGui::InputTextWithHint("##chat-search", "Search chats",
+                               chat_search_.data(), chat_search_.size()))
+    search_changed_ = std::chrono::steady_clock::now();
   ImGui::BeginChild("##chat-list", {0, std::max(Ui(40), ImGui::GetContentRegionAvail().y - Ui(112))});
   for (const auto& chat : chat_list_) {
     const std::string label = std::string(chat.pinned ? "* " : "") + chat.title + "##" + chat.id + "-" + std::to_string(chat.hit_position);

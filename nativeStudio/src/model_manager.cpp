@@ -62,17 +62,56 @@ bool HasVerificationMarker(const ModelCatalogFile& file) {
   return hash == file.sha256;
 }
 
+bool HasDamageMarker(const ModelCatalogFile& file) {
+  std::error_code error;
+  const bool present=std::filesystem::exists(std::filesystem::path(VerificationMarker(file).string()+".damaged"),error);
+  return present || static_cast<bool>(error);
+}
 bool FileReady(const ModelComponentCatalog& component,
                const ModelCatalogFile& file) {
-  return HasSize(ComponentDirectory(component, HuggingFaceHubRoot()) / file.path,
-                 file.size) &&
-         HasSize(BlobPath(file), file.size) && HasVerificationMarker(file);
+  return HasSize(
+             ComponentDirectory(component, HuggingFaceHubRoot()) / file.path,
+             file.size) &&
+         HasSize(BlobPath(file), file.size) && HasVerificationMarker(file) &&
+         !HasDamageMarker(file);
 }
 
-bool ComponentReady(const ModelComponentCatalog& component) {
-  return std::ranges::all_of(component.files, [&](const ModelCatalogFile& file) {
-    return FileReady(component, file);
-  });
+ComponentInstallStatus ComponentStatus(const ModelComponentCatalog& component) {
+  bool all_ready = true, all_present = true, any_present = false,
+       damaged = false;
+  for (const auto& file : component.files) {
+    std::error_code ec;
+    const auto blob = BlobPath(file),
+               view = ComponentDirectory(component, HuggingFaceHubRoot()) /
+                      file.path;
+    const bool present = HasSize(blob, file.size) && HasSize(view, file.size);
+    all_present &= present;
+    all_ready &= FileReady(component, file);
+    any_present |=
+        std::filesystem::exists(blob, ec) ||
+        std::filesystem::exists(view, ec) ||
+        std::filesystem::exists(
+            std::filesystem::path(blob.string() + ".incomplete"), ec);
+    damaged |= std::filesystem::exists(
+                   std::filesystem::path(VerificationMarker(file).string() +
+                                         ".damaged"),
+                   ec) ||
+               (std::filesystem::is_regular_file(blob, ec) &&
+                !HasSize(blob, file.size)) ||
+               (std::filesystem::is_regular_file(view, ec) &&
+                !HasSize(view, file.size));
+  }
+  if (damaged) return ComponentInstallStatus::kDamaged;
+  if (all_ready) return ComponentInstallStatus::kVerified;
+  if (all_present) return ComponentInstallStatus::kUnverified;
+  return any_present ? ComponentInstallStatus::kPartial
+                     : ComponentInstallStatus::kMissing;
+}
+const ModelProfileCatalog& FindProfile(
+    std::span<const ModelProfileCatalog> catalog, ModelProfile profile) {
+  for (const auto& entry : catalog)
+    if (entry.profile == profile) return entry;
+  throw std::runtime_error("Unknown model profile.");
 }
 
 std::uint64_t ComponentBytes(const ModelComponentCatalog& component) {
@@ -98,8 +137,16 @@ std::uint64_t RequiredDownloadBytes(const ModelProfileCatalog& profile) {
   for (const auto& profile_component : profile.components) {
     for (const auto& file : profile_component.catalog->files) {
       const auto blob = BlobPath(file);
-      if (!HasSize(blob, file.size) && missing_blobs.insert(blob).second)
-        result += file.size;
+      if ((!HasSize(blob, file.size) ||
+           HasDamageMarker(file)) &&
+          missing_blobs.insert(blob).second) {
+        std::error_code ec;
+        const auto partial =
+            std::filesystem::path(blob.string() + ".incomplete");
+        const auto size = std::filesystem::file_size(partial, ec);
+        result +=
+            file.size - (ec ? 0 : std::min<std::uint64_t>(size, file.size));
+      }
     }
   }
   return result;
@@ -120,11 +167,29 @@ std::optional<std::uint64_t> AvailableDiskBytes() {
   return space.available;
 }
 
-ProfileInstallState InspectProfile(const ModelProfileCatalog& profile) {
+ProfileInstallState InspectProfile(const ModelProfileCatalog& profile,
+                                   std::span<const ModelProfileCatalog> all) {
   ProfileInstallState state;
   state.required_ready = true;
+  state.all_ready = true;
+  std::set<std::filesystem::path> unique;
   for (const auto& profile_component : profile.components) {
-    const bool ready = ComponentReady(*profile_component.catalog);
+    const auto status = ComponentStatus(*profile_component.catalog);
+    const bool ready = status == ComponentInstallStatus::kVerified;
+    state.component_status[ModelComponentKindIndex(profile_component.kind)] =
+        status;
+    state.all_ready &= ready;
+    for (const auto& file : profile_component.catalog->files)
+      if (unique.insert(BlobPath(file)).second) {
+        state.unique_bytes += file.size;
+        bool shared = false;
+        for (const auto& other : all)
+          if (other.profile != profile.profile)
+            for (const auto& component : other.components)
+              for (const auto& other_file : component.catalog->files)
+                if (BlobPath(file) == BlobPath(other_file)) shared = true;
+        if (shared) state.shared_bytes += file.size;
+      }
     state.component_ready[ModelComponentKindIndex(profile_component.kind)] =
         ready;
     if (profile_component.required && !ready) state.required_ready = false;
@@ -241,16 +306,17 @@ ModelInstallState ModelManager::State() const {
 
 void ModelManager::Refresh() {
   std::scoped_lock lock(mutex_);
-  if (state_.downloading || state_.verifying) return;
+  if (state_.Busy()) return;
   for (const auto& profile : catalog_) {
-    state_.profiles[ModelProfileIndex(profile.profile)] = InspectProfile(profile);
+    state_.profiles[ModelProfileIndex(profile.profile)] =
+        InspectProfile(profile, catalog_);
   }
 }
 
 void ModelManager::VerifyInstalled() {
   {
     std::scoped_lock lock(mutex_);
-    if (state_.downloading || state_.verifying) return;
+    if (state_.Busy()) return;
     state_.verifying = true;
     state_.verification_bytes = 0;
     state_.verification_total_bytes = 0;
@@ -261,98 +327,130 @@ void ModelManager::VerifyInstalled() {
   cancel_.store(false);
   if (worker_.joinable()) worker_.join();
   worker_ = std::jthread([this] {
-    struct File {
-      std::filesystem::path path, marker;
-      std::uint64_t size;
-      std::string hash;
-    };
-    std::vector<File> files;
-    std::set<std::filesystem::path> seen;
-    const auto hub = HuggingFaceHubRoot();
-    std::uint64_t total = 0;
-    for (const auto& profile : catalog_) {
-      for (const auto& component : profile.components) {
-        for (const auto& file : component.catalog->files) {
-          const auto blob = BlobPath(file);
-          const auto view = ComponentDirectory(*component.catalog, hub) / file.path;
-          for (const auto& path : {blob, view}) {
-            std::error_code ec;
-            if (!std::filesystem::exists(path, ec) || !seen.insert(path).second) continue;
-            // Hash a hardlinked/symlinked runtime view only once with its blob.
-            if (path != blob && std::filesystem::equivalent(path, blob, ec)) continue;
-            files.push_back({path, VerificationMarker(file), file.size, file.sha256});
-            total += file.size;
+    try {
+      struct File {
+        std::filesystem::path path, marker;
+        std::uint64_t size;
+        std::string hash;
+      };
+      std::vector<File> files;
+      std::set<std::filesystem::path> seen;
+      const auto hub = HuggingFaceHubRoot();
+      std::uint64_t total = 0;
+      for (const auto& profile : catalog_) {
+        for (const auto& component : profile.components) {
+          for (const auto& file : component.catalog->files) {
+            const auto blob = BlobPath(file);
+            const auto view =
+                ComponentDirectory(*component.catalog, hub) / file.path;
+            for (const auto& path : {blob, view}) {
+              std::error_code ec;
+              if (!std::filesystem::exists(path, ec) ||
+                  !seen.insert(path).second)
+                continue;
+              // Hash a hardlinked/symlinked runtime view only once with its
+              // blob.
+              if (path != blob && std::filesystem::equivalent(path, blob, ec))
+                continue;
+              files.push_back(
+                  {path, VerificationMarker(file), file.size, file.sha256});
+              total += file.size;
+            }
           }
         }
       }
-    }
-    {
-      std::scoped_lock lock(mutex_);
-      state_.verification_total_bytes = total;
-    }
-    std::vector<char> buffer(8U * 1024U * 1024U);
-    std::set<std::filesystem::path> invalid_markers;
-    std::string failure;
-    std::uint64_t completed = 0;
-    for (const auto& file : files) {
-      if (cancel_.load()) break;
       {
         std::scoped_lock lock(mutex_);
-        state_.current_file = file.path.filename().string();
+        state_.verification_total_bytes = total;
       }
-      std::error_code ec;
-      std::filesystem::remove(file.marker, ec);
-      if (ec) { failure = "Could not invalidate verification marker: " + ec.message(); break; }
-      gem16::compiler::Sha256 digest;
-      std::ifstream input(file.path, std::ios::binary);
-      std::uint64_t read = 0;
-      while (input && read < file.size && !cancel_.load()) {
-        input.read(buffer.data(), static_cast<std::streamsize>(
-            std::min<std::uint64_t>(buffer.size(), file.size - read)));
-        const auto count = input.gcount();
-        if (count > 0) {
-          digest.Update(buffer.data(), static_cast<std::size_t>(count));
-          read += static_cast<std::uint64_t>(count);
+      std::vector<char> buffer(8U * 1024U * 1024U);
+      std::set<std::filesystem::path> invalid_markers;
+      std::string failure;
+      std::uint64_t completed = 0;
+      for (const auto& file : files) {
+        if (cancel_.load()) break;
+        {
+          std::scoped_lock lock(mutex_);
+          state_.current_file = file.path.filename().string();
         }
-        std::scoped_lock lock(mutex_);
-        state_.verification_bytes = completed + read;
+        std::error_code ec;
+        std::filesystem::remove(file.marker, ec);
+        if (ec) {
+          failure = "Could not invalidate verification marker: " + ec.message();
+          break;
+        }
+        gem16::compiler::Sha256 digest;
+        std::ifstream input(file.path, std::ios::binary);
+        std::uint64_t read = 0;
+        while (input && read < file.size && !cancel_.load()) {
+          input.read(buffer.data(),
+                     static_cast<std::streamsize>(std::min<std::uint64_t>(
+                         buffer.size(), file.size - read)));
+          const auto count = input.gcount();
+          if (count > 0) {
+            digest.Update(buffer.data(), static_cast<std::size_t>(count));
+            read += static_cast<std::uint64_t>(count);
+          }
+          std::scoped_lock lock(mutex_);
+          state_.verification_bytes = completed + read;
+        }
+        if (cancel_.load()) break;
+        const bool valid = read == file.size && HasSize(file.path, file.size) &&
+                           digest.HexDigest() == file.hash;
+        if (!valid) {
+          invalid_markers.insert(file.marker);
+          std::filesystem::create_directories(file.marker.parent_path(), ec);
+          std::ofstream(
+              std::filesystem::path(file.marker.string() + ".damaged"))
+              << file.hash << '\n';
+          if (failure.empty())
+            failure =
+                "Size or SHA-256 verification failed: " + file.path.string();
+        } else if (!invalid_markers.contains(file.marker)) {
+          std::filesystem::remove(
+              std::filesystem::path(file.marker.string() + ".damaged"), ec);
+          std::filesystem::create_directories(file.marker.parent_path(), ec);
+          std::ofstream marker(file.marker, std::ios::trunc);
+          marker << file.hash << '\n';
+          if (ec || !marker)
+            failure =
+                "Could not write verification marker: " + file.marker.string();
+        }
+        completed += file.size;
       }
-      if (cancel_.load()) break;
-      const bool valid = read == file.size && HasSize(file.path, file.size) &&
-                         digest.HexDigest() == file.hash;
-      if (!valid) {
-        invalid_markers.insert(file.marker);
-        if (failure.empty()) failure = "Size or SHA-256 verification failed: " + file.path.string();
-      } else if (!invalid_markers.contains(file.marker)) {
-        std::filesystem::create_directories(file.marker.parent_path(), ec);
-        std::ofstream marker(file.marker, std::ios::trunc);
-        marker << file.hash << '\n';
-        if (ec || !marker) failure = "Could not write verification marker: " + file.marker.string();
+      // A bad detached view invalidates the shared marker even if another view
+      // passed.
+      for (const auto& marker : invalid_markers) {
+        std::error_code ec;
+        std::filesystem::remove(marker, ec);
       }
-      completed += file.size;
+      std::scoped_lock lock(mutex_);
+      for (const auto& profile : catalog_)
+        state_.profiles[ModelProfileIndex(profile.profile)] =
+            InspectProfile(profile, catalog_);
+      state_.error = std::move(failure);
+      state_.verification_status =
+          cancel_.load() ? "Verification cancelled"
+          : !state_.error.empty()
+              ? "Verification failed; reinstall the affected component"
+          : files.empty() ? "No installed files to verify"
+                          : "SHA-256 verification complete";
+      state_.current_file.clear();
+      state_.verifying = false;
+    } catch (const std::exception& e) {
+      std::scoped_lock lock(mutex_);
+      state_.verifying = false;
+      state_.error = e.what();
     }
-    // A bad detached view invalidates the shared marker even if another view passed.
-    for (const auto& marker : invalid_markers) {
-      std::error_code ec;
-      std::filesystem::remove(marker, ec);
-    }
-    std::scoped_lock lock(mutex_);
-    for (const auto& profile : catalog_)
-      state_.profiles[ModelProfileIndex(profile.profile)] = InspectProfile(profile);
-    state_.error = std::move(failure);
-    state_.verification_status = cancel_.load() ? "Verification cancelled" :
-        !state_.error.empty() ? "Verification failed; reinstall the affected component" :
-        files.empty() ? "No installed files to verify" : "SHA-256 verification complete";
-    state_.current_file.clear();
-    state_.verifying = false;
   });
 }
 
 void ModelManager::DownloadProfile(ModelProfile profile) {
   {
     std::scoped_lock lock(mutex_);
-    if (state_.downloading || state_.verifying) return;
-    const auto inspected = InspectProfile(CatalogForProfile(profile));
+    if (state_.Busy()) return;
+    const auto inspected =
+        InspectProfile(FindProfile(catalog_, profile), catalog_);
     state_.profiles[ModelProfileIndex(profile)] = inspected;
     state_.error.clear();
     if (!inspected.storage_available) {
@@ -370,19 +468,35 @@ void ModelManager::DownloadProfile(ModelProfile profile) {
   }
   cancel_.store(false);
   if (worker_.joinable()) worker_.join();
-  worker_ = std::jthread([this, profile] { DownloadWorker(profile); });
+  worker_ = std::jthread([this, profile] {
+    try {
+      DownloadWorker(profile);
+    } catch (const std::exception& e) {
+      std::scoped_lock lock(mutex_);
+      state_.downloading = false;
+      state_.error = e.what();
+      active_process_.reset();
+    }
+  });
 }
 
 void ModelManager::RemoveComponent(ModelProfile profile,
                                    ModelComponentKind kind) {
   std::scoped_lock lock(mutex_);
-  if (state_.downloading || state_.verifying) return;
+  if (state_.Busy()) return;
   const auto* profile_component =
-      ComponentForProfile(CatalogForProfile(profile), kind);
+      ComponentForProfile(FindProfile(catalog_, profile), kind);
   if (!profile_component) return;
+  for(const auto& other:catalog_)if(other.profile!=profile&&state_.For(other.profile).Ready())
+    for(const auto& shared:other.components)if(shared.catalog==profile_component->catalog){state_.error="This component is shared by another installed profile and was kept.";return;}
   const auto root = ComponentDirectory(*profile_component->catalog,
                                        HuggingFaceHubRoot());
   std::error_code error;
+  for(auto parent=root;!parent.empty()&&parent!=parent.root_path();parent=parent.parent_path()) {
+    const bool linked=std::filesystem::is_symlink(std::filesystem::symlink_status(parent,error));
+    if(linked || (error && error!=std::errc::no_such_file_or_directory)){state_.error="Refusing to remove a model view through an inaccessible or symlinked directory.";return;}
+    error.clear();
+  }
   for (const auto& file : profile_component->catalog->files) {
     std::filesystem::remove(root / file.path, error);
     if (error) {
@@ -392,7 +506,7 @@ void ModelManager::RemoveComponent(ModelProfile profile,
   }
   for (const auto& catalog : catalog_) {
     state_.profiles[ModelProfileIndex(catalog.profile)] =
-        InspectProfile(catalog);
+        InspectProfile(catalog, catalog_);
   }
   state_.error.clear();
 }
@@ -402,19 +516,20 @@ void ModelManager::Cancel() {
   std::shared_ptr<PlatformProcess> process;
   {
     std::scoped_lock lock(mutex_);
-    state_.cancel_requested = state_.downloading || state_.verifying;
+    state_.cancel_requested = state_.Busy();
     process = active_process_;
   }
   if (process) process->Stop();
 }
 
 void ModelManager::DownloadWorker(ModelProfile selected_profile) {
-  const ModelProfileCatalog& profile = CatalogForProfile(selected_profile);
+  const ModelProfileCatalog& profile = FindProfile(catalog_, selected_profile);
   const auto profile_index = ModelProfileIndex(selected_profile);
   const auto finish = [this](std::string error) {
     std::array<ProfileInstallState, kModelProfileCount> inspected{};
     for (const auto& catalog : catalog_) {
-      inspected[ModelProfileIndex(catalog.profile)] = InspectProfile(catalog);
+      inspected[ModelProfileIndex(catalog.profile)] =
+          InspectProfile(catalog, catalog_);
     }
     std::scoped_lock lock(mutex_);
     state_.downloading = false;
@@ -458,9 +573,19 @@ void ModelManager::DownloadWorker(ModelProfile selected_profile) {
         return;
       }
 
+      HubBlobLock blob_lock(HubBlobLockPath(file));
+      if (!blob_lock.Locked()) {
+        finish(
+            "This model file is in use by another cache operation; retry "
+            "shortly.");
+        return;
+      }
       bool verified = false;
       if (HasSize(blob, file.size)) {
-        verified = HasVerificationMarker(file) || FileSha256(blob) == file.sha256;
+        verified = (HasVerificationMarker(file) &&
+                    !std::filesystem::exists(
+                        std::filesystem::path(marker.string() + ".damaged"))) ||
+                   FileSha256(blob) == file.sha256;
       }
       if (!verified) {
         if (std::filesystem::exists(blob, error)) {
@@ -569,6 +694,8 @@ void ModelManager::DownloadWorker(ModelProfile selected_profile) {
         }
       }
       std::string link_error;
+      std::filesystem::remove(
+          std::filesystem::path(marker.string() + ".damaged"), error);
       const auto source_snapshot = SourceSnapshotPath(file);
       if (!LinkVerifiedFile(blob, source_snapshot, link_error)) {
         finish(link_error + " (" + std::string(file.path) + ")");
@@ -588,6 +715,93 @@ void ModelManager::DownloadWorker(ModelProfile selected_profile) {
     }
   }
   finish({});
+}
+
+const char* ComponentStatusLabel(ComponentInstallStatus status) {
+  switch (status) {
+    case ComponentInstallStatus::kMissing:
+      return "Missing";
+    case ComponentInstallStatus::kPartial:
+      return "Partial / resumable";
+    case ComponentInstallStatus::kUnverified:
+      return "Needs verification";
+    case ComponentInstallStatus::kDamaged:
+      return "Damaged / repair needed";
+    case ComponentInstallStatus::kVerified:
+      return "Verified";
+  }
+  return "Unknown";
+}
+void ModelManager::ReviewCache() {
+  {
+    std::scoped_lock lock(mutex_);
+    if (state_.Busy()) return;
+    state_.maintenance = true;
+    state_.cache_review_ready = false;
+    state_.cache_status = "Scanning shared-cache references...";
+  }
+  if (worker_.joinable()) worker_.join();
+  worker_ = std::jthread([this] {
+    try {
+      auto plan = InspectModelCache(catalog_);
+      std::scoped_lock lock(mutex_);
+      state_.cache_plan = std::move(plan);
+      state_.cache_review_ready = true;
+      state_.cache_status =
+          "Review complete. Referenced blobs and unknown cache files are "
+          "retained.";
+      state_.maintenance = false;
+    } catch (const std::exception& e) {
+      std::scoped_lock lock(mutex_);
+      state_.cache_status = e.what();
+      state_.maintenance = false;
+    }
+  });
+}
+void ModelManager::CleanCache() {
+  CacheCleanupPlan plan;
+  {
+    std::scoped_lock lock(mutex_);
+    if (state_.Busy() || !state_.cache_review_ready) return;
+    plan = state_.cache_plan;
+    state_.maintenance = true;
+    state_.cache_review_ready = false;
+    state_.cache_status = "Rechecking references and cleaning unused files...";
+  }
+  if (worker_.joinable()) worker_.join();
+  worker_ = std::jthread([this, plan = std::move(plan)] {
+    try {
+      const auto freed = CleanModelCache(plan, catalog_);
+      auto current = InspectModelCache(catalog_);
+      std::scoped_lock lock(mutex_);
+      state_.cache_plan = std::move(current);
+      state_.cache_status =
+          "Removed " + std::to_string(freed) +
+          " bytes. Changed, referenced or locked files were kept.";
+      state_.maintenance = false;
+      for (const auto& profile : catalog_)
+        state_.profiles[ModelProfileIndex(profile.profile)] =
+            InspectProfile(profile, catalog_);
+    } catch (const std::exception& e) {
+      std::scoped_lock lock(mutex_);
+      state_.cache_status = e.what();
+      state_.maintenance = false;
+    }
+  });
+}
+void ModelManager::RemoveProfile(ModelProfile profile) {
+  if (State().Busy()) return;
+  for (const auto& component : FindProfile(catalog_, profile).components) {
+    bool shared = false;
+    for (const auto& other : catalog_)
+      if (other.profile != profile && State().For(other.profile).Ready())
+        for (const auto& used : other.components)
+          if (used.catalog == component.catalog) shared = true;
+    if (!shared) {
+      RemoveComponent(profile, component.kind);
+      if (!State().error.empty()) return;
+    }
+  }
 }
 
 }  // namespace gem16::studio

@@ -1,11 +1,12 @@
 #include "settings.h"
 
-#include "model_catalog.h"
-
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <string_view>
+
+#include "model_catalog.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -247,6 +248,9 @@ StudioSettings LoadSettings() {
         saw_onboarding = true;
       }
       else if (key == "executable") result.server.executable = value;
+      else if (key == "previous_model_selection" &&
+               value.size() <= 128U * 1024U)
+        result.previous_model_selection = value;
       else if (key == "model_directory") result.server.model_directory = value;
       else if (key == "assistant_directory") result.server.assistant_directory = value;
       else if (key == "vision_directory") result.server.vision_directory = value;
@@ -254,6 +258,11 @@ StudioSettings LoadSettings() {
       else if (key == "host") result.server.host = value;
       else if (key == "port") result.server.port = std::stoi(value);
       else if (key == "max_context") result.server.max_context_tokens = std::stoll(value);
+      else if (key == "max_sessions")
+        result.server.max_sessions = std::clamp(std::stoi(value), 1, 2);
+      else if (key == "mtp_adaptive")
+        result.server.mtp_adaptive =
+            ParseBool(value, result.server.mtp_adaptive);
       else if (key == "mtp_draft_tokens") result.server.mtp_draft_tokens = std::stoi(value);
       else if (key == "vision_soft_token_budget") {
         const int budget = std::stoi(value);
@@ -284,28 +293,61 @@ StudioSettings LoadSettings() {
 bool SaveSettings(const StudioSettings& settings) {
   std::error_code error;
   std::filesystem::create_directories(SettingsPath().parent_path(), error);
-  std::ofstream output(SettingsPath(), std::ios::trunc);
+  if (error) return false;
+  const auto stamp = std::to_string(
+      std::chrono::steady_clock::now().time_since_epoch().count());
+  const auto temporary =
+      std::filesystem::path(SettingsPath().string() + "." + stamp + ".tmp");
+  std::ofstream output(temporary, std::ios::trunc);
   if (!output) return false;
   const ServerConfig& server = settings.server;
-  output << "onboarding_complete=" << (settings.onboarding_complete ? 1 : 0) << '\n'
+  output << "onboarding_complete=" << (settings.onboarding_complete ? 1 : 0)
+         << '\n'
+         << "previous_model_selection="
+         << EscapeLine(settings.previous_model_selection) << '\n'
          << "profile=" << ProfileWireName(server.profile) << '\n'
          << "executable=" << EscapeLine(server.executable) << '\n'
          << "model_directory=" << EscapeLine(server.model_directory) << '\n'
-         << "assistant_directory=" << EscapeLine(server.assistant_directory) << '\n'
+         << "assistant_directory=" << EscapeLine(server.assistant_directory)
+         << '\n'
          << "vision_directory=" << EscapeLine(server.vision_directory) << '\n'
          << "model_name=" << EscapeLine(server.model_name) << '\n'
          << "host=" << EscapeLine(server.host) << '\n'
          << "port=" << server.port << '\n'
          << "max_context=" << server.max_context_tokens << '\n'
+         << "max_sessions=" << server.max_sessions << '\n'
+         << "mtp_adaptive=" << (server.mtp_adaptive ? 1 : 0) << '\n'
          << "mtp_draft_tokens=" << server.mtp_draft_tokens << '\n'
-         << "vision_soft_token_budget=" << server.vision_soft_token_budget << '\n'
+         << "vision_soft_token_budget=" << server.vision_soft_token_budget
+         << '\n'
          << "greedy=" << (server.greedy ? 1 : 0) << '\n'
-         << "reasoning_effort=" << EscapeLine(settings.generation.reasoning_effort) << '\n'
-         << "max_output_tokens=" << settings.generation.max_output_tokens << '\n'
-         << "system_prompt=" << EscapeLine(settings.generation.system_prompt) << '\n'
+         << "reasoning_effort="
+         << EscapeLine(settings.generation.reasoning_effort) << '\n'
+         << "max_output_tokens=" << settings.generation.max_output_tokens
+         << '\n'
+         << "system_prompt=" << EscapeLine(settings.generation.system_prompt)
+         << '\n'
          << "dark_theme=" << (settings.dark_theme ? 1 : 0) << '\n';
   output << "ui_scale=" << settings.ui_scale << '\n';
-  return static_cast<bool>(output);
+  output.close();
+  if (!output) {
+    std::filesystem::remove(temporary, error);
+    return false;
+  }
+#ifdef _WIN32
+  if (!MoveFileExW(temporary.c_str(), SettingsPath().c_str(),
+                   MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+    std::filesystem::remove(temporary, error);
+    return false;
+  }
+#else
+  std::filesystem::rename(temporary, SettingsPath(), error);
+  if (error) {
+    std::filesystem::remove(temporary, error);
+    return false;
+  }
+#endif
+  return true;
 }
 
 }  // namespace gem16::studio

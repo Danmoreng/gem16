@@ -11,6 +11,7 @@ void ApplyChatEvent(ChatMessage& message, const ChatEvent& event) {
     case ChatEvent::Kind::kReasoning: message.reasoning += event.value; break;
     case ChatEvent::Kind::kError:
       message.error = true;
+      message.interrupted = false;
       message.error_message = event.value;
       message.streaming = false;
       break;
@@ -18,6 +19,7 @@ void ApplyChatEvent(ChatMessage& message, const ChatEvent& event) {
       message.streaming = false;
       if (event.value == "cancelled") {
         message.error = true;
+        message.interrupted = true;
         message.error_message = "Generation stopped.";
       }
       break;

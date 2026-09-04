@@ -32,6 +32,7 @@ class StudioApp final {
   [[nodiscard]] bool DarkTheme() const { return settings_.dark_theme; }
 
  private:
+  friend struct StudioAppTestAccess;
   void ApplyTheme() const;
   void DrainChatEvents();
   void DrawSidebar();
@@ -60,6 +61,9 @@ class StudioApp final {
   void AddAttachments(const std::vector<std::filesystem::path>& paths);
   void FinishRecording();
   void SelectProfile(ModelProfile profile);
+  void ActivateModel(const ServerConfig& config, bool keep_chat);
+  void RestoreChatModel();
+  bool ModelSelectionReady(const ServerConfig& config) const;
   void ApplyUiScale(float configured_scale);
   void SyncBuffersFromSettings();
   void SyncSettingsFromBuffers();
@@ -126,6 +130,8 @@ class StudioApp final {
   std::optional<PerformanceStats> performance_;
   bool retry_requested_ = false;
   std::optional<ModelProfile> pending_profile_;
+  std::optional<ServerConfig> pending_chat_model_;
+  std::string model_selection_error_;
 };
 
 }  // namespace gem16::studio

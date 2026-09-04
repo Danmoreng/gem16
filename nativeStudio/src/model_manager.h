@@ -1,9 +1,5 @@
 #pragma once
 
-#include "model_catalog.h"
-#include "platform_process.h"
-#include "types.h"
-
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -12,9 +8,26 @@
 #include <string>
 #include <thread>
 
+#include "model_cache.h"
+#include "model_catalog.h"
+#include "platform_process.h"
+#include "types.h"
+
 namespace gem16::studio {
 
+enum class ComponentInstallStatus {
+  kMissing,
+  kPartial,
+  kUnverified,
+  kDamaged,
+  kVerified
+};
+const char* ComponentStatusLabel(ComponentInstallStatus status);
 struct ProfileInstallState {
+  std::array<ComponentInstallStatus, kModelComponentKindCount>
+      component_status{};
+  bool all_ready = false;
+  std::uint64_t unique_bytes = 0, shared_bytes = 0;
   std::array<bool, kModelComponentKindCount> component_ready{};
   bool required_ready = false;
   bool storage_available = false;
@@ -32,6 +45,11 @@ struct ProfileInstallState {
 
 struct ModelInstallState {
   std::array<ProfileInstallState, kModelProfileCount> profiles{};
+  bool maintenance = false;
+  bool cache_review_ready = false;
+  CacheCleanupPlan cache_plan;
+  std::string cache_status;
+  bool Busy() const { return downloading || verifying || maintenance; }
   bool downloading = false;
   bool verifying = false;
   std::uint64_t verification_bytes = 0;
@@ -49,8 +67,10 @@ struct ModelInstallState {
 
 class ModelManager final {
  public:
-  // Catalog storage must outlive this manager and its worker. Production uses the static lock-derived catalog.
-  explicit ModelManager(std::span<const ModelProfileCatalog> catalog = ModelCatalog());
+  // Catalog storage must outlive this manager and its worker. Production uses
+  // the static lock-derived catalog.
+  explicit ModelManager(
+      std::span<const ModelProfileCatalog> catalog = ModelCatalog());
   ~ModelManager();
   ModelManager(const ModelManager&) = delete;
   ModelManager& operator=(const ModelManager&) = delete;
@@ -59,6 +79,9 @@ class ModelManager final {
   void Refresh();
   void VerifyInstalled();
   void DownloadProfile(ModelProfile profile);
+  void ReviewCache();
+  void CleanCache();
+  void RemoveProfile(ModelProfile profile);
   void RemoveComponent(ModelProfile profile, ModelComponentKind kind);
   void Cancel();
 

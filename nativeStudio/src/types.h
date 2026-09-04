@@ -56,6 +56,7 @@ struct GenerationConfig {
 struct StudioSettings {
   ServerConfig server;
   GenerationConfig generation;
+  std::string previous_model_selection;
   bool dark_theme = true;
   bool onboarding_complete = false;
   // Zero selects the platform-aware automatic scale.
@@ -110,6 +111,7 @@ struct ChatAttempt {
   std::string content, reasoning, error_message, generation;
   std::int64_t created = 0;
   bool error = false;
+  bool interrupted = false;
 };
 
 struct ChatMessage {
@@ -123,6 +125,7 @@ struct ChatMessage {
   std::string generation{};
   std::int64_t created = 0;
   std::vector<ChatAttempt> attempts{};
+  bool interrupted = false;
 };
 
 struct ChatEvent {

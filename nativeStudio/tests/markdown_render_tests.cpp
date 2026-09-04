@@ -77,6 +77,8 @@ void Screenshot(const char* path, const gem16::studio::DecodedImage* svg = nullp
 }
 }
 
+void CaptureStudioScreenshot(const char* path) { Screenshot(path); }
+
 bool TestExtendedMarkdown() {
   using namespace gem16::studio;
   using namespace gem16::studio::markdown;

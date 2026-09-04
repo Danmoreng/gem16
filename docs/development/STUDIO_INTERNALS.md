@@ -202,3 +202,22 @@ as deprecated evidence in [`legacy/KOTLIN_COMPOSE_STUDIO.md`](../legacy/KOTLIN_C
   native slice.
 - Closing or cancelling a stream closes the client connection; the server's existing cancellation and session
   lifecycle rules remain authoritative.
+
+## Persistence and model lifecycle tests
+
+The [storage guide](../STUDIO_STORAGE.md) documents SQLite, search, exports and restore.
+Native host fixtures now cover component states, local repair without downloading,
+shared-reference/lock-aware cleanup, stale cleanup previews, model selection rollback,
+and rejection of non-catalog revisions. The real Studio lifecycle test restores and
+renames a saved chat and checks that temporary chats never reach SQLite. It emits
+`studio-chat-preview.bmp` and `studio-models-preview.bmp` alongside the existing
+Markdown screenshot.
+
+Run `ctest --test-dir build/native-studio --output-on-failure` after building. The
+host, Studio lifecycle and Markdown groups run in separate processes. The pinned
+MicroTeX release cannot safely reinitialize after `LaTeX::release()`: it retains
+freed global pointers and `init()` returns early. Studio now rejects a second math-font
+initialization before mutation; a test exercises that guard. Linux host tests enforce
+a 2 GiB virtual-memory cap; all three groups have a 60-second timeout. This prevents a
+failing renderer fixture from exhausting the desktop's memory. The 2026-09-04 failure
+and bounded rerun are recorded in `artifacts/studio/storage-lifecycle-2026-09-04.json`.

@@ -41,6 +41,8 @@ set(STUDIO_SOURCES
   src/media_loader.cpp
   src/model_catalog.cpp
   src/model_manager.cpp
+    src/model_cache.cpp
+    src/model_selection.cpp
   src/platform_process.cpp
   src/platform_ui.cpp
   src/selectable_text.cpp
@@ -136,10 +138,13 @@ if(BUILD_TESTING)
   add_executable(gem16-studio-tests
     tests/studio_tests.cpp
     tests/chat_store_tests.cpp
+    tests/studio_lifecycle_tests.cpp
+    src/app.cpp
+    src/audio_recorder.cpp
     tests/markdown_render_tests.cpp
     src/api_client.cpp
     src/chat_history.cpp
-  src/chat_store.cpp
+    src/chat_store.cpp
     src/fonts.cpp
     src/image_texture.cpp
     src/markdown.cpp
@@ -149,6 +154,8 @@ if(BUILD_TESTING)
     src/media_loader.cpp
     src/model_catalog.cpp
     src/model_manager.cpp
+    src/model_cache.cpp
+    src/model_selection.cpp
     src/platform_process.cpp
     src/platform_ui.cpp
     src/selectable_text.cpp
@@ -168,11 +175,13 @@ if(BUILD_TESTING)
     "${GEM16_ROOT}/src"
     "${GEM16_ROOT}/third_party/cpp-httplib"
     "${GEM16_ROOT}/third_party/stb"
+    "${GEM16_ROOT}/third_party/miniaudio"
     "${IMGUI_DIR}"
   )
   studio_markdown_dependencies(gem16-studio-tests)
   studio_svg_dependencies(gem16-studio-tests)
   target_compile_definitions(gem16-studio-tests PRIVATE
+    GEM16_VERSION_STRING="${GEM16_VERSION}"
     IMGUI_USE_WCHAR32
     CPPHTTPLIB_TCP_NODELAY=1
     GEM16_REPOSITORY_ROOT="${GEM16_ROOT}"
@@ -183,6 +192,7 @@ if(BUILD_TESTING)
     target_compile_options(gem16-studio-tests PRIVATE /utf-8)
     target_link_libraries(gem16-studio-tests PRIVATE d3d11 d3dcompiler ws2_32 comdlg32 shell32 ole32)
     target_compile_definitions(gem16-studio-tests PRIVATE
+    GEM16_VERSION_STRING="${GEM16_VERSION}"
       UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
     set_target_properties(gem16-studio-tests PROPERTIES
       MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
@@ -195,4 +205,7 @@ if(BUILD_TESTING)
       -Wno-maybe-uninitialized)
   endif()
   add_test(NAME gem16-native-studio-host COMMAND gem16-studio-tests)
+  add_test(NAME gem16-native-studio-lifecycle COMMAND gem16-studio-tests --studio-lifecycle)
+  add_test(NAME gem16-native-studio-markdown COMMAND gem16-studio-tests --markdown)
+  set_tests_properties(gem16-native-studio-host gem16-native-studio-lifecycle gem16-native-studio-markdown PROPERTIES TIMEOUT 60)
 endif()

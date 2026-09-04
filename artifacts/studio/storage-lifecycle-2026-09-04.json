@@ -1,0 +1,33 @@
+{
+  "date": "2026-09-05",
+  "scope": "Native Studio persistence and model lifecycle; host only",
+  "base_commit": "2a63ed040f9100e508c03e8fc6559b68626859cf",
+  "incident": {
+    "local_time": "2026-09-04T23:49:04+02:00",
+    "killed_process": "gem16-studio-tests",
+    "anonymous_rss_kib": 58998804,
+    "swap_kib": 0,
+    "evidence": "Linux kernel OOM event and app scope termination; bounded 2 GiB reproduction backtrace in tex::DefaultTeXFont::getChar",
+    "cause": "New Studio GUI fixture reinitialized the pinned MicroTeX globals before Markdown fixtures; release leaves dangling pointers and init returns early.",
+    "fix": "Reject repeated math-font initialization before mutation; independent GUI/font fixtures in separate CTest processes; Linux test process address space capped at 2 GiB and all three CTests capped at 60 seconds."
+  },
+  "validation": {
+    "build": "cmake --build build/native-studio --parallel 2",
+    "tests": "ctest --test-dir build/native-studio --output-on-failure",
+    "groups": [
+      "gem16-native-studio-host",
+      "gem16-native-studio-lifecycle",
+      "gem16-native-studio-markdown"
+    ],
+    "result": "3/3 passed",
+    "measured_elapsed_seconds": 0.41,
+    "measured_maximum_child_rss_kib": 52804
+  },
+  "windows_followup": {
+    "prior_run_id": 33921818508,
+    "observed_failure": "Attachment temporary-file creation",
+    "diagnosis": "Fixture temporary pathname reached 266 characters; shorten staging names and export/backup directory IDs.",
+    "verification": "Windows CI must verify the final commit; no live GPU or clean-machine qualification claimed."
+  },
+  "model_policy": "Existing immutable catalog pins retained. No normalized Hub-layout migration or CUDA/runtime changes."
+}
