@@ -280,6 +280,17 @@ Result<ParsedMessage> ParseMessage(const json::Value& value) {
            std::move(arguments).value()}));
     }
   }
+  // Empty content and null/omitted content are the same for a tool-only
+  // assistant. Preserve the resident representation on an API round trip.
+  if (message.role == "assistant" &&
+      std::any_of(message.content.begin(), message.content.end(),
+                  [](const auto& part) {
+                    return part.kind == GenerationContentKind::kToolCall;
+                  })) {
+    std::erase_if(message.content, [](const auto& part) {
+      return part.kind == GenerationContentKind::kText && part.text.empty();
+    });
+  }
   if (message.content.empty()) {
     return Invalid("message must contain text or tool calls");
   }

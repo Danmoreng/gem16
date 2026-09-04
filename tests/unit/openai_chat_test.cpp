@@ -163,6 +163,20 @@ void RunOpenAiChatTests() {
                     .tool_result.output == "Sunny");
   }
 
+  for (const auto content : {R"("content":"",)", R"("content":null,)", ""}) {
+    auto tool_only = gem16::server::ParseChatCompletionsRequest(
+        std::string(
+            R"({"model":"gem16","messages":[{"role":"user","content":"read"},{"role":"assistant",)") +
+        content +
+        R"("tool_calls":[{"id":"call_1","type":"function","function":{"name":"get_weather","arguments":"{\"location\":\"Berlin\"}"}}]},{"role":"tool","tool_call_id":"call_1","content":"Sunny"}]})");
+    GEM16_CHECK(tool_only.ok());
+    if (tool_only.ok() && continuation.ok()) {
+      GEM16_CHECK(gem16::internal::ResidentMessageEquivalent(
+          continuation.value().generation.messages[1],
+          tool_only.value().generation.messages[1]));
+    }
+  }
+
   GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
                    R"({"model":"gem16","messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"x"}}]}]})")
                    .ok());
