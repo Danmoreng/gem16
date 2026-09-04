@@ -455,6 +455,7 @@ class ArgumentDslParser {
   Result<std::string> Parse() {
     auto value = ParseValue();
     if (!value.ok()) return value.status();
+    SkipWhitespace();
     if (position_ != input_.size()) {
       return ParseError("Gemma tool arguments contain trailing data");
     }
@@ -462,28 +463,45 @@ class ArgumentDslParser {
   }
 
  private:
-  Result<std::string> ParseValue() {
+  void SkipWhitespace() {
+    while (position_ < input_.size() &&
+           (input_[position_] == ' ' || input_[position_] == '\t' ||
+            input_[position_] == '\r' || input_[position_] == '\n'))
+      ++position_;
+  }
+
+  Result<std::string> ParseValue(std::size_t depth = 0U) {
+    if (depth > 32U)
+      return ParseError("Gemma tool arguments exceed the nesting limit");
+    SkipWhitespace();
     if (position_ >= input_.size()) {
       return ParseError("Gemma tool arguments contain an incomplete value");
     }
     if (input_.substr(position_).starts_with(kQuote)) return ParseString();
-    if (input_[position_] == '{') return ParseObject();
-    if (input_[position_] == '[') return ParseArray();
+    if (input_[position_] == '{') return ParseObject(depth);
+    if (input_[position_] == '[') return ParseArray(depth);
     const std::size_t begin = position_;
-    while (position_ < input_.size() && input_[position_] != ',' && input_[position_] != '}' &&
-           input_[position_] != ']') {
+    while (position_ < input_.size() && input_[position_] != ',' &&
+           input_[position_] != '}' && input_[position_] != ']') {
       ++position_;
     }
     if (begin == position_) {
       return ParseError("Gemma tool arguments contain an empty value");
     }
-    const std::string_view literal = input_.substr(begin, position_ - begin);
+    auto end = position_;
+    while (end > begin &&
+           (input_[end - 1U] == ' ' || input_[end - 1U] == '\t' ||
+            input_[end - 1U] == '\r' || input_[end - 1U] == '\n'))
+      --end;
+    const std::string_view literal = input_.substr(begin, end - begin);
     if (literal == "true" || literal == "false" || literal == "null") {
       return std::string(literal);
     }
     double number = 0.0;
-    const auto parsed = std::from_chars(literal.data(), literal.data() + literal.size(), number);
-    if (parsed.ec != std::errc{} || parsed.ptr != literal.data() + literal.size()) {
+    const auto parsed = std::from_chars(
+        literal.data(), literal.data() + literal.size(), number);
+    if (parsed.ec != std::errc{} ||
+        parsed.ptr != literal.data() + literal.size()) {
       return ParseError("Gemma tool arguments contain an unsupported literal");
     }
     return std::string(literal);
@@ -502,22 +520,29 @@ class ArgumentDslParser {
     return result;
   }
 
-  Result<std::string> ParseObject() {
+  Result<std::string> ParseObject(std::size_t depth) {
     ++position_;
+    SkipWhitespace();
     std::string result = "{";
     bool first = true;
     while (position_ < input_.size() && input_[position_] != '}') {
       const std::size_t key_begin = position_;
       while (position_ < input_.size() &&
-             (std::isalnum(static_cast<unsigned char>(input_[position_])) || input_[position_] == '_')) {
+             (std::isalnum(static_cast<unsigned char>(input_[position_])) ||
+              input_[position_] == '_')) {
         ++position_;
       }
-      if (key_begin == position_ || position_ >= input_.size() || input_[position_] != ':') {
+      const auto key_end = position_;
+      SkipWhitespace();
+      if (key_begin == key_end || position_ >= input_.size() ||
+          input_[position_] != ':') {
         return ParseError("Gemma tool arguments contain an invalid object key");
       }
-      const std::string_view key = input_.substr(key_begin, position_ - key_begin);
+      const std::string_view key =
+          input_.substr(key_begin, key_end - key_begin);
       ++position_;
-      auto value = ParseValue();
+      auto value = ParseValue(depth + 1U);
+      SkipWhitespace();
       if (!value.ok()) return value.status();
       if (!first) result.push_back(',');
       first = false;
@@ -527,8 +552,10 @@ class ArgumentDslParser {
       result.append(value.value());
       if (position_ < input_.size() && input_[position_] == ',') {
         ++position_;
+        SkipWhitespace();
       } else if (position_ >= input_.size() || input_[position_] != '}') {
-        return ParseError("Gemma tool arguments contain an unterminated object");
+        return ParseError(
+            "Gemma tool arguments contain an unterminated object");
       }
     }
     if (position_ >= input_.size()) {
@@ -539,18 +566,21 @@ class ArgumentDslParser {
     return result;
   }
 
-  Result<std::string> ParseArray() {
+  Result<std::string> ParseArray(std::size_t depth) {
     ++position_;
+    SkipWhitespace();
     std::string result = "[";
     bool first = true;
     while (position_ < input_.size() && input_[position_] != ']') {
-      auto value = ParseValue();
+      auto value = ParseValue(depth + 1U);
+      SkipWhitespace();
       if (!value.ok()) return value.status();
       if (!first) result.push_back(',');
       first = false;
       result.append(value.value());
       if (position_ < input_.size() && input_[position_] == ',') {
         ++position_;
+        SkipWhitespace();
       } else if (position_ >= input_.size() || input_[position_] != ']') {
         return ParseError("Gemma tool arguments contain an unterminated array");
       }

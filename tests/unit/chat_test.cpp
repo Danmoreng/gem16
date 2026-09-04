@@ -7,6 +7,7 @@
 #include "runtime/chat_internal.h"
 #include "cuda/engine/media_chunk_plan.h"
 #include "test.h"
+#include "util/json.h"
 
 namespace {
 
@@ -124,6 +125,52 @@ void TestIncrementalGemmaToolCallParser() {
   GEM16_CHECK(parser.visible_text() == "Answer  tail");
   GEM16_CHECK(parser.tool_calls().size() == 1U);
   GEM16_CHECK(parser.tool_calls().front().arguments_json == R"({"location":"Berlin","days":[1,2]})");
+
+  // Model-generated code edits may use whitespace between DSL fields. It is
+  // syntax outside the quote sentinels and source content inside them.
+  const std::string svg = "<svg>\n  <path d=\"M0 0 L1 1\"/>\n</svg>";
+  const std::string spaced =
+      "<|tool_call>call:canvas_edit{revision:1,old_text:<|\"|>old<|\"|> \n, "
+      "new_text : <|\"|>" +
+      svg + "<|\"|> \t, flags: [true , null, { count : 2 } ] } \n<tool_call|>";
+  for (const std::size_t chunk : {1U, 7U, 1024U}) {
+    gem16::internal::GemmaToolCallParser edit;
+    bool ok = true;
+    for (std::size_t at = 0; at < spaced.size(); at += chunk) {
+      auto parsed = edit.Push(std::string_view(spaced).substr(at, chunk),
+                              at + chunk >= spaced.size());
+      ok &= parsed.ok();
+      if (!parsed.ok()) break;
+    }
+    GEM16_CHECK(ok);
+    if (ok) {
+      auto args = gem16::json::Parse(edit.tool_calls().front().arguments_json);
+      GEM16_CHECK(args.ok());
+      if (args.ok())
+        GEM16_CHECK(args.value().find("new_text")->as_string() == svg);
+    }
+  }
+  for (const auto bad :
+       {"<|tool_call>call:x{a:<|\"|>text<|\"|> <tool_call|>",
+        "<|tool_call>call:x{a:<|\"|>text<|\"|> b:2}<tool_call|>",
+        "<|tool_call>call:x{a:<|\"|>text}<tool_call|>"}) {
+    gem16::internal::GemmaToolCallParser broken;
+    GEM16_CHECK(!broken.Push(bad, true).ok());
+    GEM16_CHECK(broken.tool_calls().empty());
+  }
+
+  gem16::internal::GemmaToolCallParser too_deep;
+  GEM16_CHECK(!too_deep
+                   .Push("<|tool_call>call:x{a:" + std::string(40, '[') + "0" +
+                             std::string(40, ']') + "}<tool_call|>",
+                         true)
+                   .ok());
+  gem16::internal::GemmaToolCallParser empty_spaced;
+  GEM16_CHECK(
+      empty_spaced
+          .Push("<|tool_call>call:x{ a: [ \r\n ], b: { \t } }<tool_call|>",
+                true)
+          .ok());
 
   gem16::internal::GemmaToolCallParser malformed;
   GEM16_CHECK(!malformed.Push("<|tool_call>call:x{a:1}", true).ok());
