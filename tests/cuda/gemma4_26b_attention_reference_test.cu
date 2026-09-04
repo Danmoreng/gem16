@@ -824,6 +824,115 @@ void TestDirectKvEpilogue() {
   std::cout << "26B ordinary KV epilogue: exact Q/cache bytes and graph replay checked\n";
 }
 
+void TestMtpKvEpilogue() {
+  using namespace gem16::internal;
+  constexpr std::uint64_t tokens = 3U;
+  for (const std::uint64_t width : {256U, 512U}) {
+    const std::uint64_t heads = width == 256U ? 8U : 2U;
+    const double rotary = width == 256U ? 1.0 : 0.25;
+    const std::uint64_t q_elements = tokens * 16U * width;
+    const std::uint64_t kv_elements = tokens * heads * width;
+    DeviceBuffer<float> q(q_elements), k(kv_elements), v(kv_elements),
+        qr(q_elements), qc(q_elements), kn(kv_elements), vn(kv_elements),
+        cosine(tokens * width / 2U), sine(tokens * width / 2U);
+    DeviceBuffer<std::uint16_t> norm(width), scales(2U);
+    DeviceBuffer<std::uint8_t> kr(kv_elements), vr(kv_elements),
+        kc(kv_elements), vc(kv_elements);
+    auto upload = [](auto* destination, const auto& host) {
+      CHECK(CudaOk(cudaMemcpy(destination, host.data(),
+                              host.size() * sizeof(host[0]),
+                              cudaMemcpyHostToDevice),
+                   "upload fixed-depth epilogue fixture"));
+    };
+    std::vector<std::uint16_t> weights(width);
+    for (std::size_t index = 0; index < weights.size(); ++index) {
+      weights[index] =
+          Bf16(0.25F + static_cast<float>((index * 7U) % 23U) * 0.09F);
+    }
+    upload(norm.get(), weights);
+    for (int fixture = 0; fixture < 3; ++fixture) {
+      for (auto* input : {&q, &k, &v}) {
+        std::vector<float> values(input->elements());
+        for (std::size_t index = 0; index < values.size(); ++index) {
+          values[index] =
+              fixture == 0
+                  ? 0.0F
+                  : std::cos(static_cast<float>(index * 17U + 11U)) *
+                        (fixture == 1 ? 0.912345F : 96.03125F);
+        }
+        upload(input->get(), values);
+      }
+      const std::array<std::uint16_t, 2> scale_values{
+          Bf16(fixture == 2 ? 0.002F : 0.625F),
+          Bf16(fixture == 2 ? 0.004F : 1.375F)};
+      upload(scales.get(), scale_values);
+      CHECK(LaunchRotaryEmbeddingTableBatch(
+                cosine.get(), sine.get(), tokens,
+                static_cast<std::uint64_t>(rotary * (width / 2U)), width,
+                16383U, width == 256U ? 10000.0 : 1000000.0, 1.0, nullptr)
+                .ok());
+      CHECK(LaunchProjectionRmsNormRotaryBf16Batch(
+                q.get(), norm.get(), qr.get(), k.get(), norm.get(), kn.get(),
+                cosine.get(), sine.get(), tokens, 16U, heads, width, rotary,
+                1.0e-6F, nullptr)
+                .ok());
+      CHECK(LaunchRmsNormBf16(v.get(), nullptr, vn.get(), tokens * heads,
+                              width, 1.0e-6F, nullptr)
+                .ok());
+      CHECK(LaunchQuantizeKvFp8Batch(
+                kn.get(), vn.get(), kr.get(), vr.get(), scales.get(),
+                scales.get() + 1U, tokens, heads * width, nullptr)
+                .ok());
+      cudaStream_t stream = nullptr;
+      cudaGraph_t graph = nullptr;
+      cudaGraphExec_t executable = nullptr;
+      CHECK(CudaOk(cudaDeviceSynchronize(), "finish fixed-depth reference"));
+      CHECK(CudaOk(cudaStreamCreate(&stream), "create fixed-depth stream"));
+      CHECK(CudaOk(cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal),
+                   "capture fixed-depth epilogue"));
+      CHECK(LaunchGemma4Moe26BMtpKvEpilogue(
+                q.get(), norm.get(), qc.get(), k.get(), norm.get(), v.get(),
+                cosine.get(), sine.get(), kc.get(), vc.get(), scales.get(),
+                scales.get() + 1U, tokens, heads, width, rotary, 1.0e-6F,
+                stream)
+                .ok());
+      CHECK(CudaOk(cudaStreamEndCapture(stream, &graph),
+                   "end fixed-depth capture"));
+      CHECK(CudaOk(cudaGraphInstantiate(&executable, graph, 0),
+                   "instantiate fixed-depth epilogue"));
+      for (int repeat = 0; repeat < 2; ++repeat) {
+        CHECK(CudaOk(cudaGraphLaunch(executable, stream),
+                     "replay fixed-depth epilogue"));
+      }
+      CHECK(CudaOk(cudaStreamSynchronize(stream), "finish fixed-depth epilogue"));
+      for (const auto pair : {std::pair{kr.get(), kc.get()},
+                              std::pair{vr.get(), vc.get()}}) {
+        std::vector<std::uint8_t> reference(kv_elements), candidate(kv_elements);
+        CHECK(CudaOk(cudaMemcpy(reference.data(), pair.first, reference.size(),
+                                cudaMemcpyDeviceToHost),
+                     "read fixed-depth reference"));
+        CHECK(CudaOk(cudaMemcpy(candidate.data(), pair.second, candidate.size(),
+                                cudaMemcpyDeviceToHost),
+                     "read fixed-depth fused output"));
+        CHECK(reference == candidate);
+      }
+      std::vector<float> reference(q_elements), candidate(q_elements);
+      CHECK(CudaOk(cudaMemcpy(reference.data(), qr.get(), qr.bytes(),
+                              cudaMemcpyDeviceToHost),
+                   "read fixed-depth reference Q"));
+      CHECK(CudaOk(cudaMemcpy(candidate.data(), qc.get(), qc.bytes(),
+                              cudaMemcpyDeviceToHost),
+                   "read fixed-depth fused Q"));
+      CHECK(std::memcmp(reference.data(), candidate.data(), qr.bytes()) == 0);
+      CHECK(CudaOk(cudaGraphExecDestroy(executable),
+                   "destroy fixed-depth executable"));
+      CHECK(CudaOk(cudaGraphDestroy(graph), "destroy fixed-depth graph"));
+      CHECK(CudaOk(cudaStreamDestroy(stream), "destroy fixed-depth stream"));
+    }
+  }
+  std::cout << "26B fixed-depth KV epilogue: exact Q/staging bytes and graph replay checked\n";
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -833,6 +942,10 @@ int main(int argc, char** argv) {
     return 1;
   }
   TestDirectKvEpilogue();
+  TestMtpKvEpilogue();
+  if (argc == 2 && std::strcmp(argv[1], "--mtp-kv-epilogue-only") == 0) {
+    return failures == 0 ? 0 : 1;
+  }
   if (argc == 2 && std::strcmp(argv[1], "--kv-epilogue-only") == 0) {
     return failures == 0 ? 0 : 1;
   }

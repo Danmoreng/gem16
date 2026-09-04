@@ -666,20 +666,12 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
         t.rope_scaling_factor, stream);
   }
   if (!status.ok()) return status;
-  status = LaunchProjectionRmsNormRotaryBf16Batch(
+  status = LaunchGemma4Moe26BMtpKvEpilogue(
       x.query_raw, w.query_norm_bf16, x.query_normalized, x.key_raw,
-      w.key_norm_bf16, x.key_normalized, x.rotary_cosine, x.rotary_sine,
-      tokens, t.query_heads, t.kv_heads, t.head_dimension, t.rotary_factor,
-      epsilon, stream);
-  if (!status.ok()) return status;
-  status = LaunchRmsNormBf16(x.value_raw, nullptr, x.value_normalized,
-                             tokens * t.kv_heads, t.head_dimension,
-                             epsilon, stream);
-  if (!status.ok()) return status;
-  status = LaunchQuantizeKvFp8Batch(
-      x.key_normalized, x.value_normalized, x.staged_key_fp8,
-      x.staged_value_fp8, w.key_cache_scale_bf16,
-      w.value_cache_scale_bf16, tokens, kv_elements, stream);
+      w.key_norm_bf16, x.value_raw, x.rotary_cosine, x.rotary_sine,
+      x.staged_key_fp8, x.staged_value_fp8, w.key_cache_scale_bf16,
+      w.value_cache_scale_bf16, tokens, t.kv_heads, t.head_dimension,
+      t.rotary_factor, epsilon, stream);
   if (!status.ok()) return status;
 
   const bool exact_shared_fixed_attention =

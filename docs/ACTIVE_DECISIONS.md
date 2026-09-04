@@ -91,7 +91,10 @@ experiment (including the frozen Trellis35 tuning restriction). The 220/250
 token/s targets remain closed. Prefill, T3 speculative cache visibility/rollback
 and 12B dispatch remain unchanged. Per follow-up owner direction, initial
 performance checks use one warmup and three measured runs per variant, beginning
-with ordinary decode; later D2 optimization remains a separate bounded step.
+with ordinary decode. A further owner direction authorizes and, after the
+positive exact-output screen, accepts the corresponding fixed-D2/T3 staging
+fusion for NVFP4 and Trellis35. The speculative cache append, backup, rollback
+and per-row visibility remain separate and unchanged.
 The owner's follow-up accepts the positive small-sample result and integrates
 the exact-output ordinary fusion for both formats. It changes no product
 capability, checkpoint or quality claim; wider performance publication still

@@ -312,6 +312,100 @@ __global__ void ProjectionRmsNormRotaryBf16BatchControlledKernel(
       second_value * cosine + first_value * sine));
 }
 
+__global__ void Gemma4Moe26BMtpKvEpilogueKernel(
+    const float* query, const std::uint16_t* query_norm,
+    float* normalized_query, const float* key,
+    const std::uint16_t* key_norm, const float* value,
+    const float* rotary_cosine, const float* rotary_sine,
+    std::uint8_t* staged_key, std::uint8_t* staged_value,
+    const std::uint16_t* key_scale, const std::uint16_t* value_scale,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t rotating_pairs, float epsilon) {
+  constexpr std::uint64_t kQueryHeads = 16U;
+  const std::uint64_t heads_per_token = kQueryHeads + 2U * kv_heads;
+  const std::uint64_t token = blockIdx.x / heads_per_token;
+  const std::uint64_t combined_head = blockIdx.x % heads_per_token;
+  if (combined_head >= kQueryHeads + kv_heads) {
+    const std::uint64_t head = combined_head - kQueryHeads - kv_heads;
+    const std::uint64_t base = (token * kv_heads + head) * head_dimension;
+    float squared_sum = 0.0F;
+    for (std::uint64_t index = threadIdx.x; index < head_dimension;
+         index += blockDim.x) {
+      squared_sum = fmaf(value[base + index], value[base + index],
+                         squared_sum);
+    }
+    const float inverse_rms =
+        rsqrtf(BlockSum(squared_sum) / static_cast<float>(head_dimension) +
+               epsilon);
+    const float scale =
+        static_cast<float>(__ushort_as_bfloat16(value_scale[0]));
+    for (std::uint64_t index = threadIdx.x; index < head_dimension;
+         index += blockDim.x) {
+      const float rounded = static_cast<float>(
+          __float2bfloat16_rn(value[base + index] * inverse_rms));
+      staged_value[base + index] = __nv_fp8_e4m3(rounded / scale).__x;
+    }
+    return;
+  }
+
+  const bool is_query = combined_head < kQueryHeads;
+  const std::uint64_t heads = is_query ? kQueryHeads : kv_heads;
+  const std::uint64_t head =
+      is_query ? combined_head : combined_head - kQueryHeads;
+  const float* input = is_query ? query : key;
+  const std::uint16_t* weight = is_query ? query_norm : key_norm;
+  const std::uint64_t base = (token * heads + head) * head_dimension;
+  float squared_sum = 0.0F;
+  for (std::uint64_t index = threadIdx.x; index < head_dimension;
+       index += blockDim.x) {
+    const float rounded = LoadProjectionBoundary(input, base + index);
+    squared_sum = fmaf(rounded, rounded, squared_sum);
+  }
+  const float inverse_rms =
+      rsqrtf(BlockSum(squared_sum) / static_cast<float>(head_dimension) +
+             epsilon);
+  const float cache_scale = is_query
+                                ? 1.0F
+                                : static_cast<float>(
+                                      __ushort_as_bfloat16(key_scale[0]));
+  auto store = [&](std::uint64_t index, float normalized) {
+    if (is_query) {
+      normalized_query[index] = normalized;
+    } else {
+      staged_key[index] = __nv_fp8_e4m3(normalized / cache_scale).__x;
+    }
+  };
+  const std::uint64_t half = head_dimension / 2U;
+  for (std::uint64_t index = threadIdx.x; index < head_dimension;
+       index += blockDim.x) {
+    const bool rotated = index < rotating_pairs ||
+                         (index >= half && index < half + rotating_pairs);
+    if (rotated) continue;
+    const float rounded = LoadProjectionBoundary(input, base + index);
+    const float scale =
+        static_cast<float>(__ushort_as_bfloat16(weight[index]));
+    store(base + index, static_cast<float>(
+                            __float2bfloat16_rn(rounded * inverse_rms * scale)));
+  }
+  if (threadIdx.x >= rotating_pairs) return;
+  const std::uint64_t index = threadIdx.x;
+  const std::uint64_t first = base + index;
+  const std::uint64_t second = first + half;
+  const float first_value = static_cast<float>(__float2bfloat16_rn(
+      LoadProjectionBoundary(input, first) * inverse_rms *
+      static_cast<float>(__ushort_as_bfloat16(weight[index]))));
+  const float second_value = static_cast<float>(__float2bfloat16_rn(
+      LoadProjectionBoundary(input, second) * inverse_rms *
+      static_cast<float>(__ushort_as_bfloat16(weight[index + half]))));
+  const std::uint64_t rotary_index = token * rotating_pairs + index;
+  const float cosine = rotary_cosine[rotary_index];
+  const float sine = rotary_sine[rotary_index];
+  store(first, static_cast<float>(__float2bfloat16_rn(
+                   first_value * cosine - second_value * sine)));
+  store(second, static_cast<float>(__float2bfloat16_rn(
+                    second_value * cosine + first_value * sine)));
+}
+
 template <bool kDirectKv>
 __device__ void ProjectionRmsNormRotaryBf16ControlledBody(
     const float* query, const std::uint16_t* query_norm,
@@ -855,6 +949,47 @@ Status LaunchGemma4Moe26BDecodeKvEpilogue(
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok()
       : CudaFailure("launch 26B decode KV epilogue", error);
+}
+
+Status LaunchGemma4Moe26BMtpKvEpilogue(
+    const float* query, const std::uint16_t* query_norm,
+    float* normalized_query, const float* key,
+    const std::uint16_t* key_norm, const float* value,
+    const float* rotary_cosine, const float* rotary_sine,
+    std::uint8_t* staged_key, std::uint8_t* staged_value,
+    const std::uint16_t* key_scale, const std::uint16_t* value_scale,
+    std::uint64_t tokens, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, double rotary_factor, float epsilon,
+    cudaStream_t stream) {
+  const bool local = kv_heads == 8U && head_dimension == 256U &&
+                     rotary_factor == 1.0;
+  const bool global = kv_heads == 2U && head_dimension == 512U &&
+                      rotary_factor == 0.25;
+  if (query == nullptr || query_norm == nullptr || normalized_query == nullptr ||
+      key == nullptr || key_norm == nullptr || value == nullptr ||
+      rotary_cosine == nullptr || rotary_sine == nullptr ||
+      staged_key == nullptr || staged_value == nullptr ||
+      staged_key == staged_value || key_scale == nullptr ||
+      value_scale == nullptr || (tokens != 2U && tokens != 3U && tokens != 5U) ||
+      (!local && !global) ||
+      !std::isfinite(epsilon) || epsilon <= 0.0F) {
+    return Invalid("26B fixed-depth KV epilogue contract is invalid");
+  }
+  const auto pairs = static_cast<std::uint64_t>(
+      rotary_factor * static_cast<double>(head_dimension / 2U));
+  const std::uint64_t blocks = tokens * (16U + 2U * kv_heads);
+  if (!ValidGrid(blocks)) {
+    return Invalid("26B fixed-depth KV epilogue grid is invalid");
+  }
+  Gemma4Moe26BMtpKvEpilogueKernel
+      <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+          query, query_norm, normalized_query, key, key_norm, value,
+          rotary_cosine, rotary_sine, staged_key, staged_value, key_scale,
+          value_scale, kv_heads, head_dimension, pairs, epsilon);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch 26B fixed-depth KV epilogue", error);
 }
 
 Status LaunchRotaryEmbeddingTableBatch(

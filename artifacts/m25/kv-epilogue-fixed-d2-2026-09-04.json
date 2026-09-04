@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "status": "accepted_small_sample_optimization",
+  "implementation_parent": "4d074050568e9a78d7e3c0255fc006522d71c643",
+  "scope": "fixed-D2 26B target verifier; fused Q/K normalization, K RoPE, V normalization and FP8 staging",
+  "unchanged_boundaries": [
+    "speculative cache append",
+    "cache backup and rollback",
+    "per-row visibility",
+    "sampling and target verification",
+    "ordinary decode",
+    "prefill",
+    "12B dispatch"
+  ],
+  "protocol": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "sampling": "temperature=1, top_k=64, top_p=0.95, repetition_penalty=1, seed=0",
+    "mtp_draft_tokens": 2,
+    "warmups_per_binary_and_model": 1,
+    "measurements_per_binary_and_model": 3,
+    "alternating_order": true,
+    "parent_binary_sha256": "68ed5a6a15122ee9168068f6372855f09a710e613afec653e0e4ad48f41be581",
+    "candidate_binary_sha256": "b6aa3d700d755cb720004815a1c828565e360c7cfc02bdbe28e78befb54c71fc",
+    "source_patch_sha256_at_measurement": "b9559be0746a278489b088cf20eeb35fa6e2262ac0a7f761414f41c85ade1b6f"
+  },
+  "results": {
+    "nvfp4": {
+      "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+      "parent_decode_tokens_per_second": [203.92330230058425, 203.92462807051763, 203.99536078563142],
+      "candidate_decode_tokens_per_second": [205.15302540758086, 205.19239239937724, 205.17225966391868],
+      "parent_median": 203.92462807051763,
+      "candidate_median": 205.17225966391868,
+      "median_increase": 0.006118101600605,
+      "generated_tokens": 942,
+      "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+      "accepted_proposed_tokens": "523/836",
+      "parent_peak_vram_mib": 15024,
+      "candidate_peak_vram_mib": 15022
+    },
+    "trellis35": {
+      "repository_revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+      "format_version": 2,
+      "parent_decode_tokens_per_second": [181.90463634626465, 181.83595080360237, 181.62375780738122],
+      "candidate_decode_tokens_per_second": [183.2023714860726, 182.73945490665852, 182.73510403847558],
+      "parent_median": 181.83595080360237,
+      "candidate_median": 182.73945490665852,
+      "median_increase": 0.0049687869701411,
+      "generated_tokens": 1229,
+      "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+      "accepted_proposed_tokens": "690/1076",
+      "parent_peak_vram_mib": 12794,
+      "candidate_peak_vram_mib": 12794
+    }
+  },
+  "correctness": {
+    "q_and_complete_staging_bytes_exact": true,
+    "graph_capture_and_double_replay": true,
+    "memcheck_errors": 0,
+    "racecheck_errors": 0,
+    "initcheck_errors": 0,
+    "real_parent_candidate_output_parity": true,
+    "mtp_structure_unchanged": true,
+    "actual_fused_kernel_dispatch_instances_in_operator_profile": 12
+  },
+  "raw_evidence": "benchmarks/results/2026-09-04/4d074050/rtx5080-laptop/kv-epilogue-fixed-d2-1w3.json",
+  "limitations": [
+    "One warmup and three measurements are an owner-requested screen, not qualification.",
+    "The formats generate different answers and are compared only with their own exact-output parent.",
+    "This is accepted implementation evidence, not a wider published performance qualification."
+  ]
+}

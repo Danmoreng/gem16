@@ -280,6 +280,19 @@ struct DecodeControl {
     std::uint64_t head_dimension, double rotary_factor,
     std::uint64_t cache_capacity, float epsilon, cudaStream_t stream);
 
+// Fixed-depth verifier counterpart. Q retains the existing BF16 boundary;
+// K/V are quantized directly into the row-major speculative staging buffers.
+[[nodiscard]] Status LaunchGemma4Moe26BMtpKvEpilogue(
+    const float* query, const std::uint16_t* query_norm,
+    float* normalized_query, const float* key,
+    const std::uint16_t* key_norm, const float* value,
+    const float* rotary_cosine, const float* rotary_sine,
+    std::uint8_t* staged_key, std::uint8_t* staged_value,
+    const std::uint16_t* key_scale, const std::uint16_t* value_scale,
+    std::uint64_t tokens, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, double rotary_factor, float epsilon,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchQuantizeKvFp8Batch(
     const float* key, const float* value, std::uint8_t* key_fp8,
     std::uint8_t* value_fp8, const std::uint16_t* key_scale_bf16,
