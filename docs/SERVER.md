@@ -14,40 +14,69 @@ The binary and `GET /health` report the central repository version:
 gem16-server --version
 ```
 
-```powershell
-.\build\Windows\blackwell-release\bin\gem16-server.exe `
-  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
-  --model-name gem16 `
-  --host 127.0.0.1 --port 8080 `
-  --max-context 8192 --max-sessions 2 `
-  --max-queued-requests 64 --log-level info --log-format text
-```
+Choose one public profile. Run acquisition from the repository root; locked
+payloads are verified in the standard Hugging Face cache. Python tools require
+the dependencies documented in [Development](DEVELOPMENT.md).
 
-The default uses the checkpoint-recommended sampling profile. `--greedy`
-selects deterministic generation. `--assistant-model`,
-`--mtp-draft-tokens 1|2|4`, and `--mtp-adaptive` expose the same qualified MTP
-path as resident chat. The server has no authentication or TLS layer; bind to
-loopback unless a trusted reverse proxy supplies those controls.
-
-The qualified Gemma 4 26B A4B profile uses a compiled Target and separately compiled Assistant:
+### 12B Unified: text, image and audio
 
 ```bash
-gem16-server \
-  --model /models/gemma4-26b-a4b-compiled \
-  --assistant-model /models/gemma4-26b-a4b-assistant-compiled \
-  --mtp-draft-tokens 2 --model-name gemma4-26b-a4b \
-  --host 127.0.0.1 --port 8080 \
-  --max-context 32768 --max-sessions 1
+python3 tools/fetch_model.py
+python3 tools/fetch_model.py --lock models/gemma4-12b-mtp-assistant.lock.json
+model=$(python3 -c "from tools.hf_cache import default_target_model; print(default_target_model())")
+assistant=$(python3 -c "from tools.hf_cache import default_assistant_model; print(default_assistant_model())")
+./build/Linux/blackwell-release/bin/gem16-server \
+  --model "$model" --assistant-model "$assistant" --mtp-draft-tokens 2 \
+  --model-name gem16 --host 127.0.0.1 --port 8080 \
+  --max-context 8192 --max-sessions 2
 ```
 
-For 26B, fixed D1/D2/D4 and the normal GPU sampling controls are supported; D2 is the selected profile and
-`--mtp-adaptive` is rejected. Health reports `model_variant=gemma4_moe_26b_a4b`, `text_only=true`, actual MTP
-capability and the configured `mtp_max_context`. Images and audio are rejected, and exactly one resident execution
-slot is admitted. These restrictions do not change the 12B server path.
+### 26B Compact Vision: text and one image
 
-The measured 26B limits are separate: ordinary Target execution supports up to 98,304 tokens with a 400 MiB
-long-context reserve, while fixed-D2 MTP supports up to 86,016 tokens with a 200 MiB reserve. The server applies the
-smaller reserve only when MTP is active and rejects larger Assistant contexts during initialization.
+```bash
+python3 tools/fetch_model.py --lock models/gemma4-26b-trellis35-target.lock.json
+python3 tools/fetch_model.py --lock models/gemma4-26b-vision-fp8.lock.json
+python3 tools/fetch_model.py --lock models/gemma4-26b-gem16-assistant.lock.json
+model=$(python3 -c "from pathlib import Path; from tools.hf_cache import locked_snapshot_path; print(locked_snapshot_path(Path('models/gemma4-26b-trellis35-target.lock.json')))")
+vision=$(python3 -c "from pathlib import Path; from tools.hf_cache import locked_snapshot_path; print(locked_snapshot_path(Path('models/gemma4-26b-vision-fp8.lock.json')))")
+assistant=$(python3 -c "from pathlib import Path; from tools.hf_cache import locked_snapshot_path; print(locked_snapshot_path(Path('models/gemma4-26b-gem16-assistant.lock.json')))")
+./build/Linux/blackwell-release/bin/gem16-server \
+  --model "$model" --vision-model "$vision" --assistant-model "$assistant" \
+  --mtp-draft-tokens 2 --vision-max-soft-token-budget 280 \
+  --model-name gem16 --host 127.0.0.1 --port 8080 \
+  --max-context 8192 --max-sessions 1
+```
+
+Compact Vision is single-slot, rejects audio and a second image, and supports
+70/140/280 image soft-token budgets. Ordinary mode omits `--assistant-model`
+and `--mtp-draft-tokens`. Its qualified context ceilings are 229,376 Target+Vision
+and 229,120 with fixed-D2, subject to admission and available VRAM.
+
+On Windows use `python` for acquisition and PowerShell variables, for example
+for the same Compact Vision launch after the three lock downloads:
+
+```powershell
+$model = python -c "from pathlib import Path; from tools.hf_cache import locked_snapshot_path; print(locked_snapshot_path(Path('models/gemma4-26b-trellis35-target.lock.json')))"
+$vision = python -c "from pathlib import Path; from tools.hf_cache import locked_snapshot_path; print(locked_snapshot_path(Path('models/gemma4-26b-vision-fp8.lock.json')))"
+$assistant = python -c "from pathlib import Path; from tools.hf_cache import locked_snapshot_path; print(locked_snapshot_path(Path('models/gemma4-26b-gem16-assistant.lock.json')))"
+.\build\Windows\blackwell-release\bin\gem16-server.exe `
+  --model $model --vision-model $vision --assistant-model $assistant `
+  --mtp-draft-tokens 2 --vision-max-soft-token-budget 280 `
+  --model-name gem16 --host 127.0.0.1 --port 8080 `
+  --max-context 8192 --max-sessions 1
+```
+
+For 12B on Windows resolve `default_target_model()` and `default_assistant_model()`
+as in the Linux example, omit `--vision-model` and `--vision-max-soft-token-budget`,
+and choose up to two slots subject to admission.
+
+The checkpoint-recommended sampling profile is the default. `--greedy` selects
+deterministic generation. Compact Vision D2 requires the exact validated composite;
+check `/health` for actual capabilities. The [internal NVFP4 profile](GEMMA4_26B.md)
+is text-only, with separate 98,304 Target / 86,016 D2 context limits; those are not
+Compact Vision limits. Adaptive MTP is unsupported on 26B.
+
+The server has no authentication or TLS layer; loopback is the supported boundary.
 
 Startup creates one `ModelRuntime` and logs its target/assistant weight bytes
 and load time. It constructs one temporary execution-slot probe, measures the
@@ -119,7 +148,8 @@ headers; generation-time stream failures are emitted as an SSE error record.
 Supported request fields are `model`, `messages`, `max_completion_tokens`
 (`max_tokens` alias), `stream`, `stream_options.include_usage`,
 `reasoning_effort` (`none`, `low`, `medium`, `high`), `tools`, `tool_choice`,
-`parallel_tool_calls`, and `n=1`. Every other top-level or nested protocol field
+`parallel_tool_calls`, `n=1`, and the Compact Vision extension
+`vision_soft_token_budget` (70, 140 or 280, bounded by the startup maximum). Every other top-level or nested protocol field
 is rejected rather than silently ignored; this includes per-request sampling,
 stop, response-format, logprob, metadata, and unsupported media/tool options.
 
@@ -133,7 +163,8 @@ Message content accepts strings and ordered arrays containing:
 
 `POST /v1/responses` accepts `model`, `input`, `instructions`,
 `max_output_tokens`, `stream`, `store`, `reasoning.effort`, `tools`,
-`tool_choice`, `parallel_tool_calls`, and `previous_response_id`; unknown fields
+`tool_choice`, `parallel_tool_calls`, `previous_response_id`, and the Compact Vision
+`vision_soft_token_budget` extension; unknown fields
 are rejected at every parsed protocol level. Function tools
 use the Responses top-level shape (`type`, `name`, `description`, `parameters`,
 `strict`). Input may be a string or ordered `message`, `function_call`, and
@@ -144,7 +175,8 @@ The response contains typed `message` and `function_call` output items, exact
 input/output/reasoning usage, resident-prefix `cached_tokens`, newly prefetched
 `cache_write_tokens`, and `completed` or `incomplete` status. Streaming
 emits ordered `response.created`, output-item/content/function events, and a
-final `response.completed` object consumable by the official OpenAI SDK.
+final `response.completed` or output-limit `response.incomplete` event consumable
+by the official OpenAI SDK. Incomplete responses have `completed_at: null`.
 Private reasoning is materialized as a completed `reasoning` output item and,
 for streaming requests, as matching `response.reasoning_text.*` events before
 the visible assistant message. Reasoning and visible-text deltas are written as
@@ -169,8 +201,9 @@ Many independent roots may coexist up to `--max-sessions`. Creating another
 root evicts the inactive least-recently-used chain; its response IDs then return
 404. Branches remain unsupported because a single KV prefix cannot represent
 two continuations. `client.responses.cancel(id)` sets a generation-loop
-cancellation flag. Cancelled or disconnected generations discard their slot
-because a partially advanced KV cache is unsafe to reuse.
+cancellation flag. Cancellation and disconnect trigger cache rollback; poisoned state is discarded.
+A client must handle invalidated or evicted response IDs explicitly rather than
+assuming that a partially generated turn is a reusable prefix.
 
 Official SDK gate:
 

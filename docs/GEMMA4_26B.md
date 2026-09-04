@@ -1,44 +1,45 @@
-# Gemma 4 26B A4B in Gem16
+# Gemma 4 26B profiles
 
-**Status:** M00–M17, M20–M23 and M25 accepted; qualified text-only 26B checkpoint publication is active. The active policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), and
-the current task entry is [`plans/gemma4-26b/ACTIVE_CONTRACT.md`](plans/gemma4-26b/ACTIVE_CONTRACT.md).
+The public **Gemma 4 26B A4B Compact Vision** profile combines the Trellis35 W4A8
+text Target with an FP8 E4M3FN Vision module and an optional hybrid NVFP4/FP8/BF16
+fixed-D2 Assistant. It is an equal public choice alongside 12B Unified.
 
-## Goal
+| Boundary | Public Compact Vision | Internal NVFP4 regression/rollback |
+|---|---|---|
+| Input | Text and one image; no audio | Text only |
+| Resident slots | One | One |
+| Qualified Target context | 229,376 | 98,304 |
+| Qualified fixed-D2 context | 229,120 | 86,016 |
+| Studio selection | Public | Hidden from normal selection |
 
-Deliver a qualified text-only Gemma 4 26B A4B execution on one approximately 16 GB NVIDIA Blackwell GPU. The
-current path directly loads the compiled QAT-derived FP8/NVFP4 artifact, owns one resident slot and executes native
-SM120 prefill/decode/head work without CPU weight offload or recurring token-loop allocation.
+Context admission also depends on available VRAM and the configured reserve.
+Compact Vision image budgets are 70, 140 or 280 soft tokens. Its D2 capability
+requires the exact validated Target/Vision/Assistant composite; components are
+never silently substituted.
 
-The current source tree contains an executable fixed-address 26B runtime, chat/server/Studio integration and native
-SM120 MoE, attention, tied-head and fixed-D2 MTP dispatch. M20 accepted retained medians of 6,572.809 prompt and
-150.615 ordinary-decode token/s. M25 publishes `mtp_max_context=86,016`; the Target-only maximum remains 98,304.
-The 12B Unified path remains the multimodal default and must remain unchanged.
+## Acquire and run
 
-The accepted M20 ordinary 16K+64 medians are 6,572.809 prompt token/s and 150.615 decode token/s. A separate sampled
-16K fixed-D2 characterization with Google's recommended `temperature=1`, `top_k=64`, `top_p=0.95` controls records
-199.871 decode token/s versus 148.709 ordinary after three warm-ups and ten retained pairs. The sampled D2 output is
-identical to ordinary and retains the parent's 496/770 accepted proposals. Further work is execution-only: Assistant
-precision and acceptance are frozen, 220 token/s is the first target and 250 token/s is the stretch target.
+Use the [server guide](SERVER.md) or Studio's Models screen. Runtime locks are:
 
-## Fast-track path
+- [Compact Target](../models/gemma4-26b-trellis35-target.lock.json)
+- [Vision](../models/gemma4-26b-vision-fp8.lock.json)
+- [Assistant](../models/gemma4-26b-gem16-assistant.lock.json)
+- [Internal NVFP4 Target](../models/gemma4-26b-gem16-target.lock.json)
 
-```text
-M06 NVFP4 experts → M07 provisional NVFP4 tied head → M08 artifact/loader
-→ M09 32K residency → M13 slow reference execution → M17 optimized runtime
-→ accepted M22 product → bounded prefill/decode optimization → clean candidate freeze
-→ M21 real 32K/64K → M20 performance → technical M23 freeze
-→ M25 MTP → qualified Target/Assistant publication → Main promotion
-```
+These independently pinned components currently resolve the consolidated Hub
+revision `6de2a057f11332420819f8e6efd08e42d7a03bc7`. The later normalized layout
+is published but does not change runtime locks until acquisition and loader
+verification passes. Startup validates and uploads the offline-built device
+image without quantizing, repacking or rehashing its full payload.
 
-M00–M17, M20–M23 and M25 are accepted. The owner accepted full GSM8K and AIME 2026 plus bounded sampled/product
-evidence as the checkpoint quality gate and waived the broader historical M19 suite. The qualified claim remains
-limited to text-only SM120, one resident slot, fixed D2 and the published context limits. Target and Assistant are
-distributed as separately pinned Hugging Face repositories; see
-[`GEMMA4_26B_HUGGING_FACE.md`](GEMMA4_26B_HUGGING_FACE.md).
+## Qualification and retained evidence
 
-## Scope
+[Bounded P20 acceptance](../artifacts/vision/p20-owner-acceptance-2026-09-04.json)
+uses the existing V19 evidence; the larger QUAL01 campaign was explicitly waived.
+REL01, P21, live Windows SM120, packaging and clean-machine gates remain release work.
+See the [production contract](plans/gemma4-26b/PRODUCTION_26B_VISION_CONTRACT.md).
 
-The first profile is text-only, batch one, one fully resident 26B slot, FP8 attention/KV, NVFP4 experts/shared MLP and
-a provisional NVFP4 tied head. MTP starts only after the technical base Target is frozen and requires a separately
-validated assistant and memory/context qualification. Vision is a separate later track. The 12B CLI/server/runtime
-behavior remains regression-protected.
+The internal NVFP4 path and its accepted numerical, context and rollback evidence
+remain protected. Its former 220/250 tok/s objectives are closed. Historical
+[26B plans](plans/gemma4-26b/INDEX.md) do not authorize new tuning.
+[Recorded performance](PERFORMANCE.md) separates these formats and their output sequences.

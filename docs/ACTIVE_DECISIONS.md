@@ -1,19 +1,14 @@
 # Active decisions
 
-**Updated:** 2026-09-04
-**Track:** Productization baseline
-**Status:** two public profiles and bounded P20 accepted; release gates remain in progress
+**Updated:** 2026-09-04 · **Track:** productization · **Status:** bounded P20 accepted; release gates open
 
-This file is the short operational policy for current work. Permanent safety,
-security, evidence, and runtime-integrity rules in `AGENTS.md` remain binding.
-The detailed product scope is [`PRODUCT_CONTRACT.md`](PRODUCT_CONTRACT.md), and
-the API subset is [`OPENAI_AGENT_CORE_V1.md`](OPENAI_AGENT_CORE_V1.md).
+Permanent rules in [AGENTS.md](../AGENTS.md) remain binding. Read the
+[product contract](PRODUCT_CONTRACT.md) and the narrow task contract next.
+The [pre-consolidation record](archive/ACTIVE_DECISIONS_2026-09-04_BEFORE_CONSOLIDATION.md)
+preserves the complete decision history, including superseded intermediate stages.
+The existing numbered decisions retain their identities below.
 
-The prior Gemma 4 26B fast-track decision history is preserved unchanged at
-[`archive/ACTIVE_DECISIONS_2026-08-28_GEMMA4_26B_FAST_TRACK.md`](archive/ACTIVE_DECISIONS_2026-08-28_GEMMA4_26B_FAST_TRACK.md).
-Read it only for a concrete historical or evidence question.
-
-## Active product decisions
+## Standing decisions
 
 1. **Equal platforms.** Windows x64 and Linux x86-64 are equal product
    platforms. A product release must pass the same applicable source, host,
@@ -45,30 +40,15 @@ Read it only for a concrete historical or evidence question.
 6. **One version source.** Repository, CMake builds, packaged server, native
    Studio, and release automation consume the root `VERSION` file. Release tags
    and manually supplied release versions must match it.
-7. **Productization remains primary; experimental Trellis35 tuning is frozen
-   after PFX31 and the Trellis35-only Vision vertical slice is active.** The owner's 2026-08-31 direction closes the bounded 26B
-   Trellis35/W4A8 performance pass reopened on 2026-08-30. PFX28-D is the only
-   retained closeout candidate; further Trellis micro-optimization is stopped.
-   The owner subsequently approved the separate 26B Vision vertical slice on a
-   branch based directly on frozen PFX31 commit `7649a84`. Vision v1 is bound
-   exclusively to the compact `gem16-trellis35-w4a8-v1` text artifact and its
-   independently locked FP8 Vision module compiled from Google's pinned
-   unquantized BF16 QAT checkpoint. It is not a Vision extension for `main`,
-   NVFP4, or a generic 26B profile, and file existence never enables the
-   capability. The qualified 26B
-   NVFP4 checkpoint and evidence remain frozen, its 220/250 token/s targets
-   remain closed, and the protected 12B path, product claims, release
-   sequencing, and productization priority remain unchanged. Trellis35 stays
-   experimental and may not modify or silently fall back to a qualified path.
-8. **Compact Vision production qualification was authorized as a candidate.**
-   The owner's 2026-09-02 direction superseded only the future
-   requirement in decision 7 that the completed Trellis35 Vision slice end in
-   an experimental V20 freeze. The exact Trellis35 Target + FP8 Vision +
-   optional fixed-D2 Assistant composite may proceed through the bounded
-   PRD00, PERF13, PERF12, FMT01, PUB01, QUAL01, APP01, REL01, P20 and P21
-   production gates. This was the candidate rule before the later bounded P20
-   acceptance in decision 10. The qualified 12B and 26B NVFP4 artifacts,
-   capabilities and rollback evidence remain unchanged and protected.
+7. **Productization first; tuning frozen.** The NVFP4 and Trellis35 performance
+   campaigns are closed after their accepted freezes; the 220/250 tok/s targets
+   remain closed. The later bounded K/V exception below remains accepted.
+   Earlier experimental-only Vision wording was superseded by decisions 8 and 10.
+8. **Compact Vision production gates authorized.** The 2026-09-02 owner decision
+   superseded the requirement to end Vision in an experimental V20 freeze and
+   authorized bounded PRD00/PERF13/PERF12/FMT01/PUB01/QUAL01/APP01/REL01/P20/P21
+   work. Decision 10 subsequently accepted bounded P20; the protected 12B and
+   internal NVFP4 paths remain unchanged.
 9. **Trellis35 device-image integrity is split between acquisition and
    runtime.** The owner's 2026-09-02 direction for FMT01 supersedes any future
    requirement to recompute the 12.2 GB `model.gem16` SHA-256 while loading the
@@ -103,7 +83,30 @@ Read it only for a concrete historical or evidence question.
     the repository's default revision does not alter the pinned product.
     Evidence is `artifacts/vision/hf-layout-normalization-2026-09-04.json`.
 
-## Current qualified model facts
+## Current model facts
+
+| Profile | Public selection | Input | Context Target / fixed-D2 | Slots |
+|---|---|---|---|---|
+| 12B Unified | Yes | Text, image, audio | Subject to configured capacity | Up to two |
+| 26B Compact Vision | Yes | Text, one image, 70/140/280 soft tokens | 229,376 / 229,120 | One |
+| 26B NVFP4 | Internal only | Text | 98,304 / 86,016 | One |
+
+Compact Vision requires the exact locked Trellis35 Target + FP8 Vision and,
+for D2, the separately pinned Assistant. It reports `production_qualified` and
+`experimental=false` following bounded P20. This does not assert the waived
+extended QUAL01 or deferred release tests ran.
+
+All current 26B locks use `danmoreng/gemma-4-26B-A4B-it-GEM16` at
+`6de2a057f11332420819f8e6efd08e42d7a03bc7`: internal NVFP4 at the root,
+Compact Target under `trellis35/`, Vision under `vision/`, Assistant under `assistant/`.
+Use the current device images for runtime regression; do not reconstruct the
+old M08 shard layout. Locks retain exact hashes and source identities.
+
+Accepted evidence: [V19](../artifacts/vision/v19-acceptance.json),
+[P20](../artifacts/vision/p20-owner-acceptance-2026-09-04.json),
+[PUB01](../artifacts/trellis35/pub01-consolidated-publication.json),
+[normalized Hub layout](../artifacts/vision/hf-layout-normalization-2026-09-04.json).
+Prior numerical and performance records remain under `artifacts/` and `benchmarks/`.
 
 ### Bounded 26B K/V epilogue optimization (owner direction 2026-09-04)
 
@@ -125,133 +128,13 @@ capability, checkpoint or quality claim; wider performance publication still
 requires the permanent benchmark contract.
 
 
-- 12B remains regression-protected and qualified for text, image, and audio on
-  the existing SM120 product path.
-- 26B is a qualified selectable product checkpoint for SM120, batch one, one
-  resident slot, fixed-D2 MTP, and bounded published quality claims.
-- 26B fixed-D2 MTP supports up to 86,016 context tokens with the accepted
-  200 MiB reserve. Target-only execution supports up to 98,304 with its
-  separate reserve contract.
-- **Consolidated 26B publication.** The owner's 2026-09-01 decision supersedes
-  the earlier requirement for separate 26B Target and Assistant repositories.
-  The canonical public repository is now
-  `danmoreng/gemma-4-26B-A4B-it-GEM16` at immutable revision
-  `6de2a057f11332420819f8e6efd08e42d7a03bc7` (superseding V16 revision
-  `31842e12882d09bab7109c0ad52a4ee2e945069c` under PUB01): qualified NVFP4
-  remains in the root, with Trellis35 v2 under `trellis35/`, fixed-D2 Assistant
-  under `assistant/`, and FP8 Vision under `vision/`. They remain independently
-  locked components and may never be silently substituted. The historical
-  Assistant repository remains immutable only for old locks; new catalog
-  entries use the consolidated repository.
-- **Current 26B NVFP4 regression artifact.** Runtime and non-regression work
-  uses the published `danmoreng/gemma-4-26B-A4B-it-GEM16` Target at revision
-  `6de2a057f11332420819f8e6efd08e42d7a03bc7`, format
-  `sm120-device-image-v1`, `model.gem16` SHA-256
-  `1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72`,
-  and artifact-content identity
-  `471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17`.
-  The original 16-shard M08 working artifact and its former local output
-  directory are deprecated runtime-test inputs and may be absent. Preserve
-  M08 records as historical compiler/provenance evidence, but do not search
-  for, reconstruct, or recompile that old layout for routine NVFP4 regression
-  testing. Test the current device image with the current engine instead.
-- The final retained sampled-D2 characterization reaches 203.842 token/s
-  median; the prior 220 and 250 token/s targets remain unmet and closed for the
-  frozen decode phase. This does not block the accepted product checkpoint.
-- Within the separately experimental Trellis35 Vision slice, V14 qualifies
-  Vision plus fixed-D2 only for the exact validated Target+Vision+Assistant
-  composite. That exact composite reports `vision_mtp_supported=true`; all
-  other combinations continue to fail closed. This narrow enablement does not
-  promote Trellis35 or 26B Vision to the released product profile. V15 has closed
-  the experimental runtime/server profile, validation, error-code, timing,
-  metrics, and cancellation contract; its accepted evidence is
-  `artifacts/vision/v15-runtime-server-closure.json`. V16 has closed immutable
-  consolidated publication, per-component locks, generated catalog entries,
-  anonymous resume/hash verification, and collision-free hardlink views; its
-  evidence is `artifacts/vision/v16-consolidated-publication.json`.
-  V17 has added the explicit third Native Studio profile, generalized bounded
-  component model, persisted Vision settings, exact `--vision-model` launch,
-  independent Target/Vision/Assistant state, deduplicated capacity preflight,
-  and shared-blob-safe removal. Its evidence is
-  `artifacts/vision/v17-native-studio-profile.json`. V18 has closed the native
-  chat-UX gate: the explicit Vision profile accepts one image, rejects audio
-  and a second image locally, sends the selected 70/140/280 processing budget,
-  exposes preview/estimate/remove/retry affordances, gates fixed-D2 on live
-  `vision_mtp_supported`, and rejects mismatched external-server profiles. Its
-  generated catalog also corrects the V16 Vision runtime view to the four
-  strict module files while retaining the canonical publication and its legal
-  files; old auxiliary view hardlinks are pruned without deleting Hub blobs.
-  Its evidence is `artifacts/vision/v18-native-studio-image-d2.json`. V19 has
-  accepted fresh-process capacity, bounded deterministic quality, cross-platform
-  host/product CI, and the lifecycle matrix. Target+Vision remains qualified at
-  229,376 context tokens; the default Target+Vision+Assistant fixed-D2 composite
-  is now the twice-admitted 229,120-token configuration. The objective 70/140/280
-  suite passed all required description, OCR, chart, document, counting, spatial,
-  color, small-detail, and geometry checks with zero fallback or recurring
-  allocation. Its evidence is `artifacts/vision/v19-acceptance.json`. The
-  owner-bounded P20 decision now promotes this exact composite to
-  `production_qualified` and `experimental=false`; it does not convert the
-  waived extended QUAL01 or deferred release gates into completed evidence.
-- **PUB01 Trellis35 v2 consolidated publication.** PUB01 consolidates the
-  Trellis35 target from the legacy 103-file 30-layer format to the monolithic
-  `gem16-sm120-trellis35-device-image-v2` (`model.gem16`, 12,204,692,480 bytes,
-  SHA-256 `552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4`)
-  under `trellis35/` at repository revision
-  `6de2a057f11332420819f8e6efd08e42d7a03bc7`. The 94 legacy v1 files were
-  removed, leaving 48 total files in the repository. Component locks,
-  `SHA256SUMS`, and Native Studio catalog entries were regenerated. Preflight
-  missing bytes = 0, anonymous multi-offset resume, and hardlink inode
-  identity are verified. Accepted evidence is
-  `artifacts/trellis35/pub01-consolidated-publication.json`.
-- **APP01 Native Studio production integration.** Per owner instruction,
-  prioritized ahead of extended quality re-evaluation. Promotes the Trellis35
-  Vision profile from experimental candidate to `production_qualified` with
-  `experimental=false`. Removes 'Experimental' branding from profile
-  catalog labels and status indicators in Native Studio; sets capability
-  descriptors to `Text · Vision · Fixed MTP D2 · 229,120 tokens`. The runtime
-  reports `qualification_state="production_qualified"` and
-  `experimental=false` via `/health`. Compatibility error checks confirm clean
-  handshake with the live server.
+## Open product gates
 
-Accepted numerical, performance, context, product, and publication evidence
-continues to live in `artifacts/`, `benchmarks/`, and the archived fast-track
-record. This summary does not replace that evidence.
-
-## Current product gaps
-
-- Native Studio exposes two public profiles and keeps the internal NVFP4
-  catalog components available for regression, rollback, and compatible
-  persisted configurations. Its generated catalog contains the pinned 12B
-  Target and Assistant plus consolidated Trellis35 Target, FP8 Vision,
-  fixed-D2 Assistant, and internal NVFP4 Target. A fresh installation presents
-  a neutral profile choice, checks available storage, and can install either
-  or both profiles. Payloads remain in their source repositories' canonical
-  Hub blobs and snapshots. Because the 12B Target lock includes one file from
-  the separate Google repository, Studio creates a deterministic
-  `.gem16/snapshots` runtime view made only from hardlinks to verified Hub
-  blobs; it is not a mirror or second blob store. Full large-download and
-  clean-machine qualification on both product platforms remains a release
-  gate.
-- The current OpenAI SDK validators establish a narrow development gate; full
-  Agent Core v1 still needs equal Windows/Linux and 12B/26B qualification,
-  TypeScript SDK coverage, and an external coding-agent workflow.
-- The native Studio has not yet shipped in a release produced after its
-  migration from Compose.
-- Windows and Linux packaging are not yet equal. Linux runtime dependencies and
-  clean-machine installation remain unresolved, and both packages require
-  complete notices/manifests and release smoke evidence.
-- Version reporting is being centralized in the 0.2.x development line; no
-  0.2 product release is implied by the source version alone.
-
-## Permanent product constraints
-
-- No productization change may weaken qualified 12B or 26B model behavior,
-  precision, cache semantics, resident-weight ownership, context limits,
-  fallback reporting, or allocation rules.
-- Model locks, model files, requests, media, tool schemas, tool arguments, and
-  tool results remain untrusted inputs.
-- Studio and server must disclose the selected model profile and actual
-  capabilities. Equal public product status never permits capability
-  substitution; internal NVFP4 must not appear as a third normal Studio choice.
-- Historical evidence is preserved rather than rewritten. Compact active docs
-  point to archived decisions and accepted immutable records.
+- Full Agent Core v1 qualification requires official Python and TypeScript SDKs,
+  an external coding-agent workflow, both public profiles and both platforms.
+- REL01/P21, live Windows SM120 Compact Vision, equal packages, full downloads
+  and clean-machine onboarding remain release gates. Native Studio has not
+  shipped as a fully qualified two-platform release.
+- `VERSION` is the shared version source; the 0.2.x development line alone is no release claim.
+- The [roadmap](ROADMAP.md) routes remaining work. Historical evidence is preserved;
+  no cleanup changes model precision, behavior, context, allocation or fallback rules.

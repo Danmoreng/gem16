@@ -1,5 +1,5 @@
 {
-  "authored_file_count": 148,
+  "authored_file_count": 154,
   "external_reference_anchor": "kekzl/imp@a392904d4216388828d0d56317de046f4ca49627",
   "files": [
     {
@@ -73,9 +73,9 @@
       "sha256": "c576d0841233f275ddb6d24bf8fd62bf94f3f8bd123f30444a278e57ab9b682f"
     },
     {
-      "bytes": 14600,
+      "bytes": 1116,
       "path": "ACTIVE_CONTRACT.md",
-      "sha256": "a13f9cf8a6295765b2a8c962c9ae96755937ea98e343631b3351a18b0360fae7"
+      "sha256": "13ef4de074bb6409e99730d95bcd6969dc1e36edaa002819b88dd628a550d9f4"
     },
     {
       "bytes": 5579,
@@ -88,9 +88,14 @@
       "sha256": "07c6b0006a379e54737b192082ba93a5fd6a975f9d786c70f182ad93a6f273ad"
     },
     {
-      "bytes": 21530,
+      "bytes": 22166,
       "path": "CODEX_GEM16_26B_VISION_PRODUCTIZATION_MASTER_INSTRUCTION.md",
-      "sha256": "95380ed087c47c8a5b00a223b6db10643e7332203735b288ece70a2f1abc3567"
+      "sha256": "5975bb6b427134e682d0a5dee299a04553cd76ab19d84bb7e249c0ad165c8b5e"
+    },
+    {
+      "bytes": 18573,
+      "path": "CODEX_GEM16_V12_V13_CONSOLIDATION_PRODUCTION_MASTER_INSTRUCTION.md",
+      "sha256": "abe48b0ec7b9fad2ce221b16732c815f852cbf84fdf973451d914dd3a002ba8d"
     },
     {
       "bytes": 16310,
@@ -128,6 +133,11 @@
       "sha256": "a6786909734a0ed1ee237d592aee83b9ff8e0d3712c7fa09b401be3e527e15cc"
     },
     {
+      "bytes": 28303,
+      "path": "GEM16_26B_VISION_PRODUCTION_AND_CONSOLIDATION_REVIEW.md",
+      "sha256": "ca31c1703bc26b173fef9498ee1288e2d979ac2ed22603e641af47a0ab394914"
+    },
+    {
       "bytes": 21002,
       "path": "GEM16_TRELLIS35_POST_WP16_PERFORMANCE_REVIEW.md",
       "sha256": "0eb4a60d39b4986ffb6b0b232c363a905b9178bdac1b33b27eca174ff09bdc34"
@@ -148,9 +158,9 @@
       "sha256": "df2637b8a19fe1fdefcac16b3d1d07e6ffcbd4c90eb1dba71d6f1ca2ebec38ca"
     },
     {
-      "bytes": 2817,
+      "bytes": 1163,
       "path": "INDEX.md",
-      "sha256": "70301c85545d43814f1f8b734414ca6b8a33605b5d127746934f12eee105e510"
+      "sha256": "2087b9eba4442e7595a77d2bf3f310797062af703bd2b151df81c6b3e53d3706"
     },
     {
       "bytes": 107229,
@@ -173,6 +183,11 @@
       "sha256": "71af29e63883addf787861d937bbc234c7c70ca8203100c51a5e0574799a5dbe"
     },
     {
+      "bytes": 5101,
+      "path": "PRODUCTION_26B_VISION_CONTRACT.md",
+      "sha256": "6a5b6511c04da85df94db13ccc8125eeb40e16d133d7352e58a8574cf7a9ac09"
+    },
+    {
       "bytes": 1267,
       "path": "README.md",
       "sha256": "933e78b2210c4dca710e67340007f6bcc4b961d7615d11cfcbccbf06bb016925"
@@ -183,9 +198,9 @@
       "sha256": "8147f469578cb0cd209e5b8bbde8f3e1b1f4726b5c44a3de3e452f33aa17101f"
     },
     {
-      "bytes": 12680,
+      "bytes": 1063,
       "path": "START_HERE_CODEX.md",
-      "sha256": "82b4217e864e590b9d23c678853bcbe7466e8e6845245ac08a4cafc694ebcc66"
+      "sha256": "17437ac399b33cec164eb92e0edeeed622b23c047c1a9bd6334810c402831dc8"
     },
     {
       "bytes": 2829,
@@ -276,6 +291,21 @@
       "bytes": 3024,
       "path": "appendices/SOURCE_LINKS.md",
       "sha256": "467c3f53549dacb4baac1215a00ef9198782a0a7b2267719e61ae6731dcfd92e"
+    },
+    {
+      "bytes": 15147,
+      "path": "archive/ACTIVE_CONTRACT_2026-09-04.md",
+      "sha256": "9c6585584d719fde23a8f217cd13986a855aa54b5eec39a89c1355012910f5be"
+    },
+    {
+      "bytes": 3424,
+      "path": "archive/INDEX_2026-09-04.md",
+      "sha256": "83a60681db34342faee0ae3efbef42fa5da04b3a3b2b7ca8ffe20f254051e17e"
+    },
+    {
+      "bytes": 13253,
+      "path": "archive/START_HERE_CODEX_2026-09-04.md",
+      "sha256": "60795dd2c402d7918e85e7fa2300fc434dcb9586372ef60f1889cadf1be300d6"
     },
     {
       "bytes": 441,
