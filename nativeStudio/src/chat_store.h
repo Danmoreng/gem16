@@ -20,6 +20,7 @@ struct Conversation {
   std::string identity;
   ModelProfile profile = ModelProfile::kGemma4Unified12B;
   std::int64_t updated = 0;
+  std::int64_t created = 0;
   bool pinned = false;
   bool archived = false;
   std::vector<ChatMessage> messages;
@@ -52,6 +53,10 @@ class ChatStore final {
   std::future<std::vector<ConversationSummary>> List(bool archived = false,
                                                      std::string query = {});
   std::future<void> Delete(std::string id);
+  std::future<std::filesystem::path> Export(Conversation chat,
+                                            std::filesystem::path destination);
+  std::future<std::filesystem::path> Backup(std::filesystem::path destination);
+  std::future<std::uint64_t> CleanAttachments();
   const std::filesystem::path& Root() const { return root_; }
 
  private:

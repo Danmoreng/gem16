@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <random>
+#include <set>
 #include <sstream>
 
 #include "compiler/sha256.h"
@@ -185,6 +186,70 @@ J MessageJson(const ChatMessage& m, const std::filesystem::path& root) {
                      {"created", J(m.created)},
                      {"error_message", J(m.error_message)}});
 }
+std::string SearchText(const std::string& content, const std::string& reasoning,
+                       const std::string& details) {
+  auto parsed = json::Parse(details, {32, 100000, 32U * 1024U * 1024U});
+  if (!parsed.ok()) throw std::runtime_error("Invalid saved search metadata.");
+  std::string result = content + "\n" + reasoning;
+  for (const auto& a : Array(parsed.value(), "attachments"))
+    result += "\n" + Str(a, "document") + "\n" + Str(a, "name");
+  for (const auto& a : Array(parsed.value(), "attempts"))
+    result += "\n" + Str(a, "content") + "\n" + Str(a, "reasoning");
+  return result;
+}
+void IndexMessage(sqlite3* db, const std::string& id, std::int64_t pos,
+                  const std::string& title, const std::string& body) {
+  Statement erase(db, "DELETE FROM chat_search WHERE chat=? AND pos=?");
+  erase.Text(1, id);
+  erase.Int(2, pos);
+  erase.Row();
+  Statement insert(
+      db, "INSERT INTO chat_search(chat,pos,title,body) VALUES(?,?,?,?)");
+  insert.Text(1, id);
+  insert.Int(2, pos);
+  insert.Text(3, title);
+  insert.Text(4, body);
+  insert.Row();
+}
+std::string SearchQuery(const std::string& query) {
+  if (query.size() > 512)
+    throw std::runtime_error("Search is limited to 512 bytes.");
+  std::istringstream input(query);
+  std::string word, result;
+  while (input >> word) {
+    if (!result.empty()) result += " AND ";
+    result += '"';
+    for (char c : word) {
+      result += c;
+      if (c == '"') result += '"';
+    }
+    result += "\"*";
+  }
+  return result;
+}
+void WriteText(const std::filesystem::path& path, const std::string& text) {
+  std::ofstream out(path, std::ios::binary);
+  out.write(text.data(), static_cast<std::streamsize>(text.size()));
+  out.close();
+  if (!out)
+    throw std::runtime_error("Could not write export; check free space.");
+}
+std::set<std::string> AttachmentReferences(sqlite3* db) {
+  std::set<std::string> hashes;
+  Statement q(db, "SELECT details FROM messages");
+  while (q.Row()) {
+    auto parsed = json::Parse(q.Text(0), {32, 100000, 32U * 1024U * 1024U});
+    if (!parsed.ok())
+      throw std::runtime_error("Invalid attachment references.");
+    for (const auto& a : Array(parsed.value(), "attachments")) {
+      const auto hash = Str(a, "hash");
+      if (!SafeHash(hash))
+        throw std::runtime_error("Invalid attachment reference.");
+      hashes.insert(hash);
+    }
+  }
+  return hashes;
+}
 }  // namespace
 
 std::filesystem::path StudioDataDirectory() {
@@ -352,7 +417,8 @@ void ChatStore::Open() {
        "synchronous=FULL; PRAGMA trusted_schema=OFF;");
   Statement version(db_, "PRAGMA user_version");
   version.Row();
-  if (version.Int(0) > 1)
+  const auto schema_version = version.Int(0);
+  if (schema_version > 2)
     throw std::runtime_error(
         "This chat database needs a newer Studio version.");
   Exec(db_,
@@ -364,7 +430,28 @@ void ChatStore::Open() {
        "conversations(id) ON DELETE CASCADE,pos INTEGER NOT NULL,role TEXT NOT "
        "NULL,content TEXT NOT NULL,reasoning TEXT NOT NULL,state INTEGER NOT "
        "NULL,details TEXT NOT NULL,PRIMARY KEY(chat,pos));"
-       "PRAGMA user_version=1; COMMIT;");
+       "COMMIT;");
+  if (schema_version < 2) {
+    Exec(db_, "BEGIN IMMEDIATE");
+    try {
+      Exec(db_,
+           "ALTER TABLE conversations ADD COLUMN created INTEGER NOT NULL "
+           "DEFAULT 0; UPDATE conversations SET created=updated; CREATE "
+           "VIRTUAL TABLE chat_search USING fts5(chat UNINDEXED,pos "
+           "UNINDEXED,title,body,tokenize='unicode61 remove_diacritics 2');");
+      Statement rows(
+          db_,
+          "SELECT m.chat,m.pos,c.title,m.content,m.reasoning,m.details FROM "
+          "messages m JOIN conversations c ON c.id=m.chat");
+      while (rows.Row())
+        IndexMessage(db_, rows.Text(0), rows.Int(1), rows.Text(2),
+                     SearchText(rows.Text(3), rows.Text(4), rows.Text(5)));
+      Exec(db_, "PRAGMA user_version=2; COMMIT;");
+    } catch (...) {
+      sqlite3_exec(db_, "ROLLBACK", nullptr, nullptr, nullptr);
+      throw;
+    }
+  }
   Exec(db_, "UPDATE messages SET state=2 WHERE state=1;");
 }
 void ChatStore::SaveNow(const Conversation& c) {
@@ -390,7 +477,9 @@ void ChatStore::SaveNow(const Conversation& c) {
   Exec(db_, "BEGIN IMMEDIATE");
   try {
     Statement q(db_,
-                "INSERT INTO conversations VALUES(?,?,?,?,?,?,?) ON "
+                "INSERT INTO "
+                "conversations(id,title,identity,profile,updated,pinned,"
+                "archived,created) VALUES(?,?,?,?,?,?,?,?) ON "
                 "CONFLICT(id) DO UPDATE SET "
                 "title=excluded.title,identity=excluded.identity,profile="
                 "excluded.profile,updated=excluded.updated,pinned=excluded."
@@ -402,11 +491,22 @@ void ChatStore::SaveNow(const Conversation& c) {
     q.Int(5, Now());
     q.Int(6, c.pinned);
     q.Int(7, c.archived);
+    q.Int(8, c.created > 0 ? c.created : Now());
     q.Row();
     Statement erase(db_, "DELETE FROM messages WHERE chat=? AND pos>=?");
     erase.Text(1, c.id);
     erase.Int(2, c.messages.size());
     erase.Row();
+    Statement trim(db_, "DELETE FROM chat_search WHERE chat=? AND pos>=?");
+    trim.Text(1, c.id);
+    trim.Int(2, c.messages.size());
+    trim.Row();
+    Statement titles(
+        db_, "UPDATE chat_search SET title=? WHERE chat=? AND title!=?");
+    titles.Text(1, c.title);
+    titles.Text(2, c.id);
+    titles.Text(3, c.title);
+    titles.Row();
     for (std::size_t i = 0; i < c.messages.size(); ++i) {
       const auto& m = c.messages[i];
       Statement insert(
@@ -426,6 +526,9 @@ void ChatStore::SaveNow(const Conversation& c) {
       insert.Int(6, m.error ? 2 : m.streaming ? 1 : 0);
       insert.Text(7, details[i]);
       insert.Row();
+      if (sqlite3_changes(db_) != 0)
+        IndexMessage(db_, c.id, i, c.title,
+                     SearchText(m.content, m.reasoning, details[i]));
     }
     Exec(db_, "COMMIT");
   } catch (...) {
@@ -438,9 +541,10 @@ std::future<void> ChatStore::Save(Conversation c) {
 }
 Conversation ChatStore::LoadNow(const std::string& id) {
   if (!open_error_.empty()) throw std::runtime_error(open_error_);
-  Statement q(db_,
-              "SELECT title,identity,profile,updated,pinned,archived FROM "
-              "conversations WHERE id=?");
+  Statement q(
+      db_,
+      "SELECT title,identity,profile,updated,pinned,archived,created FROM "
+      "conversations WHERE id=?");
   q.Text(1, id);
   if (!q.Row()) throw std::runtime_error("Chat no longer exists.");
   Conversation c;
@@ -454,6 +558,7 @@ Conversation ChatStore::LoadNow(const std::string& id) {
   c.updated = q.Int(3);
   c.pinned = q.Int(4) != 0;
   c.archived = q.Int(5) != 0;
+  c.created = q.Int(6);
   Statement ms(db_,
                "SELECT role,content,reasoning,state,details FROM messages "
                "WHERE chat=? ORDER BY pos");
@@ -542,7 +647,28 @@ std::future<std::vector<ConversationSummary>> ChatStore::List(
     bool archived, std::string query) {
   return Submit([this, archived, query = std::move(query)] {
     if (!open_error_.empty()) throw std::runtime_error(open_error_);
-    (void)query;
+    const auto match = SearchQuery(query);
+    if (!match.empty()) {
+      std::vector<ConversationSummary> hits;
+      Statement search(
+          db_,
+          "SELECT "
+          "c.id,c.title,c.profile,c.updated,c.pinned,c.archived,snippet(chat_"
+          "search,3,'[',']',' ... ',24),chat_search.pos FROM chat_search JOIN "
+          "conversations c ON c.id=chat_search.chat WHERE chat_search MATCH ? "
+          "AND c.archived=? ORDER BY rank LIMIT 200");
+      search.Text(1, match);
+      search.Int(2, archived);
+      while (search.Row()) {
+        auto p = search.Int(2);
+        if (p < 0 || p >= static_cast<int>(kModelProfileCount))
+          throw std::runtime_error("Unsupported saved model profile.");
+        hits.push_back({search.Text(0), search.Text(1), search.Text(6),
+                        static_cast<ModelProfile>(p), search.Int(3),
+                        search.Int(4) != 0, search.Int(5) != 0, search.Int(7)});
+      }
+      return hits;
+    }
     std::vector<ConversationSummary> rows;
     Statement q(
         db_,
@@ -564,9 +690,181 @@ std::future<std::vector<ConversationSummary>> ChatStore::List(
 std::future<void> ChatStore::Delete(std::string id) {
   return Submit([this, id = std::move(id)] {
     if (!open_error_.empty()) throw std::runtime_error(open_error_);
-    Statement q(db_, "DELETE FROM conversations WHERE id=?");
-    q.Text(1, id);
-    q.Row();
+    Exec(db_, "BEGIN IMMEDIATE");
+    try {
+      Statement q(db_, "DELETE FROM conversations WHERE id=?");
+      q.Text(1, id);
+      q.Row();
+      Statement fts(db_, "DELETE FROM chat_search WHERE chat=?");
+      fts.Text(1, id);
+      fts.Row();
+      Exec(db_, "COMMIT");
+    } catch (...) {
+      sqlite3_exec(db_, "ROLLBACK", nullptr, nullptr, nullptr);
+      throw;
+    }
   });
 }
+std::future<std::filesystem::path> ChatStore::Export(
+    Conversation chat, std::filesystem::path destination) {
+  return Submit([chat = std::move(chat), destination = std::move(destination)] {
+    if (!std::filesystem::is_directory(destination))
+      throw std::runtime_error("Choose an existing export directory.");
+    if (chat.messages.size() > 10000)
+      throw std::runtime_error("Too many messages to export.");
+    const auto output = destination / ("gem16-chat-" + NewChatId());
+    const auto staging = std::filesystem::path(output.string() + ".incomplete");
+    std::filesystem::create_directory(staging);
+#ifndef _WIN32
+    std::filesystem::permissions(staging, std::filesystem::perms::owner_all);
+#endif
+    try {
+      std::filesystem::create_directory(staging / "attachments");
+      J::Array messages;
+      std::string markdown = "# " + chat.title + "\n\n";
+      std::size_t total = 0;
+      for (const auto& m : chat.messages) {
+        auto details = MessageJson(m, staging / "attachments");
+        total += m.content.size() + m.reasoning.size() +
+                 json::Stringify(details).size();
+        if (total > 32U * 1024U * 1024U)
+          throw std::runtime_error("Export exceeds 32 MiB text limit.");
+        messages.emplace_back(
+            J::Object{{"role", J(m.role)},
+                      {"content", J(m.content)},
+                      {"reasoning", J(m.reasoning)},
+                      {"status", J(std::string(m.error       ? "failed"
+                                               : m.streaming ? "interrupted"
+                                                             : "complete"))},
+                      {"details", std::move(details)}});
+        markdown += "## " + m.role + "\n\n" + m.content + "\n\n";
+        if (!m.reasoning.empty())
+          markdown += "### Reasoning\n\n" + m.reasoning + "\n\n";
+        if (m.error || m.streaming)
+          markdown +=
+              "Status: " + std::string(m.error ? "failed" : "interrupted") +
+              ". " + m.error_message + "\n\n";
+        for (const auto& a : m.attachments) {
+          const auto hash =
+              a.missing ? a.storage_hash
+                        : compiler::Sha256Hex(a.bytes.data(), a.bytes.size());
+          markdown += a.missing ? "Missing attachment: " + hash + "\n\n"
+                                : "[Attachment](attachments/" + hash + ")\n\n";
+          if (!a.document_text.empty())
+            markdown += "### Attached document\n\n" + a.document_text + "\n\n";
+        }
+        for (const auto& attempt : m.attempts)
+          markdown += "### Previous attempt\n\n" + attempt.content + "\n\n" +
+                      attempt.reasoning + "\n\n" + attempt.error_message +
+                      "\n\n";
+      }
+      J document(
+          J::Object{{"format", J(std::string("gem16-chat-v1"))},
+                    {"id", J(chat.id)},
+                    {"title", J(chat.title)},
+                    {"profile", J(std::string(ProfileWireName(chat.profile)))},
+                    {"model_identity", J(chat.identity)},
+                    {"created", J(chat.created)},
+                    {"updated", J(chat.updated)},
+                    {"pinned", J(chat.pinned)},
+                    {"archived", J(chat.archived)},
+                    {"messages", J(std::move(messages))}});
+      WriteText(staging / "chat.json", json::Stringify(document));
+      WriteText(staging / "chat.md", markdown);
+      std::filesystem::rename(staging, output);
+      return output;
+    } catch (...) {
+      std::error_code ec;
+      std::filesystem::remove_all(staging, ec);
+      throw;
+    }
+  });
+}
+std::future<std::filesystem::path> ChatStore::Backup(
+    std::filesystem::path destination) {
+  return Submit([this, destination = std::move(destination)] {
+    if (!open_error_.empty()) throw std::runtime_error(open_error_);
+    if (!std::filesystem::is_directory(destination))
+      throw std::runtime_error("Choose an existing backup directory.");
+    const auto output = destination / ("gem16-backup-" + NewChatId());
+    const auto staging = std::filesystem::path(output.string() + ".incomplete");
+    std::filesystem::create_directory(staging);
+#ifndef _WIN32
+    std::filesystem::permissions(staging, std::filesystem::perms::owner_all);
+#endif
+    try {
+      sqlite3* raw = nullptr;
+      const int result =
+          sqlite3_open(PathText(staging / "studio.db").c_str(), &raw);
+      std::unique_ptr<sqlite3, decltype(&sqlite3_close)> copy(raw,
+                                                              sqlite3_close);
+      Check(raw, result);
+      sqlite3_backup* backup = sqlite3_backup_init(raw, "main", db_, "main");
+      if (!backup) throw std::runtime_error(sqlite3_errmsg(raw));
+      const int step = sqlite3_backup_step(backup, -1);
+      const int finish = sqlite3_backup_finish(backup);
+      Check(raw, step);
+      Check(raw, finish);
+      {
+        Statement integrity(raw, "PRAGMA quick_check");
+        if (!integrity.Row() || integrity.Text(0) != "ok")
+          throw std::runtime_error("Backup integrity check failed.");
+      }
+      const auto hashes = AttachmentReferences(db_);
+      std::filesystem::create_directory(staging / "attachments");
+      for (const auto& hash : hashes) {
+        const auto source = root_ / "attachments" / hash;
+        if (std::filesystem::is_symlink(
+                std::filesystem::symlink_status(source)) ||
+            !std::filesystem::is_regular_file(source))
+          throw std::runtime_error(
+              "Backup cannot complete: missing attachment " + hash);
+        auto size = std::filesystem::file_size(source);
+        if (size > 64U * 1024U * 1024U)
+          throw std::runtime_error("Invalid backup attachment size.");
+        std::vector<std::uint8_t> bytes(size);
+        std::ifstream in(source, std::ios::binary);
+        in.read(reinterpret_cast<char*>(bytes.data()),
+                static_cast<std::streamsize>(size));
+        if (!in || compiler::Sha256Hex(bytes.data(), bytes.size()) != hash)
+          throw std::runtime_error(
+              "Backup cannot complete: damaged attachment " + hash);
+        WriteBlob(staging / "attachments", hash, bytes);
+      }
+      copy.reset();
+      WriteText(
+          staging / "README.txt",
+          "Complete gem16 Studio backup. Close Studio, keep a copy of the "
+          "existing data directory, then copy studio.db and attachments into "
+          "an empty Studio data directory. Do not retain an old studio.db-wal "
+          "or studio.db-shm. Alternatively launch with GEM16_STUDIO_DATA_ROOT "
+          "pointing to this backup directory. Model weights and Studio/server "
+          "preferences are not included.\n");
+      std::filesystem::rename(staging, output);
+      return output;
+    } catch (...) {
+      std::error_code ec;
+      std::filesystem::remove_all(staging, ec);
+      throw;
+    }
+  });
+}
+std::future<std::uint64_t> ChatStore::CleanAttachments() {
+  return Submit([this] {
+    if (!open_error_.empty()) throw std::runtime_error(open_error_);
+    const auto referenced = AttachmentReferences(db_);
+    std::uint64_t freed = 0;
+    for (const auto& entry :
+         std::filesystem::directory_iterator(root_ / "attachments")) {
+      const auto name = entry.path().filename().string();
+      if (!SafeHash(name) || referenced.contains(name) || entry.is_symlink() ||
+          !entry.is_regular_file())
+        continue;
+      const auto size = entry.file_size();
+      if (std::filesystem::remove(entry.path())) freed += size;
+    }
+    return freed;
+  });
+}
+
 }  // namespace gem16::studio

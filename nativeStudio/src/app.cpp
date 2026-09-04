@@ -446,7 +446,7 @@ std::string FormatRecordingTime(std::uint64_t milliseconds) {
 
 StudioApp::StudioApp(StudioSettings settings, float automatic_ui_scale)
     : settings_(std::move(settings)), automatic_ui_scale_(automatic_ui_scale) {
-  conversation_.id = NewChatId();
+  conversation_.id = NewChatId(); conversation_.created = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
   conversation_.profile = settings_.server.profile;
   conversation_.identity = ModelIdentity(settings_.server);
   chat_listing_ = chat_store_.List();
@@ -660,6 +660,18 @@ void StudioApp::DrawChat() {
     ImGui::TextWrapped("Not saved: %s", storage_error_.c_str());
     if (ImGui::SmallButton("Retry saving")) { storage_error_.clear(); last_chat_save_ = {}; SaveChat(); }
   }
+  ImGui::BeginDisabled(api_.Busy() || pending_send_ || chat_load_.valid() || chat_export_.valid() || chat_cleanup_.valid());
+  if(ImGui::SmallButton("Export JSON + Markdown")) {
+    const auto directory=OpenDirectoryDialog();if(!directory.empty()){auto snapshot=conversation_;snapshot.messages=messages_;chat_export_=chat_store_.Export(std::move(snapshot),directory);export_status_="Exporting...";}
+  }
+  ImGui::BeginDisabled(!CanNavigateChats());
+  ImGui::SameLine();
+  if(ImGui::SmallButton("Back up all chats")) { const auto directory=OpenDirectoryDialog();if(!directory.empty()){chat_export_=chat_store_.Backup(directory);export_status_="Backing up chats and attachments...";} }
+  ImGui::SameLine();
+  if(ImGui::SmallButton("Clean unused attachments")) {chat_cleanup_=chat_store_.CleanAttachments();export_status_="Cleaning unused attachments...";}
+  ImGui::EndDisabled();
+  ImGui::EndDisabled();
+  if(!export_status_.empty())ImGui::TextWrapped("%s",export_status_.c_str());
   const auto chat_mismatch = ChatCompatibilityError();
   if (!chat_mismatch.empty()) ImGui::TextWrapped("%s", chat_mismatch.c_str());
   else if (!messages_.empty() && session_id_.empty()) ImGui::TextDisabled("Continuing will rebuild the model context from the saved conversation.");
@@ -668,7 +680,7 @@ void StudioApp::DrawChat() {
     ImGui::TextUnformatted("Delete this conversation and all saved attempts?");
     if (ImGui::Button("Delete")) {
       if (!temporary_chat_) chat_save_ = chat_store_.Delete(conversation_.id);
-      messages_.clear(); conversation_ = {}; conversation_.id = NewChatId();
+      messages_.clear(); conversation_ = {}; conversation_.id = NewChatId(); conversation_.created = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
       conversation_.profile = settings_.server.profile; conversation_.identity = ModelIdentity(settings_.server);
       chat_title_[0] = 0; composer_[0] = 0; pending_attachments_.clear(); expanded_reasoning_.clear(); session_id_.clear(); chat_revision_ = saved_revision_ = saving_revision_ = 0;
       ImGui::CloseCurrentPopup();
@@ -726,8 +738,10 @@ void StudioApp::DrawChat() {
           "Open Models and select either qualified profile. You can return here at any time.");
     }
   }
-  for (std::size_t index = 0; index < messages_.size(); ++index)
+  for (std::size_t index = 0; index < messages_.size(); ++index) {
+    if (static_cast<std::int64_t>(index) == jump_to_message_) { ImGui::SetScrollHereY(0.0f); jump_to_message_ = -1; scroll_to_bottom_ = false; auto_follow_ = false; }
     DrawMessage(messages_[index], index);
+  }
   if (retry_requested_) {
     retry_requested_ = false;
     RetryLastRequest();
@@ -1785,7 +1799,7 @@ void StudioApp::DrawSettings() {
 
 void StudioApp::SendMessage() {
   std::string text = composer_.data();
-  if ((text.empty() && pending_attachments_.empty()) || api_.Busy() || pending_send_ || chat_save_.valid()) return;
+  if ((text.empty() && pending_attachments_.empty()) || api_.Busy() || pending_send_ || chat_save_.valid() || chat_cleanup_.valid()) return;
   const auto history_error = ChatCompatibilityError();
   if (!history_error.empty()) { attachment_error_ = history_error; return; }
   const HealthSnapshot health = server_.Health();
@@ -1822,7 +1836,7 @@ void StudioApp::SendMessage() {
 }
 
 void StudioApp::RetryLastRequest() {
-  if (api_.Busy() || pending_send_ || chat_save_.valid() || !ChatCompatibilityError().empty() || messages_.size() < 2U ||
+  if (api_.Busy() || pending_send_ || chat_save_.valid() || chat_cleanup_.valid() || !ChatCompatibilityError().empty() || messages_.size() < 2U ||
       messages_.back().role != "assistant" || !messages_.back().error ||
       messages_[messages_.size() - 2U].role != "user") {
     return;
@@ -1915,7 +1929,7 @@ void StudioApp::SelectProfile(ModelProfile profile) {
 namespace {
 template<class T> bool FutureReady(std::future<T>& f) { return f.valid() && f.wait_for(std::chrono::seconds(0)) == std::future_status::ready; }
 }
-bool StudioApp::CanNavigateChats() const { return !api_.Busy() && !pending_send_ && !chat_save_.valid() && !chat_load_.valid() && !recorder_.Active() && (temporary_chat_ || chat_revision_ == saved_revision_); }
+bool StudioApp::CanNavigateChats() const { return !api_.Busy() && !pending_send_ && !chat_save_.valid() && !chat_load_.valid() && !chat_cleanup_.valid() && !recorder_.Active() && (temporary_chat_ || chat_revision_ == saved_revision_); }
 std::string StudioApp::ChatCompatibilityError() const {
   if (messages_.empty()) return {};
   for (const auto& m : messages_) for (const auto& a : m.attachments) if (a.missing) return "An attachment is missing or damaged. The saved text remains readable; restore the attachment before continuing.";
@@ -1936,9 +1950,14 @@ void StudioApp::StartSavedRequest() {
 }
 void StudioApp::PollChatStore() {
   try {
+    if (FutureReady(chat_export_)) export_status_="Saved to "+chat_export_.get().string();
+    if (FutureReady(chat_cleanup_)) export_status_="Removed "+FormatBytes(chat_cleanup_.get())+" of unreferenced chat attachments.";
+  } catch (const std::exception& e) { export_status_ = std::string("Operation failed: ")+e.what(); }
+  try {
+    if (!chat_listing_.valid() && (listed_search_!=chat_search_.data() || listed_archived_!=show_archived_) && std::chrono::steady_clock::now()-search_changed_>std::chrono::milliseconds(250)) { listed_search_=chat_search_.data(); listed_archived_=show_archived_; chat_listing_=chat_store_.List(show_archived_,listed_search_); }
     if (FutureReady(chat_save_)) {
       chat_save_.get(); saved_revision_ = saving_revision_; storage_error_.clear();
-      if (!chat_listing_.valid()) chat_listing_ = chat_store_.List(show_archived_);
+      if (!chat_listing_.valid()) { listed_search_=chat_search_.data(); listed_archived_=show_archived_; chat_listing_ = chat_store_.List(show_archived_,listed_search_); }
       if (pending_send_ && saved_revision_ == chat_revision_) StartSavedRequest();
     }
     if (FutureReady(chat_listing_)) {
@@ -1967,7 +1986,7 @@ void StudioApp::PollChatStore() {
 void StudioApp::NewConversation(bool temporary) {
   if (!CanNavigateChats()) return;
   restore_latest_ = false; temporary_chat_ = temporary;
-  conversation_ = {}; conversation_.id = NewChatId(); conversation_.profile = settings_.server.profile; conversation_.identity = ModelIdentity(settings_.server);
+  conversation_ = {}; conversation_.id = NewChatId(); conversation_.created = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count(); conversation_.profile = settings_.server.profile; conversation_.identity = ModelIdentity(settings_.server);
   messages_.clear(); pending_attachments_.clear(); session_id_.clear(); composer_[0] = 0; chat_title_[0] = 0;
   expanded_reasoning_.clear(); performance_.reset(); attachment_error_.clear();
   chat_revision_ = saved_revision_ = 0; screen_ = Screen::kChat;
@@ -1977,11 +1996,12 @@ void StudioApp::DrawChatLibrary() {
   ImGui::BeginDisabled(!CanNavigateChats());
   if (ImGui::SmallButton("New chat")) NewConversation();
   ImGui::SameLine(); if (ImGui::SmallButton("Temporary")) NewConversation(true);
-  if (ImGui::Checkbox("Archived", &show_archived_) && !chat_listing_.valid()) chat_listing_ = chat_store_.List(show_archived_);
+  ImGui::Checkbox("Archived", &show_archived_);
+  if(ImGui::InputTextWithHint("##chat-search","Search chats / documents",chat_search_.data(),chat_search_.size()))search_changed_=std::chrono::steady_clock::now();
   ImGui::BeginChild("##chat-list", {0, std::max(Ui(40), ImGui::GetContentRegionAvail().y - Ui(112))});
   for (const auto& chat : chat_list_) {
-    const std::string label = std::string(chat.pinned ? "* " : "") + chat.title + "##" + chat.id;
-    if (ImGui::Selectable(label.c_str(), chat.id == conversation_.id)) { chat_load_ = chat_store_.Load(chat.id); restore_latest_ = false; screen_ = Screen::kChat; }
+    const std::string label = std::string(chat.pinned ? "* " : "") + chat.title + "##" + chat.id + "-" + std::to_string(chat.hit_position);
+    if (ImGui::Selectable(label.c_str(), chat.id == conversation_.id)) { chat_load_ = chat_store_.Load(chat.id); jump_to_message_=chat.hit_position; restore_latest_ = false; screen_ = Screen::kChat; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%s", ProfileLabel(chat.profile), chat.preview.c_str());
   }
   ImGui::EndChild(); ImGui::EndDisabled();

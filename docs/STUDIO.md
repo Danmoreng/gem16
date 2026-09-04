@@ -42,7 +42,10 @@ before dispatch; streamed answers checkpoint about once a second and on completi
 Retry preserves the previous answer attempt. Reopening a chat rebuilds server
 context on continuation and restores its generation settings. A different model
 installation or missing attachment blocks continuation with an explanation.
-See [chat storage](STUDIO_STORAGE.md) for paths, durability and limits.
+The sidebar searches titles, messages, reasoning and attached documents and jumps
+to matching turns. Export produces JSON/Markdown plus attachments; backup creates
+a complete restorable chat bundle. Cleanup removes unreferenced chat attachments.
+See [chat storage](STUDIO_STORAGE.md) for paths, durability, restore and limits.
 
 ## Models and verification
 

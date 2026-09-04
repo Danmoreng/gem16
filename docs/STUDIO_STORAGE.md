@@ -34,3 +34,32 @@ Validation: `cmake --build build/native-studio --parallel 4` and
 partial recovery, attempt/settings/media roundtrips, same-size corruption, missing media,
 archive/pin/delete, duplicate-instance exclusion, schema rejection and transaction rollback.
 Windows runtime and desktop interaction qualification remains separate.
+
+## Search, export and backup
+
+The sidebar uses SQLite FTS5 over titles, answers, reasoning, previous attempts,
+document text and attachment names. Space-separated terms are literal word prefixes,
+not executable FTS expressions. Search ignores case and Latin accents. Results carry
+message positions and jump to the matching turn; at most 200 hits are returned.
+The normal sidebar shows the latest 500 conversations, pinned first.
+
+**Export JSON + Markdown** writes a new folder with `chat.json`, `chat.md` and
+`attachments/`. It also works for temporary chats and unsaved text after a save error.
+JSON retains settings, model identity, timestamps and attempts. Missing media is
+identified in Markdown; it is never silently replaced.
+**Back up all chats** uses SQLite's online backup API, checks the copied database,
+and copies every referenced attachment after hash verification. An incomplete or
+corrupt source fails the backup; only a successful bundle receives its final folder name.
+Weights and app/server preferences are outside this conversation backup.
+
+To restore, close Studio and preserve the existing data folder. Copy the backup's
+`studio.db` and `attachments/` into an empty data folder (do not carry over old WAL/SHM
+files), or launch Studio with `GEM16_STUDIO_DATA_ROOT` set to a copy of the backup.
+No running database file should be overwritten. Schema migration builds the search
+index transactionally; a newer schema remains protected from older Studio builds.
+
+**Clean unused attachments** removes only hash-named regular files without any
+message reference, including archived chats. Profile/model blobs are never touched.
+Backup bundles own their attachment copies and remain independent of this cleanup.
+Tests additionally cover search escaping/accent handling, search migration, export,
+backup reopening, FTS deletion and reference-aware garbage collection.

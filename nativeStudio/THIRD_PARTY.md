@@ -8,3 +8,11 @@
 - GLFW 3.4 is fetched from its upstream repository at configure time on Linux and is licensed under zlib/libpng.
 
 No Free Solace login/authentication implementation, slide/avatar/brand assets, or glass-cursor code is included.
+
+## SQLite
+
+SQLite 3.53.4 is fetched as the official amalgamation from sqlite.org and statically
+linked with FTS5 enabled and loadable extensions disabled. SQLite is public domain.
+Source: https://sqlite.org/2026/sqlite-amalgamation-3530400.zip
+SHA-256: `1e71ddf93849c6a6ecf58b827c0692073d2dd7ee40196158068f7b29f422e87d`.
+The archive is pinned in `cmake/sqlite-dependency.cmake`.

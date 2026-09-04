@@ -10,6 +10,8 @@ Current authority: [active decisions](ACTIVE_DECISIONS.md),
 - Bounded Compact Vision P20 accepted; extended QUAL01 waived, not executed.
 - Responses output-limit events, nonblocking Studio cancellation, failed-exchange recovery
   and explicit fresh payload verification corrected in `8d057db`.
+- Native Studio stores conversations and attempts in SQLite, with attachment copies,
+  full-text search, JSON/Markdown exports and restorable backups.
 - User guides and active task routing consolidated; measurements and prior decisions archived intact.
 
 ## Next increments
@@ -17,8 +19,8 @@ Current authority: [active decisions](ACTIVE_DECISIONS.md),
 1. Extend the [bounded SDK/Pi matrix](AGENT_COMPATIBILITY.md) from its completed
    Linux runs to Windows live GPU execution and the remaining Agent Core gates.
    Close constrained tool-choice and reasoning-replay gaps before broader compatibility claims.
-2. Improve Studio conversation durability and request-specific diagnostics. These are
-   future product slices, not reasons to reopen the renderer or engine architecture.
+2. Qualify Studio conversation persistence and model lifecycle on both platforms;
+   extend request-specific diagnostics without reopening the engine architecture.
 3. Close release gates: live Windows SM120 Compact Vision evidence, REL01/P21,
    equal Windows/Linux archives, dependency contracts, notices, manifests, hashes,
    full downloads and clean-machine first-run/restart smokes.

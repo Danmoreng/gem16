@@ -70,6 +70,13 @@ class StudioApp final {
   Conversation conversation_;
   std::vector<ConversationSummary> chat_list_;
   std::future<void> chat_save_;
+  std::future<std::filesystem::path> chat_export_;
+  std::future<std::uint64_t> chat_cleanup_;
+  std::array<char, 513> chat_search_{};
+  std::string listed_search_, export_status_;
+  bool listed_archived_ = false;
+  std::chrono::steady_clock::time_point search_changed_{};
+  std::int64_t jump_to_message_ = -1;
   std::future<Conversation> chat_load_;
   std::future<std::vector<ConversationSummary>> chat_listing_;
   std::uint64_t chat_revision_ = 0, saved_revision_ = 0, saving_revision_ = 0;
