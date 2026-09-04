@@ -7,8 +7,16 @@
 #include <vector>
 
 #include "gem16/status.h"
+#include "gem16/tokenizer.h"
 
 namespace gem16::internal {
+
+// Pure host renderer used by the pinned tokenizer processor and template contract tests.
+[[nodiscard]] Result<std::string> RenderGemmaChat(
+    std::span<const ChatMessage> messages, bool enable_thinking, bool add_generation_prompt,
+    std::span<const ChatToolDefinition> tools, std::string_view thinking_open,
+    std::string_view thinking_close, std::span<const std::string> content_close_tokens,
+    std::string_view tool_call_start_token);
 
 struct TokenizerConfig {
   std::string tokenizer_class;

@@ -130,8 +130,9 @@ requires the permanent benchmark contract.
 
 ## Open product gates
 
-- Full Agent Core v1 qualification requires official Python and TypeScript SDKs,
-  an external coding-agent workflow, both public profiles and both platforms.
+- [Bounded Linux SDK and Pi development evidence](AGENT_COMPATIBILITY.md) covers
+  both public profiles. Full Agent Core v1 still needs Windows live execution and
+  the remaining contract/lifecycle gates; the bounded matrix is not a release waiver.
 - REL01/P21, live Windows SM120 Compact Vision, equal packages, full downloads
   and clean-machine onboarding remain release gates. Native Studio has not
   shipped as a fully qualified two-platform release.

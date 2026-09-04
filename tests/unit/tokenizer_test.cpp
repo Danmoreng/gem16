@@ -196,10 +196,57 @@ void TestGoogleTokenizerConfigAndResponseTemplate() {
   GEM16_CHECK(!error);
 }
 
+void TestSequentialToolTurns() {
+  const std::vector<std::string> close_tokens = {"<turn|>", "<|tool_response>", "<eos>"};
+  const auto render = [&](const std::vector<gem16::ChatMessage>& messages, bool generation) {
+    return gem16::internal::RenderGemmaChat(messages, false, generation, {},
+        "<|channel>thought\n", "<channel|>", close_tokens, "<|tool_call>");
+  };
+  const auto text = [](std::string role, std::string content) {
+    gem16::ChatMessage message;
+    message.role = std::move(role);
+    message.content = std::move(content);
+    return message;
+  };
+  gem16::ChatMessage first;
+  first.role = "assistant";
+  first.tool_calls.push_back({"call_1", "read", R"({"path":"a"})"});
+  gem16::ChatMessage first_result;
+  first_result.role = "tool";
+  first_result.tool_call_id = "call_1";
+  first_result.content = "A";
+  auto second = first;
+  second.tool_calls[0].arguments_json = R"({"path":"b"})";
+  auto second_result = first_result;
+  second_result.content = "B";
+  std::vector<gem16::ChatMessage> messages = {
+      text("user", "Read both files"), first, first_result, second, second_result};
+  const std::string prefix = "<bos><|turn>user\nRead both files<turn|>\n<|turn>model\n"
+      "<|tool_call>call:read{path:<|\"|>a<|\"|>}<tool_call|>"
+      "<|tool_response>response:read{value:<|\"|>A<|\"|>}<tool_response|>"
+      "<|tool_call>call:read{path:<|\"|>b<|\"|>}<tool_call|>"
+      "<|tool_response>response:read{value:<|\"|>B<|\"|>}<tool_response|>";
+  auto pending = render(messages, true);
+  GEM16_CHECK(pending.ok());
+  if (pending.ok()) GEM16_CHECK(pending.value() == prefix);
+  messages.push_back(text("assistant", "Both read"));
+  auto completed = render(messages, false);
+  GEM16_CHECK(completed.ok());
+  if (completed.ok()) GEM16_CHECK(completed.value() == prefix + "Both read<turn|>\n");
+  messages.push_back(text("user", "Continue"));
+  auto next = render(messages, true);
+  GEM16_CHECK(next.ok());
+  if (next.ok()) GEM16_CHECK(next.value() == prefix + "Both read<turn|>\n"
+      "<|turn>user\nContinue<turn|>\n<|turn>model\n<|channel>thought\n<channel|>");
+  GEM16_CHECK(!render({text("user", "a"), text("user", "b")}, true).ok());
+  GEM16_CHECK(!render({text("user", "a"), text("assistant", "b"), text("assistant", "c")}, false).ok());
+}
+
 struct TokenizerTests {
   TokenizerTests() {
     TestBpeEncodeDecodeAndSpecialTokens();
     TestGoogleTokenizerConfigAndResponseTemplate();
+    TestSequentialToolTurns();
   }
 } tokenizer_tests;
 

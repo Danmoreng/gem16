@@ -929,6 +929,15 @@ ResponseTokenChannel ResponseChannelTracker::Observe(std::uint32_t token_id) {
 Result<std::string> GemmaChatProcessor::Render(std::span<const ChatMessage> messages, bool enable_thinking,
                                                bool add_generation_prompt,
                                                std::span<const ChatToolDefinition> tools) const {
+  return internal::RenderGemmaChat(messages, enable_thinking, add_generation_prompt, tools,
+                                   thinking_open_, thinking_close_, content_close_tokens_, tool_call_start_token_);
+}
+
+Result<std::string> internal::RenderGemmaChat(
+    std::span<const ChatMessage> messages, bool enable_thinking, bool add_generation_prompt,
+    std::span<const ChatToolDefinition> tools, std::string_view thinking_open,
+    std::string_view thinking_close, std::span<const std::string> content_close_tokens,
+    std::string_view tool_call_start_token) {
   if (messages.empty()) {
     return Error(StatusCode::kInvalidArgument, "chat requires at least one message");
   }
@@ -961,10 +970,13 @@ Result<std::string> GemmaChatProcessor::Render(std::span<const ChatMessage> mess
     if (message.role == previous_role) {
       return Error(StatusCode::kInvalidArgument, "native chat requires alternating user and assistant messages");
     }
+    const bool continue_model_turn = message.role == "assistant" && previous_role == "tool";
     const std::string_view rendered_role = message.role == "assistant" ? "model" : "user";
-    result.append("<|turn>");
-    result.append(rendered_role);
-    result.push_back('\n');
+    if (!continue_model_turn) {
+      result.append("<|turn>");
+      result.append(rendered_role);
+      result.push_back('\n');
+    }
     if (message.role == "assistant") {
       bool assistant_has_content = false;
       if (!message.tool_calls.empty()) {
@@ -975,8 +987,8 @@ Result<std::string> GemmaChatProcessor::Render(std::span<const ChatMessage> mess
         }
       }
       if (!message.content.empty()) {
-        auto content = internal::ExtractResponseContent(message.content, thinking_open_, thinking_close_,
-                                                        content_close_tokens_, tool_call_start_token_);
+        auto content = internal::ExtractResponseContent(message.content, thinking_open, thinking_close,
+                                                        content_close_tokens, tool_call_start_token);
         if (!content.ok()) return content.status();
         result.append(content.value());
         assistant_has_content = !content.value().empty();
@@ -1004,8 +1016,12 @@ Result<std::string> GemmaChatProcessor::Render(std::span<const ChatMessage> mess
         previous_role = "assistant";
         continue;
       }
-      if (rendered_tool_result && !assistant_has_content &&
-          message_index + 1U == messages.size()) {
+      // A tool result followed by another assistant message stays inside the
+      // same model turn in both pinned Gemma templates. Only user turns close it.
+      const bool next_is_assistant = message_index + 1U < messages.size() &&
+                                     messages[message_index + 1U].role == "assistant";
+      if (rendered_tool_result &&
+          (next_is_assistant || (!assistant_has_content && message_index + 1U == messages.size()))) {
         previous_role = "tool";
         continue;
       }

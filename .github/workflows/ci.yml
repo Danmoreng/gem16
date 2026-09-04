@@ -42,6 +42,11 @@ jobs:
           cmake --build build/native-studio --parallel 2
           ctest --test-dir build/native-studio --output-on-failure
         working-directory: source
+      - name: Check official TypeScript SDK validator
+        run: |
+          npm ci --prefix tools/openai-sdk --ignore-scripts
+          npm --prefix tools/openai-sdk run check
+        working-directory: source
       - name: Check Python tools
         run: |
           . .ci-venv/bin/activate
@@ -65,6 +70,7 @@ jobs:
             tools/reorganize_gemma4_26b_hf.py \
             tools/split_gemma4_26b_consolidated_lock.py \
             tools/update_gemma4_26b_plan_integrity.py
+          python -m py_compile tools/validate_openai_sdk.py tools/validate_external_agent.py tools/run_agent_core_matrix.py
           python tools/update_gemma4_26b_plan_integrity.py --validate-source
           python -m unittest discover -s tests/python -v
         working-directory: source
@@ -105,6 +111,11 @@ jobs:
           cmake.exe --build build\Windows\native-studio-ci --config Release --parallel 2
           ctest.exe --test-dir build\Windows\native-studio-ci -C Release --output-on-failure
         working-directory: source
+      - name: Check official TypeScript SDK validator
+        run: |
+          npm ci --prefix tools/openai-sdk --ignore-scripts
+          npm --prefix tools/openai-sdk run check
+        working-directory: source
       - name: Check Python tools
         shell: pwsh
         run: |
@@ -112,6 +123,7 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           .\.ci-venv\Scripts\Activate.ps1
           python -m py_compile tools/compare_manifests.py tools/benchmark_vllm.py tools/benchmark_quality.py tools/compare_logits.py tools/compare_quality_benchmarks.py tools/fetch_model.py tools/generate_golden.py tools/generate_llama_golden.py tools/inspect_checkpoint.py tools/inspect_gguf.py tools/validate_inference.py tools/validate_layer_checkpoint.py tools/verify_sm120_sass.py tools/summarize_llama_bench.py tools/gemma4_26b_moe_oracle.py tools/package_gemma4_26b_vision_hf.py tools/reorganize_gemma4_26b_hf.py tools/split_gemma4_26b_consolidated_lock.py tools/update_gemma4_26b_plan_integrity.py
+          python -m py_compile tools/validate_openai_sdk.py tools/validate_external_agent.py tools/run_agent_core_matrix.py
           python tools/update_gemma4_26b_plan_integrity.py --validate-source
           python -m unittest discover -s tests/python -v
         working-directory: source

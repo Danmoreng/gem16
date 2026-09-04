@@ -16,3 +16,7 @@
 *.ncu-rep
 __pycache__/
 *.py[cod]
+
+/tools/openai-sdk/node_modules/
+/tools/pi-agent/node_modules/
+/.venv-agent-core/

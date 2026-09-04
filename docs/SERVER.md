@@ -205,7 +205,9 @@ cancellation flag. Cancellation and disconnect trigger cache rollback; poisoned 
 A client must handle invalidated or evicted response IDs explicitly rather than
 assuming that a partially generated turn is a reusable prefix.
 
-Official SDK gate:
+Official SDK development probes and current platform results are listed in
+[SDK and coding-agent compatibility](AGENT_COMPATIBILITY.md). The legacy narrow probe remains:
+
 
 ```powershell
 py -m pip install -r tools\requirements-openai-sdk.txt
@@ -217,6 +219,10 @@ JPEG/BMP and MP3/FLAC use the analogous MIME/format values. Remote image URLs
 are deliberately unsupported in this milestone. Images and audio are decoded
 in memory without temporary files. Multiple parts retain JSON order, and all
 images share the context-aware automatic soft-token budget.
+
+Native execution currently supports `tool_choice=auto|none` and
+`parallel_tool_calls=true`. Required/named tool choice and `parallel_tool_calls=false`
+fail visibly; parser recognition does not imply constrained generation.
 
 Assistant `tool_calls` and `tool` messages with `tool_call_id` are accepted.
 Native Gemma tool DSL never leaks through the API: the resident identity is

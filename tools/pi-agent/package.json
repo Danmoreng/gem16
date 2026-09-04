@@ -1,0 +1,8 @@
+{
+  "name": "gem16-external-agent-validation",
+  "private": true,
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.85.0",
+    "@earendil-works/pi-server": "0.85.0"
+  }
+}

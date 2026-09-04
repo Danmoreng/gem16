@@ -168,5 +168,11 @@ Windows and Linux, for both 12B and 26B where capability-applicable:
 8. exact version, model, capability, sampling, context, fallback, allocation,
    and usage reporting.
 
-The existing Python SDK validators are development evidence. They do not alone
-complete this two-platform, two-model release gate.
+The [SDK and coding-agent matrix](AGENT_COMPATIBILITY.md) records bounded Linux
+results for both public profiles, pinned Python/TypeScript clients and an unmodified
+Pi workflow. It does not complete the two-platform release gate.
+
+Current execution gaps remain explicit: required/named tool choice and
+`parallel_tool_calls=false` are parsed but rejected by the native runtime.
+Assistant `reasoning_content` replay is unsupported. These implementation limits
+do not waive the broader contract or authorize silently ignoring those fields.

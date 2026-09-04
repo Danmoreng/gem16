@@ -1,0 +1,38 @@
+{
+  "providers": {
+    "gem16": {
+      "baseUrl": "http://127.0.0.1:18081/v1",
+      "api": "openai-completions",
+      "apiKey": "gem16-local-validation",
+      "compat": {
+        "supportsStore": false,
+        "supportsDeveloperRole": true,
+        "supportsReasoningEffort": true,
+        "supportsUsageInStreaming": true,
+        "supportsStrictMode": false,
+        "supportsLongCacheRetention": false
+      },
+      "models": [
+        {
+          "id": "gem16",
+          "name": "gem16 local",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": "none"
+          },
+          "input": [
+            "text"
+          ],
+          "contextWindow": 16384,
+          "maxTokens": 2048,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        }
+      ]
+    }
+  }
+}

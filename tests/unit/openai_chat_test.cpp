@@ -397,6 +397,30 @@ void RunOpenAiChatTests() {
                     .moe26b_image.soft_token_budget == 140U);
   }
 
+  auto parallel_history = gem16::server::ParseResponsesRequest(R"({
+    "model":"gem16","input":[
+      {"role":"user","content":"Look up both keys"},
+      {"type":"function_call","call_id":"a","name":"lookup","arguments":"{}"},
+      {"type":"function_call","call_id":"b","name":"lookup","arguments":"{}"},
+      {"type":"function_call_output","call_id":"a","output":"A"},
+      {"type":"function_call_output","call_id":"b","output":"B"},
+      {"type":"function_call","call_id":"c","name":"read","arguments":"{}"}
+    ]
+  })");
+  GEM16_CHECK(parallel_history.ok());
+  if (parallel_history.ok()) {
+    const auto& messages = parallel_history.value().generation.messages;
+    GEM16_CHECK(messages.size() == 5U);
+    GEM16_CHECK(messages[1].role == "assistant");
+    GEM16_CHECK(messages[1].content.size() == 2U);
+    GEM16_CHECK(messages[1].content[0].tool_call.id == "a");
+    GEM16_CHECK(messages[1].content[1].tool_call.id == "b");
+    GEM16_CHECK(messages[2].role == "tool" && messages[3].role == "tool");
+    GEM16_CHECK(messages[4].role == "assistant");
+    GEM16_CHECK(messages[4].content.size() == 1U);
+    GEM16_CHECK(messages[4].content[0].tool_call.id == "c");
+  }
+
   auto response_continuation = gem16::server::ParseResponsesRequest(R"({
     "model":"gem16","previous_response_id":"resp_1",
     "input":[{"type":"function_call_output","call_id":"call_1","output":"Sunny"}]

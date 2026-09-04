@@ -14,9 +14,9 @@ Current authority: [active decisions](ACTIVE_DECISIONS.md),
 
 ## Next increments
 
-1. Expand official Python and TypeScript SDK coverage and exercise an unmodified external
-   coding agent reading files, editing and running a check. Record model/platform results
-   separately; full qualification requires both public profiles on Windows and Linux.
+1. Extend the [bounded SDK/Pi matrix](AGENT_COMPATIBILITY.md) from its completed
+   Linux runs to Windows live GPU execution and the remaining Agent Core gates.
+   Close constrained tool-choice and reasoning-replay gaps before broader compatibility claims.
 2. Improve Studio conversation durability and request-specific diagnostics. These are
    future product slices, not reasons to reopen the renderer or engine architecture.
 3. Close release gates: live Windows SM120 Compact Vision evidence, REL01/P21,

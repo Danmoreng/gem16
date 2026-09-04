@@ -840,6 +840,7 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
         GenerationContentPart::Text(input->as_string()));
     request.generation.messages.push_back(std::move(message));
   } else if (input->is_array() && !input->as_array().empty()) {
+    bool previous_input_was_function_call = false;
     for (const json::Value& item : input->as_array()) {
       if (!item.is_object()) return Invalid("each input item must be an object");
       const json::Value* type_value = item.find("type");
@@ -867,12 +868,16 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
         if (!name.ok()) return name.status();
         auto arguments = RequiredString(item.as_object(), "arguments");
         if (!arguments.ok()) return arguments.status();
-        GenerationMessage message;
-        message.role = "assistant";
-        message.content.push_back(GenerationContentPart::ToolCall(
+        // Adjacent Responses call items belong to one assistant turn. Preserve
+        // the call/result boundary when reconstructing client-managed history.
+        if (!previous_input_was_function_call) {
+          GenerationMessage message;
+          message.role = "assistant";
+          request.generation.messages.push_back(std::move(message));
+        }
+        request.generation.messages.back().content.push_back(GenerationContentPart::ToolCall(
             {std::move(call_id).value(), std::move(name).value(),
              std::move(arguments).value()}));
-        request.generation.messages.push_back(std::move(message));
       } else if (type == "function_call_output") {
         const Status fields = RejectUnknownFields(
             item.as_object(), {"type", "call_id", "output"},
@@ -916,6 +921,7 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
         return Status(StatusCode::kUnsupported,
                       "Responses input item type is unsupported");
       }
+      previous_input_was_function_call = type == "function_call";
     }
   } else {
     return Invalid("'input' must be a string or non-empty array");

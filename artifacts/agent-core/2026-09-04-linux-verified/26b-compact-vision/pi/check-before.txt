@@ -1,0 +1,15 @@
+test_signed_addition (test_arithmetic.AdditionTest.test_signed_addition) ... FAIL
+
+======================================================================
+FAIL: test_signed_addition (test_arithmetic.AdditionTest.test_signed_addition)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/gem16-agent-fixture-_h3y14br/project/test_arithmetic.py", line 6, in test_signed_addition
+    self.assertEqual(add(7, 5), 12)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: 2 != 12
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)

@@ -5,6 +5,7 @@
 - [Project introduction and source installation](../README.md)
 - [Studio](STUDIO.md): install, verify, select, start and chat
 - [Server](SERVER.md): both profiles, HTTP endpoints, tools and operations
+- [SDK and coding-agent compatibility](AGENT_COMPATIBILITY.md): matrix, reproducible probes and limits
 - [26B profiles](GEMMA4_26B.md): public Compact Vision and internal NVFP4
 - [Image input](VISION.md) and [audio input](AUDIO.md): capability-specific details
 - [Recorded performance](PERFORMANCE.md): measurements, caveats and reproduction
