@@ -113,10 +113,14 @@ __global__ void RotaryBatchKernel(
   token_states[second] = second_value * cosine + first_value * sine;
 }
 
+template <bool kPdlRelease>
 __global__ void RotaryTableBatchKernel(
     float* cosine, float* sine, std::uint64_t rotating_pairs,
     std::uint64_t frequency_dimension, std::uint64_t start_position,
     double theta, double scaling_factor, std::uint64_t total_pairs) {
+  if constexpr (kPdlRelease) {
+    if (threadIdx.x == 0U) cudaTriggerProgrammaticLaunchCompletion();
+  }
   const std::uint64_t pair =
       static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   if (pair >= total_pairs) return;
@@ -145,10 +149,14 @@ __global__ void RotaryTableControlledKernel(
   sine[index] = static_cast<float>(sin(angle));
 }
 
+template <bool kPdlRelease>
 __global__ void RotaryTableBatchControlledKernel(
     float* cosine, float* sine, std::uint64_t rotating_pairs,
     std::uint64_t frequency_dimension, const DecodeControl* controls,
     double theta, double scaling_factor, std::uint64_t total_pairs) {
+  if constexpr (kPdlRelease) {
+    if (threadIdx.x == 0U) cudaTriggerProgrammaticLaunchCompletion();
+  }
   const std::uint64_t pair =
       static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   if (pair >= total_pairs) return;
@@ -312,6 +320,7 @@ __global__ void ProjectionRmsNormRotaryBf16BatchControlledKernel(
       second_value * cosine + first_value * sine));
 }
 
+template <bool kProgrammaticDependent>
 __global__ void Gemma4Moe26BMtpKvEpilogueKernel(
     const float* query, const std::uint16_t* query_norm,
     float* normalized_query, const float* key,
@@ -345,6 +354,7 @@ __global__ void Gemma4Moe26BMtpKvEpilogueKernel(
           __float2bfloat16_rn(value[base + index] * inverse_rms));
       staged_value[base + index] = __nv_fp8_e4m3(rounded / scale).__x;
     }
+    if constexpr (kProgrammaticDependent) cudaGridDependencySynchronize();
     return;
   }
 
@@ -387,6 +397,7 @@ __global__ void Gemma4Moe26BMtpKvEpilogueKernel(
     store(base + index, static_cast<float>(
                             __float2bfloat16_rn(rounded * inverse_rms * scale)));
   }
+  if constexpr (kProgrammaticDependent) cudaGridDependencySynchronize();
   if (threadIdx.x >= rotating_pairs) return;
   const std::uint64_t index = threadIdx.x;
   const std::uint64_t first = base + index;
@@ -960,7 +971,7 @@ Status LaunchGemma4Moe26BMtpKvEpilogue(
     const std::uint16_t* key_scale, const std::uint16_t* value_scale,
     std::uint64_t tokens, std::uint64_t kv_heads,
     std::uint64_t head_dimension, double rotary_factor, float epsilon,
-    cudaStream_t stream) {
+    cudaStream_t stream, bool programmatic_dependent) {
   const bool local = kv_heads == 8U && head_dimension == 256U &&
                      rotary_factor == 1.0;
   const bool global = kv_heads == 2U && head_dimension == 512U &&
@@ -981,12 +992,30 @@ Status LaunchGemma4Moe26BMtpKvEpilogue(
   if (!ValidGrid(blocks)) {
     return Invalid("26B fixed-depth KV epilogue grid is invalid");
   }
-  Gemma4Moe26BMtpKvEpilogueKernel
-      <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
-          query, query_norm, normalized_query, key, key_norm, value,
-          rotary_cosine, rotary_sine, staged_key, staged_value, key_scale,
-          value_scale, kv_heads, head_dimension, pairs, epsilon);
-  const cudaError_t error = cudaGetLastError();
+  cudaError_t error = cudaSuccess;
+  if (programmatic_dependent) {
+    cudaLaunchAttribute attribute{};
+    attribute.id = cudaLaunchAttributeProgrammaticStreamSerialization;
+    attribute.val.programmaticStreamSerializationAllowed = 1;
+    cudaLaunchConfig_t config{};
+    config.gridDim = dim3(static_cast<unsigned>(blocks));
+    config.blockDim = dim3(kThreads);
+    config.stream = stream;
+    config.attrs = &attribute;
+    config.numAttrs = 1U;
+    error = cudaLaunchKernelEx(
+        &config, Gemma4Moe26BMtpKvEpilogueKernel<true>, query, query_norm,
+        normalized_query, key, key_norm, value, rotary_cosine, rotary_sine,
+        staged_key, staged_value, key_scale, value_scale, kv_heads,
+        head_dimension, pairs, epsilon);
+  } else {
+    Gemma4Moe26BMtpKvEpilogueKernel<false>
+        <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+            query, query_norm, normalized_query, key, key_norm, value,
+            rotary_cosine, rotary_sine, staged_key, staged_value, key_scale,
+            value_scale, kv_heads, head_dimension, pairs, epsilon);
+    error = cudaGetLastError();
+  }
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch 26B fixed-depth KV epilogue", error);
@@ -996,7 +1025,7 @@ Status LaunchRotaryEmbeddingTableBatch(
     float* cosine, float* sine, std::uint64_t tokens,
     std::uint64_t rotating_pairs, std::uint64_t frequency_dimension,
     std::uint64_t start_position, double theta, double scaling_factor,
-    cudaStream_t stream) {
+    cudaStream_t stream, bool pdl_release) {
   if (cosine == nullptr || sine == nullptr || tokens == 0U ||
       rotating_pairs == 0U || frequency_dimension == 0U ||
       rotating_pairs * 2U > frequency_dimension ||
@@ -1007,9 +1036,17 @@ Status LaunchRotaryEmbeddingTableBatch(
   const std::uint64_t total_pairs = tokens * rotating_pairs;
   const std::uint64_t blocks = Blocks(total_pairs);
   if (!ValidGrid(blocks)) return Invalid("batched RoPE table grid exceeds CUDA limits");
-  RotaryTableBatchKernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
-      cosine, sine, rotating_pairs, frequency_dimension, start_position,
-      theta, scaling_factor, total_pairs);
+  if (pdl_release) {
+    RotaryTableBatchKernel<true>
+        <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+            cosine, sine, rotating_pairs, frequency_dimension, start_position,
+            theta, scaling_factor, total_pairs);
+  } else {
+    RotaryTableBatchKernel<false>
+        <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+            cosine, sine, rotating_pairs, frequency_dimension, start_position,
+            theta, scaling_factor, total_pairs);
+  }
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
@@ -1045,7 +1082,7 @@ Status LaunchRotaryEmbeddingTableBatchControlled(
     float* cosine, float* sine, std::uint64_t tokens,
     std::uint64_t rotating_pairs, std::uint64_t frequency_dimension,
     const DecodeControl* controls, double theta, double scaling_factor,
-    cudaStream_t stream) {
+    cudaStream_t stream, bool pdl_release) {
   if (cosine == nullptr || sine == nullptr || controls == nullptr ||
       tokens == 0U || rotating_pairs == 0U || frequency_dimension == 0U ||
       rotating_pairs * 2U > frequency_dimension ||
@@ -1058,10 +1095,17 @@ Status LaunchRotaryEmbeddingTableBatchControlled(
   if (!ValidGrid(blocks)) {
     return Invalid("batch-controlled RoPE table grid exceeds CUDA limits");
   }
-  RotaryTableBatchControlledKernel
-      <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
-          cosine, sine, rotating_pairs, frequency_dimension, controls, theta,
-          scaling_factor, total_pairs);
+  if (pdl_release) {
+    RotaryTableBatchControlledKernel<true>
+        <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+            cosine, sine, rotating_pairs, frequency_dimension, controls, theta,
+            scaling_factor, total_pairs);
+  } else {
+    RotaryTableBatchControlledKernel<false>
+        <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+            cosine, sine, rotating_pairs, frequency_dimension, controls, theta,
+            scaling_factor, total_pairs);
+  }
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()

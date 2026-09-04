@@ -658,12 +658,12 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
     status = LaunchRotaryEmbeddingTableBatchControlled(
         x.rotary_cosine, x.rotary_sine, tokens, rotating_pairs,
         t.head_dimension, row_controls, t.rope_theta, t.rope_scaling_factor,
-        stream);
+        stream, true);
   } else {
     status = LaunchRotaryEmbeddingTableBatch(
         x.rotary_cosine, x.rotary_sine, tokens, rotating_pairs,
         t.head_dimension, start_position, t.rope_theta,
-        t.rope_scaling_factor, stream);
+        t.rope_scaling_factor, stream, true);
   }
   if (!status.ok()) return status;
   status = LaunchGemma4Moe26BMtpKvEpilogue(
@@ -671,7 +671,7 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
       w.key_norm_bf16, x.value_raw, x.rotary_cosine, x.rotary_sine,
       x.staged_key_fp8, x.staged_value_fp8, w.key_cache_scale_bf16,
       w.value_cache_scale_bf16, tokens, t.kv_heads, t.head_dimension,
-      t.rotary_factor, epsilon, stream);
+      t.rotary_factor, epsilon, stream, true);
   if (!status.ok()) return status;
 
   const bool exact_shared_fixed_attention =

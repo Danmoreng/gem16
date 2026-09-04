@@ -890,11 +890,17 @@ void TestMtpKvEpilogue() {
       CHECK(CudaOk(cudaStreamCreate(&stream), "create fixed-depth stream"));
       CHECK(CudaOk(cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal),
                    "capture fixed-depth epilogue"));
+      CHECK(LaunchRotaryEmbeddingTableBatch(
+                cosine.get(), sine.get(), tokens,
+                static_cast<std::uint64_t>(rotary * (width / 2U)), width,
+                16383U, width == 256U ? 10000.0 : 1000000.0, 1.0, stream,
+                true)
+                .ok());
       CHECK(LaunchGemma4Moe26BMtpKvEpilogue(
                 q.get(), norm.get(), qc.get(), k.get(), norm.get(), v.get(),
                 cosine.get(), sine.get(), kc.get(), vc.get(), scales.get(),
                 scales.get() + 1U, tokens, heads, width, rotary, 1.0e-6F,
-                stream)
+                stream, true)
                 .ok());
       CHECK(CudaOk(cudaStreamEndCapture(stream, &graph),
                    "end fixed-depth capture"));

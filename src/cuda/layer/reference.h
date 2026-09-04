@@ -202,7 +202,7 @@ struct DecodeControl {
     float* cosine, float* sine, std::uint64_t tokens,
     std::uint64_t rotating_pairs, std::uint64_t frequency_dimension,
     std::uint64_t start_position, double theta, double scaling_factor,
-    cudaStream_t stream);
+    cudaStream_t stream, bool pdl_release = false);
 
 [[nodiscard]] Status LaunchRotaryEmbeddingTableControlled(
     float* cosine, float* sine, std::uint64_t rotating_pairs,
@@ -216,7 +216,7 @@ struct DecodeControl {
     float* cosine, float* sine, std::uint64_t tokens,
     std::uint64_t rotating_pairs, std::uint64_t frequency_dimension,
     const DecodeControl* controls, double theta, double scaling_factor,
-    cudaStream_t stream);
+    cudaStream_t stream, bool pdl_release = false);
 
 [[nodiscard]] Status LaunchProjectionRmsNormRotaryBf16Batch(
     const float* query, const std::uint16_t* query_norm_bf16,
@@ -291,7 +291,7 @@ struct DecodeControl {
     const std::uint16_t* key_scale, const std::uint16_t* value_scale,
     std::uint64_t tokens, std::uint64_t kv_heads,
     std::uint64_t head_dimension, double rotary_factor, float epsilon,
-    cudaStream_t stream);
+    cudaStream_t stream, bool programmatic_dependent = false);
 
 [[nodiscard]] Status LaunchQuantizeKvFp8Batch(
     const float* key, const float* value, std::uint8_t* key_fp8,

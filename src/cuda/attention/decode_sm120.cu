@@ -1425,25 +1425,39 @@ void SplitOnlineDecodeAttentionFp8GlobalKvh2FixedRowsKernel(
     }
   }
 
-  for (int tile_start = 0; tile_start < maximum_split_tokens;
-       tile_start += kFixedTileTokens) {
-    const int tile_tokens = min(kFixedTileTokens,
-                                maximum_split_tokens - tile_start);
-    StageGlobalKvh2FixedTileAsync<kFixedTileTokens>(
-        staged_kv[0], key_cache, split_start, tile_start, tile_tokens,
-        kv_head);
-    CommitAsyncCopies();
-    WaitForAsyncCopies();
-    __syncthreads();
+  int key_tile_start = 0;
+  int key_tile_tokens = min(kFixedTileTokens, maximum_split_tokens);
+  StageGlobalKvh2FixedTileAsync<kFixedTileTokens>(
+      staged_kv[0], key_cache, split_start, key_tile_start, key_tile_tokens,
+      kv_head);
+  CommitAsyncCopies();
+  WaitForAsyncCopies();
+  __syncthreads();
 
-    for (int token = 0; token < tile_tokens; ++token) {
+  for (int tile_index = 0; key_tile_start < maximum_split_tokens;
+       ++tile_index, key_tile_start += kFixedTileTokens) {
+    key_tile_tokens = min(kFixedTileTokens,
+                          maximum_split_tokens - key_tile_start);
+    const int current_buffer = tile_index & 1;
+    const int next_start = key_tile_start + kFixedTileTokens;
+    const bool has_next = next_start < maximum_split_tokens;
+    if (has_next) {
+      const int next_tokens = min(kFixedTileTokens,
+                                  maximum_split_tokens - next_start);
+      StageGlobalKvh2FixedTileAsync<kFixedTileTokens>(
+          staged_kv[current_buffer ^ 1], key_cache, split_start, next_start,
+          next_tokens, kv_head);
+      CommitAsyncCopies();
+    }
+
+    for (int token = 0; token < key_tile_tokens; ++token) {
       float row_scores[kRows] = {};
 #pragma unroll
       for (int quarter = 0; quarter < 4; ++quarter) {
         const int dimension = lane * 4 + quarter * 128;
         const std::uint32_t packed =
             *reinterpret_cast<const std::uint32_t*>(
-                staged_kv[0] +
+                staged_kv[current_buffer] +
                 token * kDecodeGlobalHeadDimension + dimension);
         const float4 key_values = DecodeFp8x4(packed, key_scale);
 #pragma unroll
@@ -1464,12 +1478,13 @@ void SplitOnlineDecodeAttentionFp8GlobalKvh2FixedRowsKernel(
           row_scores[row] += __shfl_down_sync(
               kFullWarpMask, row_scores[row], offset);
         }
-        if (lane == 0 && tile_start + token < split_tokens[row]) {
+        if (lane == 0 && key_tile_start + token < split_tokens[row]) {
           scores[(row * kQueriesPerKv + warp) * kDecodeGlobalChunk +
-                 tile_start + token] = row_scores[row];
+                 key_tile_start + token] = row_scores[row];
         }
       }
     }
+    if (has_next) WaitForAsyncCopies();
     __syncthreads();
   }
 

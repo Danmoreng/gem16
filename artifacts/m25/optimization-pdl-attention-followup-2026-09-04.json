@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "status": "accepted_implementation",
+  "date": "2026-09-04",
+  "source": {
+    "parent_git_commit": "d2e4473768beac7bab64234478bfb834c3cf2724",
+    "worktree_dirty_during_candidates": true,
+    "platform": "Linux x86-64",
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "toolchain": "CUDA 13.3; Nsight Systems 2026.1.3.425-261338342291v0"
+  },
+  "contract": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "sampling": "temperature=1, top_k=64, top_p=0.95, repetition_penalty=1, seed=0",
+    "fixed_draft_depth": 2,
+    "screen": "one warmup and three measured alternating parent/candidate pairs per format",
+    "timing_boundary_changed": false,
+    "model_or_cache_semantics_changed": false,
+    "runtime_model_hashing_added": false
+  },
+  "final_dispatch_evidence": {
+    "binary_sha256": "d6adedf7bfb9ce8e4e0180005cf29fe5b0e82729b9ffaa8f2ea5e762dbd9a033",
+    "configuration": "Final retained Linux binary; NVFP4 Wikipedia 16K plus 128 sampled output tokens; cudaProfilerApi decode capture with CUDA Graph node tracing.",
+    "decode_tokens_per_second_under_profiler": 215.5,
+    "fallbacks": 0,
+    "token_loop_allocations": false,
+    "d2_groups": 54,
+    "ordinary_fallback_tokens": 0,
+    "observed_kernels": [
+      "SplitOnlineDecodeAttentionFp8GlobalKvh2FixedRowsKernel<3>",
+      "Gemma4Moe26BMtpKvEpilogueKernel<true>",
+      "RotaryTableBatchControlledKernel<true>"
+    ],
+    "raw_report": "/tmp/gem16-final-retained-nvfp4-d2-128.nsys-rep",
+    "raw_report_sha256": "2f99d53dda14be3e51ff53c04b8fa6db36489bdc32c4ec2c7855fa8697dc228b",
+    "kernel_summary_sha256": "b7e1dbf480ba19be229dec634def871f1f68459d839e5e5f0995fc0cfc4c8534"
+  },
+  "steps": [
+    {
+      "order": 1,
+      "name": "programmatic_dependent_rope_epilogue",
+      "decision": "retain",
+      "mechanism": "The fixed-D2 RoPE table releases its dependent fused Q/K/V epilogue early. The epilogue normalizes and stages independent values before its explicit grid dependency wait, then reads the completed trigonometric table without changing arithmetic or cache visibility.",
+      "raw_result": "benchmarks/results/2026-09-04/d2e44737/rtx5080-laptop/pdl-fixed-d2-1w3.json",
+      "results": {
+        "nvfp4": {
+          "parent_median_tokens_per_second": 205.262664226491,
+          "candidate_median_tokens_per_second": 206.067719853015,
+          "speedup": 1.0039220753056,
+          "peak_process_vram_mib_parent": 15022,
+          "peak_process_vram_mib_candidate": 15022,
+          "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112"
+        },
+        "trellis35": {
+          "parent_median_tokens_per_second": 183.128332995311,
+          "candidate_median_tokens_per_second": 183.613263815478,
+          "speedup": 1.00264803819395,
+          "peak_process_vram_mib_parent": 12794,
+          "peak_process_vram_mib_candidate": 12794,
+          "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48"
+        }
+      },
+      "correctness": "Exact Q and staged K/V bytes, CUDA Graph capture and two replays passed for both local and global 26B geometries. Targeted memcheck, racecheck and initcheck reported zero errors. The protected 12B M22 product test passed with the qualified runtime view."
+    },
+    {
+      "order": 2,
+      "name": "fresh_fixed_d2_kernel_profile",
+      "decision": "use_for_attribution_only",
+      "configuration": "Wikipedia 16K plus 128 sampled output tokens under cudaProfilerApi decode capture; Nsight timing is diagnostic, not benchmark-qualified.",
+      "nvfp4": {
+        "decode_tokens_per_second_under_profiler": 198.568,
+        "d2_groups": 54,
+        "accepted_tokens": 73,
+        "top_common_attention_share": 0.168,
+        "top_kernels": [
+          {"name": "Sm120SelectedSplitGateUpKernel", "share": 0.129},
+          {"name": "SplitOnlineDecodeAttentionFp8GlobalKvh2FixedRowsKernel_T3", "share": 0.099},
+          {"name": "Sm120DirectProjectionFixedBatchKernel_T3_QKV", "share": 0.092},
+          {"name": "Sm120SelectedDirectProjectionReduceKernel", "share": 0.080},
+          {"name": "SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel_T3", "share": 0.069}
+        ],
+        "raw_report": "/tmp/gem16-current-pdl-nvfp4-d2-128.nsys-rep",
+        "raw_report_sha256": "a3163696d1dfaaa180f2ab774f0aa88234e47b1f0a12bcdf4891d7b14b356e2d",
+        "kernel_summary_sha256": "fd0a60134a83c78bb5ea29950039308c2c814840a9c35bbe4f9eedb809cf9ffb"
+      },
+      "trellis35": {
+        "decode_tokens_per_second_under_profiler": 196.943,
+        "d2_groups": 52,
+        "accepted_tokens": 75,
+        "top_common_attention_share": 0.147,
+        "top_kernels": [
+          {"name": "MmaW4A8ProjectionGroupedT3M16N128InverseKernel", "share": 0.286},
+          {"name": "SplitOnlineDecodeAttentionFp8GlobalKvh2FixedRowsKernel_T3", "share": 0.087},
+          {"name": "Sm120DirectProjectionFixedBatchKernel_T3_QKV", "share": 0.074},
+          {"name": "SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel_T3", "share": 0.060}
+        ],
+        "raw_report": "/tmp/gem16-current-pdl-trellis35-d2-128.nsys-rep",
+        "raw_report_sha256": "7cb64598ec1c408d9ec666d7d8619ff1a616ba751ef79bb63777bbdb0c105a54",
+        "kernel_summary_sha256": "e51563abf86dda6ee7e77adafdef02c0005a56a15b94f9c238f4faa30b1d78c3"
+      }
+    },
+    {
+      "order": 3,
+      "name": "fixed_t3_global_key_double_buffer",
+      "decision": "retain",
+      "mechanism": "The KVH2 fixed-row global attention kernel pipelines the next 32-token key tile into its existing second shared-memory buffer while the current tile is consumed. Score, softmax, value and merge orders are unchanged.",
+      "raw_result": "benchmarks/results/2026-09-04/d2e44737/rtx5080-laptop/attention-key-double-buffer-fixed-d2-1w3.json",
+      "results": {
+        "nvfp4": {
+          "parent_median_tokens_per_second": 205.994641074587,
+          "candidate_median_tokens_per_second": 206.402649674823,
+          "speedup": 1.00198067579869,
+          "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112"
+        },
+        "trellis35": {
+          "parent_median_tokens_per_second": 183.589930660415,
+          "candidate_median_tokens_per_second": 183.776762116845,
+          "speedup": 1.00101765633745,
+          "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48"
+        }
+      },
+      "correctness": "The full attention reference test passed. The dedicated fixed-row KVH2 comparison matched 24,576/24,576 float outputs bitwise against three ordinary rows; targeted memcheck, racecheck and initcheck reported zero errors or hazards."
+    },
+    {
+      "order": 4,
+      "name": "nvfp4_selected_input_scale_shared_staging",
+      "decision": "reject_and_rollback",
+      "mechanism": "One CTA staged its selected Gate/Up activation and scale vectors once in shared memory. Exact outputs passed, but synchronization and shared-memory overhead outweighed cache-local repeated loads.",
+      "raw_result": "benchmarks/results/2026-09-04/d2e44737/rtx5080-laptop/nvfp4-selected-input-staging-fixed-d2-1w3.json",
+      "results": {
+        "nvfp4": {
+          "parent_median_tokens_per_second": 206.461974575118,
+          "candidate_median_tokens_per_second": 206.23889082489,
+          "speedup": 0.998919492314807,
+          "exact_output_parity": true
+        },
+        "trellis35_negative_control": {
+          "parent_median_tokens_per_second": 184.011664061833,
+          "candidate_median_tokens_per_second": 183.796841627889,
+          "speedup": 0.998832560777933,
+          "exact_output_parity": true
+        }
+      },
+      "retained_source_change": false
+    }
+  ],
+  "tests": [
+    "cmake --build --preset blackwell-release --target gem16-run gem16-cuda-attention-reference-tests gem16-cuda-tests gem16-cuda-moe-reference-tests gem16-server -j2",
+    "gem16-cuda-attention-reference-tests --mtp-kv-epilogue-only",
+    "compute-sanitizer memcheck/racecheck/initcheck on --mtp-kv-epilogue-only: pass",
+    "GEM16_12B_MODEL=<qualified-runtime-view> ctest -R ^gem16-12b-m22-product$: pass",
+    "gem16-cuda-attention-reference-tests: pass",
+    "gem16-cuda-tests online-decode-kvh2-d2-memcheck: exact 24,576/24,576 and pass",
+    "compute-sanitizer memcheck/racecheck/initcheck on online-decode-kvh2-d2-memcheck: pass",
+    "gem16-cuda-moe-reference-tests: pass",
+    "gem16-cuda-tests nvfp4-fixed-t3: pass"
+  ],
+  "limitations": [
+    "The 1+3 screens characterize small effects and are not release qualification.",
+    "The raw profiler reports and full per-run telemetry remain ignored local files; hashes and compact summaries are retained here.",
+    "A full-suite initcheck exposes pre-existing uninitialized-host-read diagnostics in the large prefill projection fixture; the changed fixed-row attention and PDL paths pass their dedicated initcheck targets.",
+    "Commit and push follow this record's final verification."
+  ]
+}
