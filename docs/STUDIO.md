@@ -47,16 +47,18 @@ failed or cancelled exchanges are excluded from future context until retried.
 Retry resends the exchange using a fresh session. **Undo** removes the last exchange;
 **Delete** confirms removal of the saved conversation. Starting a new chat resets the resident session.
 
-Chats now persist locally in SQLite. The sidebar restores conversations across
-restarts and supports rename, pin, archive and deletion. **Temporary** creates a
+Chats persist automatically in local SQLite. The chat window contains the conversation
+and composer; titles appear only in the sidebar, with no title editor or maintenance
+toolbar. Saving is silent unless it fails. The sidebar restores conversations across
+restarts and supports search and opening previously archived chats. **Temporary** creates a
 chat whose content is never written to the chat store. User messages are committed
 before dispatch; streamed answers checkpoint about once a second and on completion.
 Retry preserves the previous answer attempt. Reopening a chat rebuilds server
 context on continuation and restores its generation settings. A different model
 installation or missing attachment blocks continuation with an explanation.
 The sidebar searches titles, messages, reasoning and attached documents and jumps
-to matching turns. Export produces JSON/Markdown plus attachments; backup creates
-a complete restorable chat bundle. Cleanup removes unreferenced chat attachments.
+to matching turns. Export, backup and attachment cleanup remain internal storage
+operations with host-test coverage; they are not exposed in the chat interface.
 See [chat storage](STUDIO_STORAGE.md) for paths, durability, restore and limits.
 
 ## Models and verification

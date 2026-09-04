@@ -80,10 +80,8 @@ class StudioApp final {
   Conversation conversation_;
   std::vector<ConversationSummary> chat_list_;
   std::future<void> chat_save_;
-  std::future<std::filesystem::path> chat_export_;
-  std::future<std::uint64_t> chat_cleanup_;
   std::array<char, 513> chat_search_{};
-  std::string listed_search_, export_status_;
+  std::string listed_search_;
   bool listed_archived_ = false;
   std::chrono::steady_clock::time_point search_changed_{};
   std::int64_t jump_to_message_ = -1;
@@ -92,7 +90,6 @@ class StudioApp final {
   std::uint64_t chat_revision_ = 0, saved_revision_ = 0, saving_revision_ = 0;
   std::chrono::steady_clock::time_point last_chat_save_{};
   std::string storage_error_;
-  std::array<char, 513> chat_title_{};
   bool temporary_chat_ = false, pending_send_ = false, restore_latest_ = true;
   bool show_archived_ = false, delete_chat_requested_ = false;
 

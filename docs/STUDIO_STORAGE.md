@@ -39,17 +39,22 @@ a 60-second timeout. Windows runtime and interactive desktop qualification remai
 
 ## Search, export and backup
 
+The chat UI exposes search and automatic persistence. Manual title editing, pinning,
+archiving, export, backup and attachment cleanup controls were removed from the chat
+window at the owner's request. The storage operations below remain internal APIs;
+they are not Studio buttons. Existing titles and pin/archive metadata are preserved.
+
 The sidebar uses SQLite FTS5 over titles, answers, reasoning, previous attempts,
 document text and attachment names. Space-separated terms are literal word prefixes,
 not executable FTS expressions. Search ignores case and Latin accents. Results carry
 message positions and jump to the matching turn; at most 200 hits are returned.
 The normal sidebar shows the latest 500 conversations, pinned first.
 
-**Export JSON + Markdown** writes a new folder with `chat.json`, `chat.md` and
+`ChatStore::Export` writes a new folder with `chat.json`, `chat.md` and
 `attachments/`. It also works for temporary chats and unsaved text after a save error.
 JSON retains settings, model identity, timestamps and attempts. Missing media is
 identified in Markdown; it is never silently replaced.
-**Back up all chats** uses SQLite's online backup API, checks the copied database,
+`ChatStore::Backup` uses SQLite's online backup API, checks the copied database,
 and copies every referenced attachment after hash verification. An incomplete or
 corrupt source fails the backup; only a successful bundle receives its final folder name.
 Weights and app/server preferences are outside this conversation backup.
@@ -60,7 +65,7 @@ files), or launch Studio with `GEM16_STUDIO_DATA_ROOT` set to a copy of the back
 No running database file should be overwritten. Schema migration builds the search
 index transactionally; a newer schema remains protected from older Studio builds.
 
-**Clean unused attachments** removes only hash-named regular files without any
+`ChatStore::CleanAttachments` removes only hash-named regular files without any
 message reference, including archived chats. Profile/model blobs are never touched.
 Backup bundles own their attachment copies and remain independent of this cleanup.
 Tests additionally cover search escaping/accent handling, search migration, export,

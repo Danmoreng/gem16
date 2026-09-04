@@ -782,34 +782,10 @@ void StudioApp::DrawSidebar() {
 }
 
 void StudioApp::DrawChat() {
-  ImGui::BeginDisabled(api_.Busy() || pending_send_ || chat_load_.valid());
-  if (ImGui::InputText("Title", chat_title_.data(), chat_title_.size())) {
-    conversation_.title = chat_title_.data();
-    ++chat_revision_;
-    last_chat_save_ = std::chrono::steady_clock::now();
-  }
-  ImGui::SameLine();
-  if (ImGui::SmallButton(conversation_.pinned ? "Unpin" : "Pin")) { conversation_.pinned = !conversation_.pinned; ++chat_revision_; last_chat_save_ = {}; }
-  ImGui::SameLine();
-  if (ImGui::SmallButton(conversation_.archived ? "Unarchive" : "Archive")) { conversation_.archived = !conversation_.archived; ++chat_revision_; last_chat_save_ = {}; }
-  ImGui::EndDisabled();
-  ImGui::TextDisabled("%s", temporary_chat_ ? "Temporary chat · not saved" : chat_save_.valid() || chat_revision_ != saved_revision_ ? "Saving locally..." : "Saved locally");
   if (!storage_error_.empty()) {
     ImGui::TextWrapped("Not saved: %s", storage_error_.c_str());
     if (ImGui::SmallButton("Retry saving")) { storage_error_.clear(); last_chat_save_ = {}; SaveChat(); }
   }
-  ImGui::BeginDisabled(api_.Busy() || pending_send_ || chat_load_.valid() || chat_export_.valid() || chat_cleanup_.valid());
-  if(ImGui::SmallButton("Export JSON + Markdown")) {
-    const auto directory=OpenDirectoryDialog();if(!directory.empty()){auto snapshot=conversation_;snapshot.messages=messages_;chat_export_=chat_store_.Export(std::move(snapshot),directory);export_status_="Exporting...";}
-  }
-  ImGui::BeginDisabled(!CanNavigateChats());
-  ImGui::SameLine();
-  if(ImGui::SmallButton("Back up all chats")) { const auto directory=OpenDirectoryDialog();if(!directory.empty()){chat_export_=chat_store_.Backup(directory);export_status_="Backing up chats and attachments...";} }
-  ImGui::SameLine();
-  if(ImGui::SmallButton("Clean unused attachments")) {chat_cleanup_=chat_store_.CleanAttachments();export_status_="Cleaning unused attachments...";}
-  ImGui::EndDisabled();
-  ImGui::EndDisabled();
-  if(!export_status_.empty())ImGui::TextWrapped("%s",export_status_.c_str());
   if (!model_selection_error_.empty())
     ImGui::TextWrapped("%s", model_selection_error_.c_str());
   const auto chat_mismatch = ChatCompatibilityError();
@@ -819,10 +795,7 @@ void StudioApp::DrawChat() {
     if (ImGui::SmallButton("Install / restore this chat's model"))
       RestoreChatModel();
     ImGui::EndDisabled();
-  } else if (!messages_.empty() && session_id_.empty())
-    ImGui::TextDisabled(
-        "Continuing will rebuild the model context from the saved "
-        "conversation.");
+  }
   if (delete_chat_requested_) { ImGui::OpenPopup("Delete this chat?"); delete_chat_requested_ = false; }
   if (ImGui::BeginPopupModal("Delete this chat?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
     ImGui::TextUnformatted("Delete this conversation and all saved attempts?");
@@ -830,7 +803,7 @@ void StudioApp::DrawChat() {
       if (!temporary_chat_) chat_save_ = chat_store_.Delete(conversation_.id);
       messages_.clear(); conversation_ = {}; conversation_.id = NewChatId(); conversation_.created = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
       conversation_.profile = settings_.server.profile; conversation_.identity = ModelIdentity(settings_.server);
-      chat_title_[0] = 0; composer_[0] = 0; pending_attachments_.clear(); expanded_reasoning_.clear(); session_id_.clear(); chat_revision_ = saved_revision_ = saving_revision_ = 0;
+      composer_[0] = 0; pending_attachments_.clear(); expanded_reasoning_.clear(); session_id_.clear(); chat_revision_ = saved_revision_ = saving_revision_ = 0;
       ResetUsage();
       ImGui::CloseCurrentPopup();
     }
@@ -2072,7 +2045,7 @@ void StudioApp::DrawSettings() {
 void StudioApp::SendMessage() {
   if (ServerActionPending()) return;
   std::string text = composer_.data();
-  if ((text.empty() && pending_attachments_.empty()) || api_.Busy() || pending_send_ || chat_save_.valid() || chat_cleanup_.valid()) return;
+  if ((text.empty() && pending_attachments_.empty()) || api_.Busy() || pending_send_ || chat_save_.valid()) return;
   const auto history_error = ChatCompatibilityError();
   if (!history_error.empty()) { attachment_error_ = history_error; return; }
   const HealthSnapshot health = server_.Health();
@@ -2090,7 +2063,7 @@ void StudioApp::SendMessage() {
   composer_[0] = '\0';
   pending_attachments_.clear();
   attachment_error_.clear();
-  if (conversation_.title.empty()) { conversation_.title = messages_.back().content.substr(0,100); if (conversation_.title.empty()) conversation_.title = "Attachments"; CopyTo(chat_title_, conversation_.title); }
+  if (conversation_.title.empty()) { conversation_.title = messages_.back().content.substr(0,100); if (conversation_.title.empty()) conversation_.title = "Attachments"; }
   messages_.push_back({"assistant", {}, {}, true, false, {}});
   messages_.back().generation = GenerationIdentity(settings_);
   messages_.back().created = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -2111,7 +2084,7 @@ void StudioApp::SendMessage() {
 
 void StudioApp::RetryLastRequest() {
   if (ServerActionPending() || api_.Busy() || pending_send_ ||
-      chat_save_.valid() || chat_cleanup_.valid() ||
+      chat_save_.valid() ||
       !ChatCompatibilityError().empty() || messages_.size() < 2U ||
       messages_.back().role != "assistant" || !messages_.back().error ||
       messages_[messages_.size() - 2U].role != "user") {
@@ -2266,7 +2239,7 @@ template<class T> bool FutureReady(std::future<T>& f) { return f.valid() && f.wa
 }
 bool StudioApp::CanNavigateChats() const {
   return !ServerActionPending() && !api_.Busy() && !pending_send_ &&
-         !chat_save_.valid() && !chat_load_.valid() && !chat_cleanup_.valid() &&
+         !chat_save_.valid() && !chat_load_.valid() &&
          !recorder_.Active() &&
          (temporary_chat_ || chat_revision_ == saved_revision_);
 }
@@ -2309,10 +2282,6 @@ void StudioApp::StartSavedRequest() {
 }
 void StudioApp::PollChatStore() {
   try {
-    if (FutureReady(chat_export_)) export_status_="Saved to "+chat_export_.get().string();
-    if (FutureReady(chat_cleanup_)) export_status_="Removed "+FormatBytes(chat_cleanup_.get())+" of unreferenced chat attachments.";
-  } catch (const std::exception& e) { export_status_ = std::string("Operation failed: ")+e.what(); }
-  try {
     if (!chat_listing_.valid() && (listed_search_!=chat_search_.data() || listed_archived_!=show_archived_) && std::chrono::steady_clock::now()-search_changed_>std::chrono::milliseconds(250)) { listed_search_=chat_search_.data(); listed_archived_=show_archived_; chat_listing_=chat_store_.List(show_archived_,listed_search_); }
     if (FutureReady(chat_save_)) {
       chat_save_.get(); saved_revision_ = saving_revision_; storage_error_.clear();
@@ -2338,7 +2307,7 @@ void StudioApp::PollChatStore() {
       svg_previews_.Clear();
       pending_attachments_.clear();
       composer_[0] = 0;
-      CopyTo(chat_title_, conversation_.title); chat_revision_ = saved_revision_ = 0; scroll_to_bottom_ = true;
+      chat_revision_ = saved_revision_ = 0; scroll_to_bottom_ = true;
     }
     if (chat_revision_ != saved_revision_ && storage_error_.empty() && !chat_save_.valid() &&
         std::chrono::steady_clock::now() - last_chat_save_ >= std::chrono::seconds(1)) SaveChat();
@@ -2354,7 +2323,7 @@ void StudioApp::NewConversation(bool temporary) {
   conversation_ = {}; conversation_.id = NewChatId(); conversation_.created = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count(); conversation_.profile = settings_.server.profile; conversation_.identity = ModelIdentity(settings_.server);
   attachment_textures_.clear();
   svg_previews_.Clear();
-  messages_.clear(); pending_attachments_.clear(); session_id_.clear(); composer_[0] = 0; chat_title_[0] = 0;
+  messages_.clear(); pending_attachments_.clear(); session_id_.clear(); composer_[0] = 0;
   ResetUsage();
   expanded_reasoning_.clear(); performance_.reset(); attachment_error_.clear();
   chat_revision_ = saved_revision_ = 0; screen_ = Screen::kChat;
