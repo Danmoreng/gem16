@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "status": "accepted_small_sample_optimization",
+  "implementation_parent": "61622046ffc5f4a33392862e127cdbf4c3982f97",
+  "scope": "ordinary 26B decode only; integrated fused K/V epilogue",
+  "protocol": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "sampling": "temperature=1, top_k=64, top_p=0.95, repetition_penalty=1, seed=0",
+    "warmups_per_binary_and_model": 1,
+    "measurements_per_binary_and_model": 3,
+    "alternating_order": true,
+    "parent_binary_sha256": "2ad63a3c9d914e26535dab99256370c91a3391c4d912e37c5f365ad667a40e67",
+    "candidate_binary_sha256": "952bf8caaf2cb9d9e79464dab22125b055d75d8936b1a98ba6d25a04b57466fe",
+    "source_patch_sha256_at_measurement": "b9dea7f949c3d95712f0456418766ab5bbd8d8a838638f93bd1fb9911790085e"
+  },
+  "results": {
+    "nvfp4": {
+      "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+      "parent_decode_tokens_per_second": [148.43324841668573, 148.41966962822528, 148.420371918424],
+      "candidate_decode_tokens_per_second": [150.52411505097186, 150.44133187741508, 150.40766711474618],
+      "parent_median": 148.420371918424,
+      "candidate_median": 150.44133187741508,
+      "median_increase": 0.013616459336875,
+      "generated_tokens": 942,
+      "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+      "parent_peak_vram_mib": 14732,
+      "candidate_peak_vram_mib": 14732
+    },
+    "trellis35": {
+      "repository_revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+      "format_version": 2,
+      "parent_decode_tokens_per_second": [130.4275325298799, 130.32579325744436, 130.05429872879338],
+      "candidate_decode_tokens_per_second": [132.2925172852886, 131.76955350723767, 131.7140089861561],
+      "parent_median": 130.32579325744436,
+      "candidate_median": 131.76955350723767,
+      "median_increase": 0.011078085263915,
+      "generated_tokens": 1229,
+      "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+      "parent_peak_vram_mib": 12522,
+      "candidate_peak_vram_mib": 12522
+    }
+  },
+  "correctness": {
+    "q_and_complete_cache_bytes_exact": true,
+    "graph_capture_and_double_replay": true,
+    "memcheck_errors": 0,
+    "racecheck_errors": 0,
+    "initcheck_errors": 0,
+    "protected_12b_product_test": "passed",
+    "real_parent_candidate_output_parity": true,
+    "actual_fused_kernel_dispatch_instances_in_operator_profile": 48
+  },
+  "raw_evidence": "benchmarks/results/2026-09-04/61622046/rtx5080-laptop/kv-epilogue-ordinary-1w3.json",
+  "limitations": [
+    "One warmup and three measurements are an owner-requested screen, not qualification.",
+    "The formats generate different answers and are compared only with their own exact-output parent.",
+    "No fixed-D2/T3 code or performance is changed or measured in this slice."
+  ]
+}

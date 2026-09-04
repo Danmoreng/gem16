@@ -888,23 +888,13 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
         control, t.rope_theta, t.rope_scaling_factor, stream);
     if (!status.ok()) return status;
   }
-  status = LaunchProjectionRmsNormRotaryBf16CurrentTableControlled(
-      x.query_raw, w.query_norm_bf16, x.query_normalized, x.key_raw,
-      w.key_norm_bf16, x.key_normalized, x.rotary_cosine, x.rotary_sine,
-      control, t.query_heads, t.kv_heads, t.head_dimension, t.rotary_factor,
+  status = LaunchGemma4Moe26BDecodeKvEpilogue(
+      x.query_raw, w.query_norm_bf16, x.query_normalized,
+      x.key_raw, w.key_norm_bf16, x.value_raw,
+      x.rotary_cosine, x.rotary_sine, control, cache.key, cache.value,
+      w.key_cache_scale_bf16, w.value_cache_scale_bf16,
+      t.kv_heads, t.head_dimension, t.rotary_factor, cache.capacity,
       epsilon, stream);
-  if (!status.ok()) return status;
-  status = LaunchRmsNormBf16(x.value_raw, nullptr, x.value_normalized,
-                             t.kv_heads, t.head_dimension, epsilon, stream);
-  if (!status.ok()) return status;
-  status = LaunchQuantizeKvFp8Batch(
-      x.key_normalized, x.value_normalized, x.staged_key_fp8,
-      x.staged_value_fp8, w.key_cache_scale_bf16,
-      w.value_cache_scale_bf16, 1U, kv_elements, stream);
-  if (!status.ok()) return status;
-  status = LaunchAppendKvFp8BatchControlled(
-      x.staged_key_fp8, x.staged_value_fp8, cache.key, cache.value, control,
-      1U, kv_elements, cache.capacity, stream);
   if (!status.ok()) return status;
   status = LaunchOnlineAttentionDecodeFp8Sm120(
       x.query_normalized, cache.key, cache.value, w.key_cache_scale_bf16,

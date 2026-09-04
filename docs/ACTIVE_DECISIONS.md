@@ -1,6 +1,6 @@
 # Active decisions
 
-**Updated:** 2026-09-02
+**Updated:** 2026-09-04
 **Track:** Productization baseline
 **Status:** owner-approved product contract; implementation and release gates in progress
 
@@ -80,6 +80,23 @@ Read it only for a concrete historical or evidence question.
    not a second full-file runtime check.
 
 ## Current qualified model facts
+
+### Bounded 26B K/V epilogue optimization (owner direction 2026-09-04)
+
+The owner authorizes a bounded ordinary-decode 26B NVFP4/Trellis35 K/V
+epilogue fusion, with
+exact Q/output/cache-byte tests and parent/candidate performance measurements.
+This supersedes decision 7's prohibition on further NVFP4 tuning only for this
+experiment (including the frozen Trellis35 tuning restriction). The 220/250
+token/s targets remain closed. Prefill, T3 speculative cache visibility/rollback
+and 12B dispatch remain unchanged. Per follow-up owner direction, initial
+performance checks use one warmup and three measured runs per variant, beginning
+with ordinary decode; later D2 optimization remains a separate bounded step.
+The owner's follow-up accepts the positive small-sample result and integrates
+the exact-output ordinary fusion for both formats. It changes no product
+capability, checkpoint or quality claim; wider performance publication still
+requires the permanent benchmark contract.
+
 
 - 12B remains regression-protected and qualified for text, image, and audio on
   the existing SM120 product path.

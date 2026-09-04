@@ -312,7 +312,8 @@ __global__ void ProjectionRmsNormRotaryBf16BatchControlledKernel(
       second_value * cosine + first_value * sine));
 }
 
-__global__ void ProjectionRmsNormRotaryBf16ControlledKernel(
+template <bool kDirectKv>
+__device__ void ProjectionRmsNormRotaryBf16ControlledBody(
     const float* query, const std::uint16_t* query_norm,
     float* normalized_query, const float* key,
     const std::uint16_t* key_norm, float* normalized_key,
@@ -320,8 +321,35 @@ __global__ void ProjectionRmsNormRotaryBf16ControlledKernel(
     const DecodeControl* control, std::uint64_t query_heads,
     std::uint64_t kv_heads, std::uint64_t head_dimension,
     std::uint64_t rotating_pairs, float epsilon,
-    bool table_contains_all_positions) {
+    bool table_contains_all_positions,
+    const float* value = nullptr, std::uint8_t* key_cache = nullptr,
+    std::uint8_t* value_cache = nullptr,
+    const std::uint16_t* key_scale = nullptr,
+    const std::uint16_t* value_scale = nullptr,
+    std::uint64_t cache_capacity = 0U) {
   const std::uint64_t combined_head = blockIdx.x;
+  if constexpr (kDirectKv) {
+    if (combined_head >= query_heads + kv_heads) {
+      const std::uint64_t base =
+          (combined_head - query_heads - kv_heads) * head_dimension;
+      float squared_sum = 0.0F;
+      for (std::uint64_t i = threadIdx.x; i < head_dimension; i += blockDim.x) {
+        // V deliberately uses raw FP32 projection values, unlike Q/K.
+        squared_sum = fmaf(value[base + i], value[base + i], squared_sum);
+      }
+      const float inverse_rms =
+          rsqrtf(BlockSum(squared_sum) / static_cast<float>(head_dimension) + epsilon);
+      const float scale = static_cast<float>(__ushort_as_bfloat16(value_scale[0]));
+      const std::uint64_t offset =
+          (control->position % cache_capacity) * kv_heads * head_dimension;
+      for (std::uint64_t i = threadIdx.x; i < head_dimension; i += blockDim.x) {
+        const float rounded = static_cast<float>(
+            __float2bfloat16_rn(value[base + i] * inverse_rms));
+        value_cache[offset + base + i] = __nv_fp8_e4m3(rounded / scale).__x;
+      }
+      return;
+    }
+  }
   const bool is_query = combined_head < query_heads;
   const std::uint64_t head =
       is_query ? combined_head : combined_head - query_heads;
@@ -351,8 +379,20 @@ __global__ void ProjectionRmsNormRotaryBf16ControlledKernel(
         __float2bfloat16_rn(input[base + index]));
     const float scale =
         static_cast<float>(__ushort_as_bfloat16(weight[index]));
-    output[base + index] = static_cast<float>(__float2bfloat16_rn(
+    const float normalized = static_cast<float>(__float2bfloat16_rn(
         rounded_input * inverse_rms * scale));
+    if constexpr (kDirectKv) {
+      if (!is_query) {
+        const std::uint64_t offset =
+            (control->position % cache_capacity) * kv_heads * head_dimension;
+        const float cache_scale = static_cast<float>(__ushort_as_bfloat16(key_scale[0]));
+        key_cache[offset + base + index] = __nv_fp8_e4m3(normalized / cache_scale).__x;
+      } else {
+        output[base + index] = normalized;
+      }
+    } else {
+      output[base + index] = normalized;
+    }
   }
 
   if (threadIdx.x >= rotating_pairs) return;
@@ -377,10 +417,57 @@ __global__ void ProjectionRmsNormRotaryBf16ControlledKernel(
           : index;
   const float cosine = rotary_cosine[rotary_index];
   const float sine = rotary_sine[rotary_index];
-  output[first] = static_cast<float>(__float2bfloat16_rn(
+  const float first_rotated = static_cast<float>(__float2bfloat16_rn(
       first_value * cosine - second_value * sine));
-  output[second] = static_cast<float>(__float2bfloat16_rn(
+  const float second_rotated = static_cast<float>(__float2bfloat16_rn(
       second_value * cosine + first_value * sine));
+  if constexpr (kDirectKv) {
+    if (!is_query) {
+      const std::uint64_t offset =
+          (control->position % cache_capacity) * kv_heads * head_dimension;
+      const float cache_scale = static_cast<float>(__ushort_as_bfloat16(key_scale[0]));
+      key_cache[offset + first] = __nv_fp8_e4m3(first_rotated / cache_scale).__x;
+      key_cache[offset + second] = __nv_fp8_e4m3(second_rotated / cache_scale).__x;
+    } else {
+      output[first] = first_rotated;
+      output[second] = second_rotated;
+    }
+  } else {
+    output[first] = first_rotated;
+    output[second] = second_rotated;
+  }
+}
+
+__global__ void ProjectionRmsNormRotaryBf16ControlledKernel(
+    const float* query, const std::uint16_t* query_norm,
+    float* normalized_query, const float* key,
+    const std::uint16_t* key_norm, float* normalized_key,
+    const float* rotary_cosine, const float* rotary_sine,
+    const DecodeControl* control, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t rotating_pairs, float epsilon,
+    bool table_contains_all_positions) {
+  ProjectionRmsNormRotaryBf16ControlledBody<false>(
+      query, query_norm, normalized_query, key, key_norm, normalized_key,
+      rotary_cosine, rotary_sine, control, query_heads, kv_heads,
+      head_dimension, rotating_pairs, epsilon, table_contains_all_positions);
+}
+
+__global__ void Gemma4Moe26BDecodeKvEpilogueKernel(
+    const float* query, const std::uint16_t* query_norm,
+    float* normalized_query, const float* key,
+    const std::uint16_t* key_norm, const float* value,
+    const float* rotary_cosine, const float* rotary_sine,
+    const DecodeControl* control, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t rotating_pairs, float epsilon,
+    std::uint8_t* key_cache, std::uint8_t* value_cache,
+    const std::uint16_t* key_scale, const std::uint16_t* value_scale,
+    std::uint64_t cache_capacity) {
+  ProjectionRmsNormRotaryBf16ControlledBody<true>(
+      query, query_norm, normalized_query, key, key_norm, nullptr,
+      rotary_cosine, rotary_sine, control, 16U, kv_heads, head_dimension,
+      rotating_pairs, epsilon, false, value, key_cache, value_cache, key_scale,
+      value_scale, cache_capacity);
 }
 
 std::uint64_t Blocks(std::uint64_t elements) {
@@ -735,6 +822,39 @@ Status LaunchProjectionRmsNormRotaryBf16CurrentTableControlled(
                    "launch current-table controlled fused projection "
                    "RMSNorm/RoPE",
                    error);
+}
+
+Status LaunchGemma4Moe26BDecodeKvEpilogue(
+    const float* query, const std::uint16_t* query_norm, float* normalized_query,
+    const float* key, const std::uint16_t* key_norm, const float* value,
+    const float* rotary_cosine, const float* rotary_sine,
+    const DecodeControl* control, std::uint8_t* key_cache,
+    std::uint8_t* value_cache, const std::uint16_t* key_scale,
+    const std::uint16_t* value_scale, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, double rotary_factor,
+    std::uint64_t cache_capacity, float epsilon, cudaStream_t stream) {
+  if (query == nullptr || query_norm == nullptr || normalized_query == nullptr ||
+      key == nullptr || key_norm == nullptr || value == nullptr ||
+      rotary_cosine == nullptr || rotary_sine == nullptr || control == nullptr ||
+      key_cache == nullptr || value_cache == nullptr || key_cache == value_cache ||
+      key_scale == nullptr || value_scale == nullptr ||
+      !((kv_heads == 8U && head_dimension == 256U && rotary_factor == 1.0) ||
+        (kv_heads == 2U && head_dimension == 512U && rotary_factor == 0.25)) ||
+      cache_capacity == 0U ||
+      cache_capacity > std::numeric_limits<std::uint64_t>::max() / (kv_heads * head_dimension) ||
+      !std::isfinite(epsilon) || epsilon <= 0.0F) {
+    return Invalid("26B decode KV epilogue contract is invalid");
+  }
+  const auto pairs = static_cast<std::uint64_t>(rotary_factor * (head_dimension / 2U));
+  Gemma4Moe26BDecodeKvEpilogueKernel
+      <<<static_cast<unsigned>(16U + 2U * kv_heads), kThreads, 0, stream>>>(
+          query, query_norm, normalized_query, key, key_norm, value,
+          rotary_cosine, rotary_sine, control, kv_heads, head_dimension, pairs,
+          epsilon, key_cache, value_cache, key_scale, value_scale,
+          cache_capacity);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess ? Status::Ok()
+      : CudaFailure("launch 26B decode KV epilogue", error);
 }
 
 Status LaunchRotaryEmbeddingTableBatch(

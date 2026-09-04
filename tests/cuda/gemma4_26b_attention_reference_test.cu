@@ -12,6 +12,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <vector>
 
@@ -726,13 +727,114 @@ void TestNativeLocalSlidingDecode() {
   CHECK(cosine > 0.9999);
 }
 
+void TestDirectKvEpilogue() {
+  using namespace gem16::internal;
+  for (const std::uint64_t width : {256U, 512U}) {
+    const std::uint64_t heads = width == 256U ? 8U : 2U;
+    const double rotary = width == 256U ? 1.0 : 0.25;
+    const std::uint64_t elements = heads * width;
+    constexpr std::uint64_t capacity = 7U;
+    DeviceBuffer<float> q(16U * width), k(elements), v(elements),
+        qr(16U * width), qc(16U * width), kn(elements), vn(elements),
+        cosine(width / 2U), sine(width / 2U);
+    DeviceBuffer<std::uint16_t> norm(width), scales(2U);
+    DeviceBuffer<std::uint8_t> sk(elements), sv(elements),
+        kr(capacity * elements), vr(capacity * elements),
+        kc(capacity * elements), vc(capacity * elements);
+    DeviceBuffer<DecodeControl> control(1U);
+    auto upload = [](auto* destination, const auto& host) {
+      CHECK(CudaOk(cudaMemcpy(destination, host.data(),
+          host.size() * sizeof(host[0]), cudaMemcpyHostToDevice), "upload epilogue fixture"));
+    };
+    std::vector<std::uint16_t> weights(width);
+    for (std::size_t i = 0; i < weights.size(); ++i) {
+      weights[i] = Bf16(0.125F + static_cast<float>(i % 19U) * 0.17F);
+    }
+    upload(norm.get(), weights);
+    for (int fixture = 0; fixture < 3; ++fixture) {
+      for (auto* input : {&q, &k, &v}) {
+        std::vector<float> values(input->elements());
+        for (std::size_t i = 0; i < values.size(); ++i) {
+          // Non-BF16 FP32 projection inputs catch accidental V pre-rounding.
+          values[i] = fixture == 0 ? 0.0F :
+              std::sin(static_cast<float>(i * 13U + 5U)) *
+              (fixture == 1 ? 0.731123F : 127.031F);
+        }
+        upload(input->get(), values);
+      }
+      const std::array<std::uint16_t, 2> scale_values{
+          Bf16(fixture == 2 ? 0.001F : 0.75F), Bf16(fixture == 2 ? 0.002F : 1.25F)};
+      upload(scales.get(), scale_values);
+      for (const std::uint64_t position : {0U, 6U, 7U, 16384U}) {
+        const DecodeControl row{0U, 0U, position, position};
+        CHECK(CudaOk(cudaMemcpy(control.get(), &row, sizeof(row), cudaMemcpyHostToDevice),
+                     "upload epilogue control"));
+        for (auto* cache : {&kr, &vr, &kc, &vc}) {
+          CHECK(CudaOk(cudaMemset(cache->get(), 0x5a, cache->bytes()), "seed cache guards"));
+        }
+        CHECK(LaunchRotaryEmbeddingTableControlled(cosine.get(), sine.get(),
+            static_cast<std::uint64_t>(rotary * (width / 2U)), width, control.get(),
+            width == 256U ? 10000.0 : 1000000.0, 1.0, nullptr).ok());
+        CHECK(LaunchProjectionRmsNormRotaryBf16CurrentTableControlled(
+            q.get(), norm.get(), qr.get(), k.get(), norm.get(), kn.get(),
+            cosine.get(), sine.get(), control.get(), 16U, heads, width, rotary,
+            1.0e-6F, nullptr).ok());
+        CHECK(LaunchRmsNormBf16(v.get(), nullptr, vn.get(), heads, width, 1.0e-6F, nullptr).ok());
+        CHECK(LaunchQuantizeKvFp8Batch(kn.get(), vn.get(), sk.get(), sv.get(),
+            scales.get(), scales.get() + 1U, 1U, elements, nullptr).ok());
+        CHECK(LaunchAppendKvFp8BatchControlled(sk.get(), sv.get(), kr.get(), vr.get(),
+            control.get(), 1U, elements, capacity, nullptr).ok());
+        // Capture/replay is part of the production ordinary-decode boundary.
+        cudaStream_t stream = nullptr;
+        cudaGraph_t graph = nullptr;
+        cudaGraphExec_t executable = nullptr;
+        CHECK(CudaOk(cudaDeviceSynchronize(), "finish reference"));
+        CHECK(CudaOk(cudaStreamCreate(&stream), "create epilogue stream"));
+        CHECK(CudaOk(cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal), "capture epilogue"));
+        CHECK(LaunchGemma4Moe26BDecodeKvEpilogue(q.get(), norm.get(), qc.get(),
+            k.get(), norm.get(), v.get(), cosine.get(), sine.get(), control.get(),
+            kc.get(), vc.get(), scales.get(), scales.get() + 1U, heads, width,
+            rotary, capacity, 1.0e-6F, stream).ok());
+        CHECK(CudaOk(cudaStreamEndCapture(stream, &graph), "end epilogue capture"));
+        CHECK(CudaOk(cudaGraphInstantiate(&executable, graph, 0), "instantiate epilogue"));
+        for (int repeat = 0; repeat < 2; ++repeat) {
+          CHECK(CudaOk(cudaGraphLaunch(executable, stream), "replay epilogue"));
+        }
+        CHECK(CudaOk(cudaStreamSynchronize(stream), "finish epilogue"));
+        for (const auto pair : {std::pair{kr.get(), kc.get()}, std::pair{vr.get(), vc.get()}}) {
+          std::vector<std::uint8_t> reference(capacity * elements), candidate(capacity * elements);
+          CHECK(CudaOk(cudaMemcpy(reference.data(), pair.first, reference.size(), cudaMemcpyDeviceToHost), "read reference cache"));
+          CHECK(CudaOk(cudaMemcpy(candidate.data(), pair.second, candidate.size(), cudaMemcpyDeviceToHost), "read fused cache"));
+          CHECK(reference == candidate);  // Includes every untouched ring slot.
+        }
+        std::vector<float> reference(16U * width), candidate(16U * width);
+        CHECK(CudaOk(cudaMemcpy(reference.data(), qr.get(), qr.bytes(), cudaMemcpyDeviceToHost), "read reference Q"));
+        CHECK(CudaOk(cudaMemcpy(candidate.data(), qc.get(), qc.bytes(), cudaMemcpyDeviceToHost), "read fused Q"));
+        CHECK(std::memcmp(reference.data(), candidate.data(), qr.bytes()) == 0);
+        CHECK(CudaOk(cudaGraphExecDestroy(executable), "destroy epilogue executable"));
+        CHECK(CudaOk(cudaGraphDestroy(graph), "destroy epilogue graph"));
+        CHECK(CudaOk(cudaStreamDestroy(stream), "destroy epilogue stream"));
+      }
+    }
+    CHECK(!LaunchGemma4Moe26BDecodeKvEpilogue(q.get(), norm.get(), qc.get(),
+        k.get(), norm.get(), v.get(), cosine.get(), sine.get(), control.get(),
+        kc.get(), vc.get(), scales.get(), scales.get() + 1U, heads, width,
+        rotary, 0U, 1.0e-6F, nullptr).ok());
+  }
+  std::cout << "26B ordinary KV epilogue: exact Q/cache bytes and graph replay checked\n";
+}
+
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
   int devices = 0;
   if (!CudaOk(cudaGetDeviceCount(&devices), "cudaGetDeviceCount") ||
       devices == 0) {
     return 1;
+  }
+  TestDirectKvEpilogue();
+  if (argc == 2 && std::strcmp(argv[1], "--kv-epilogue-only") == 0) {
+    return failures == 0 ? 0 : 1;
   }
   TestLocalRingAndGlobalAppend();
   TestFp8PrefillProjectionRealShapes();
