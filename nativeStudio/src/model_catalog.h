@@ -59,6 +59,7 @@ struct ModelProfileCatalog {
 
 [[nodiscard]] const ModelProfileCatalog& CatalogForProfile(ModelProfile profile);
 [[nodiscard]] std::span<const ModelProfileCatalog> ModelCatalog();
+[[nodiscard]] std::span<const ModelProfile> PublicModelProfiles();
 [[nodiscard]] const ModelProfileComponent* ComponentForProfile(
     const ModelProfileCatalog& profile, ModelComponentKind kind);
 [[nodiscard]] const char* ComponentKindLabel(ModelComponentKind kind);

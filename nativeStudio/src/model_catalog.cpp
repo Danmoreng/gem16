@@ -39,9 +39,19 @@ constexpr std::array kProfiles{
         "Text · Fixed MTP D2 · 86,016 tokens", kMoe26BA4BComponents},
     ModelProfileCatalog{
         ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
-        "Trellis35 text checkpoint with the pinned FP8 Vision module for approximately 16 GB Blackwell GPUs.",
-        "Text · Vision · Fixed MTP D2 · 229,120 tokens",
+        "Trellis35 text checkpoint with the pinned FP8 Vision module for "
+        "approximately 16 GB Blackwell GPUs.",
+        "Text (Trellis35 W4A8) · Vision (FP8 E4M3FN) · Fixed MTP D2 · "
+        "229,120 tokens",
         kMoe26BVisionComponents},
+};
+
+// The qualified NVFP4 26B profile remains available to runtime, regression,
+// rollback, and existing persisted configurations, but is not part of the
+// initial public Studio profile selection.
+constexpr std::array kPublicProfiles{
+    ModelProfile::kGemma4Unified12B,
+    ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
 };
 
 }  // namespace
@@ -51,6 +61,10 @@ const ModelProfileCatalog& CatalogForProfile(ModelProfile profile) {
 }
 
 std::span<const ModelProfileCatalog> ModelCatalog() { return kProfiles; }
+
+std::span<const ModelProfile> PublicModelProfiles() {
+  return kPublicProfiles;
+}
 
 const ModelProfileComponent* ComponentForProfile(
     const ModelProfileCatalog& profile, ModelComponentKind kind) {

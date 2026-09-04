@@ -10,8 +10,8 @@ evidence, not default task instructions.
 The next product increments are, in order:
 
 1. keep `AGENTS.md`, active decisions, README, Studio/server docs, and the central `VERSION` consistent;
-2. provide one equal native model-management flow for installing, verifying, selecting, and removing either 12B or
-   26B side by side;
+2. provide one equal native model-management flow for installing, verifying, selecting, and removing either public
+   12B Unified or 26B Compact Vision side by side while retaining NVFP4 internally;
 3. qualify OpenAI Agent Core v1 with the official Python and JavaScript/TypeScript SDKs and one unmodified external
    coding-agent workflow on both model profiles and both product platforms;
 4. produce equally supported Windows and Linux archives with exact dependency contracts, licenses/notices,
@@ -23,9 +23,9 @@ optimization phase is frozen; new decode tuning requires a separate owner decisi
 
 ## Completed Gemma 4 26B qualification track
 
-M00–M17, M20–M23 and M25 of the Gemma 4 26B track are accepted. The text-only SM120 profile and the multimodal 12B
-profile are equal product choices with different capabilities. Target and fixed-D2 Assistant are published in
-separately pinned Hugging Face repositories, and Studio can install the pair into immutable cache snapshots.
+M00–M17, M20–M23 and M25 of the Gemma 4 26B track are accepted. The former public text-only SM120 profile remains an
+internal qualified rollback path. The two public choices are 12B Unified and 26B Compact Vision; their components are
+published from immutable Hugging Face revisions and Studio installs them into verified cache snapshots.
 
 ```text
 accepted artifact/loader → accepted optimized M17 runtime → accepted M22 product

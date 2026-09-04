@@ -62,6 +62,7 @@ jobs:
             tools/summarize_llama_bench.py \
             tools/gemma4_26b_moe_oracle.py \
             tools/package_gemma4_26b_vision_hf.py \
+            tools/reorganize_gemma4_26b_hf.py \
             tools/split_gemma4_26b_consolidated_lock.py \
             tools/update_gemma4_26b_plan_integrity.py
           python tools/update_gemma4_26b_plan_integrity.py --validate-source
@@ -110,7 +111,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
           .\.ci-venv\Scripts\Activate.ps1
-          python -m py_compile tools/compare_manifests.py tools/benchmark_vllm.py tools/benchmark_quality.py tools/compare_logits.py tools/compare_quality_benchmarks.py tools/fetch_model.py tools/generate_golden.py tools/generate_llama_golden.py tools/inspect_checkpoint.py tools/inspect_gguf.py tools/validate_inference.py tools/validate_layer_checkpoint.py tools/verify_sm120_sass.py tools/summarize_llama_bench.py tools/gemma4_26b_moe_oracle.py tools/package_gemma4_26b_vision_hf.py tools/split_gemma4_26b_consolidated_lock.py tools/update_gemma4_26b_plan_integrity.py
+          python -m py_compile tools/compare_manifests.py tools/benchmark_vllm.py tools/benchmark_quality.py tools/compare_logits.py tools/compare_quality_benchmarks.py tools/fetch_model.py tools/generate_golden.py tools/generate_llama_golden.py tools/inspect_checkpoint.py tools/inspect_gguf.py tools/validate_inference.py tools/validate_layer_checkpoint.py tools/verify_sm120_sass.py tools/summarize_llama_bench.py tools/gemma4_26b_moe_oracle.py tools/package_gemma4_26b_vision_hf.py tools/reorganize_gemma4_26b_hf.py tools/split_gemma4_26b_consolidated_lock.py tools/update_gemma4_26b_plan_integrity.py
           python tools/update_gemma4_26b_plan_integrity.py --validate-source
           python -m unittest discover -s tests/python -v
         working-directory: source

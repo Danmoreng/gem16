@@ -192,6 +192,17 @@ bool TestLiveServerCompatibility() {
 bool TestModelCatalog() {
   const auto catalog = gem16::studio::ModelCatalog();
   if (catalog.size() != gem16::studio::kModelProfileCount) return false;
+  const auto public_profiles = gem16::studio::PublicModelProfiles();
+  if (public_profiles.size() != 2U ||
+      public_profiles[0] !=
+          gem16::studio::ModelProfile::kGemma4Unified12B ||
+      public_profiles[1] !=
+          gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8 ||
+      std::ranges::find(public_profiles,
+                        gem16::studio::ModelProfile::kGemma4Moe26BA4B) !=
+          public_profiles.end()) {
+    return false;
+  }
   const auto& twelve = gem16::studio::CatalogForProfile(
       gem16::studio::ModelProfile::kGemma4Unified12B);
   const auto& twenty_six = gem16::studio::CatalogForProfile(
@@ -609,8 +620,10 @@ bool TestModelCardLayoutAndProgress() {
                                                     ImGuiWindowFlags_NoSavedSettings);
           ImGui::SetWindowFontScale(scale);
           gem16::studio::BeginModelCard("##card", scale);
-          ImGui::TextWrapped("Gemma 4 26B Vision (Trellis35 FP8)");
-          ImGui::TextWrapped("Text / Vision / Fixed MTP D2 / 229,120 tokens");
+          ImGui::TextWrapped("Gemma 4 26B A4B Compact Vision");
+          ImGui::TextWrapped(
+              "Text (Trellis35 W4A8) / Vision (FP8 E4M3FN) / Fixed MTP D2 / "
+              "229,120 tokens");
           bool first = true;
           for (const char* component : {"Target", "Vision", "Assistant"}) {
             const std::string status = std::string(component) +

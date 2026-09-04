@@ -16,45 +16,85 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/gem16-chat.png" alt="gem16 desktop app running a multimodal local Gemma 4 chat" width="1200">
+  <img src="docs/images/gem16-studio-models.png" alt="gem16 Studio showing the two public Gemma 4 model profiles" width="1200">
 </p>
 
 gem16 is a local inference stack built specifically for Gemma 4 on Blackwell GPUs with about 16 GB of VRAM. Gemma 4
-12B Unified and Gemma 4 26B A4B are equal, user-selectable product profiles that can be installed side by side. The
-native C++ desktop app is the primary entry point: it starts or attaches to `gem16-server`, manages the selected
-profile, and provides local streamed chat. The 12B profile supports text, image, and audio; 26B is text-only and may
-use its separately pinned fixed-D2 Assistant.
+12B Unified and Gemma 4 26B A4B Compact Vision are the two equal, user-selectable product profiles. The native C++
+desktop app is the primary entry point: it starts or attaches to `gem16-server`, manages the selected profile, and
+provides local streamed chat. The 12B profile supports text, image, and audio; Compact Vision combines its locked
+Trellis35 W4A8 text Target with an FP8 E4M3FN Vision module and optional fixed-D2 Assistant.
 
-The 12B profile loads its pinned mixed FP8/NVFP4 Safetensors checkpoint directly. The 26B profile consumes its
-offline-compiled, immutable GEM16 Target artifact and optional separately compiled Assistant.
+The 12B profile loads its pinned mixed FP8/NVFP4 Safetensors checkpoint directly. Compact Vision consumes its
+offline-compiled, immutable GEM16 components. The former public text-only 26B NVFP4 profile remains implemented and
+qualified internally for regression and rollback, but is not shown as a normal Studio choice.
 
 > [!IMPORTANT]
 > gem16 is a development preview, not a release-qualified general-purpose runtime. The optimized CUDA backend
 > currently targets Blackwell SM120/SM120a, and the supported model revisions are pinned deliberately.
+
+## Product profiles
+
+| Profile | Model size | Quantization / components | Download size | Capabilities |
+|---|---:|---|---:|---|
+| Gemma 4 12B Unified | 11.95B parameters | Mixed FP8/NVFP4 Target plus Assistant | about 10.2 GB | Text, image, audio, MTP |
+| Gemma 4 26B A4B Compact Vision | 25.2B total / 3.8B active parameters | Trellis35 W4A8 Target, FP8 E4M3FN Vision, optional hybrid NVFP4/FP8/BF16 Assistant | 12.8 GB without / 13.1 GB with Assistant | Text, one image, optional fixed-D2 MTP |
+
+The Compact Vision weight payloads occupy 13,060,400,408 bytes (12.16 GiB) with the Assistant. Its text Target is
+12,204,692,480 bytes, Vision is 597,390,648 bytes, and the Assistant is 258,317,280 bytes. The separate
+14,696,668,160-byte hybrid NVFP4 Target remains available internally for regression and rollback, but is not a
+third public Studio profile.
 
 ## Specialized project
 
 gem16 is developed primarily with AI coding agents. It explores model-specific execution plans and
 Blackwell-optimized CUDA kernels for the qualified Gemma 4 12B and 26B profiles within 16 GB of VRAM.
 
-## Gemma 4 26B sampled performance
+## Gemma 4 26B performance
 
-On the RTX 5080 Laptop GPU, the qualified text-only 26B path completes the fixed 16,384-token Wikipedia workload
-with Google's recommended sampling controls as follows:
+The repeatable Linux measurements below use the RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, batch
+one, the fixed 16,384-token Wikipedia prompt, checkpoint-FP8 KV, three warm-ups, and ten retained runs or alternating
+pairs. Throughput counts generated tokens, not speculative proposals.
 
-| Mode | Decode tok/s | Output tokens |
-|---|---:|---:|
-| Ordinary | 148.293 | 942 |
-| **Fixed D2 MTP** | **203.842** | 942 |
+| GEM16 26B Target | Prefill tok/s | Ordinary decode tok/s | Fixed-D2 decode tok/s | Generated output | Peak VRAM Ordinary / D2 |
+|---|---:|---:|---:|---:|---:|
+| **Trellis35 W4A8** — public Compact Vision text Target | 5,666.57 | 130.906 | **182.526** | 1,229 tokens | 12,522 / 12,794 MiB |
+| Internal hybrid NVFP4/FP8/BF16 | **6,926.23** | **148.336** | **203.552** | 942 tokens | 14,734 / 15,026 MiB |
 
-This is a batch-one, checkpoint-FP8-KV characterization with seed 0, `temperature=1`, `top_k=64`, `top_p=0.95`,
-three paired warm-ups and ten retained alternating pairs. D2 is 37.46% faster than ordinary, has a 2,355.225 ms
-median TTFT and 6,970.995 ms median end-to-end inference time, and peaks at 15,024 MiB. Every retained run produces
-the same output hash; D2 accepts 523 of 836 proposals (62.56%). Assistant precision and acceptance were frozen during
-this execution-only optimization. See the
-[compact evidence](artifacts/m25/decode-optimization-freeze-2026-08-28.json).
+For each Target, Ordinary and D2 produced identical token vectors in every retained run. Trellis35 D2 accepted 690
+of 1,076 proposals; NVFP4 D2 accepted 523 of 836. The later retained K/V-epilogue, programmatic-dependency, and
+fixed-row attention improvements reached short-screen medians of 131.77/approximately 184.0 tok/s for Trellis35
+and 150.44/206.40 tok/s for NVFP4 (Ordinary/D2). Those runs intentionally used only one warm-up and three
+measurements, so they document the current implementation but do not replace the 3+10 table above. See the
+[Trellis35 freeze](artifacts/trellis35/pfx31-performance-freeze.json),
+[NVFP4 recheck](artifacts/m25/nvfp4-wikipedia-recheck-2026-09-04.md), and
+[latest bounded optimization record](artifacts/m25/optimization-pdl-attention-followup-2026-09-04.json).
 
-## Current 16K performance
+### 26B comparison with llama.cpp and vLLM
+
+These rows are useful directional same-machine references, not model-quality parity: the engines use different
+checkpoint formats, KV precision, output sequences, and in some cases different output lengths.
+
+| Engine / 26B checkpoint | Prefill tok/s | Ordinary decode tok/s | MTP D2 tok/s | Output / validity | Peak VRAM |
+|---|---:|---:|---:|---|---:|
+| **gem16**, internal hybrid NVFP4/FP8/BF16 | **6,926.23** | 148.336 | **203.552** | 942 sampled tokens; deterministic; Ordinary = D2 | 15,026 MiB D2 |
+| llama.cpp b10623, official QAT Q4_0 GGUF | 4,262.13 | 118.627 | 151.919 | 1,135 forced greedy tokens; Ordinary and D2 internally deterministic but differ from each other | 15,538 MiB D2 |
+| vLLM 0.27.1, community W4A16, CUDA Graph | 6,475.80 | **149.348** | — | 64 forced greedy tokens; three different output hashes | 15,818 MiB |
+
+The raw directional ratios put gem16 NVFP4 62.51% ahead of llama.cpp in prefill, 25.04% in Ordinary decode, and
+33.99% in D2 decode for these recorded rows. They are not exact semantic comparisons. llama.cpp uses host-controlled
+MTP with CUDA-offloaded forwards and its D2 run leaves only 343 MiB free, below gem16's 700 MiB operating-reserve
+target.
+
+There is no valid vLLM NVFP4/MTP row to publish. vLLM 0.27.1 could not map Google's official text-only Q4_0 GGUF
+and produced no throughput measurement. The community W4A16 Target ran only in Ordinary mode; its repeated greedy
+outputs were non-deterministic and its 15,818 MiB peak left 63 MiB free. A fully GPU-resident 26B vLLM MTP engine
+did not fit on the 16 GB GPU with either the tested BF16 or ModelOpt NVFP4 Assistant. See the
+[llama.cpp 26B record](benchmarks/baselines/llama_cpp/gemma4-26b-a4b-qat-q4_0-mtp-b10623.json),
+[vLLM W4A16 record](benchmarks/baselines/vllm/gemma4-26b-w4a16-wikipedia-16k64-characterization.json), and
+[vLLM loader audit](benchmarks/baselines/vllm/gemma4-26b-q4_0-load-characterization.json).
+
+## Gemma 4 12B 16K comparison
 
 ### Linux
 
@@ -100,7 +140,7 @@ See the [full methodology](benchmarks/baselines/cross_engine_mtp/README.md),
 [Linux data](benchmarks/baselines/cross_engine_mtp/characterization-a819d14c.json), and
 [Windows data](benchmarks/baselines/cross_engine_mtp/windows-characterization-35a57bb.json).
 
-## Current short-context performance
+## Gemma 4 12B short-context comparison
 
 ### Linux
 
@@ -163,7 +203,7 @@ It is exported from the [editable tldraw source](docs/gem16-overview.tldraw).
 
 | Area | Current implementation |
 |---|---|
-| Models | Pinned Gemma 4 12B Unified and Gemma 4 26B A4B profiles |
+| Models | Public Gemma 4 12B Unified and Gemma 4 26B A4B Compact Vision profiles; internal qualified 26B NVFP4 rollback |
 | Platforms | Windows x64 and Linux x86-64; optimized CUDA path for SM120/SM120a |
 | Execution | Batch-one prefill and decode with resident weights and conversation KV state |
 | Precision | FP8 attention, packed NVFP4 MLPs, BF16 embeddings, FP8 or BF16 KV cache |
@@ -220,7 +260,7 @@ launches.
 
 The Linux launcher provides the equivalent `--skip-server-build` opt-out.
 
-On first launch, Studio opens **Models** and presents 12B and 26B without a preselected default. Install either profile
+On first launch, Studio opens **Models** and presents 12B Unified and 26B Compact Vision without a preselected default. Install either profile
 or both, then select a verified profile and verify the compiled path on **Server**. Studio reuses already populated Hub
 blobs, resumes incomplete downloads, and never copies checkpoints into the application archive. The 12B Target spans
 two existing upstream repositories, so Studio creates a hardlink-only runtime view inside the same Hub cache; it does
@@ -320,8 +360,9 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 
 ## Current limitations
 
-- Gemma 4 12B Unified and 26B A4B are equal product choices with different capabilities: 12B is multimodal; 26B is
-  text-only, single-slot, and optionally uses its separately pinned Assistant.
+- Gemma 4 12B Unified and 26B A4B Compact Vision are equal public choices with different capabilities: 12B supports
+  text, image and audio; Compact Vision supports text and one image, is single-slot, and may use its pinned Assistant.
+- The text-only 26B NVFP4 path remains available internally for regression and rollback.
 - Full-model download and clean-machine onboarding still need release qualification on both Windows and Linux.
 - Inference is batch one; continuous batching is not implemented.
 - The optimized CUDA backend requires Blackwell SM120/SM120a.

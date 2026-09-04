@@ -127,7 +127,7 @@ const char* ProfileLabel(ModelProfile profile) {
     case ModelProfile::kGemma4Moe26BA4B:
       return "Gemma 4 26B A4B";
     case ModelProfile::kGemma4Moe26BTrellis35VisionFp8:
-      return "Gemma 4 26B Vision (Trellis35 FP8)";
+      return "Gemma 4 26B A4B Compact Vision";
   }
   return "Unknown profile";
 }

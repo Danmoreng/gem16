@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B Compact Vision production contract
 
-**Status:** production candidate; P20 not yet accepted
+**Status:** owner-bounded P20 accepted 2026-09-04; REL01 and P21 deferred
 
 **Owner direction:** 2026-09-02
 
@@ -37,15 +37,18 @@ supported only when the exact validated Target, Vision, and Assistant locks are
 loaded. Qualification is bound to their immutable hashes; components and
 profiles are never inferred from filenames or substituted.
 
-Until P20 is accepted the runtime reports:
+The accepted runtime reports:
 
 ```text
-qualification_state=production_candidate
-experimental=true
+qualification_state=production_qualified
+experimental=false
 ```
 
-`production_qualified` and `experimental=false` are reserved for the exact P20
-candidate after every gate below passes.
+This status applies only to the exact locked composite. The owner's 2026-09-04
+decision replaces the extended QUAL01 requirement with bounded V19 evidence
+and separates P20 profile acceptance from REL01, packaging, clean-machine and
+live Windows-SM120 release gates. Deferred gates remain open and may not be
+reported as completed.
 
 ## Precision and runtime integrity
 
@@ -90,7 +93,7 @@ the Vision profile can become productive.
 
 ## Release gates
 
-P20 requires all of the following on immutable inputs and source:
+The original full P20 gate list was:
 
 1. PRD00 security, fixtures, identity and stable reporting;
 2. accepted PERF13/PERF12 performance and numerical candidates;
@@ -104,7 +107,9 @@ P20 requires all of the following on immutable inputs and source:
 9. full download/resume/hash/corruption and clean-machine package smokes;
 10. protected 12B and qualified 26B NVFP4 non-regression.
 
-P21 then freezes the source revision, binaries, repository revision, component
+Items 5, 7 and 9 remain release work under the owner-bounded acceptance, as do
+REL01 and the wider Agent Core qualification. The preserved V19 limitations
+remain disclosed. P21 later freezes the source revision, binaries, repository revision, component
 and catalog hashes, defaults and maxima, performance and quality panels, known
 limitations, and rollback procedure. Historical evidence is retained rather
 than rewritten.

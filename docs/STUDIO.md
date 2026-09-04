@@ -26,26 +26,28 @@ license remains beside the vendored source.
 
 - Chat, Models, Server, and Settings screens with a dark/light glass palette, procedural gemstone branding, and the
   original animated GPU science-fiction wave.
-- Neutral first-run onboarding and persisted selectors for qualified Gemma 4 12B Unified and qualified text-only
-  Gemma 4 26B A4B. Either profile or both can be installed.
-- One generated, lock-derived catalog for the independently pinned 12B Target, 12B Assistant, 26B Target, and 26B
-  Assistant components.
+- Neutral first-run onboarding and persisted selectors for qualified Gemma 4 12B Unified and Gemma 4 26B A4B
+  Compact Vision. Either public profile or both can be installed.
+- One generated, lock-derived catalog for all public components plus the internally retained qualified NVFP4 26B
+  regression and rollback components.
 - Resumable, SHA-256-verified anonymous downloads with a preflight storage check. Source payloads and immutable
   snapshots remain in the standard Hugging Face cache selected through `HF_HUB_CACHE`, `HF_HOME`, platform cache
   conventions, or the repository fallback.
 - The cross-repository 12B Target receives a hardlink-only composed runtime view below the same Hub cache. It reuses
   canonical verified blobs and does not duplicate model payloads.
-- Qualified 26B Target and Assistant paths, one resident session, 86,016-token MTP context, and fixed D2 selected
-  as its selected MTP profile.
+- Qualified Compact Vision Target, Vision and Assistant paths, one resident session, 229,120-token default fixed-D2
+  context, and explicit 70/140/280 image budgets.
 - Managed `gem16-server` start, stop, output capture, health polling, and non-owning attachment to an external server.
 - Incremental SSE rendering for answer and `reasoning_content`, cancellation, resident session IDs, and new-chat
   reset. Starting a new chat omits the old session ID; the one-slot 26B server then evicts the inactive root.
 - Selectable Markdown rendering for headings, emphasis, strong text, inline and fenced code, ordered/unordered lists,
   quotes, rules, links, and image labels. Fenced code blocks expose their own copy action.
 - Inline code and code blocks use an atlas-owned system monospace font (Consolas/Courier New on Windows,
-  DejaVu Sans Mono/Liberation Mono on Linux, embedded ProggyClean if unavailable). Wrapping and selection use the
-  same font metrics as drawing. Code glyphs are optically reduced to 80% at rasterization to match body-text height;
-  the normal DPI scaling still applies once. Code-header copy actions account for actual padding, label width and DPI.
+  Noto Sans Mono/DejaVu Sans Mono/Liberation Mono on Linux, embedded ProggyClean if unavailable). Wrapping and
+  selection use the same font metrics as drawing. On Windows, Consolas glyphs are optically reduced to 80% at
+  rasterization to match Segoe UI body-text height; the metrically matched Linux faces retain their native scale,
+  while the embedded fallback is reduced to match. The normal DPI scaling still applies once. Code-header copy
+  actions account for actual padding, label width and DPI.
 - SVG code blocks default to an in-chat graphic in an artifact card: neutral `SVG` badge, equal `Code` / `Preview`
   tabs with a subdued active tint, ghost `Copy code` action with 1.8-second `Copied` feedback, and `Expand` modal
   (Close/Escape). The 44-pixel toolbar wraps its actions on narrow cards; controls and corners scale with DPI.
@@ -53,6 +55,8 @@ license remains beside the vendored source.
   preview resolution instead of stretching an intrinsic-size bitmap. Zoom, split view and saving are not included.
   `svg` fences and SVG-root content in `xml`, `html` or unlabeled fences are recognized. The native LunaSVG renderer
   supports static shapes, text, paths, gradients, clipping and markers. Preview uses a white backing for legibility.
+  The preferred installed Studio UI face is also registered as LunaSVG's fallback when found, so text remains
+  visible on Noto-only Linux systems; font files remain external system dependencies and are not bundled.
   Incomplete/invalid/unsupported XML stays visible as code with a reason, and updates as streaming completes.
   Scripts, events, external links, images, `foreignObject`, `use`, masks, patterns and filters are outside this
   initial bounded subset. DTDs, CSS imports/escapes and recursive resource references are rejected before rendering.
@@ -93,8 +97,8 @@ license remains beside the vendored source.
 - Platform-aware interface scaling with a 125% Linux minimum in `Auto` mode, explicit 100/125/150% choices, scaled
   procedural icons and responsive stacked layouts for narrower windows.
 - Composer file selection and desktop drag-and-drop for bounded UTF-8 text/code documents, PNG/JPEG/BMP images, and
-  WAV/FLAC/MP3 audio. Images and audio use OpenAI-compatible content parts on 12B Unified; the text-only 26B profile
-  rejects them before a request is sent. PDF text extraction is enabled when the mature Poppler `pdftotext` utility
+  WAV/FLAC/MP3 audio. Images and audio use OpenAI-compatible content parts on 12B Unified; Compact Vision accepts one
+  image and rejects audio before a request is sent. PDF text extraction is enabled when the mature Poppler `pdftotext` utility
   is installed and otherwise fails visibly with an export-to-text instruction.
 - Cross-platform microphone capture through the already pinned miniaudio boundary. Recordings are bounded to five
   minutes and attached as mono 16 kHz WAV input.
@@ -106,10 +110,10 @@ license remains beside the vendored source.
   gemstone icons. Profile descriptions are available on title hover; capabilities remain visible. Downloads use
   an emerald progress fill with a gentle animated shimmer clipped to the completed extent and a byte-count label.
 
-This native slice covers text and 12B multimodal chat plus two-profile onboarding but does not yet satisfy the full product contract.
+This native slice covers the two public profiles and retains NVFP4 internally, but does not yet satisfy the full release contract.
 Complete real-model downloads and clean-machine installation still require equal Windows and Linux qualification.
 Bundled PDF extraction, local time tools, exact server-side metrics cards, model-payload reclamation, and native
-installers remain open work. The 26B profile is intentionally text-only. Deprecated Compose behavior is input to a
+installers remain open work. Compact Vision is single-image and has no audio support. Deprecated Compose behavior is input to a
 new native product decision, not a parity requirement and not a reason to continue modifying the old GUI.
 
 ## Build and run

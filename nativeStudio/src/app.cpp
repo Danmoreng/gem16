@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <numbers>
@@ -26,6 +27,25 @@ constexpr ImVec4 kAccentDim{0.11f, 0.34f, 0.24f, 1.0f};
 float g_ui_scale = 1.0f;
 
 float Ui(float value) { return value * g_ui_scale; }
+
+std::string UserFacingPath(const std::filesystem::path& path) {
+  const std::filesystem::path normalized = path.lexically_normal();
+  for (const char* variable : {"USERPROFILE", "HOME"}) {
+    const char* value = std::getenv(variable);
+    if (!value || !*value) continue;
+    const std::filesystem::path user_root =
+        std::filesystem::path(value).lexically_normal();
+    const std::filesystem::path relative =
+        normalized.lexically_relative(user_root);
+    if (relative.empty() ||
+        (relative.begin() != relative.end() && *relative.begin() == "..")) {
+      continue;
+    }
+    if (relative == ".") return "~";
+    return (std::filesystem::path("~") / relative).generic_string();
+  }
+  return normalized.string();
+}
 
 template <std::size_t Size>
 void CopyTo(std::array<char, Size>& destination, const std::string& source) {
@@ -1277,14 +1297,16 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
 
 void StudioApp::DrawModels() {
   const ModelInstallState install = models_.State();
+  const std::filesystem::path hub_root = HuggingFaceHubRoot();
+  const std::string hub_root_label = UserFacingPath(hub_root);
   PanelHeading(settings_.onboarding_complete ? "Local model profiles"
                                              : "Welcome to Gem 16",
                settings_.onboarding_complete
                    ? "Install either profile or keep both side by side in the shared Hugging Face cache."
                    : "Choose and install a model profile. Nothing is selected by default on a new system.");
-  ImGui::TextDisabled("Hub cache: %s", HuggingFaceHubRoot().string().c_str());
+  ImGui::TextDisabled("Hub cache: %s", hub_root_label.c_str());
   ImGui::SameLine();
-  if (ImGui::SmallButton("Open cache")) OpenInFileManager(HuggingFaceHubRoot());
+  if (ImGui::SmallButton("Open cache")) OpenInFileManager(hub_root);
   ImGui::SameLine();
   ImGui::BeginDisabled(install.downloading);
   if (ImGui::SmallButton("Verify again")) models_.Refresh();
@@ -1408,7 +1430,9 @@ void StudioApp::DrawModels() {
     ImGui::PopStyleColor(2);
     ImGui::Dummy({0, Ui(3)});
   };
-  for (const auto& catalog : ModelCatalog()) draw_profile(catalog);
+  for (const ModelProfile profile : PublicModelProfiles()) {
+    draw_profile(CatalogForProfile(profile));
+  }
   if (!install.error.empty()) {
     ImGui::TextColored({1.0f, 0.45f, 0.45f, 1.0f}, "%s", install.error.c_str());
   }

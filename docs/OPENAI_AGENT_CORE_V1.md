@@ -48,7 +48,7 @@ Supported top-level fields:
 - `tool_choice`: `none`, `auto`, `required`, or a named function;
 - `parallel_tool_calls`;
 - `vision_soft_token_budget`: GEM16 extension, restricted to `70`, `140`, or
-  `280` on the explicit experimental 26B Vision profile and no greater than
+  `280` on the explicit 26B Compact Vision profile and no greater than
   the server's startup-only `vision_max_soft_token_budget`;
 - `n=1`.
 
@@ -57,7 +57,7 @@ Assistant `tool_calls` and tool results linked by `tool_call_id` are required.
 Text input is required for every profile. Inline image/audio content remains a
 capability extension and is not necessary for Agent Core conformance. The
 qualified 12B profile supports its declared image/audio inputs. The separate
-experimental 26B Trellis35 Vision profile accepts exactly one image, rejects
+26B Compact Vision profile accepts exactly one image, rejects
 audio, and consumes `vision_soft_token_budget` without silently substituting a
 different processing budget. If the request omits the extension, the server
 uses the greatest qualified budget that fits both the remaining context and
@@ -81,7 +81,7 @@ Supported top-level fields:
 - function `tools`;
 - `tool_choice`;
 - `parallel_tool_calls`;
-- `vision_soft_token_budget`, with the same experimental 26B Vision restriction
+- `vision_soft_token_budget`, with the same 26B Compact Vision restriction
   as Chat Completions;
 - `previous_response_id`.
 

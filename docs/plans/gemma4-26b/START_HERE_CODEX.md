@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17, M20–M23 and M25 accepted. The qualified text-only 26B fixed-D2 checkpoint is selectable alongside 12B, supports 86,016 MTP context tokens with a 200 MiB reserve, and keeps a 98,304-token Target-only maximum. The broad historical M19 suite is waived for this checkpoint; claims remain bounded to the recorded GSM8K/AIME and product evidence. M18 remains conditional. The owner-approved Compact Vision production-qualification wave is active only for the exact Trellis35 Target + FP8 Vision + optional fixed-D2 Assistant composite. It remains a production candidate until P20; begin with [`PRODUCTION_26B_VISION_CONTRACT.md`](PRODUCTION_26B_VISION_CONTRACT.md) and do not infer NVFP4 or generic 26B Vision support.
+Status: M00–M17, M20–M23 and M25 accepted. The owner-bounded P20 decision makes 12B Unified and the exact Trellis35 Target + FP8 Vision + optional fixed-D2 Assistant composite the two public profiles. The qualified text-only 26B NVFP4 checkpoint remains an internal regression and rollback path with its accepted 86,016 MTP and 98,304 Target-only limits. The larger QUAL01 campaign is waived for P20 rather than recorded as executed. REL01, packaging, clean-machine qualification and P21 remain open release work; begin Compact Vision work with [`PRODUCTION_26B_VISION_CONTRACT.md`](PRODUCTION_26B_VISION_CONTRACT.md) and never infer NVFP4 or generic 26B Vision support.
 Plan revision: Fast Track R4.
 
 ## Read now

@@ -1,140 +1,67 @@
-# Qualified Gemma 4 26B GEM16 repositories
+# Gemma 4 26B GEM16 Hugging Face layout
 
-Status: public and ungated; metadata refreshed and anonymously verified
-2026-08-29.
+Status: normalized repository layout published and anonymously verified
+2026-09-04; product locks intentionally remain on the preceding immutable
+revision until acquisition and loader compatibility are verified.
 
-The qualified 26B checkpoint is split because Target and MTP Assistant derive
-from different immutable Google repositories:
+Repository: `danmoreng/gemma-4-26B-A4B-it-GEM16`
 
-- Target: `danmoreng/gemma-4-26B-A4B-it-GEM16`, revision
-  `63508b5826527484e707b4b46e2eacf077cf2b35`;
-- Assistant: `danmoreng/gemma-4-26B-A4B-it-assistant-GEM16`, revision
-  `466cc26d157fad0cc946f094ae904445147c38b4`.
+- normalized revision: `5a7a0225b3f23067e082c21312a4c38676cc237f`;
+- currently runtime-pinned revision: `6de2a057f11332420819f8e6efd08e42d7a03bc7`;
+- source Target: `google/gemma-4-26B-A4B-it-qat-q4_0-unquantized` at
+  `f1e06dc520982d9b9edd76859fdb7ab209449949`;
+- source Assistant: `google/gemma-4-26B-A4B-it-qat-q4_0-unquantized-assistant`
+  at `9537141506fe8875b3ed45b264af13580cb29166`.
 
-Both repositories are public and ungated. Anonymous API, model-card, Target
-weight HEAD, and Assistant weight HEAD requests returned HTTP 200 after the
-metadata commits. Studio pins the full revisions above, verifies every file,
-and no longer requires or transmits a Hugging Face token for this public pair.
+## Normalized components
 
-## Target package and freshness
+The new revision has one descriptive payload per component:
 
-The Target repository contains `model.gem16`, a 14,696,668,160-byte raw SM120
-device-arena image with SHA-256
-`1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72`.
-Its tensors already use the exact offsets and Row-8/K-64 layouts consumed in
-VRAM. Runtime startup uploads this file directly and performs no weight
-repacking. Source-order Safetensors shards are deliberately not duplicated;
-`gem16_compilation.json` supplies the strict inventory and provenance.
+| Role | Payload | Exact format | Bytes |
+|---|---|---|---:|
+| Public text Target | `components/gemma-4-26b-a4b-it-trellis35-w4a8/gemma-4-26b-a4b-it-trellis35-w4a8.gem16` | GEM16 Trellis35 W4A8 direct-load image; mixed K3/K4 routed experts at approximately 3.5 bpw, FP8 activations | 12,204,692,480 |
+| Public Vision | `components/gemma-4-26b-a4b-it-vision-fp8-e4m3fn/gemma-4-26b-a4b-it-vision-fp8-e4m3fn.gem16` | FP8 E4M3FN linear weights per output row, BF16 row scales and support tensors | 597,390,648 |
+| Optional fixed-D2 Assistant | `components/gemma-4-26b-a4b-it-assistant-hybrid-nvfp4-fp8-bf16/gemma-4-26b-a4b-it-assistant-hybrid-nvfp4-fp8-bf16.safetensors` | NVFP4 group-16 embedding/head/experts, FP8 attention, remaining BF16 tensors | 258,317,280 |
+| Internal Target | `internal/gemma-4-26b-a4b-it-target-hybrid-nvfp4-fp8-bf16/gemma-4-26b-a4b-it-target-hybrid-nvfp4-fp8-bf16.gem16` | NVFP4 group-16 embedding/head/experts, FP8 attention, BF16 state/control | 14,696,668,160 |
 
-The source is
-`google/gemma-4-26B-A4B-it-qat-q4_0-unquantized` at revision
-`f1e06dc520982d9b9edd76859fdb7ab209449949`. The checkpoint is text-only and
-SM120-specific.
+Vision is therefore FP8, not Q8. Trellis35 is EXL3-derived offline packing,
+but the published artifact is the GEM16-native Trellis35 W4A8 device image,
+not a generic EXL3 checkpoint. The Assistant is genuinely quantized and is
+not a BF16-only model.
 
-The published image is already the newest accepted direct-load layout. Commit
-`5abba6e` introduced the direct device-image builder before commit `bd5b1af`
-created the Hugging Face packages. The package, retained M08 image, and final
-smoke-test image have the same byte count and SHA-256. Later context
-qualification changed the MTP limit from 73,728 to 86,016 but did not change
-weight bytes. A 14.7 GB re-upload is therefore not required.
+Every directory uses the same supporting names:
 
-## Assistant package
+- `component.json` — human- and machine-readable model, role, quantization,
+  payload size and immutable SHA-256 identity;
+- `runtime.json` — the compiler-emitted runtime descriptor retained for
+  compatibility/provenance;
+- `compilation.json` — exact offline transformation and tensor inventory;
+- `source.lock.json` — immutable compiler input/output record.
 
-The Assistant repository contains the separately compiled 97-tensor hybrid
-NVFP4/FP8 artifact. Its 258,317,280-byte weight file has SHA-256
-`4d3ce2102ad0631d9e7e0586be0b108d5789cbc5b90d21b4c50613979228d927`.
-Its source is
-`google/gemma-4-26B-A4B-it-qat-q4_0-unquantized-assistant` at revision
-`9537141506fe8875b3ed45b264af13580cb29166`. It is not a standalone chat model
-and must be paired with the qualified Target.
+`profiles.json` composes the public Compact Vision profile from text and Vision
+and names the Assistant as optional. The qualified NVFP4 Target is retained
+under `internal/` solely for regression and rollback; it is not a third normal
+Studio product choice.
 
-## Qualified runtime contract
+## Publication and integrity
 
-- batch one and one resident session;
-- fixed D2 MTP with Target verification;
-- FP8 KV cache;
-- `mtp_max_context=86,016` with a 200 MiB long-context reserve;
-- `base_max_context=98,304` with the separate 400 MiB base reserve;
-- text only; no 26B image, audio or video input;
-- no CPU weight offload, runtime repacking, silent precision fallback or
-  recurring token-loop allocation.
+`tools/reorganize_gemma4_26b_hf.py` created the new commit with server-side Hub
+copies from revision `6de2a057...`. It did not download, hash, re-encode or
+re-upload the 27.8 GB of model payloads. Before publication it checked the
+immutable source revision and the Hub-recorded LFS SHA-256/size identities.
+After publication an anonymous Hub query verified the same identities at the
+four descriptive paths and confirmed that the generic payload paths were gone.
 
-The measured context record is `artifacts/m25/context-capacity-2026-08-28.json`.
-Full GSM8K and AIME 2026, bounded sampled Target identity and the
-product/runtime gates are the accepted quality evidence. The owner waived the
-broader historical M19 suite; quality claims remain limited to the published
-evidence.
+This offline publication validation is separate from runtime loading. GEM16
+does not hash the model payload during each load; acquisition/install performs
+integrity verification, then the loader uploads the already compiled direct
+image in large transfers without repacking.
 
-## Model cards, relationship and license
+The old revision remains permanently addressable and current product locks
+still pin it. This prevents a repository-layout cleanup from changing a tested
+runtime. A later lock-only migration may map descriptive remote paths back to
+the stable local filenames expected by existing loaders, but it must first pass
+the normal downloader and loader checks on Linux and Windows.
 
-`tools/package_gemma4_26b_hf.py` generates a GEM16-specific preamble and then
-retains the body of the exact pinned Google model card. Generated Hub front
-matter uses:
-
-```yaml
-license: apache-2.0
-base_model: google/<exact-pinned-26B-source>
-base_model_relation: quantized
-```
-
-This is Hugging Face's model-tree relationship for a quantized derivative. It
-provides navigation from GEM16 back to Google and allows the GEM16 variant to
-appear among derivatives on the upstream page. The preamble makes the narrower
-text-only SM120 contract explicit, so inherited upstream multimodal statements
-are not accidentally attributed to GEM16.
-
-Each generated package also contains `LICENSE` and a source-specific `NOTICE`
-with the Google repository, immutable revision, GEM16 modifications, upstream
-terms link, and project link. The classifier is Apache 2.0, matching both
-pinned Google QAT repositories; the obsolete `license: gemma` value is removed.
-
-## Reproducing the packages
-
-Fetch both upstream `README.md` files at the exact source revisions, then run:
-
-```bash
-python3 tools/package_gemma4_26b_hf.py \
-  --target artifacts/raw/m08/qat-hybrid-clean-1 \
-  --target-image artifacts/raw/m08/qat-hybrid-clean-1.gem16-sm120-device-image-v1.bin \
-  --target-lock artifacts/raw/m08/qat-hybrid-clean-1.lock.json \
-  --target-upstream-card /path/to/pinned-target-README.md \
-  --assistant artifacts/raw/m25/qat-q4_0-assistant-hybrid-diagnostic-v2 \
-  --assistant-lock artifacts/raw/m25/qat-q4_0-assistant-hybrid-diagnostic-v2.lock.json \
-  --assistant-upstream-card /path/to/pinned-assistant-README.md \
-  --output /path/to/empty/hf-staging
-```
-
-The tool verifies every source-lock record and the fixed Target image identity,
-creates hardlinked staging directories where possible, refuses non-empty
-outputs, and never mutates accepted artifacts.
-
-The 2026-08-29 publication uploaded only `README.md`, `LICENSE`, `NOTICE`, and
-`gem16_model.json` in one commit per repository. It did not replace
-`model.gem16` or the Assistant Safetensors file. The resulting locks and native
-Studio catalog pin the new revisions above.
-
-Keep the 2026-08-27 private publication record immutable. The public release
-audit is `artifacts/m25/hf-publication-2026-08-29.json`.
-
-## Current Studio cache behavior
-
-Native Studio resolves its Hub root in this order:
-
-1. `HF_HUB_CACHE` exactly;
-2. `$HF_HOME/hub`;
-3. `$XDG_CACHE_HOME/huggingface/hub`;
-4. `$HOME/.cache/huggingface/hub`;
-5. a repository-local fallback.
-
-The 26B snapshots already use canonical Hub directories such as
-`models--danmoreng--.../snapshots/<revision>`. The 12B Target currently uses a
-custom `.gem16/snapshots/...` directory because its lock assembles files from
-more than one upstream repository. On Windows, a process without `HOME` also
-falls through to the repository-local directory instead of the normal user
-cache.
-
-Both are known catalog-slice defects. The common model catalog must resolve the
-actual Hugging Face user cache on Windows and Linux. The 12B Target and
-Assistant remain in their existing upstream repositories; the catalog/runtime
-must resolve any cross-repository files directly from those canonical
-snapshots without publishing a GEM16 mirror or duplicating model blobs.
+The audit record is
+`artifacts/vision/hf-layout-normalization-2026-09-04.json`.

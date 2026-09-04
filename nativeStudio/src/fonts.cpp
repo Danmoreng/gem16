@@ -17,7 +17,8 @@ ImFont* InitializeStudioFonts() {
 #else
   const char* text_paths[] = {"/usr/share/fonts/noto/NotoSans-Regular.ttf",
       "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"};
-  const char* code_paths[] = {"/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+  const char* code_paths[] = {"/usr/share/fonts/noto/NotoSansMono-Regular.ttf",
+      "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
       "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
       "/usr/share/fonts/truetype/liberation2/LiberationMono-Regular.ttf"};
   // stb rasterizes outline fonts, not the bitmap-only NotoColorEmoji font.
@@ -45,10 +46,12 @@ ImFont* InitializeStudioFonts() {
     if (atlas->AddFontFromFileTTF(path, 17.0f, &config, emoji_ranges)) break;
   }
   ImFontConfig code_config;
-  // Consolas has visibly taller glyphs than the UI face at the same pixel
-  // height. Scale at rasterization so drawing, advances, wrapping and hit
-  // testing all agree, without applying the application's DPI factor twice.
+  // Consolas has visibly taller glyphs than Segoe UI at the same pixel height.
+  // Scale that Windows pair at rasterization so drawing, advances, wrapping and
+  // hit testing all agree, without applying the application's DPI factor twice.
+#ifdef _WIN32
   code_config.ExtraSizeScale = 0.80f;
+#endif
   constexpr char code_name[] = "Studio monospace";
   static_assert(sizeof(code_name) <= sizeof(code_config.Name));
   std::memcpy(code_config.Name, code_name, sizeof(code_name));
@@ -58,7 +61,14 @@ ImFont* InitializeStudioFonts() {
       code_font = atlas->AddFontFromFileTTF(path, 17.0f, &code_config, text_ranges);
     if (code_font) break;
   }
-  if (!code_font) atlas->AddFontDefaultBitmap(&code_config); // Embedded monospaced ProggyClean.
+  if (!code_font) {
+#ifndef _WIN32
+    // The embedded bitmap fallback is visually larger than Noto Sans at its
+    // nominal size, unlike the metrically matched Linux outline-font pairs.
+    code_config.ExtraSizeScale = 0.80f;
+#endif
+    atlas->AddFontDefaultBitmap(&code_config); // Embedded monospaced ProggyClean.
+  }
   InitializeMathFonts();
   return font;
 }

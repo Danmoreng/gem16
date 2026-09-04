@@ -2,7 +2,7 @@
 
 **Updated:** 2026-09-04
 **Track:** Productization baseline
-**Status:** owner-approved product contract; implementation and release gates in progress
+**Status:** two public profiles and bounded P20 accepted; release gates remain in progress
 
 This file is the short operational policy for current work. Permanent safety,
 security, evidence, and runtime-integrity rules in `AGENTS.md` remain binding.
@@ -22,16 +22,19 @@ Read it only for a concrete historical or evidence question.
    supported machine. Loopback is the default and the supported security
    boundary. Authentication/TLS and remote multi-user serving remain outside
    this baseline.
-3. **Equal model profiles.** Gemma 4 12B Unified and Gemma 4 26B A4B are equal,
-   user-selectable product profiles and may be installed side by side. Neither
-   is the preferred product choice. Capability differences remain explicit:
-   12B is the qualified multimodal profile; 26B is qualified text-only,
-   single-slot, and optionally uses its separately pinned fixed-D2 Assistant.
-   Studio stores model files in the standard shared Hugging Face Hub cache and
-   must not create a second private model store. Each profile is represented by
-   an independently pinned Target and Assistant catalog entry. The 12B entries
-   continue to reference the existing upstream Hugging Face repositories; no
-   GEM16 mirror or duplicate 12B weight repository is created.
+3. **Two equal public model profiles.** Gemma 4 12B Unified and Gemma 4 26B
+   A4B Compact Vision are the two user-selectable public profiles and may be
+   installed side by side. Neither is preferred. The 12B profile supports
+   qualified text, image and audio. Compact Vision is the exact Trellis35 text
+   Target plus FP8 Vision composite, accepts one image, is single-slot, and may
+   use its separately pinned fixed-D2 Assistant. The qualified text-only 26B
+   NVFP4 path remains implemented and regression-protected as an internal
+   rollback profile, but is not offered in the normal Studio selection. This
+   owner decision supersedes the earlier requirement that NVFP4 26B remain an
+   equal public Studio choice. Studio stores model files in the standard shared
+   Hugging Face Hub cache and must not create a second private model store. The
+   12B entries continue to reference the existing upstream Hugging Face
+   repositories; no GEM16 mirror or duplicate 12B weight repository is created.
 4. **One active GUI.** `nativeStudio/` is the only active GUI. `studioApp/` is
    deprecated, receives no new product work, and remains temporarily as
    read-only migration evidence.
@@ -57,16 +60,15 @@ Read it only for a concrete historical or evidence question.
    remain closed, and the protected 12B path, product claims, release
    sequencing, and productization priority remain unchanged. Trellis35 stays
    experimental and may not modify or silently fall back to a qualified path.
-8. **Compact Vision production qualification is authorized but not yet
-   accepted.** The owner's 2026-09-02 direction supersedes only the future
+8. **Compact Vision production qualification was authorized as a candidate.**
+   The owner's 2026-09-02 direction superseded only the future
    requirement in decision 7 that the completed Trellis35 Vision slice end in
    an experimental V20 freeze. The exact Trellis35 Target + FP8 Vision +
    optional fixed-D2 Assistant composite may proceed through the bounded
    PRD00, PERF13, PERF12, FMT01, PUB01, QUAL01, APP01, REL01, P20 and P21
-   production gates. Until P20 is accepted it remains a
-   `production_candidate`, reports `experimental=true`, and creates no new
-   product claim. The qualified 12B and 26B NVFP4 profiles, their artifacts,
-   capabilities and rollback evidence remain unchanged and equally protected.
+   production gates. This was the candidate rule before the later bounded P20
+   acceptance in decision 10. The qualified 12B and 26B NVFP4 artifacts,
+   capabilities and rollback evidence remain unchanged and protected.
 9. **Trellis35 device-image integrity is split between acquisition and
    runtime.** The owner's 2026-09-02 direction for FMT01 supersedes any future
    requirement to recompute the 12.2 GB `model.gem16` SHA-256 while loading the
@@ -78,6 +80,28 @@ Read it only for a concrete historical or evidence question.
    uploads the payload directly. It neither hashes nor repacks model weights.
    Same-size payload corruption is therefore an acquisition/install failure,
    not a second full-file runtime check.
+10. **Bounded P20 is accepted; release qualification remains separate.** The
+    owner's 2026-09-04 direction accepts Compact Vision as the second public
+    product profile using the existing bounded V19 quality, capacity and
+    lifecycle evidence. It expressly waives the larger QUAL01 text/Vision
+    campaign for this P20 decision instead of claiming that campaign ran. It
+    also supersedes P20's former dependency on REL01, two-platform packaging,
+    clean-machine smokes and live Windows SM120 execution. Those items remain
+    mandatory before a release claim, together with P21; promotion to `main`
+    does not itself imply a release. Evidence is
+    `artifacts/vision/p20-owner-acceptance-2026-09-04.json`.
+11. **The consolidated 26B Hub layout is normalized in immutable revision
+    `5a7a0225b3f23067e082c21312a4c38676cc237f`.** Existing published revisions
+    were not rewritten. Payload names contain the full Gemma 4 26B A4B model
+    and actual quantization/storage format: Trellis35 W4A8 for the compact text
+    Target, FP8 E4M3FN for Vision, and hybrid NVFP4/FP8/BF16 for the Assistant
+    and internal Target. `profiles.json` exposes Compact Vision and classifies
+    NVFP4 as internal regression/rollback. Anonymous Hub metadata checks prove
+    all four copied payloads retain their prior LFS identities and byte sizes.
+    Current runtime locks remain on `6de2a057...` until the new remote-to-local
+    filename mapping has passed acquisition and loader verification; changing
+    the repository's default revision does not alter the pinned product.
+    Evidence is `artifacts/vision/hf-layout-normalization-2026-09-04.json`.
 
 ## Current qualified model facts
 
@@ -164,9 +188,10 @@ requires the permanent benchmark contract.
   is now the twice-admitted 229,120-token configuration. The objective 70/140/280
   suite passed all required description, OCR, chart, document, counting, spatial,
   color, small-detail, and geometry checks with zero fallback or recurring
-  allocation. Its evidence is `artifacts/vision/v19-acceptance.json`. The profile
-  is now the bounded Compact Vision `production_candidate` and continues to
-  report `experimental=true` pending P20 production qualification.
+  allocation. Its evidence is `artifacts/vision/v19-acceptance.json`. The
+  owner-bounded P20 decision now promotes this exact composite to
+  `production_qualified` and `experimental=false`; it does not convert the
+  waived extended QUAL01 or deferred release gates into completed evidence.
 - **PUB01 Trellis35 v2 consolidated publication.** PUB01 consolidates the
   Trellis35 target from the legacy 103-file 30-layer format to the monolithic
   `gem16-sm120-trellis35-device-image-v2` (`model.gem16`, 12,204,692,480 bytes,
@@ -194,10 +219,11 @@ record. This summary does not replace that evidence.
 
 ## Current product gaps
 
-- Native Studio now exposes three explicit profiles and its generated catalog
-  contains the pinned 12B Target,
-  12B Assistant, consolidated 26B NVFP4 Target and Assistant, and the new
-  Trellis35 Target and FP8 Vision components. A fresh installation presents
+- Native Studio exposes two public profiles and keeps the internal NVFP4
+  catalog components available for regression, rollback, and compatible
+  persisted configurations. Its generated catalog contains the pinned 12B
+  Target and Assistant plus consolidated Trellis35 Target, FP8 Vision,
+  fixed-D2 Assistant, and internal NVFP4 Target. A fresh installation presents
   a neutral profile choice, checks available storage, and can install either
   or both profiles. Payloads remain in their source repositories' canonical
   Hub blobs and snapshots. Because the 12B Target lock includes one file from
@@ -225,6 +251,7 @@ record. This summary does not replace that evidence.
 - Model locks, model files, requests, media, tool schemas, tool arguments, and
   tool results remain untrusted inputs.
 - Studio and server must disclose the selected model profile and actual
-  capabilities. Equal product status never permits capability substitution.
+  capabilities. Equal public product status never permits capability
+  substitution; internal NVFP4 must not appear as a third normal Studio choice.
 - Historical evidence is preserved rather than rewritten. Compact active docs
   point to archived decisions and accepted immutable records.

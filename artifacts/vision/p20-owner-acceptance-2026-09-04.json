@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "milestone": "P20",
+  "status": "accepted_owner_bounded",
+  "accepted_at": "2026-09-04",
+  "baseline_commit": "c9f889e4e6aa9174a4ba9703625c64b9461edea1",
+  "public_profiles": [
+    "gemma4-12b-unified",
+    "gemma4-26b-a4b-trellis35-vision-fp8"
+  ],
+  "internal_profiles": [
+    "gemma4-26b-a4b-nvfp4"
+  ],
+  "accepted_evidence": {
+    "bounded_quality_capacity_lifecycle": "artifacts/vision/v19-acceptance.json",
+    "runtime_server": "artifacts/vision/v15-runtime-server-closure.json",
+    "publication": "artifacts/trellis35/pub01-consolidated-publication.json",
+    "studio": "artifacts/vision/v18-native-studio-image-d2.json"
+  },
+  "owner_supersessions": {
+    "qual01": "The extended QUAL01 campaign is waived and replaced by the existing bounded V19 evidence for this P20 profile decision; it is not recorded as executed.",
+    "rel01": "REL01 is deferred and no release-candidate claim is made.",
+    "packaging": "Equal Windows/Linux archives and clean-machine smokes remain required before release but no longer block source promotion to main or bounded P20 profile acceptance.",
+    "windows_live_gpu": "Live Windows SM120 Vision+D2 remains deferred and disclosed; Linux SM120 provides the current live execution evidence."
+  },
+  "product_decision": {
+    "public_profile_count": 2,
+    "nvfp4_behavior": "Preserved as an internally qualified regression and rollback path; omitted from normal Studio selection.",
+    "main_promotion": "Accepted independently of release packaging and P21."
+  },
+  "remaining_release_gates": [
+    "OpenAI Agent Core v1 two-platform qualification",
+    "REL01",
+    "equal Windows and Linux packaging",
+    "clean-machine installation and full-download smoke",
+    "P21 immutable release freeze"
+  ],
+  "limitations": [
+    "This acceptance does not claim the extended QUAL01 suite ran.",
+    "This acceptance is not a 0.2 release or clean-machine package qualification.",
+    "The current live Vision+D2 GPU evidence is Linux SM120; Windows host/product CI is not live Windows SM120 inference."
+  ]
+}

@@ -5,11 +5,28 @@
 #include <cmath>
 #include <cctype>
 #include <cstring>
+#include <filesystem>
+#include <mutex>
 #include <set>
 
 namespace gem16::studio {
 namespace {
 constexpr std::size_t kMaxSource = 256 * 1024;
+void EnsureSvgFontFallback() {
+  static std::once_flag initialized;
+  std::call_once(initialized, [] {
+#ifdef _WIN32
+    const char* paths[] = {"C:/Windows/Fonts/segoeui.ttf", "C:/Windows/Fonts/arial.ttf"};
+#else
+    const char* paths[] = {"/usr/share/fonts/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"};
+#endif
+    for (const char* path : paths) {
+      if (std::filesystem::is_regular_file(path) &&
+          lunasvg_add_font_face_from_file("", false, false, path)) break;
+    }
+  });
+}
 std::string Lower(std::string_view value) {
   std::string out(value);
   for (char& ch : out) if (ch >= 'A' && ch <= 'Z') ch += 'a' - 'A';
@@ -83,6 +100,7 @@ SvgRaster RasterizeSvg(std::string_view source) {
   result.error = Validate(xml, 0, count);
   if (!result.error.empty()) return result;
   try {
+    EnsureSvgFontFallback();
     auto document = lunasvg::Document::loadFromData(source.data(), source.size());
     if (!document) { result.error = "SVG could not be parsed."; return result; }
     const double w = document->width(), h = document->height();

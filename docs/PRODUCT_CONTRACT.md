@@ -1,6 +1,6 @@
 # gem16 product contract
 
-**Product baseline:** 2026-08-29 · **Amended:** 2026-09-02 · **Version line:** 0.2.x development preview
+**Product baseline:** 2026-08-29 · **Amended:** 2026-09-04 · **Version line:** 0.2.x development preview
 
 This document is the owner-approved product contract. It defines what gem16 is
 being productized into. Current implementation gaps remain visible in the
@@ -30,11 +30,11 @@ Win32 and Direct3D 11; Linux uses GLFW and OpenGL. Installer formats and system
 dependency handling may also differ, but neither platform is a secondary or
 best-effort port.
 
-## Equal model profiles
+## Public model profiles
 
-Gemma 4 12B Unified and Gemma 4 26B A4B are equal, user-selectable product
-profiles. Studio must present both without labeling one as the preferred or
-default product choice, and users may install either or both side by side.
+Gemma 4 12B Unified and Gemma 4 26B A4B Compact Vision are the two equal,
+user-selectable public product profiles. Studio must present both without
+labeling one as preferred or default, and users may install either or both.
 Selection, download, verification, launch configuration, status, and removal
 must follow one coherent model-management experience.
 
@@ -43,13 +43,24 @@ Equal product status does not imply identical model capabilities:
 | Profile | Status | Product capability boundary |
 |---|---|---|
 | Gemma 4 12B Unified | Qualified | Text, image, and audio input; up to two resident execution slots on the qualified profile |
-| Gemma 4 26B A4B | Qualified | Text-only; one resident slot; optional separately pinned fixed-D2 Assistant |
-| Gemma 4 26B A4B — Compact Vision | Production candidate | Trellis35 text Target plus FP8 Vision; one image, text output, 70/140/280 image soft tokens, one resident slot, and optional separately pinned fixed-D2 Assistant on the exact validated composite |
+| Gemma 4 26B A4B — Compact Vision | Qualified | Trellis35 text Target plus FP8 Vision; one image, text output, 70/140/280 image soft tokens, one resident slot, and optional separately pinned fixed-D2 Assistant on the exact validated composite |
+
+The qualified text-only Gemma 4 26B NVFP4 path remains implemented, pinned,
+and regression-protected as an internal rollback profile. It is not a third
+normal Studio choice and is never substituted for Compact Vision. Existing
+persisted NVFP4 configurations and explicit runtime/diagnostic invocations
+remain compatible.
 
 Studio and the server must report these differences before execution. They may
 not silently substitute a profile, Assistant, precision, context limit, or
 fallback path. Model files remain external to application archives and must be
 resolved from immutable locks, downloaded resumably, and verified before use.
+The consolidated 26B Hub uses model- and format-bearing payload names rather
+than anonymous `model.*` names. The public text component is identified as
+Trellis35 W4A8 (EXL3-derived GEM16-native storage, approximately 3.5 bpw for
+routed experts), Vision as FP8 E4M3FN with BF16 support tensors, and the
+Assistant as hybrid NVFP4/FP8/BF16. These names describe artifact identity;
+they do not introduce runtime model hashing.
 Target and Assistant are separate data-driven catalog components for both
 profiles. Their verified blobs and immutable snapshots live in the user's
 standard shared Hugging Face Hub cache, respecting `HF_HUB_CACHE` and
@@ -61,19 +72,25 @@ view below the same Hub cache, provided it consists only of hardlinks to
 verified canonical blobs and never creates a second payload copy or private
 blob store.
 
-Native Studio implements the shared four-component catalog and presents a
-neutral first-run choice. Either profile may be installed independently and
-both may coexist. Release qualification still requires complete large-download
+Native Studio keeps a lock-derived component catalog for both public profiles
+and the internal NVFP4 rollback path, while presenting only the two public
+profiles on a neutral first run. Either public profile may be installed
+independently and both may coexist. Release qualification still requires complete large-download
 and clean-machine first-run evidence on Windows and Linux.
 
-The Compact Vision candidate is a distinct selectable product surface, not an
-implicit capability of the qualified NVFP4 profile. It remains experimental in
-runtime reporting until its production contract passes P20. Its stable profile
+Compact Vision is a distinct selectable product surface, not an implicit
+capability of the internal NVFP4 profile. Its stable profile
 identity does not change with decode mode: Ordinary and fixed-D2 are reported
 separately and fixed-D2 remains available only for the exact locked
 Target/Vision/Assistant combination. The bounded candidate and its release
 gates are defined in
 [`plans/gemma4-26b/PRODUCTION_26B_VISION_CONTRACT.md`](plans/gemma4-26b/PRODUCTION_26B_VISION_CONTRACT.md).
+
+The owner accepted bounded P20 on 2026-09-04 using the existing V19 evidence
+and waived the larger QUAL01 campaign for this profile decision. REL01,
+two-platform packaging and clean-machine qualification remain open release
+gates; `production_qualified` describes the locked profile, not a shipped
+0.2 release.
 
 ## Local-machine boundary
 

@@ -3,9 +3,10 @@
 ## Project
 
 `gem16` is a C++20/CUDA inference engine and local product for Gemma models on approximately 16 GB NVIDIA GPUs;
-Blackwell SM120 is its first optimized backend. Qualified Gemma 4 12B Unified and Gemma 4 26B A4B are equal,
-user-selectable product profiles with explicitly different capabilities. Preserve both qualified paths and do not
-turn either model-specific hot path into a generic framework.
+Blackwell SM120 is its first optimized backend. Its public profiles are Gemma 4 12B Unified and Gemma 4 26B A4B
+Compact Vision (Trellis35 text plus FP8 Vision), with explicitly different capabilities. The qualified text-only
+26B NVFP4 path remains an internal regression and rollback profile. Preserve all three specialized paths and do not
+turn any model-specific hot path into a generic framework.
 
 ## Default task loop
 
@@ -62,12 +63,14 @@ supersedes. Historical evidence is not rewritten.
 
 ## Qualified model-profile policy
 
-12B and 26B are equal product choices, not a default and an experimental alternative. Equal status does not imply
-identical capabilities: 12B is the qualified multimodal profile, while 26B is text-only, single-slot and may use its
-separately pinned fixed-D2 Assistant. Product surfaces must disclose those differences and never substitute profiles.
-New unqualified work within either profile remains visibly experimental/reference or diagnostic until its owning
-gates pass. It must not weaken the other profile, advertise unsupported capabilities, use CPU weight offload as a
-production path, or silently fall back to another precision or kernel.
+The two equal public product choices are 12B Unified and 26B Compact Vision, not a default and an experimental
+alternative. Equal status does not imply identical capabilities: 12B supports qualified text, image and audio,
+while Compact Vision supports text plus one image, is single-slot and may use its separately pinned fixed-D2
+Assistant. The qualified text-only 26B NVFP4 profile is retained internally for regression and rollback and is not
+offered in the normal Studio selection. Product surfaces must disclose capability differences and never substitute
+profiles. New unqualified work remains visibly experimental/reference or diagnostic until its owning gates pass. It
+must not weaken another profile, advertise unsupported capabilities, use CPU weight offload as a production path,
+or silently fall back to another precision or kernel.
 
 ## Testing and evidence
 

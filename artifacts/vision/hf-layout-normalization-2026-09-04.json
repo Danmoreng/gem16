@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-04",
+  "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+  "source_revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+  "layout_commit": "25519393ffc23f9f520462a4c3249cb27f9e8f0d",
+  "normalized_revision": "5a7a0225b3f23067e082c21312a4c38676cc237f",
+  "commit_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/commit/5a7a0225b3f23067e082c21312a4c38676cc237f",
+  "publication": {
+    "method": "server-side copies from the immutable source revision",
+    "payload_downloaded": false,
+    "payload_rehashed": false,
+    "payload_reencoded": false,
+    "payload_reuploaded": false
+  },
+  "payloads": [
+    {
+      "role": "public_text_target",
+      "path": "components/gemma-4-26b-a4b-it-trellis35-w4a8/gemma-4-26b-a4b-it-trellis35-w4a8.gem16",
+      "format": "GEM16 Trellis35 W4A8 direct-load image",
+      "bytes": 12204692480,
+      "lfs_sha256": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4"
+    },
+    {
+      "role": "public_vision",
+      "path": "components/gemma-4-26b-a4b-it-vision-fp8-e4m3fn/gemma-4-26b-a4b-it-vision-fp8-e4m3fn.gem16",
+      "format": "FP8 E4M3FN rowwise with BF16 scales/support tensors",
+      "bytes": 597390648,
+      "lfs_sha256": "805e1fee4ad80dbb76a846c0009d6f57dbb50192e7009ef1633cdc3b5252a536"
+    },
+    {
+      "role": "optional_fixed_d2_assistant",
+      "path": "components/gemma-4-26b-a4b-it-assistant-hybrid-nvfp4-fp8-bf16/gemma-4-26b-a4b-it-assistant-hybrid-nvfp4-fp8-bf16.safetensors",
+      "format": "hybrid NVFP4/FP8/BF16",
+      "bytes": 258317280,
+      "lfs_sha256": "4d3ce2102ad0631d9e7e0586be0b108d5789cbc5b90d21b4c50613979228d927"
+    },
+    {
+      "role": "internal_text_target",
+      "path": "internal/gemma-4-26b-a4b-it-target-hybrid-nvfp4-fp8-bf16/gemma-4-26b-a4b-it-target-hybrid-nvfp4-fp8-bf16.gem16",
+      "format": "hybrid NVFP4/FP8/BF16",
+      "bytes": 14696668160,
+      "lfs_sha256": "1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72"
+    }
+  ],
+  "verification": {
+    "anonymous_hub_access": true,
+    "main_revision_matches": true,
+    "payload_lfs_identity_and_size_match": true,
+    "generic_payload_paths_absent": true,
+    "profiles_document_verified": true
+  },
+  "runtime_transition": {
+    "current_pinned_revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+    "locks_changed": false,
+    "reason": "Keep the accepted loader path stable until the normalized remote-to-local filename mapping passes acquisition and loader verification."
+  }
+}
