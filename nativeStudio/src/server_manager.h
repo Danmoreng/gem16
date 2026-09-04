@@ -23,6 +23,7 @@ class ServerManager final {
   void Stop();
   void ClearLogs();
   [[nodiscard]] ServerPhase Phase() const;
+  [[nodiscard]] bool OwnsProcess() const { return process_.IsRunning(); }
   [[nodiscard]] HealthSnapshot Health() const;
   [[nodiscard]] std::string Error() const;
   [[nodiscard]] std::vector<std::string> Logs() const;

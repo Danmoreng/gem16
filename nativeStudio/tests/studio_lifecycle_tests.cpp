@@ -1,11 +1,14 @@
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <thread>
 
 #include "app.h"
 #include "fonts.h"
+#include "httplib.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "math_renderer.h"
@@ -75,13 +78,22 @@ struct StudioAppTestAccess {
     Require(app.chat_store_.Load(id).get().title == "Renamed and saved",
             "Studio rename checkpoint");
     app.screen_ = Screen::kChat;
+    app.prompt_tokens_ = 3351;
+    app.completion_tokens_ = 2235;
+    app.usage_received_ = true;
+    Require(app.ContextTokens() == 5586, "context includes generated output");
     for (int i = 0; i < 4; ++i) frame();
     CaptureStudioScreenshot("studio-chat-preview.bmp");
+    app.prompt_tokens_ = std::numeric_limits<std::int64_t>::max();
+    Require(app.ContextTokens() == std::numeric_limits<std::int64_t>::max(),
+            "untrusted usage cannot overflow");
     app.screen_ = Screen::kModels;
     for (int i = 0; i < 4; ++i) frame();
     CaptureStudioScreenshot("studio-models-preview.bmp");
     Require(app.CanNavigateChats(), "idle navigation");
     app.NewConversation(true);
+    Require(!app.usage_received_ && app.ContextTokens() == 0,
+            "new conversation clears the previous context meter");
     const auto temporary_id = app.conversation_.id;
     ChatMessage secret;
     secret.role = "user";
@@ -98,10 +110,105 @@ struct StudioAppTestAccess {
     settle();
     Require(app.session_id_.empty() && app.messages_.size() == 2,
             "reopening restores text without GPU session");
+    Require(!app.usage_received_, "restored conversation awaits its own usage");
+  }
+
+  static void CheckStartup(StudioApp& app, bool expected) {
+    Require(app.pending_server_action_.has_value() == expected,
+            "autostart respects onboarding and preference");
+  }
+
+  static void RunServerControls(StudioApp& app,
+                                const std::filesystem::path& root) {
+    const auto wait = [&](auto condition) {
+      for (int i = 0; i < 600; ++i) {
+        app.PollServerAction();
+        if (!app.ServerActionPending() && condition()) return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      }
+      std::string logs;
+      for (const auto& line : app.server_.Logs()) logs += "\n" + line;
+      throw std::runtime_error(
+          "server action did not complete (phase " +
+          std::to_string(static_cast<int>(app.server_.Phase())) +
+          "): " + app.server_.Error() + logs);
+    };
+    const auto start_count = [&] {
+      std::ifstream input(root / "starts.txt");
+      std::string line;
+      int count = 0;
+      while (std::getline(input, line)) ++count;
+      return count;
+    };
+    wait([&] { return app.server_.Phase() == ServerPhase::kRunning; });
+    Require(app.server_.OwnsProcess() && start_count() == 1,
+            "autostart launches exactly one managed server");
+    app.RequestServerAction(StudioApp::ServerAction::kStart);
+    Require(!app.ServerActionPending(),
+            "running server cannot be started twice");
+    app.session_id_ = "obsolete-session";
+    app.messages_.push_back({"user", "test"});
+    app.messages_.push_back({"assistant", "partial", {}, true});
+    app.pending_send_ = true;
+    app.RequestServerAction(StudioApp::ServerAction::kRestart);
+    Require(!app.pending_send_ && !app.messages_.back().streaming &&
+                app.messages_.back().error &&
+                app.messages_.back().content == "partial",
+            "restart cancels queued generation and preserves partial text");
+    wait([&] { return app.server_.Phase() == ServerPhase::kRunning; });
+    Require(start_count() == 2 && app.session_id_.empty(),
+            "restart uses a new process and invalidates the GPU session");
+    app.RequestServerAction(StudioApp::ServerAction::kStop);
+    wait([&] { return !app.server_.OwnsProcess(); });
+    Require(start_count() == 2,
+            "manual stop does not trigger another autostart");
+    app.RequestServerAction(StudioApp::ServerAction::kStart);
+    wait([&] { return app.server_.Phase() == ServerPhase::kRunning; });
+    Require(start_count() == 3, "manual start after stop");
+
+    auto attached_settings = app.settings_;
+    attached_settings.auto_start_server = true;
+    StudioApp attached(attached_settings, 1.0f);
+    for (int i = 0; i < 400; ++i) {
+      attached.PollServerAction();
+      if (!attached.ServerActionPending() &&
+          attached.server_.Phase() == ServerPhase::kExternal)
+        break;
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    Require(attached.server_.Phase() == ServerPhase::kExternal &&
+                !attached.server_.OwnsProcess(),
+            "autostart attaches to a compatible external process");
+    attached.RequestServerAction(StudioApp::ServerAction::kStop);
+    attached.RequestServerAction(StudioApp::ServerAction::kRestart);
+    Require(
+        !attached.ServerActionPending() && app.server_.OwnsProcess() &&
+            start_count() == 3,
+        "external stop and restart are rejected without affecting the owner");
+    app.messages_.back() = {"assistant", {}, {}, true};
+    app.api_.StreamChat(app.settings_.server, {}, {{"user", "test"}}, {});
+    for (int i = 0; i < 400 && app.messages_.back().content.empty(); ++i) {
+      app.DrainChatEvents();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    Require(app.api_.Busy() && !app.messages_.back().content.empty(),
+            "test server streams an in-flight answer");
+    app.RequestServerAction(StudioApp::ServerAction::kStop);
+    wait([&] { return !app.server_.OwnsProcess(); });
+    Require(!app.api_.Busy() && !app.messages_.back().streaming &&
+                app.messages_.back().error &&
+                !app.messages_.back().content.empty(),
+            "stop cancels the transport before terminating the server");
+    app.SaveChat();
+    app.chat_save_.get();
+    const auto saved = app.chat_store_.Load(app.conversation_.id).get();
+    Require(
+        saved.messages.back().error && !saved.messages.back().content.empty(),
+        "partial answer survives server stop in SQLite");
   }
 };
 }  // namespace gem16::studio
-bool TestStudioLifecycle() {
+bool TestStudioLifecycle(const std::filesystem::path& executable) {
   using namespace gem16::studio;
   const auto root = std::filesystem::temp_directory_path() /
                     ("gem16-ui-lifecycle-" + NewChatId());
@@ -130,6 +237,9 @@ bool TestStudioLifecycle() {
     Require(rejected_reinitialization,
             "reject unsafe MicroTeX reinitialization");
     auto settings = DefaultSettings();
+    Require(settings.auto_start_server,
+            "autostart defaults on for selected installations");
+    settings.auto_start_server = false;
     settings.onboarding_complete = true;
     settings.server.port = 1;
     Conversation chat;
@@ -154,7 +264,34 @@ bool TestStudioLifecycle() {
     }
     {
       StudioApp app(settings, 1.0f);
+      StudioAppTestAccess::CheckStartup(app, false);
       StudioAppTestAccess::Run(app, chat.id);
+    }
+    settings.auto_start_server = true;
+    settings.onboarding_complete = false;
+    {
+      StudioApp app(settings, 1.0f);
+      StudioAppTestAccess::CheckStartup(app, false);
+    }
+    settings.onboarding_complete = true;
+    settings.server.executable = executable.string();
+    settings.server.model_directory = root.string();
+    settings.server.model_name = "studio-lifecycle-test";
+    settings.server.mtp_draft_tokens = 0;
+    settings.server.assistant_directory.clear();
+    httplib::Server reservation;
+    reservation.new_task_queue = [] { return new httplib::ThreadPool(1); };
+    settings.server.port = reservation.bind_to_any_port("127.0.0.1");
+    Require(settings.server.port > 0, "reserve test port");
+    std::jthread reservation_listener([&] { reservation.listen_after_bind(); });
+    reservation.wait_until_ready();
+    reservation.stop();
+    reservation_listener.join();
+    Require(SaveSettings(settings), "save last server configuration");
+    {
+      StudioApp app(LoadSettings(), 1.0f);
+      StudioAppTestAccess::CheckStartup(app, true);
+      StudioAppTestAccess::RunServerControls(app, root);
     }
   } catch (const std::exception& e) {
     std::fprintf(stderr, "Studio lifecycle: %s\n", e.what());
@@ -164,8 +301,6 @@ bool TestStudioLifecycle() {
   std::filesystem::remove_all(root);
   return ok;
 }
-
-#include <fstream>
 
 #include "model_cache.h"
 #include "model_selection.h"
@@ -309,6 +444,9 @@ bool TestModelLifecycle() {
     Require(SaveSettings(settings), "atomic selection settings save");
     Require(LoadSettings().previous_model_selection == record,
             "rollback selection persists");
+    settings.auto_start_server = false;
+    Require(SaveSettings(settings) && !LoadSettings().auto_start_server,
+            "autostart opt-out persists");
     std::filesystem::remove_all(root);
     return true;
   } catch (const std::exception& e) {
@@ -316,4 +454,46 @@ bool TestModelLifecycle() {
     std::filesystem::remove_all(root);
     return false;
   }
+}
+
+// The normal server command launches this lightweight child in lifecycle tests.
+// It exercises real process ownership and HTTP transport without loading a
+// model.
+int RunStudioTestServer(int argc, char** argv) {
+  std::string directory, name;
+  int port = 0;
+  for (int i = 1; i + 1 < argc; ++i) {
+    const std::string_view flag = argv[i];
+    if (flag == "--model")
+      directory = argv[++i];
+    else if (flag == "--model-name")
+      name = argv[++i];
+    else if (flag == "--port")
+      port = std::stoi(argv[++i]);
+  }
+  if (name != "studio-lifecycle-test" || directory.empty() || port <= 0)
+    return 2;
+  std::ofstream(std::filesystem::path(directory) / "starts.txt", std::ios::app)
+      << "start\n";
+  httplib::Server server;
+  server.new_task_queue = [] { return new httplib::ThreadPool(2); };
+  server.Get("/health", [](const auto&, auto& response) {
+    response.set_content(
+        R"({"status":"ok","profile_id":"gemma4-12b-unified","decode_mode":"ordinary","text_only":false,"capabilities":{"vision":true},"mtp_draft_tokens":0,"max_context_tokens":8192})",
+        "application/json");
+  });
+  server.Get("/metrics", [](const auto&, auto& response) {
+    response.set_content("", "text/plain");
+  });
+  server.Post("/v1/chat/completions", [](const auto&, auto& response) {
+    response.set_chunked_content_provider(
+        "text/event-stream", [](size_t, httplib::DataSink& sink) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(20));
+          const std::string chunk =
+              "data: {\"choices\":[{\"delta\":{\"content\":\"partial "
+              "\"}}]}\n\n";
+          return sink.write(chunk.data(), chunk.size());
+        });
+  });
+  return server.listen("127.0.0.1", port) ? 0 : 1;
 }

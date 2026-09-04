@@ -15,6 +15,15 @@ to launch it.
    Studio can also attach to an already running compatible local server.
 4. Open **Chat**. `Enter` sends; `Shift+Enter` inserts a newline.
 
+On subsequent launches, Studio starts the server with the saved configuration.
+Disable **Start server when Studio opens** on the Server screen to opt out.
+Autostart never chooses a model before first-run selection. A failed start appears
+in the sidebar status and Server logs; Studio does not substitute another profile.
+Click the status at the bottom left for **Start**, **Stop**, **Restart**, or logs.
+Stop/restart cancels the current answer and clears its GPU session; the saved chat
+remains available. These controls only stop processes started by Studio. An
+attached external server is controlled by its owner.
+
 | Profile | Inputs | Execution |
 |---|---|---|
 | 12B Unified | Text, image, audio | Optional Assistant; up to two resident slots subject to VRAM |
@@ -29,6 +38,9 @@ controls. D2 requires the server's matching live capability. See the
 Answers support selectable Markdown, code copying, bounded SVG previews and math.
 Reasoning is collapsed by default. Web links open only on explicit interaction;
 HTML is inert and remote images are not automatically fetched.
+The context meter adds the server's input and output usage, including reasoning.
+It shows **Pending** until usage arrives at completion, also after reopening a
+saved chat until its next request. Stream chunks are not treated as exact tokens.
 
 **Stop** interrupts an in-flight request. Partial text remains visible and copyable;
 failed or cancelled exchanges are excluded from future context until retried.

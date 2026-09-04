@@ -1,0 +1,36 @@
+{
+  "date": "2026-09-05",
+  "base_commit": "a61aa38d22379abeb3030cb48c8643d0e127675a",
+  "scope": "Native Studio navigation hover, composer layout, context usage and server lifecycle; no inference/runtime changes",
+  "changes": [
+    "Reuse animated navigation flame for hover",
+    "Measure Thinking dropdown width from its longest label",
+    "Sum final prompt and completion usage; invalidate stale counts on chat/session changes",
+    "Persist opt-out autostart; require a selected model",
+    "Asynchronous sidebar and Server-page start/stop/restart, with external-process protection and cancellation before shutdown"
+  ],
+  "validation": {
+    "build": "cmake --build build/native-studio -j 2",
+    "build_result": "passed",
+    "command": "ctest --test-dir build/native-studio --output-on-failure",
+    "exit_code": 0,
+    "elapsed_seconds": 5.25,
+    "maximum_child_rss_kib": 52792,
+    "result": "3/3 Studio CTest groups passed",
+    "cases": [
+      "Neutral first run and autostart opt-out",
+      "Saved configuration launches lightweight child exactly once",
+      "Managed stop, restart, start after stop",
+      "External attachment cannot stop or restart its owner",
+      "Queued and in-flight generation cancellation preserves partial text in SQLite",
+      "Input plus output usage and overflow bound",
+      "New and restored chats invalidate old usage"
+    ],
+    "visual": "Inspected headless 900x1050 chat preview: full Thinking selection, context 5586, compact model label and server menu indicator"
+  },
+  "limitations": [
+    "No model or GPU inference needed for these host-only changes",
+    "Headless preview does not render the OpenGL/Direct3D flame texture; hover reuses the existing shader texture",
+    "Windows validation delegated to existing cross-platform CI after push"
+  ]
+}

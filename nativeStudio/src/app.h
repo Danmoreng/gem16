@@ -36,6 +36,12 @@ class StudioApp final {
   void ApplyTheme() const;
   void DrainChatEvents();
   void DrawSidebar();
+  enum class ServerAction { kStart, kStop, kRestart };
+  void RequestServerAction(ServerAction action);
+  void PollServerAction();
+  bool ServerActionPending() const;
+  void ResetUsage();
+  std::int64_t ContextTokens() const;
   void DrawChatLibrary();
   void PollChatStore();
   void SaveChat();
@@ -91,6 +97,9 @@ class StudioApp final {
   bool show_archived_ = false, delete_chat_requested_ = false;
 
   ServerManager server_;
+  std::optional<ServerAction> pending_server_action_;
+  std::future<void> server_action_;
+  std::string server_action_error_;
   ModelManager models_;
   ApiClient api_;
   AudioRecorder recorder_;
@@ -125,6 +134,7 @@ class StudioApp final {
   std::chrono::steady_clock::time_point first_token_at_{};
   std::chrono::steady_clock::time_point generation_finished_{};
   std::int64_t prompt_tokens_ = 0;
+  bool usage_received_ = false;
   std::int64_t completion_tokens_ = 0;
   std::int64_t streamed_chunks_ = 0;
   std::optional<PerformanceStats> performance_;

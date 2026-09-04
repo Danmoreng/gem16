@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <numbers>
 
 #include "chat_history.h"
@@ -190,7 +191,7 @@ bool NavButton(const char* label, Screen screen, bool selected, float width,
         IM_COL32(8, 61, 43,
                  static_cast<int>((selected ? 162.0f : 105.0f) * glow)),
         Ui(11.0f), ImDrawFlags_RoundCornersRight);
-    if (selected && flame_texture != ImTextureID_Invalid) {
+    if (flame_texture != ImTextureID_Invalid) {
       draw->AddImageRounded(
           ImTextureRef(flame_texture), minimum, maximum, {0.0f, 0.0f},
           {1.0f, 1.0f},
@@ -454,10 +455,13 @@ StudioApp::StudioApp(StudioSettings settings, float automatic_ui_scale)
   if (!settings_.onboarding_complete) screen_ = Screen::kModels;
   SyncBuffersFromSettings();
   server_.Configure(settings_.server);
+  if (settings_.onboarding_complete && settings_.auto_start_server)
+    pending_server_action_ = ServerAction::kStart;
   (void)logo_texture_.Load(kGem16LogoPng, kGem16LogoPngSize);
 }
 
 StudioApp::~StudioApp() {
+  if (server_action_.valid()) server_action_.wait();
   SyncSettingsFromBuffers();
   (void)SaveSettings(settings_);
   api_.Cancel();
@@ -534,6 +538,7 @@ void StudioApp::ApplyTheme() const {
 
 void StudioApp::Render() {
   DrainChatEvents();
+  PollServerAction();
   PollChatStore();
   if (pending_profile_ && CanNavigateChats()) {
     const auto profile = *pending_profile_;
@@ -594,6 +599,7 @@ void StudioApp::DrainChatEvents() {
     if (event.kind == ChatEvent::Kind::kUsage) {
       prompt_tokens_ = event.prompt_tokens;
       completion_tokens_ = event.completion_tokens;
+      usage_received_ = true;
       continue;
     }
     if (event.kind == ChatEvent::Kind::kPerformance) {
@@ -615,6 +621,74 @@ void StudioApp::DrainChatEvents() {
     if (event.kind == ChatEvent::Kind::kFinished || event.kind == ChatEvent::Kind::kError) last_chat_save_ = {};
     if (auto_follow_) scroll_to_bottom_ = true;
   }
+}
+
+bool StudioApp::ServerActionPending() const {
+  return pending_server_action_.has_value() || server_action_.valid();
+}
+
+void StudioApp::RequestServerAction(ServerAction action) {
+  if (ServerActionPending()) return;
+  const bool owned = server_.OwnsProcess();
+  if (action == ServerAction::kStart) {
+    if (!settings_.onboarding_complete || owned ||
+        server_.Phase() == ServerPhase::kExternal)
+      return;
+  } else if (!owned) {
+    return;
+  }
+  SyncSettingsFromBuffers();
+  server_action_error_.clear();
+  if (action != ServerAction::kStop && !SaveSettings(settings_)) {
+    server_action_error_ =
+        "Could not save the server configuration. Start was cancelled.";
+    return;
+  }
+  api_.Cancel();
+  if (pending_send_ && !messages_.empty()) {
+    ApplyChatEvent(messages_.back(), {ChatEvent::Kind::kFinished, "cancelled"});
+    ++chat_revision_;
+    last_chat_save_ = {};
+    pending_send_ = false;
+  }
+  pending_server_action_ = action;
+}
+
+void StudioApp::PollServerAction() {
+  if (server_action_.valid() && server_action_.wait_for(std::chrono::seconds(
+                                    0)) == std::future_status::ready) {
+    try {
+      server_action_.get();
+    } catch (const std::exception& e) {
+      server_action_error_ = e.what();
+    }
+  }
+  if (!pending_server_action_ || api_.Busy()) return;
+  // Consume the worker's terminal events before invalidating its session.
+  DrainChatEvents();
+  const auto action = *pending_server_action_;
+  pending_server_action_.reset();
+  session_id_.clear();
+  ResetUsage();
+  const auto config = settings_.server;
+  server_action_ = std::async(std::launch::async, [this, action, config] {
+    if (action != ServerAction::kStart) server_.Stop();
+    if (action != ServerAction::kStop) server_.Start(config);
+  });
+}
+
+void StudioApp::ResetUsage() {
+  prompt_tokens_ = completion_tokens_ = streamed_chunks_ = 0;
+  usage_received_ = false;
+  generation_started_ = first_token_at_ = generation_finished_ = {};
+  performance_.reset();
+}
+
+std::int64_t StudioApp::ContextTokens() const {
+  const auto input = std::max<std::int64_t>(0, prompt_tokens_);
+  const auto output = std::max<std::int64_t>(0, completion_tokens_);
+  return input +
+         std::min(output, std::numeric_limits<std::int64_t>::max() - input);
 }
 
 void StudioApp::DrawSidebar() {
@@ -648,10 +722,63 @@ void StudioApp::DrawSidebar() {
   ImGui::Separator();
   ImGui::Spacing();
   const ServerPhase phase = server_.Phase();
-  StatusPill(PhaseLabel(phase), PhaseColor(phase));
-  ImGui::TextDisabled("%s", settings_.onboarding_complete
-                                ? ProfileLabel(settings_.server.profile)
-                                : "No model selected");
+  const ImVec2 status_position = ImGui::GetCursorScreenPos();
+  StatusPill(
+      ServerActionPending()           ? "Working..."
+      : !server_action_error_.empty() ? "Error"
+                                      : PhaseLabel(phase),
+      PhaseColor(server_action_error_.empty() ? phase : ServerPhase::kError));
+  const ImVec2 after_status = ImGui::GetCursorScreenPos();
+  ImGui::SetCursorScreenPos(status_position);
+  if (ImGui::InvisibleButton("##server-controls",
+                             {ImGui::GetContentRegionAvail().x,
+                              after_status.y - status_position.y}))
+    ImGui::OpenPopup("Server controls");
+  const ImVec2 controls_max = ImGui::GetItemRectMax();
+  const float arrow_y = (status_position.y + controls_max.y) * 0.5f;
+  ImGui::GetWindowDrawList()->AddTriangleFilled(
+      {controls_max.x - Ui(14), arrow_y - Ui(2)},
+      {controls_max.x - Ui(6), arrow_y - Ui(2)},
+      {controls_max.x - Ui(10), arrow_y + Ui(3)},
+      ImGui::GetColorU32(ImGuiCol_TextDisabled));
+  if (ImGui::IsItemHovered())
+    ImGui::SetTooltip("Server controls: start, stop or restart");
+  if (ImGui::BeginPopup("Server controls")) {
+    const bool owned = server_.OwnsProcess();
+    ImGui::TextUnformatted(PhaseLabel(phase));
+    if (phase == ServerPhase::kExternal)
+      ImGui::TextUnformatted("Started outside Studio; managed by its owner.");
+    if (!server_action_error_.empty())
+      ImGui::TextWrapped("%s", server_action_error_.c_str());
+    if (!server_.Error().empty())
+      ImGui::TextWrapped("%s", server_.Error().c_str());
+    ImGui::Separator();
+    ImGui::BeginDisabled(ServerActionPending());
+    if (ImGui::MenuItem("Start server", nullptr, false,
+                        settings_.onboarding_complete && !owned &&
+                            phase != ServerPhase::kExternal))
+      RequestServerAction(ServerAction::kStart);
+    if (ImGui::MenuItem("Stop server", nullptr, false, owned))
+      RequestServerAction(ServerAction::kStop);
+    if (ImGui::MenuItem("Restart server", nullptr, false, owned))
+      RequestServerAction(ServerAction::kRestart);
+    ImGui::EndDisabled();
+    ImGui::Separator();
+    if (ImGui::MenuItem("Server settings and logs")) screen_ = Screen::kServer;
+    ImGui::EndPopup();
+  }
+  ImGui::SetCursorScreenPos({status_position.x, after_status.y});
+  const char* profile_label =
+      !settings_.onboarding_complete ? "No model selected"
+      : settings_.server.profile == ModelProfile::kGemma4Unified12B
+          ? "12B Unified"
+      : settings_.server.profile ==
+              ModelProfile::kGemma4Moe26BTrellis35VisionFp8
+          ? "26B Compact Vision"
+          : "26B NVFP4 (internal)";
+  ImGui::TextDisabled("%s", profile_label);
+  if (ImGui::IsItemHovered() && settings_.onboarding_complete)
+    ImGui::SetTooltip("%s", ProfileLabel(settings_.server.profile));
 }
 
 void StudioApp::DrawChat() {
@@ -704,6 +831,7 @@ void StudioApp::DrawChat() {
       messages_.clear(); conversation_ = {}; conversation_.id = NewChatId(); conversation_.created = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
       conversation_.profile = settings_.server.profile; conversation_.identity = ModelIdentity(settings_.server);
       chat_title_[0] = 0; composer_[0] = 0; pending_attachments_.clear(); expanded_reasoning_.clear(); session_id_.clear(); chat_revision_ = saved_revision_ = saving_revision_ = 0;
+      ResetUsage();
       ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine(); if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
@@ -807,8 +935,9 @@ void StudioApp::DrawChat() {
       (server_phase == ServerPhase::kRunning ||
        server_phase == ServerPhase::kExternal);
   const bool can_send = settings_.onboarding_complete && !busy &&
-                        !recorder_.Active() && has_draft && health.available &&
-                        live_compatible && chat_mismatch.empty() && !chat_save_.valid();
+                        !ServerActionPending() && !recorder_.Active() &&
+                        has_draft && health.available && live_compatible &&
+                        chat_mismatch.empty() && !chat_save_.valid();
 
   if (recorder_.Active()) {
     const ImVec2 recording_origin = ImGui::GetCursorScreenPos();
@@ -880,9 +1009,14 @@ void StudioApp::DrawChat() {
   ImGui::EndDisabled();
   toolbar_x += toolbar_height + Ui(8.0f);
   ImGui::SetCursorScreenPos({toolbar_x, toolbar_origin.y});
-  ImGui::SetNextItemWidth(Ui(150.0f));
   const char* effort_labels[] = {"Thinking: Off", "Thinking: Low (1K)",
                                 "Thinking: Med (4K)", "Thinking: High (8K)"};
+  float effort_width = 0.0f;
+  for (const char* label : effort_labels)
+    effort_width = std::max(effort_width, ImGui::CalcTextSize(label).x);
+  effort_width +=
+      ImGui::GetFrameHeight() + 2.0f * ImGui::GetStyle().FramePadding.x;
+  ImGui::SetNextItemWidth(effort_width);
   const char* effort_keys[] = {"none", "low", "medium", "high"};
   int effort = 2;
   for (int index = 0; index < 4; ++index)
@@ -891,7 +1025,7 @@ void StudioApp::DrawChat() {
     settings_.generation.reasoning_effort = effort_keys[effort];
     (void)SaveSettings(settings_);
   }
-  toolbar_x += Ui(158.0f);
+  toolbar_x += effort_width + Ui(8.0f);
   ImGui::SetCursorScreenPos({toolbar_x, toolbar_origin.y});
   ImGui::SetNextItemWidth(Ui(120.0f));
   constexpr std::array<std::pair<std::int64_t, const char*>, 6U> kOutputPresets{{
@@ -997,15 +1131,21 @@ void StudioApp::DrawChat() {
   const std::int64_t context_limit = health.max_context_tokens > 0
                                          ? health.max_context_tokens
                                          : settings_.server.max_context_tokens;
-  const float context_fraction = context_limit > 0
-      ? std::clamp(static_cast<float>(prompt_tokens_) /
-                       static_cast<float>(context_limit), 0.0f, 1.0f)
-      : 0.0f;
+  const float context_fraction =
+      context_limit > 0 ? std::clamp(static_cast<float>(ContextTokens()) /
+                                         static_cast<float>(context_limit),
+                                     0.0f, 1.0f)
+                        : 0.0f;
   const ImVec2 context_origin = ImGui::GetCursorScreenPos();
   char context_label[64]{};
-  std::snprintf(context_label, sizeof(context_label), "%lld / %lld",
-                static_cast<long long>(prompt_tokens_),
-                static_cast<long long>(context_limit));
+  if (usage_received_)
+    std::snprintf(context_label, sizeof(context_label), "%lld / %lld",
+                  static_cast<long long>(ContextTokens()),
+                  static_cast<long long>(context_limit));
+  else
+    std::snprintf(context_label, sizeof(context_label), "%s / %lld",
+                  messages_.empty() ? "0" : "Pending",
+                  static_cast<long long>(context_limit));
   const float context_right = context_origin.x + ImGui::GetContentRegionAvail().x;
   const float count_width = ImGui::CalcTextSize(context_label).x;
   const float context_text_y = context_origin.y +
@@ -1025,6 +1165,13 @@ void StudioApp::DrawChat() {
                                   bar_y + Ui(3.0f)},
                                  ImGui::GetColorU32(kAccent), Ui(3.0f));
   }
+  ImGui::InvisibleButton("##context-usage",
+                         {ImGui::GetContentRegionAvail().x, context_height});
+  if (ImGui::IsItemHovered())
+    ImGui::SetTooltip(
+        "Input + output tokens (including reasoning) from server usage.\n"
+        "Available after generation; restored chats are counted on "
+        "continuation.");
   ImGui::SetCursorScreenPos({context_origin.x,
                              context_origin.y + context_height + Ui(6.0f)});
 
@@ -1673,6 +1820,7 @@ void StudioApp::DrawServer() {
         "Select a qualified profile in Models before starting the server.");
   }
   ImGui::Dummy({0, Ui(5)});
+  ImGui::BeginDisabled(ServerActionPending());
   PathField("Server executable", "##server-executable", "Browse##server", executable_, false);
   PathField("Compiled target model", "##target-model", "Browse##target", model_directory_, true);
   PathField("Compiled MTP assistant", "##mtp-assistant", "Browse##assistant", assistant_directory_, true);
@@ -1755,7 +1903,8 @@ void StudioApp::DrawServer() {
                    ordinary || d2_live);
   }
   SyncSettingsFromBuffers();
-  server_.Configure(settings_.server);
+  if (!ServerActionPending()) server_.Configure(settings_.server);
+  ImGui::EndDisabled();
   ImGui::Dummy({0, Ui(6)});
   const bool executable_ready = std::filesystem::is_regular_file(settings_.server.executable);
   const bool target_ready = std::filesystem::is_directory(settings_.server.model_directory);
@@ -1777,18 +1926,32 @@ void StudioApp::DrawServer() {
     ImGui::Text(" · %s Vision", vision_ready ? "Ready" : "Missing");
   }
   const ServerPhase phase = server_.Phase();
-  if (phase == ServerPhase::kRunning || phase == ServerPhase::kStarting || phase == ServerPhase::kStopping) {
-    ImGui::BeginDisabled(phase == ServerPhase::kStopping);
-    if (ImGui::Button("Stop server", {Ui(140), Ui(42)})) server_.Stop();
+  if (server_.OwnsProcess()) {
+    ImGui::BeginDisabled(ServerActionPending() ||
+                         phase == ServerPhase::kStopping);
+    if (ImGui::Button("Stop server", {Ui(140), Ui(42)}))
+      RequestServerAction(ServerAction::kStop);
+    ImGui::SameLine();
+    if (ImGui::Button("Restart server", {Ui(140), Ui(42)}))
+      RequestServerAction(ServerAction::kRestart);
     ImGui::EndDisabled();
   } else {
-    ImGui::BeginDisabled(!can_start);
+    ImGui::BeginDisabled(!can_start || ServerActionPending() ||
+                         phase == ServerPhase::kExternal);
     if (ImGui::Button(phase == ServerPhase::kExternal ? "External server" : "Start server", {Ui(140), Ui(42)}) && phase != ServerPhase::kExternal) {
-      (void)SaveSettings(settings_);
-      server_.Start(settings_.server);
+      RequestServerAction(ServerAction::kStart);
     }
     ImGui::EndDisabled();
   }
+  if (ImGui::Checkbox("Start server when Studio opens",
+                      &settings_.auto_start_server)) {
+    if (!SaveSettings(settings_)) {
+      settings_.auto_start_server = !settings_.auto_start_server;
+      server_action_error_ = "Could not save the autostart preference.";
+    }
+  }
+  if (!server_action_error_.empty())
+    ImGui::TextWrapped("%s", server_action_error_.c_str());
   ImGui::EndChild();
   if (columns)
     ImGui::SameLine(0, Ui(12));
@@ -1907,6 +2070,7 @@ void StudioApp::DrawSettings() {
 }
 
 void StudioApp::SendMessage() {
+  if (ServerActionPending()) return;
   std::string text = composer_.data();
   if ((text.empty() && pending_attachments_.empty()) || api_.Busy() || pending_send_ || chat_save_.valid() || chat_cleanup_.valid()) return;
   const auto history_error = ChatCompatibilityError();
@@ -1937,6 +2101,7 @@ void StudioApp::SendMessage() {
   generation_finished_ = {};
   prompt_tokens_ = 0;
   completion_tokens_ = 0;
+  usage_received_ = false;
   streamed_chunks_ = 0;
   performance_.reset();
   if (temporary_chat_) StartSavedRequest();
@@ -1945,7 +2110,9 @@ void StudioApp::SendMessage() {
 }
 
 void StudioApp::RetryLastRequest() {
-  if (api_.Busy() || pending_send_ || chat_save_.valid() || chat_cleanup_.valid() || !ChatCompatibilityError().empty() || messages_.size() < 2U ||
+  if (ServerActionPending() || api_.Busy() || pending_send_ ||
+      chat_save_.valid() || chat_cleanup_.valid() ||
+      !ChatCompatibilityError().empty() || messages_.size() < 2U ||
       messages_.back().role != "assistant" || !messages_.back().error ||
       messages_[messages_.size() - 2U].role != "user") {
     return;
@@ -1967,6 +2134,7 @@ void StudioApp::RetryLastRequest() {
   generation_finished_ = {};
   prompt_tokens_ = 0;
   completion_tokens_ = 0;
+  usage_received_ = false;
   streamed_chunks_ = 0;
   performance_.reset();
   if (temporary_chat_) StartSavedRequest();
@@ -2011,6 +2179,7 @@ void StudioApp::RemoveLastExchange() {
   if (!gem16::studio::RemoveLastExchange(messages_)) return;
   ++chat_revision_; last_chat_save_ = {};
   session_id_.clear();
+  ResetUsage();
   expanded_reasoning_.clear();
 }
 
@@ -2024,7 +2193,9 @@ bool StudioApp::ModelSelectionReady(const ServerConfig& config) const {
           profile.ComponentReady(ModelComponentKind::kAssistant));
 }
 void StudioApp::ActivateModel(const ServerConfig& config, bool keep_chat) {
-  if (!CanNavigateChats() || !ModelSelectionReady(config)) return;
+  if (!CanNavigateChats() || !ModelSelectionReady(config) ||
+      server_.Phase() == ServerPhase::kStarting)
+    return;
   SyncSettingsFromBuffers();
   auto next = settings_;
   next.server = config;
@@ -2042,6 +2213,7 @@ void StudioApp::ActivateModel(const ServerConfig& config, bool keep_chat) {
   SyncBuffersFromSettings();
   server_.Configure(settings_.server);
   session_id_.clear();
+  ResetUsage();
   model_selection_error_.clear();
   if (!keep_chat)
     NewConversation();
@@ -2092,7 +2264,12 @@ void StudioApp::RestoreChatModel() {
 namespace {
 template<class T> bool FutureReady(std::future<T>& f) { return f.valid() && f.wait_for(std::chrono::seconds(0)) == std::future_status::ready; }
 }
-bool StudioApp::CanNavigateChats() const { return !api_.Busy() && !pending_send_ && !chat_save_.valid() && !chat_load_.valid() && !chat_cleanup_.valid() && !recorder_.Active() && (temporary_chat_ || chat_revision_ == saved_revision_); }
+bool StudioApp::CanNavigateChats() const {
+  return !ServerActionPending() && !api_.Busy() && !pending_send_ &&
+         !chat_save_.valid() && !chat_load_.valid() && !chat_cleanup_.valid() &&
+         !recorder_.Active() &&
+         (temporary_chat_ || chat_revision_ == saved_revision_);
+}
 std::string StudioApp::ChatCompatibilityError() const {
   if (messages_.empty()) return {};
   for (const auto& m : messages_) for (const auto& a : m.attachments) if (a.missing) return "An attachment is missing or damaged. The saved text remains readable; restore the attachment before continuing.";
@@ -2155,6 +2332,7 @@ void StudioApp::PollChatStore() {
       for (auto i=loaded.messages.rbegin();i!=loaded.messages.rend();++i) if (!i->generation.empty()) { settings_.generation=SavedGeneration(i->generation); CopyTo(system_prompt_,settings_.generation.system_prompt); break; }
       conversation_ = std::move(loaded); messages_ = std::move(conversation_.messages); temporary_chat_ = false;
       session_id_.clear();
+      ResetUsage();
       expanded_reasoning_.clear();
       attachment_textures_.clear();
       svg_previews_.Clear();
@@ -2177,6 +2355,7 @@ void StudioApp::NewConversation(bool temporary) {
   attachment_textures_.clear();
   svg_previews_.Clear();
   messages_.clear(); pending_attachments_.clear(); session_id_.clear(); composer_[0] = 0; chat_title_[0] = 0;
+  ResetUsage();
   expanded_reasoning_.clear(); performance_.reset(); attachment_error_.clear();
   chat_revision_ = saved_revision_ = 0; screen_ = Screen::kChat;
 }

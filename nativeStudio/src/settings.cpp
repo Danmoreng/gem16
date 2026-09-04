@@ -246,7 +246,8 @@ StudioSettings LoadSettings() {
       else if (key == "onboarding_complete") {
         result.onboarding_complete = ParseBool(value, result.onboarding_complete);
         saw_onboarding = true;
-      }
+      } else if (key == "auto_start_server")
+        result.auto_start_server = ParseBool(value, result.auto_start_server);
       else if (key == "executable") result.server.executable = value;
       else if (key == "previous_model_selection" &&
                value.size() <= 128U * 1024U)
@@ -303,6 +304,7 @@ bool SaveSettings(const StudioSettings& settings) {
   const ServerConfig& server = settings.server;
   output << "onboarding_complete=" << (settings.onboarding_complete ? 1 : 0)
          << '\n'
+         << "auto_start_server=" << (settings.auto_start_server ? 1 : 0) << '\n'
          << "previous_model_selection="
          << EscapeLine(settings.previous_model_selection) << '\n'
          << "profile=" << ProfileWireName(server.profile) << '\n'

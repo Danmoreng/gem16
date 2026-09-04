@@ -59,6 +59,7 @@ struct StudioSettings {
   std::string previous_model_selection;
   bool dark_theme = true;
   bool onboarding_complete = false;
+  bool auto_start_server = true;
   // Zero selects the platform-aware automatic scale.
   float ui_scale = 0.0f;
 };

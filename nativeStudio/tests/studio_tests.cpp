@@ -34,7 +34,8 @@
 
 bool TestExtendedMarkdown();
 bool TestChatStore();
-bool TestStudioLifecycle();
+bool TestStudioLifecycle(const std::filesystem::path& executable);
+int RunStudioTestServer(int argc, char** argv);
 bool TestModelLifecycle();
 namespace {
 
@@ -1189,8 +1190,10 @@ int main(int argc, char** argv) {
   memory.rlim_max = std::min(memory.rlim_max, cap);
   if (setrlimit(RLIMIT_AS, &memory) != 0) return 1;
 #endif
+  if (argc > 2 && std::string_view(argv[1]) == "--model")
+    return RunStudioTestServer(argc, argv);
   if (argc == 2 && std::string_view(argv[1]) == "--studio-lifecycle")
-    return TestStudioLifecycle() ? 0 : 1;
+    return TestStudioLifecycle(std::filesystem::absolute(argv[0])) ? 0 : 1;
   if (argc == 2 && std::string_view(argv[1]) == "--markdown")
     return TestExtendedMarkdown() ? 0 : 1;
   if (!TestChatStore()) return 1;
