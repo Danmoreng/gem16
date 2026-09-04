@@ -1116,7 +1116,7 @@ std::string ResponseShellJson(const OpenAiResponseIdentity& identity,
                        ",\"object\":\"response\",\"created_at\":" +
                        std::to_string(identity.created) + ",\"status\":" +
                        json::Quote(status) + ",\"completed_at\":";
-  output.append(status == "in_progress" || !identity.completed.has_value()
+  output.append(status != "completed" || !identity.completed.has_value()
                     ? "null"
                     : std::to_string(*identity.completed));
   output.append(",\"error\":null,\"incomplete_details\":");
@@ -1205,6 +1205,16 @@ std::string ResponseJson(const OpenAiResponseIdentity& identity,
           ? "incomplete"
           : "completed",
       &response);
+}
+
+std::string ResponseTerminalEventJson(
+    const OpenAiResponseIdentity& identity, const OpenAiResponsesRequest& request,
+    const ChatGenerationResponse& response, std::uint64_t sequence) {
+  const char* event = response.finish_reason == GenerationFinishReason::kLength
+                          ? "response.incomplete" : "response.completed";
+  return "{\"type\":" + json::Quote(event) + ",\"response\":" +
+         ResponseJson(identity, request, response) + ",\"sequence_number\":" +
+         std::to_string(sequence) + "}";
 }
 
 std::string OpenAiErrorJson(std::string_view message, std::string_view type,

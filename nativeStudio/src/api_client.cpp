@@ -118,7 +118,12 @@ std::string BuildChatPayload(const ServerConfig& server,
            << json::Quote(generation.system_prompt) << '}';
     first = false;
   }
-  for (const ChatMessage& message : messages) {
+  for (std::size_t index = 0; index < messages.size(); ++index) {
+    const ChatMessage& message = messages[index];
+    // A failed exchange remains visible in Studio, but is not canonical history.
+    if (message.error || message.streaming ||
+        (message.role == "user" && index + 1 < messages.size() &&
+         messages[index + 1].role == "assistant" && messages[index + 1].error)) continue;
     if (message.role != "user" && message.role != "assistant") continue;
     if (!first) output << ',';
     first = false;
@@ -169,12 +174,8 @@ std::string BuildChatPayload(const ServerConfig& server,
 
 namespace {
 
-std::optional<ServerMetrics> FetchServerMetrics(const std::string& host,
-                                                int port) {
-  httplib::Client client(host, port);
-  client.set_connection_timeout(std::chrono::seconds(3));
+std::optional<ServerMetrics> FetchServerMetrics(httplib::Client& client) {
   client.set_read_timeout(std::chrono::seconds(3));
-  client.set_write_timeout(std::chrono::seconds(3));
   const auto response = client.Get("/metrics");
   if (!response || response->status < 200 || response->status >= 300)
     return std::nullopt;
@@ -229,7 +230,10 @@ void ParseSseData(std::string_view data, const std::function<void(ChatEvent)>& e
 
 }  // namespace
 
-ApiClient::~ApiClient() { Cancel(); }
+ApiClient::~ApiClient() {
+  Cancel();
+  if (worker_.joinable()) worker_.join();
+}
 
 void ApiClient::StreamChat(const ServerConfig& server,
                            const GenerationConfig& generation,
@@ -245,10 +249,8 @@ void ApiClient::StreamChat(const ServerConfig& server,
   }
   worker_ = std::jthread([this, server, generation, messages, session_id] {
     const std::string host = server.host == "0.0.0.0" ? "127.0.0.1" : server.host;
-    const auto metrics_before = FetchServerMetrics(host, server.port);
     auto client = std::make_shared<httplib::Client>(host, server.port);
     client->set_connection_timeout(std::chrono::seconds(5));
-    client->set_read_timeout(std::chrono::minutes(30));
     client->set_write_timeout(std::chrono::seconds(30));
     client->set_tcp_nodelay(true);
     {
@@ -256,16 +258,33 @@ void ApiClient::StreamChat(const ServerConfig& server,
       active_client_ = client;
     }
 
+    const auto finish_cancelled = [this] {
+      Emit({ChatEvent::Kind::kFinished, "cancelled"});
+      std::lock_guard lock(mutex_);
+      active_client_.reset();
+      busy_ = false;
+    };
+    if (cancel_requested_.load()) { finish_cancelled(); return; }
+    const auto metrics_before = FetchServerMetrics(*client);
+    if (cancel_requested_.load()) { finish_cancelled(); return; }
+    client->set_read_timeout(std::chrono::minutes(30));
     httplib::Headers headers{{"Accept", "text/event-stream"},
                              {"Authorization", "Bearer gem16"}};
     if (!session_id.empty()) headers.emplace("X-Gem16-Session-Id", session_id);
     std::string buffer;
     std::string response_prefix;
     bool saw_done = false;
+    bool saw_error = false;
+    const auto payload = BuildChatPayload(server, generation, messages);
+    if (cancel_requested_.load()) { finish_cancelled(); return; }
     const auto response = client->Post(
-        "/v1/chat/completions", headers, BuildChatPayload(server, generation, messages),
+        "/v1/chat/completions", headers, payload.size(),
+        [this, &payload](std::size_t offset, std::size_t length, httplib::DataSink& sink) {
+          return !cancel_requested_.load() && sink.write(payload.data() + offset, length);
+        },
         "application/json",
-        [this, &buffer, &response_prefix, &saw_done](const char* data, std::size_t size) {
+        [this, &buffer, &response_prefix, &saw_done, &saw_error](const char* data, std::size_t size) {
+          if (cancel_requested_.load()) return false;
           if (response_prefix.size() < 16U * 1024U) {
             response_prefix.append(data, std::min(size, 16U * 1024U - response_prefix.size()));
           }
@@ -279,13 +298,18 @@ void ApiClient::StreamChat(const ServerConfig& server,
             std::string_view value(line);
             value.remove_prefix(5);
             while (!value.empty() && value.front() == ' ') value.remove_prefix(1);
-            ParseSseData(value, [this](ChatEvent event) { Emit(std::move(event)); }, saw_done);
+            ParseSseData(value, [this, &saw_error](ChatEvent event) {
+              saw_error |= event.kind == ChatEvent::Kind::kError;
+              Emit(std::move(event));
+            }, saw_done);
           }
           return true;
         });
 
-    if (!response && cancel_requested_.load()) {
+    if (cancel_requested_.load()) {
       Emit({ChatEvent::Kind::kFinished, "cancelled"});
+    } else if (saw_error) {
+      // Preserve the server error already emitted, including any partial answer.
     } else if (!response) {
       Emit({ChatEvent::Kind::kError,
             "Could not reach gem16-server: " + httplib::to_string(response.error())});
@@ -303,8 +327,8 @@ void ApiClient::StreamChat(const ServerConfig& server,
     } else {
       const std::string returned_session = response->get_header_value("X-Gem16-Session-Id");
       if (!returned_session.empty()) Emit({ChatEvent::Kind::kSession, returned_session});
-      if (metrics_before) {
-        if (const auto metrics_after = FetchServerMetrics(host, server.port)) {
+      if (metrics_before && !cancel_requested_.load()) {
+        if (const auto metrics_after = FetchServerMetrics(*client)) {
           if (const auto performance =
                   PerformanceDifference(*metrics_before, *metrics_after)) {
             ChatEvent event{ChatEvent::Kind::kPerformance, {}};
@@ -329,10 +353,7 @@ void ApiClient::Cancel() {
     client = active_client_;
   }
   if (client) client->stop();
-  if (worker_.joinable() && worker_.get_id() != std::this_thread::get_id()) worker_.join();
-  std::lock_guard lock(mutex_);
-  active_client_.reset();
-  busy_ = false;
+  // The worker owns completion; the UI never waits for network I/O here.
 }
 
 bool ApiClient::Busy() const {

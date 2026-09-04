@@ -98,7 +98,7 @@ Successful streaming uses typed Responses events, including the applicable:
 - `response.output_text.delta` and `.done`;
 - reasoning-text events when reasoning is exposed;
 - `response.function_call_arguments.done`;
-- `response.completed`.
+- `response.completed`, or `response.incomplete` when the output limit is reached.
 
 Sequence numbers and identifiers must remain internally consistent and the
 final SDK response must reproduce the streamed content and usage.

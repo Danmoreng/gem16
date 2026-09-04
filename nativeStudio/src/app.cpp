@@ -526,6 +526,11 @@ void StudioApp::ApplyTheme() const {
 
 void StudioApp::Render() {
   DrainChatEvents();
+  if (pending_profile_ && !api_.Busy()) {
+    const auto profile = *pending_profile_;
+    pending_profile_.reset();
+    SelectProfile(profile);
+  }
   if (recorder_.Active() && !recorder_.Recording()) FinishRecording();
   PruneAttachmentTextures();
   const auto dropped = DrainDroppedFiles();
@@ -582,21 +587,11 @@ void StudioApp::DrainChatEvents() {
         event.kind == ChatEvent::Kind::kReasoning) {
       if (streamed_chunks_ == 0) first_token_at_ = std::chrono::steady_clock::now();
       ++streamed_chunks_;
-      if (event.kind == ChatEvent::Kind::kText)
-        message.content += event.value;
-      else
-        message.reasoning += event.value;
     }
-    else if (event.kind == ChatEvent::Kind::kError) {
-      message.content = std::move(event.value);
-      message.error = true;
-      message.streaming = false;
-    } else if (event.kind == ChatEvent::Kind::kFinished) {
-      message.streaming = false;
-      if (event.value == "cancelled" && message.content.empty())
-        message.content = "Generation stopped.";
+    ApplyChatEvent(message, event);
+    if (message.error) session_id_.clear();
+    if (event.kind == ChatEvent::Kind::kFinished || event.kind == ChatEvent::Kind::kError)
       generation_finished_ = std::chrono::steady_clock::now();
-    }
     if (auto_follow_) scroll_to_bottom_ = true;
   }
 }
@@ -1231,6 +1226,12 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
       retry_requested_ = true;
     }
   }
+  if (!message.error_message.empty()) {
+    ImGui::PushStyleColor(ImGuiCol_Text, {1.0f, 0.55f, 0.55f, 1.0f});
+    ImGui::TextWrapped("%s", message.error_message.c_str());
+    ImGui::TextWrapped("This exchange is excluded from future context. Retry to include it.");
+    ImGui::PopStyleColor();
+  }
   if (!message.attachments.empty()) {
     ImGui::Spacing();
     DrawAttachmentGallery(message.attachments);
@@ -1320,11 +1321,20 @@ void StudioApp::DrawModels() {
   ImGui::SameLine();
   if (ImGui::SmallButton("Open cache")) OpenInFileManager(hub_root);
   ImGui::SameLine();
-  ImGui::BeginDisabled(install.downloading);
-  if (ImGui::SmallButton("Verify again")) models_.Refresh();
+  ImGui::BeginDisabled(install.downloading || install.verifying);
+  if (ImGui::SmallButton("Verify again")) models_.VerifyInstalled();
   ImGui::EndDisabled();
   ImGui::Dummy({0, Ui(8)});
+  if (install.verifying) {
+    ImGui::TextWrapped("Verifying SHA-256: %s / %s · %s",
+        FormatBytes(install.verification_bytes).c_str(),
+        FormatBytes(install.verification_total_bytes).c_str(), install.current_file.c_str());
+    if (ImGui::SmallButton("Cancel verification")) models_.Cancel();
+  } else if (!install.verification_status.empty()) {
+    ImGui::TextWrapped("%s", install.verification_status.c_str());
+  }
   const auto draw_profile = [this, &install](const ModelProfileCatalog& catalog) {
+    ImGui::BeginDisabled(install.verifying);
     const ModelProfile profile = catalog.profile;
     const ProfileInstallState& profile_state = install.For(profile);
     const bool selected = settings_.onboarding_complete &&
@@ -1441,6 +1451,7 @@ void StudioApp::DrawModels() {
     EndModelCard();
     ImGui::PopStyleColor(2);
     ImGui::Dummy({0, Ui(3)});
+    ImGui::EndDisabled();
   };
   for (const ModelProfile profile : PublicModelProfiles()) {
     draw_profile(CatalogForProfile(profile));
@@ -1832,6 +1843,11 @@ void StudioApp::RemoveLastExchange() {
 }
 
 void StudioApp::SelectProfile(ModelProfile profile) {
+  if (api_.Busy()) {
+    pending_profile_ = profile;
+    api_.Cancel();
+    return;
+  }
   if (!models_.State().For(profile).Ready()) return;
   const bool restart_managed_server = server_.Phase() == ServerPhase::kRunning;
   if (restart_managed_server) server_.Stop();

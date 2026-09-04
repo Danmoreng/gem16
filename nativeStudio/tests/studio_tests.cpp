@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <future>
 #include <fstream>
 #include <set>
 #include <string_view>
@@ -975,6 +976,145 @@ bool TestComposerEnterBehavior() {
   return enter_submitted && !shift_submitted && result.find('\n') != std::string::npos;
 }
 
+bool TestFailedChatHistory() {
+  using namespace gem16::studio;
+  ChatMessage partial{"assistant", "Useful partial answer", "thought", true};
+  ApplyChatEvent(partial, {ChatEvent::Kind::kError, "Transport failed"});
+  if (partial.content != "Useful partial answer" || partial.reasoning != "thought" ||
+      partial.error_message != "Transport failed" || !partial.error || partial.streaming) return false;
+  std::vector<ChatMessage> messages{{"user", "Old question"}, partial, {"user", "New question"}};
+  const auto payload = BuildChatPayload({}, {}, messages);
+  if (payload.find("Transport failed") != std::string::npos ||
+      payload.find("Useful partial") != std::string::npos ||
+      payload.find("Old question") != std::string::npos ||
+      payload.find("New question") == std::string::npos) return false;
+  ChatMessage cancelled{"assistant", "Still useful", {}, true};
+  ApplyChatEvent(cancelled, {ChatEvent::Kind::kFinished, "cancelled"});
+  return cancelled.content == "Still useful" && cancelled.error &&
+         !cancelled.streaming && cancelled.error_message == "Generation stopped.";
+}
+
+bool TestCancelBeforeChatDispatch() {
+  using namespace std::chrono_literals;
+  httplib::Server server;
+  std::promise<void> entered, release;
+  auto released = release.get_future().share();
+  std::atomic<int> posts{0};
+  server.Get("/metrics", [&](const auto&, auto& response) {
+    entered.set_value();
+    released.wait_for(3s);
+    response.set_content("", "text/plain");
+  });
+  server.Post("/v1/chat/completions", [&](const auto&, auto& response) {
+    ++posts;
+    response.set_content("data: [DONE]\n\n", "text/event-stream");
+  });
+  gem16::studio::ServerConfig config;
+  config.port = server.bind_to_any_port("127.0.0.1");
+  if (config.port <= 0) return false;
+  std::jthread listener([&] { server.listen_after_bind(); });
+  gem16::studio::ApiClient client;
+  client.StreamChat(config, {}, {{"user", "Hi"}}, {});
+  const bool started = entered.get_future().wait_for(2s) == std::future_status::ready;
+  auto cancel = std::async(std::launch::async, [&] { client.Cancel(); });
+  const bool prompt = cancel.wait_for(250ms) == std::future_status::ready;
+  release.set_value();
+  cancel.get();
+  for (int i = 0; i < 300 && client.Busy(); ++i) std::this_thread::sleep_for(10ms);
+  const bool finished = !client.Busy();
+  const auto events = client.DrainEvents();
+  server.stop();
+  listener.join();
+  return started && prompt && finished && posts == 0 &&
+         std::count_if(events.begin(), events.end(), [](const auto& event) {
+           return event.kind == gem16::studio::ChatEvent::Kind::kFinished && event.value == "cancelled";
+         }) == 1;
+}
+
+bool TestStreamingErrorPreservesPartial() {
+  using namespace gem16::studio;
+  httplib::Server server;
+  server.Post("/v1/chat/completions", [](const auto&, auto& response) {
+    response.set_content(
+        "data: {\"choices\":[{\"delta\":{\"content\":\"Partial\"}}]}\n\n"
+        "data: {\"error\":{\"message\":\"Original server error\"}}\n\n",
+        "text/event-stream");
+  });
+  ServerConfig config;
+  config.port = server.bind_to_any_port("127.0.0.1");
+  if (config.port <= 0) return false;
+  std::jthread listener([&] { server.listen_after_bind(); });
+  ApiClient client;
+  client.StreamChat(config, {}, {{"user", "Hi"}}, {});
+  for (int i = 0; i < 300 && client.Busy(); ++i)
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  const auto events = client.DrainEvents();
+  const bool finished = !client.Busy();
+  client.Cancel();
+  server.stop();
+  listener.join();
+  ChatMessage message{"assistant", {}, {}, true};
+  int errors = 0;
+  for (const auto& event : events) {
+    errors += event.kind == ChatEvent::Kind::kError ? 1 : 0;
+    ApplyChatEvent(message, event);
+  }
+  return finished && errors == 1 && message.content == "Partial" &&
+         message.error_message == "Original server error" && message.error;
+}
+
+bool TestReverifySameSizeCorruption() {
+  using namespace gem16::studio;
+  const char* previous = std::getenv("HF_HUB_CACHE");
+  const std::optional<std::string> saved = previous ? std::optional<std::string>(previous) : std::nullopt;
+  const auto cache = std::filesystem::temp_directory_path() /
+      ("gem16-reverify-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+  SetEnvironment("HF_HUB_CACHE", cache.string());
+  const ModelCatalogFile file{"weights.bin", 3,
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "blob", "test/model", "revision", "weights.bin"};
+  const ModelComponentCatalog component{"test", "Test", "test/model", "revision", {&file, 1}, false, ""};
+  const ModelProfileComponent target{ModelComponentKind::kTarget, &component, true};
+  const ModelProfileCatalog profile{ModelProfile::kGemma4Unified12B, "test", "test", {&target, 1}};
+  const auto blob = RepositoryDirectory(file.source_repository, cache) / "blobs" / file.blob_id;
+  const auto view = ComponentDirectory(component, cache) / file.path;
+  const auto marker = VerificationMarkerPath(file, cache);
+  std::filesystem::create_directories(blob.parent_path());
+  std::filesystem::create_directories(view.parent_path());
+  std::ofstream(blob, std::ios::binary) << "abc";
+  std::filesystem::create_hard_link(blob, view);
+  bool valid = true;
+  {
+    ModelManager manager({&profile, 1});
+    const auto verify = [&] {
+      manager.VerifyInstalled();
+      for (int i = 0; i < 300 && manager.State().verifying; ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      return manager.State();
+    };
+    auto state = verify();
+    valid = !state.verifying && state.error.empty() && state.For(profile.profile).Ready() &&
+            state.verification_bytes == 3 && state.verification_total_bytes == 3;
+    std::ofstream(blob, std::ios::binary | std::ios::trunc) << "xbc";
+    manager.Refresh();
+    valid = valid && manager.State().For(profile.profile).Ready(); // Cached status alone cannot see this.
+    state = verify();
+    valid = valid && !state.verifying && !state.error.empty() &&
+            !state.For(profile.profile).Ready() && !std::filesystem::exists(marker) &&
+            std::filesystem::exists(blob); // Never delete shared payloads during verification.
+    std::ofstream(blob, std::ios::binary | std::ios::trunc) << "abc";
+    state = verify();
+    valid = valid && state.error.empty() && state.For(profile.profile).Ready();
+    std::filesystem::remove(view);
+    std::ofstream(view, std::ios::binary) << "bad"; // Detached, same-size view.
+    state = verify();
+    valid = valid && !state.error.empty() && !state.For(profile.profile).Ready() &&
+            !std::filesystem::exists(marker);
+  }
+  if (saved) SetEnvironment("HF_HUB_CACHE", *saved); else ClearEnvironment("HF_HUB_CACHE");
+  std::filesystem::remove_all(cache);
+  return valid;
+}
+
 bool TestStreamingClient() {
   httplib::Server server;
   server.Post("/v1/chat/completions", [](const httplib::Request& request,
@@ -1033,6 +1173,10 @@ bool TestStreamingClient() {
 }  // namespace
 
 int main() {
+  if (!TestFailedChatHistory() || !TestStreamingErrorPreservesPartial() || !TestCancelBeforeChatDispatch() || !TestReverifySameSizeCorruption()) {
+    std::fprintf(stderr, "chat cancellation/history or model re-verification regression failed\n");
+    return 1;
+  }
   if (!TestModelCardLayoutAndProgress()) {
     std::fprintf(stderr, "compact model-card layout/progress animation test failed\n");
     return 1;

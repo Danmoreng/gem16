@@ -33,6 +33,10 @@ struct ProfileInstallState {
 struct ModelInstallState {
   std::array<ProfileInstallState, kModelProfileCount> profiles{};
   bool downloading = false;
+  bool verifying = false;
+  std::uint64_t verification_bytes = 0;
+  std::uint64_t verification_total_bytes = 0;
+  std::string verification_status;
   bool cancel_requested = false;
   ModelProfile downloading_profile = ModelProfile::kGemma4Unified12B;
   std::string current_file;
@@ -45,13 +49,15 @@ struct ModelInstallState {
 
 class ModelManager final {
  public:
-  ModelManager();
+  // Catalog storage must outlive this manager and its worker. Production uses the static lock-derived catalog.
+  explicit ModelManager(std::span<const ModelProfileCatalog> catalog = ModelCatalog());
   ~ModelManager();
   ModelManager(const ModelManager&) = delete;
   ModelManager& operator=(const ModelManager&) = delete;
 
   [[nodiscard]] ModelInstallState State() const;
   void Refresh();
+  void VerifyInstalled();
   void DownloadProfile(ModelProfile profile);
   void RemoveComponent(ModelProfile profile, ModelComponentKind kind);
   void Cancel();
@@ -59,6 +65,7 @@ class ModelManager final {
  private:
   void DownloadWorker(ModelProfile profile);
 
+  std::span<const ModelProfileCatalog> catalog_;
   mutable std::mutex mutex_;
   ModelInstallState state_;
   std::jthread worker_;

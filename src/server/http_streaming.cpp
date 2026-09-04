@@ -797,11 +797,8 @@ bool WriteResponsesFinalEvents(
     }
     ++live.output_index;
   }
-  const std::string completed = gem16::server::ResponseJson(
-      identity, request, generated);
-  return WriteSse(sink, "{\"type\":\"response.completed\",\"response\":" +
-                            completed + ",\"sequence_number\":" +
-                            std::to_string(live.sequence++) + "}");
+  return WriteSse(sink, gem16::server::ResponseTerminalEventJson(
+      identity, request, generated, live.sequence++));
 }
 
 

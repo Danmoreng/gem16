@@ -96,6 +96,7 @@ class StudioApp final {
   std::int64_t streamed_chunks_ = 0;
   std::optional<PerformanceStats> performance_;
   bool retry_requested_ = false;
+  std::optional<ModelProfile> pending_profile_;
 };
 
 }  // namespace gem16::studio

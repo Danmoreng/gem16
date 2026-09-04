@@ -471,4 +471,27 @@ void RunOpenAiChatTests() {
                     ->find("cache_write_tokens")
                     ->as_integer() == 1);
   }
+  for (const auto reason : {gem16::GenerationFinishReason::kStop,
+                            gem16::GenerationFinishReason::kToolCalls,
+                            gem16::GenerationFinishReason::kLength}) {
+    generated.finish_reason = reason;
+    const auto terminal = gem16::json::Parse(gem16::server::ResponseTerminalEventJson(
+        response_identity, response_request, generated, 17U));
+    GEM16_CHECK(terminal.ok());
+    if (!terminal.ok()) continue;
+    const bool incomplete = reason == gem16::GenerationFinishReason::kLength;
+    const auto& event = terminal.value();
+    GEM16_CHECK(event.find("type")->as_string() ==
+                (incomplete ? "response.incomplete" : "response.completed"));
+    GEM16_CHECK(event.find("sequence_number")->as_integer() == 17);
+    const auto* terminal_response = event.find("response");
+    GEM16_CHECK(terminal_response->find("status")->as_string() ==
+                (incomplete ? "incomplete" : "completed"));
+    GEM16_CHECK(terminal_response->find("completed_at")->is_null() == incomplete);
+    if (incomplete) GEM16_CHECK(terminal_response->find("incomplete_details")
+                                   ->find("reason")->as_string() == "max_output_tokens");
+    GEM16_CHECK(terminal_response->find("usage")->find("input_tokens")->as_integer() ==
+                parsed_responses.value().find("usage")->find("input_tokens")->as_integer());
+  }
+
 }

@@ -224,7 +224,7 @@ bool LinkVerifiedFile(const std::filesystem::path& blob,
 
 }  // namespace
 
-ModelManager::ModelManager() {
+ModelManager::ModelManager(std::span<const ModelProfileCatalog> catalog) : catalog_(catalog) {
   PruneLegacyVisionViewAuxiliaryLinks();
   Refresh();
 }
@@ -241,16 +241,117 @@ ModelInstallState ModelManager::State() const {
 
 void ModelManager::Refresh() {
   std::scoped_lock lock(mutex_);
-  if (state_.downloading) return;
-  for (const auto& profile : ModelCatalog()) {
+  if (state_.downloading || state_.verifying) return;
+  for (const auto& profile : catalog_) {
     state_.profiles[ModelProfileIndex(profile.profile)] = InspectProfile(profile);
   }
+}
+
+void ModelManager::VerifyInstalled() {
+  {
+    std::scoped_lock lock(mutex_);
+    if (state_.downloading || state_.verifying) return;
+    state_.verifying = true;
+    state_.verification_bytes = 0;
+    state_.verification_total_bytes = 0;
+    state_.verification_status.clear();
+    state_.error.clear();
+    state_.cancel_requested = false;
+  }
+  cancel_.store(false);
+  if (worker_.joinable()) worker_.join();
+  worker_ = std::jthread([this] {
+    struct File {
+      std::filesystem::path path, marker;
+      std::uint64_t size;
+      std::string hash;
+    };
+    std::vector<File> files;
+    std::set<std::filesystem::path> seen;
+    const auto hub = HuggingFaceHubRoot();
+    std::uint64_t total = 0;
+    for (const auto& profile : catalog_) {
+      for (const auto& component : profile.components) {
+        for (const auto& file : component.catalog->files) {
+          const auto blob = BlobPath(file);
+          const auto view = ComponentDirectory(*component.catalog, hub) / file.path;
+          for (const auto& path : {blob, view}) {
+            std::error_code ec;
+            if (!std::filesystem::exists(path, ec) || !seen.insert(path).second) continue;
+            // Hash a hardlinked/symlinked runtime view only once with its blob.
+            if (path != blob && std::filesystem::equivalent(path, blob, ec)) continue;
+            files.push_back({path, VerificationMarker(file), file.size, file.sha256});
+            total += file.size;
+          }
+        }
+      }
+    }
+    {
+      std::scoped_lock lock(mutex_);
+      state_.verification_total_bytes = total;
+    }
+    std::vector<char> buffer(8U * 1024U * 1024U);
+    std::set<std::filesystem::path> invalid_markers;
+    std::string failure;
+    std::uint64_t completed = 0;
+    for (const auto& file : files) {
+      if (cancel_.load()) break;
+      {
+        std::scoped_lock lock(mutex_);
+        state_.current_file = file.path.filename().string();
+      }
+      std::error_code ec;
+      std::filesystem::remove(file.marker, ec);
+      if (ec) { failure = "Could not invalidate verification marker: " + ec.message(); break; }
+      gem16::compiler::Sha256 digest;
+      std::ifstream input(file.path, std::ios::binary);
+      std::uint64_t read = 0;
+      while (input && read < file.size && !cancel_.load()) {
+        input.read(buffer.data(), static_cast<std::streamsize>(
+            std::min<std::uint64_t>(buffer.size(), file.size - read)));
+        const auto count = input.gcount();
+        if (count > 0) {
+          digest.Update(buffer.data(), static_cast<std::size_t>(count));
+          read += static_cast<std::uint64_t>(count);
+        }
+        std::scoped_lock lock(mutex_);
+        state_.verification_bytes = completed + read;
+      }
+      if (cancel_.load()) break;
+      const bool valid = read == file.size && HasSize(file.path, file.size) &&
+                         digest.HexDigest() == file.hash;
+      if (!valid) {
+        invalid_markers.insert(file.marker);
+        if (failure.empty()) failure = "Size or SHA-256 verification failed: " + file.path.string();
+      } else if (!invalid_markers.contains(file.marker)) {
+        std::filesystem::create_directories(file.marker.parent_path(), ec);
+        std::ofstream marker(file.marker, std::ios::trunc);
+        marker << file.hash << '\n';
+        if (ec || !marker) failure = "Could not write verification marker: " + file.marker.string();
+      }
+      completed += file.size;
+    }
+    // A bad detached view invalidates the shared marker even if another view passed.
+    for (const auto& marker : invalid_markers) {
+      std::error_code ec;
+      std::filesystem::remove(marker, ec);
+    }
+    std::scoped_lock lock(mutex_);
+    for (const auto& profile : catalog_)
+      state_.profiles[ModelProfileIndex(profile.profile)] = InspectProfile(profile);
+    state_.error = std::move(failure);
+    state_.verification_status = cancel_.load() ? "Verification cancelled" :
+        !state_.error.empty() ? "Verification failed; reinstall the affected component" :
+        files.empty() ? "No installed files to verify" : "SHA-256 verification complete";
+    state_.current_file.clear();
+    state_.verifying = false;
+  });
 }
 
 void ModelManager::DownloadProfile(ModelProfile profile) {
   {
     std::scoped_lock lock(mutex_);
-    if (state_.downloading) return;
+    if (state_.downloading || state_.verifying) return;
     const auto inspected = InspectProfile(CatalogForProfile(profile));
     state_.profiles[ModelProfileIndex(profile)] = inspected;
     state_.error.clear();
@@ -275,7 +376,7 @@ void ModelManager::DownloadProfile(ModelProfile profile) {
 void ModelManager::RemoveComponent(ModelProfile profile,
                                    ModelComponentKind kind) {
   std::scoped_lock lock(mutex_);
-  if (state_.downloading) return;
+  if (state_.downloading || state_.verifying) return;
   const auto* profile_component =
       ComponentForProfile(CatalogForProfile(profile), kind);
   if (!profile_component) return;
@@ -289,7 +390,7 @@ void ModelManager::RemoveComponent(ModelProfile profile,
       return;
     }
   }
-  for (const auto& catalog : ModelCatalog()) {
+  for (const auto& catalog : catalog_) {
     state_.profiles[ModelProfileIndex(catalog.profile)] =
         InspectProfile(catalog);
   }
@@ -301,7 +402,7 @@ void ModelManager::Cancel() {
   std::shared_ptr<PlatformProcess> process;
   {
     std::scoped_lock lock(mutex_);
-    state_.cancel_requested = state_.downloading;
+    state_.cancel_requested = state_.downloading || state_.verifying;
     process = active_process_;
   }
   if (process) process->Stop();
@@ -312,7 +413,7 @@ void ModelManager::DownloadWorker(ModelProfile selected_profile) {
   const auto profile_index = ModelProfileIndex(selected_profile);
   const auto finish = [this](std::string error) {
     std::array<ProfileInstallState, kModelProfileCount> inspected{};
-    for (const auto& catalog : ModelCatalog()) {
+    for (const auto& catalog : catalog_) {
       inspected[ModelProfileIndex(catalog.profile)] = InspectProfile(catalog);
     }
     std::scoped_lock lock(mutex_);

@@ -111,6 +111,7 @@ struct ChatMessage {
   bool streaming = false;
   bool error = false;
   std::vector<MediaAttachment> attachments;
+  std::string error_message{};
 };
 
 struct ChatEvent {
