@@ -30,6 +30,7 @@
 #include <thread>
 
 bool TestExtendedMarkdown();
+bool TestChatStore();
 namespace {
 
 void CaptureClipboard(void* user_data, const char* text) {
@@ -1173,6 +1174,7 @@ bool TestStreamingClient() {
 }  // namespace
 
 int main() {
+  if (!TestChatStore()) return 1;
   if (!TestFailedChatHistory() || !TestStreamingErrorPreservesPartial() || !TestCancelBeforeChatDispatch() || !TestReverifySameSizeCorruption()) {
     std::fprintf(stderr, "chat cancellation/history or model re-verification regression failed\n");
     return 1;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "api_client.h"
+#include "chat_store.h"
 #include "audio_recorder.h"
 #include "image_texture.h"
 #include "svg_preview.h"
@@ -34,6 +35,13 @@ class StudioApp final {
   void ApplyTheme() const;
   void DrainChatEvents();
   void DrawSidebar();
+  void DrawChatLibrary();
+  void PollChatStore();
+  void SaveChat();
+  void NewConversation(bool temporary = false);
+  void StartSavedRequest();
+  bool CanNavigateChats() const;
+  std::string ChatCompatibilityError() const;
   void DrawChat();
   void DrawModels();
   void DrawServer();
@@ -57,6 +65,20 @@ class StudioApp final {
   void SyncSettingsFromBuffers();
 
   StudioSettings settings_;
+  ChatStore chat_store_;
+  StudioSettings pending_request_settings_;
+  Conversation conversation_;
+  std::vector<ConversationSummary> chat_list_;
+  std::future<void> chat_save_;
+  std::future<Conversation> chat_load_;
+  std::future<std::vector<ConversationSummary>> chat_listing_;
+  std::uint64_t chat_revision_ = 0, saved_revision_ = 0, saving_revision_ = 0;
+  std::chrono::steady_clock::time_point last_chat_save_{};
+  std::string storage_error_;
+  std::array<char, 513> chat_title_{};
+  bool temporary_chat_ = false, pending_send_ = false, restore_latest_ = true;
+  bool show_archived_ = false, delete_chat_requested_ = false;
+
   ServerManager server_;
   ModelManager models_;
   ApiClient api_;

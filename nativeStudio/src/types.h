@@ -95,6 +95,8 @@ struct MediaAttachment {
   std::uint64_t byte_size = 0;
   int image_width = 0;
   int image_height = 0;
+  bool missing = false;
+  std::string storage_hash{};
 };
 
 struct PerformanceStats {
@@ -102,6 +104,12 @@ struct PerformanceStats {
   double prefill_tokens_per_second = 0.0;
   double prefill_milliseconds = 0.0;
   double decode_milliseconds = 0.0;
+};
+
+struct ChatAttempt {
+  std::string content, reasoning, error_message, generation;
+  std::int64_t created = 0;
+  bool error = false;
 };
 
 struct ChatMessage {
@@ -112,6 +120,9 @@ struct ChatMessage {
   bool error = false;
   std::vector<MediaAttachment> attachments;
   std::string error_message{};
+  std::string generation{};
+  std::int64_t created = 0;
+  std::vector<ChatAttempt> attempts{};
 };
 
 struct ChatEvent {

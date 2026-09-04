@@ -23,12 +23,14 @@ set(IMGUI_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/imgui")
 find_package(Threads REQUIRED)
 include(cmake/markdown-dependencies.cmake)
 include(cmake/svg-dependencies.cmake)
+include(cmake/sqlite-dependency.cmake)
 
 set(STUDIO_SOURCES
   src/app.cpp
   src/audio_recorder.cpp
   src/api_client.cpp
   src/chat_history.cpp
+  src/chat_store.cpp
   src/fonts.cpp
   src/image_texture.cpp
   src/main.cpp
@@ -103,7 +105,7 @@ target_compile_definitions(gem16-studio PRIVATE
   GEM16_REPOSITORY_ROOT="${GEM16_ROOT}"
   GEM16_VERSION_STRING="${GEM16_VERSION}"
 )
-target_link_libraries(gem16-studio PRIVATE Threads::Threads)
+target_link_libraries(gem16-studio PRIVATE Threads::Threads studio_sqlite)
 
 # GCC 16 emits a known std::variant false positive in the shared JSON parser.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -133,9 +135,11 @@ include(CTest)
 if(BUILD_TESTING)
   add_executable(gem16-studio-tests
     tests/studio_tests.cpp
+    tests/chat_store_tests.cpp
     tests/markdown_render_tests.cpp
     src/api_client.cpp
     src/chat_history.cpp
+  src/chat_store.cpp
     src/fonts.cpp
     src/image_texture.cpp
     src/markdown.cpp
@@ -173,7 +177,7 @@ if(BUILD_TESTING)
     CPPHTTPLIB_TCP_NODELAY=1
     GEM16_REPOSITORY_ROOT="${GEM16_ROOT}"
   )
-  target_link_libraries(gem16-studio-tests PRIVATE Threads::Threads)
+  target_link_libraries(gem16-studio-tests PRIVATE Threads::Threads studio_sqlite)
   if(WIN32)
     target_sources(gem16-studio-tests PRIVATE src/shader_background.cpp)
     target_compile_options(gem16-studio-tests PRIVATE /utf-8)

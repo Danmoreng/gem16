@@ -33,10 +33,16 @@ HTML is inert and remote images are not automatically fetched.
 **Stop** interrupts an in-flight request. Partial text remains visible and copyable;
 failed or cancelled exchanges are excluded from future context until retried.
 Retry resends the exchange using a fresh session. **Undo** removes the last exchange;
-**Delete** clears the conversation. Starting a new chat resets the resident session.
+**Delete** confirms removal of the saved conversation. Starting a new chat resets the resident session.
 
-Settings persist, but chat history currently lives only in memory. Closing Studio
-loses the transcript; persistent conversation storage is outstanding product work.
+Chats now persist locally in SQLite. The sidebar restores conversations across
+restarts and supports rename, pin, archive and deletion. **Temporary** creates a
+chat whose content is never written to the chat store. User messages are committed
+before dispatch; streamed answers checkpoint about once a second and on completion.
+Retry preserves the previous answer attempt. Reopening a chat rebuilds server
+context on continuation and restores its generation settings. A different model
+installation or missing attachment blocks continuation with an explanation.
+See [chat storage](STUDIO_STORAGE.md) for paths, durability and limits.
 
 ## Models and verification
 
