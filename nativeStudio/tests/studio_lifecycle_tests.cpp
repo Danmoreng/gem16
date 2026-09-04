@@ -13,6 +13,7 @@
 #include "imgui_internal.h"
 #include "math_renderer.h"
 #include "settings.h"
+#include "util/json.h"
 void CaptureStudioScreenshot(const char* path);
 namespace {
 class Environment {
@@ -113,6 +114,149 @@ struct StudioAppTestAccess {
     Require(!app.usage_received_, "restored conversation awaits its own usage");
   }
 
+  static void RunCanvasTools(StudioApp& app) {
+    httplib::Server server;
+    std::atomic<int> requests{0};
+    std::string failure;
+    server.Post("/v1/chat/completions", [&](const httplib::Request& request,
+                                            httplib::Response& response) {
+      try {
+        const int round = requests++;
+        const auto loaded = app.chat_store_.Load(app.conversation_.id).get();
+        if (round > 0)
+          Require(loaded.canvases.size() == 1,
+                  "canvas committed before continuation");
+        std::string delta;
+        if (round < 3) {
+          ToolCall call;
+          if (round == 0)
+            call = {
+                "create", "canvas_create",
+                R"({"title":"Test page","type":"html","source":"<h1>First</h1>"})"};
+          else if (round == 1)
+            call = {
+                "edit", "canvas_edit",
+                "{\"id\":\"" + loaded.canvases[0].id +
+                    R"(","revision":1,"old_text":"First","new_text":"Second"})"};
+          else {
+            Require(loaded.canvases[0].revisions.size() == 2,
+                    "edited revision checkpoint");
+            Require(request.body.find("tool_call_id") != std::string::npos,
+                    "HTTP tool history");
+            call = {"check", "canvas_check",
+                    "{\"id\":\"" + loaded.canvases[0].id +
+                        R"(","revision":2,"screenshot":true})"};
+          }
+          // Send arguments in two separate SSE chunks, as real token streaming
+          // does.
+          const auto split = call.arguments.size() / 2;
+          delta =
+              "data: "
+              "{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":" +
+              gem16::json::Quote(call.id) +
+              ",\"function\":{\"name\":" + gem16::json::Quote(call.name) +
+              ",\"arguments\":" +
+              gem16::json::Quote(call.arguments.substr(0, split)) +
+              "}}]}}]}\n\n";
+          delta +=
+              "data: "
+              "{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,"
+              "\"function\":{\"arguments\":" +
+              gem16::json::Quote(call.arguments.substr(split)) + "}}]}}]}\n\n";
+        } else {
+          Require(round == 3, "bounded Canvas loop");
+          Require(request.body.find("System WebView is unavailable") !=
+                      std::string::npos,
+                  "missing WebView returns an explicit tool error");
+          delta =
+              "data: {\"choices\":[{\"delta\":{\"content\":\"Canvas "
+              "complete\"}}]}\n\n";
+        }
+        response.set_content(delta + "data: [DONE]\n\n", "text/event-stream");
+      } catch (const std::exception& e) {
+        failure = e.what();
+        response.status = 500;
+        response.set_content(failure, "text/plain");
+      }
+    });
+    const int port = server.bind_to_any_port("127.0.0.1");
+    Require(port > 0, "Canvas fixture bind");
+    std::jthread listener([&] { server.listen_after_bind(); });
+    try {
+      app.NewConversation(false);
+      app.pending_request_settings_ = app.settings_;
+      app.pending_request_settings_.server.port = port;
+      app.messages_ = {{"user", "create and edit a page"},
+                       {"assistant", {}, {}, true}};
+      app.canvas_cancelled_ = false;
+      app.canvas_rounds_ = app.canvas_checks_ = 0;
+      ++app.chat_revision_;
+      app.pending_send_ = true;
+      app.SaveChat();
+      for (int i = 0; i < 1500; ++i) {
+        app.DrainChatEvents();
+        app.PollChatStore();
+        app.PollCanvasTools();
+        if (requests >= 4 && !app.api_.Busy() && !app.CanvasBusy() &&
+            !app.pending_send_ && !app.chat_save_.valid())
+          break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+      }
+      server.stop();
+      listener.join();
+      Require(failure.empty(), failure.c_str());
+      Require(
+          requests == 4 && app.messages_.back().content == "Canvas complete",
+          "real SSE to edit to tool-result continuation");
+      auto saved = app.chat_store_.Load(app.conversation_.id).get();
+      Require(
+          saved.canvases.size() == 1 &&
+              saved.canvases[0].revisions.back().source == "<h1>Second</h1>",
+          "agent Canvas survives SQLite reload");
+    } catch (...) {
+      server.stop();
+      listener.join();
+      throw;
+    }
+  }
+
+  static void CheckCanvasRecovery(StudioApp& app) {
+    app.temporary_chat_ = false;
+    app.pending_request_settings_ = app.settings_;
+    app.canvas_prompt_context_ = "canvas tools offered";
+    app.canvas_cancelled_ = false;
+    app.canvas_format_retries_ = 0;
+    app.messages_ = {{"user", "draw"}, {"assistant", {}}};
+    for (int attempt = 0; attempt < 2; ++attempt) {
+      app.messages_.back().error = true;
+      app.messages_.back().interrupted = false;
+      app.messages_.back().error_message =
+          "model response has an unterminated tool call";
+      app.pending_send_ = false;
+      Require(app.RecoverCanvasFormatError(),
+              "malformed call schedules bounded repair");
+      Require(app.pending_send_ && app.messages_.back().streaming &&
+                  app.messages_.back().attempts.size() ==
+                      static_cast<std::size_t>(attempt + 1),
+              "repair preserves previous attempt");
+      if (app.chat_save_.valid()) app.chat_save_.get();
+    }
+    app.pending_send_ = false;
+    app.messages_.back().error = true;
+    app.messages_.back().error_message =
+        "model response has an unterminated tool call";
+    Require(!app.RecoverCanvasFormatError(), "repair stops after two attempts");
+    app.canvas_format_retries_ = 0;
+    app.messages_.back().error_message = "Server unavailable";
+    Require(!app.RecoverCanvasFormatError(),
+            "network failure is not a format retry");
+    app.messages_.back().error_message =
+        "model response has an unterminated tool call";
+    app.canvas_cancelled_ = true;
+    Require(!app.RecoverCanvasFormatError(), "Stop prevents automatic repair");
+    app.NewConversation(false);
+  }
+
   static void CheckStartup(StudioApp& app, bool expected) {
     Require(app.pending_server_action_.has_value() == expected,
             "autostart respects onboarding and preference");
@@ -143,6 +287,15 @@ struct StudioAppTestAccess {
     wait([&] { return app.server_.Phase() == ServerPhase::kRunning; });
     Require(app.server_.OwnsProcess() && start_count() == 1,
             "autostart launches exactly one managed server");
+    app.messages_={{"user","edit"},{"assistant",{}},{"tool","result"},{"assistant",{}}};
+    app.messages_[1].tool_calls={{"retry-call","canvas_read","{}"}};
+    app.messages_[2].tool_call_id="retry-call";
+    app.messages_.back().error=true;app.messages_.back().error_message="failed after tools";
+    app.RetryLastRequest();
+    Require(app.pending_send_&&app.messages_.back().streaming&&app.messages_.back().attempts.size()==1,
+            "manual Retry works after completed tools without rerunning them");
+    app.pending_send_=false;if(app.chat_save_.valid())app.chat_save_.get();
+    app.messages_.clear();
     app.RequestServerAction(StudioApp::ServerAction::kStart);
     Require(!app.ServerActionPending(),
             "running server cannot be started twice");
@@ -266,6 +419,8 @@ bool TestStudioLifecycle(const std::filesystem::path& executable) {
       StudioApp app(settings, 1.0f);
       StudioAppTestAccess::CheckStartup(app, false);
       StudioAppTestAccess::Run(app, chat.id);
+      StudioAppTestAccess::RunCanvasTools(app);
+      StudioAppTestAccess::CheckCanvasRecovery(app);
     }
     settings.auto_start_server = true;
     settings.onboarding_complete = false;

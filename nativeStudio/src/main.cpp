@@ -1,18 +1,18 @@
-#include "app.h"
-#include "fonts.h"
-#include "gem16_logo.generated.h"
-#include "image_texture.h"
-#include "platform_ui.h"
-#include "settings.h"
-#include "shader_background.h"
-
-#include "imgui.h"
-
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <vector>
+
+#include "app.h"
+#include "canvas_browser.h"
+#include "fonts.h"
+#include "gem16_logo.generated.h"
+#include "image_texture.h"
+#include "imgui.h"
+#include "platform_ui.h"
+#include "settings.h"
+#include "shader_background.h"
 
 #ifdef _WIN32
 #include "imgui_impl_dx11.h"
@@ -224,6 +224,7 @@ int RunWindows() {
       background.RenderNavigationFlame(seconds, app.DarkTheme());
       app.SetNavigationFlameTexture(
           static_cast<ImTextureID>(background.NavigationFlameTexture()));
+      gem16::studio::PumpCanvasBrowser();
       app.Render();
       ImGui::Render();
 
@@ -325,6 +326,7 @@ int RunLinux() {
       background.RenderNavigationFlame(seconds, app.DarkTheme());
       app.SetNavigationFlameTexture(
           static_cast<ImTextureID>(background.NavigationFlameTexture()));
+      gem16::studio::PumpCanvasBrowser();
       app.Render();
       ImGui::Render();
       int width = 0;
@@ -352,9 +354,19 @@ int RunLinux() {
 
 #ifdef _WIN32
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
-  return RunWindows();
+  const int webview = gem16::studio::InitializeCanvasBrowser(0, nullptr);
+  if (webview >= 0) return webview;
+  const int result = RunWindows();
+  gem16::studio::ShutdownCanvasBrowser();
+  return result;
 #else
-int main() {
-  return RunLinux();
+int main(int argc, char** argv) {
+  const int webview = gem16::studio::InitializeCanvasBrowser(argc, argv);
+  if (webview >= 0) return webview;
+  const int result = argc == 3 && std::string(argv[1]) == "--canvas-smoke"
+                         ? gem16::studio::RunCanvasBrowserSmoke(argv[2])
+                         : RunLinux();
+  gem16::studio::ShutdownCanvasBrowser();
+  return result;
 #endif
 }

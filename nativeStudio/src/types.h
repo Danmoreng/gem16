@@ -1,10 +1,12 @@
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "canvas.h"
 
 namespace gem16::studio {
 
@@ -127,6 +129,8 @@ struct ChatMessage {
   std::int64_t created = 0;
   std::vector<ChatAttempt> attempts{};
   bool interrupted = false;
+  std::vector<ToolCall> tool_calls{};
+  std::string tool_call_id{};
 };
 
 struct ChatEvent {
@@ -138,6 +142,7 @@ struct ChatEvent {
     kFinished,
     kError,
     kSession,
+    kToolCall,
   };
   Kind kind = Kind::kText;
   std::string value;

@@ -27,6 +27,8 @@ include(cmake/sqlite-dependency.cmake)
 
 set(STUDIO_SOURCES
   src/app.cpp
+  src/canvas.cpp
+  src/app_canvas.cpp
   src/audio_recorder.cpp
   src/api_client.cpp
   src/chat_history.cpp
@@ -129,6 +131,8 @@ elseif(UNIX AND NOT APPLE)
   target_link_libraries(gem16-studio PRIVATE glfw OpenGL::GL dl PkgConfig::GTK3)
 endif()
 
+include(cmake/webview-dependency.cmake)
+
 install(TARGETS gem16-studio RUNTIME DESTINATION bin)
 install(FILES "${GEM16_ROOT}/docs/gem16_logo.svg"
         DESTINATION share/gem16 RENAME gem16-studio.svg)
@@ -136,10 +140,14 @@ install(FILES "${GEM16_ROOT}/docs/gem16_logo.svg"
 include(CTest)
 if(BUILD_TESTING)
   add_executable(gem16-studio-tests
+    src/canvas_browser.cpp
     tests/studio_tests.cpp
     tests/chat_store_tests.cpp
+    tests/canvas_tests.cpp
     tests/studio_lifecycle_tests.cpp
     src/app.cpp
+  src/canvas.cpp
+  src/app_canvas.cpp
     src/audio_recorder.cpp
     tests/markdown_render_tests.cpp
     src/api_client.cpp

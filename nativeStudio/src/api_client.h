@@ -25,7 +25,7 @@ struct ServerMetrics {
 
 [[nodiscard]] std::string BuildChatPayload(
     const ServerConfig& server, const GenerationConfig& generation,
-    const std::vector<ChatMessage>& messages);
+    const std::vector<ChatMessage>& messages, const std::string& tools = {});
 [[nodiscard]] std::optional<ServerMetrics> ParseServerMetrics(
     std::string_view body);
 [[nodiscard]] std::optional<PerformanceStats> PerformanceDifference(
@@ -38,9 +38,10 @@ class ApiClient final {
   ApiClient(const ApiClient&) = delete;
   ApiClient& operator=(const ApiClient&) = delete;
 
-  void StreamChat(const ServerConfig& server, const GenerationConfig& generation,
+  void StreamChat(const ServerConfig& server,
+                  const GenerationConfig& generation,
                   const std::vector<ChatMessage>& messages,
-                  const std::string& session_id);
+                  const std::string& session_id, const std::string& tools = {});
   void Cancel();
   [[nodiscard]] bool Busy() const;
   [[nodiscard]] std::vector<ChatEvent> DrainEvents();

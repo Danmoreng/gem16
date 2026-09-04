@@ -34,6 +34,7 @@
 
 bool TestExtendedMarkdown();
 bool TestChatStore();
+bool TestCanvas();
 bool TestStudioLifecycle(const std::filesystem::path& executable);
 int RunStudioTestServer(int argc, char** argv);
 bool TestModelLifecycle();
@@ -1196,7 +1197,7 @@ int main(int argc, char** argv) {
     return TestStudioLifecycle(std::filesystem::absolute(argv[0])) ? 0 : 1;
   if (argc == 2 && std::string_view(argv[1]) == "--markdown")
     return TestExtendedMarkdown() ? 0 : 1;
-  if (!TestChatStore()) return 1;
+  if (!TestCanvas() || !TestChatStore()) return 1;
   if (!TestModelLifecycle()) return 1;
   if (!TestFailedChatHistory() || !TestStreamingErrorPreservesPartial() || !TestCancelBeforeChatDispatch() || !TestReverifySameSizeCorruption()) {
     std::fprintf(stderr, "chat cancellation/history or model re-verification regression failed\n");

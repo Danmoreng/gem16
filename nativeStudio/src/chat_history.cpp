@@ -39,4 +39,16 @@ bool RemoveLastExchange(std::vector<ChatMessage>& messages) {
   return true;
 }
 
+const ChatMessage* FindToolResult(const std::vector<ChatMessage>& messages,
+                                  std::size_t assistant_index,
+                                  const std::string& id) {
+  if (assistant_index >= messages.size() ||
+      messages[assistant_index].role != "assistant")
+    return nullptr;
+  for (std::size_t i = assistant_index + 1;
+       i < messages.size() && messages[i].role == "tool"; ++i)
+    if (messages[i].tool_call_id == id) return &messages[i];
+  return nullptr;
+}
+
 }  // namespace gem16::studio

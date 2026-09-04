@@ -24,6 +24,7 @@ struct Conversation {
   bool pinned = false;
   bool archived = false;
   std::vector<ChatMessage> messages;
+  std::vector<CanvasDocument> canvases;
 };
 struct ConversationSummary {
   std::string id, title, preview;

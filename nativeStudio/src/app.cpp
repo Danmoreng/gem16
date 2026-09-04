@@ -19,6 +19,7 @@
 #include "platform_ui.h"
 #include "selectable_text.h"
 #include "settings.h"
+#include "util/json.h"
 
 namespace gem16::studio {
 namespace {
@@ -464,7 +465,7 @@ StudioApp::~StudioApp() {
   if (server_action_.valid()) server_action_.wait();
   SyncSettingsFromBuffers();
   (void)SaveSettings(settings_);
-  api_.Cancel();
+  CancelGeneration();
   if (!temporary_chat_ && !messages_.empty()) {
     try { auto snapshot = conversation_; snapshot.messages = messages_; chat_store_.Save(std::move(snapshot)).get(); }
     catch (const std::exception& e) { std::fprintf(stderr, "Could not save Studio chat: %s\n", e.what()); }
@@ -540,6 +541,7 @@ void StudioApp::Render() {
   DrainChatEvents();
   PollServerAction();
   PollChatStore();
+  PollCanvasTools();
   if (pending_profile_ && CanNavigateChats()) {
     const auto profile = *pending_profile_;
     pending_profile_.reset();
@@ -581,7 +583,25 @@ void StudioApp::Render() {
   ImGui::SameLine(0, Ui(12));
   ImGui::BeginChild("##content", {0, 0}, ImGuiChildFlags_Borders);
   switch (screen_) {
-    case Screen::kChat: DrawChat(); break;
+    case Screen::kChat: {
+      if (canvas_visible_ && !conversation_.canvases.empty()) {
+        const float width = ImGui::GetContentRegionAvail().x;
+        if (width < Ui(1050)) {
+          if (ImGui::SmallButton("Back to chat")) canvas_visible_ = false;
+          DrawCanvas();
+        } else {
+          ImGui::BeginChild("##canvas-chat", {width * .52f, 0});
+          DrawChat();
+          ImGui::EndChild();
+          ImGui::SameLine();
+          ImGui::BeginChild("##canvas-panel", {0, 0});
+          DrawCanvas();
+          ImGui::EndChild();
+        }
+      } else
+        DrawChat();
+      break;
+    }
     case Screen::kModels: DrawModels(); break;
     case Screen::kServer: DrawServer(); break;
     case Screen::kSettings: DrawSettings(); break;
@@ -613,7 +633,26 @@ void StudioApp::DrainChatEvents() {
       if (streamed_chunks_ == 0) first_token_at_ = std::chrono::steady_clock::now();
       ++streamed_chunks_;
     }
+    if (event.kind == ChatEvent::Kind::kToolCall) {
+      try {
+        MergeToolDelta(message.tool_calls, event.value);
+      } catch (const std::exception& e) {
+        api_.Cancel();
+        message.error = true;
+        message.error_message = e.what();
+      }
+    }
     ApplyChatEvent(message, event);
+    if (event.kind == ChatEvent::Kind::kFinished && !message.error &&
+        !message.tool_calls.empty() && !canvas_cancelled_) {
+      try {
+        canvas_calls_ = ParseToolCalls(ToolCallsJson(message.tool_calls));
+        canvas_call_index_ = 0;
+      } catch (const std::exception& e) {
+        message.error = true;
+        message.error_message = e.what();
+      }
+    }
     ++chat_revision_;
     if (message.error) session_id_.clear();
     if (event.kind == ChatEvent::Kind::kFinished || event.kind == ChatEvent::Kind::kError)
@@ -644,7 +683,7 @@ void StudioApp::RequestServerAction(ServerAction action) {
         "Could not save the server configuration. Start was cancelled.";
     return;
   }
-  api_.Cancel();
+  CancelGeneration();
   if (pending_send_ && !messages_.empty()) {
     ApplyChatEvent(messages_.back(), {ChatEvent::Kind::kFinished, "cancelled"});
     ++chat_revision_;
@@ -663,7 +702,7 @@ void StudioApp::PollServerAction() {
       server_action_error_ = e.what();
     }
   }
-  if (!pending_server_action_ || api_.Busy()) return;
+  if (!pending_server_action_ || api_.Busy() || canvas_vision_.Busy()) return;
   // Consume the worker's terminal events before invalidating its session.
   DrainChatEvents();
   const auto action = *pending_server_action_;
@@ -782,6 +821,12 @@ void StudioApp::DrawSidebar() {
 }
 
 void StudioApp::DrawChat() {
+  if (!canvas_visible_ && !conversation_.canvases.empty()) {
+    if (ImGui::SmallButton("Open Canvas")) canvas_visible_ = true;
+  }
+  if (CanvasBusy())
+    ImGui::TextDisabled("%s", canvas_status_.empty() ? "Working on canvas..."
+                                                     : canvas_status_.c_str());
   if (!storage_error_.empty()) {
     ImGui::TextWrapped("Not saved: %s", storage_error_.c_str());
     if (ImGui::SmallButton("Retry saving")) { storage_error_.clear(); last_chat_save_ = {}; SaveChat(); }
@@ -805,6 +850,7 @@ void StudioApp::DrawChat() {
       conversation_.profile = settings_.server.profile; conversation_.identity = ModelIdentity(settings_.server);
       composer_[0] = 0; pending_attachments_.clear(); expanded_reasoning_.clear(); session_id_.clear(); chat_revision_ = saved_revision_ = saving_revision_ = 0;
       ResetUsage();
+      ResetCanvasView();
       ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine(); if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
@@ -867,6 +913,7 @@ void StudioApp::DrawChat() {
       scroll_to_bottom_ = false;
       auto_follow_ = false;
     }
+    if (messages_[index].role == "tool") continue;
     DrawMessage(messages_[index], index);
   }
   if (retry_requested_) {
@@ -897,7 +944,8 @@ void StudioApp::DrawChat() {
                         ImGuiWindowFlags_NoScrollWithMouse);
   ImGui::PopStyleVar();
   const HealthSnapshot health = server_.Health();
-  const bool busy = api_.Busy() || pending_send_ || chat_load_.valid();
+  const bool busy =
+      api_.Busy() || CanvasBusy() || pending_send_ || chat_load_.valid();
   const bool has_draft = composer_[0] != '\0' || !pending_attachments_.empty();
   const std::string live_mismatch =
       health.available ? HealthCompatibilityError(settings_.server, health)
@@ -1195,7 +1243,7 @@ void StudioApp::DrawChat() {
   if (busy) {
     if (ComposerButton("##stop", ComposerIcon::kStop, Ui(44.0f),
                        "Stop generation"))
-      api_.Cancel();
+      CancelGeneration();
   } else {
     ImGui::BeginDisabled(!can_send);
     const char* send_hint = !settings_.onboarding_complete
@@ -1489,13 +1537,74 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
       ImGui::PopStyleColor();
     }
   }
+  for (std::size_t call_index = 0; call_index < message.tool_calls.size();
+       ++call_index) {
+    const auto& call = message.tool_calls[call_index];
+    const auto* result = FindToolResult(messages_, index, call.id);
+    ImGui::PushID(static_cast<int>(call_index));
+    if (ImGui::TreeNodeEx("##tool-call", ImGuiTreeNodeFlags_SpanAvailWidth,
+                          "%s", call.name.c_str())) {
+      const auto detail = [&](const char* label, const std::string& text) {
+        ImGui::PushID(label);
+        ImGui::TextDisabled("%s", label);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Copy")) ImGui::SetClipboardText(text.c_str());
+        ImGui::BeginChild("##tool-detail", {0, Ui(190)},
+                          ImGuiChildFlags_Borders);
+        const auto parsed =
+            json::Parse(text, {16, 10000, 2 * kCanvasSourceLimit});
+        const auto show = [&](const std::string& value) {
+          constexpr std::size_t limit = 32768;
+          selectable_text::Wrapped("##value", value.substr(0, limit),
+                                   {.width = ImGui::GetContentRegionAvail().x});
+          if (value.size() > limit)
+            ImGui::TextDisabled(
+                "Preview shortened. Copy contains the complete value.");
+        };
+        if (parsed.ok() && parsed.value().is_object()) {
+          for (const auto& [key, value] : parsed.value().as_object()) {
+            ImGui::PushID(key.c_str());
+            ImGui::TextDisabled("%s", key.c_str());
+            show(value.is_string() ? value.as_string()
+                                   : json::Stringify(value));
+            ImGui::Spacing();
+            ImGui::PopID();
+          }
+        } else
+          show(text);
+        ImGui::EndChild();
+        ImGui::PopID();
+      };
+      detail("Input", call.arguments);
+      if (result)
+        detail("Output", result->content);
+      else
+        ImGui::TextDisabled("%s", message.error
+                                      ? "No result: the call was not completed."
+                                      : "Waiting for tool result...");
+      ImGui::TreePop();
+    }
+    ImGui::PopID();
+  }
   if (message.content.empty() && message.streaming) {
     const int dots = 1 + static_cast<int>(std::fmod(ImGui::GetTime() * 2.5, 3.0));
     ImGui::TextColored(kAccent, "%.*s", dots, "...");
   } else {
     ImGui::Spacing();
     markdown::Render((std::string("content##") + std::to_string(index)).c_str(),
-                     message.content, ImGui::GetContentRegionAvail().x, &svg_previews_);
+                     message.content, ImGui::GetContentRegionAvail().x,
+                     nullptr);
+    if (!user && !message.streaming && CanNavigateChats()) {
+      for (const auto& block : markdown::Parse(message.content)) {
+        if (block.kind != markdown::BlockKind::kCode) continue;
+        if (block.info == "html" || IsSvgCode(block.info, block.text)) {
+          if (ImGui::SmallButton(
+                  ("Open in Canvas##" + std::to_string(index)).c_str()))
+            ImportCanvas(block.text, block.info == "html" ? "html" : "svg");
+          break;
+        }
+      }
+    }
   }
   ImGui::EndChild();
   const ImVec2 bubble_min = ImGui::GetItemRectMin();
@@ -2043,7 +2152,10 @@ void StudioApp::DrawSettings() {
 }
 
 void StudioApp::SendMessage() {
-  if (ServerActionPending()) return;
+  if (ServerActionPending() || CanvasBusy()) return;
+  canvas_cancelled_ = false;
+  canvas_rounds_ = canvas_checks_ = canvas_format_retries_ = 0;
+  canvas_repair_instruction_.clear();
   std::string text = composer_.data();
   if ((text.empty() && pending_attachments_.empty()) || api_.Busy() || pending_send_ || chat_save_.valid()) return;
   const auto history_error = ChatCompatibilityError();
@@ -2083,11 +2195,12 @@ void StudioApp::SendMessage() {
 }
 
 void StudioApp::RetryLastRequest() {
-  if (ServerActionPending() || api_.Busy() || pending_send_ ||
-      chat_save_.valid() ||
-      !ChatCompatibilityError().empty() || messages_.size() < 2U ||
-      messages_.back().role != "assistant" || !messages_.back().error ||
-      messages_[messages_.size() - 2U].role != "user") {
+  if (ServerActionPending() || api_.Busy() || CanvasBusy() || pending_send_ ||
+      chat_save_.valid() || !ChatCompatibilityError().empty() ||
+      messages_.size() < 2U || messages_.back().role != "assistant" ||
+      !messages_.back().error ||
+      std::none_of(messages_.begin(), messages_.end(),
+                   [](const auto& m) { return m.role == "user"; })) {
     return;
   }
   const HealthSnapshot health = server_.Health();
@@ -2097,6 +2210,9 @@ void StudioApp::RetryLastRequest() {
     attachment_error_ = mismatch;
     return;
   }
+  canvas_cancelled_ = false;
+  canvas_rounds_ = canvas_checks_ = canvas_format_retries_ = 0;
+  canvas_repair_instruction_.clear();
   PreserveAttempt(messages_.back());
   messages_.back().generation = GenerationIdentity(settings_);
   ++chat_revision_; pending_send_ = true; pending_request_settings_ = settings_;
@@ -2197,7 +2313,7 @@ void StudioApp::ActivateModel(const ServerConfig& config, bool keep_chat) {
 void StudioApp::SelectProfile(ModelProfile profile) {
   if (!CanNavigateChats()) {
     pending_profile_ = profile;
-    api_.Cancel();
+    CancelGeneration();
     return;
   }
   models_.Refresh();
@@ -2238,8 +2354,8 @@ namespace {
 template<class T> bool FutureReady(std::future<T>& f) { return f.valid() && f.wait_for(std::chrono::seconds(0)) == std::future_status::ready; }
 }
 bool StudioApp::CanNavigateChats() const {
-  return !ServerActionPending() && !api_.Busy() && !pending_send_ &&
-         !chat_save_.valid() && !chat_load_.valid() &&
+  return !ServerActionPending() && !api_.Busy() && !CanvasBusy() &&
+         !pending_send_ && !chat_save_.valid() && !chat_load_.valid() &&
          !recorder_.Active() &&
          (temporary_chat_ || chat_revision_ == saved_revision_);
 }
@@ -2275,13 +2391,30 @@ void StudioApp::SaveChat() {
   }
 }
 void StudioApp::StartSavedRequest() {
-  if (!pending_send_) return;
+  if (!pending_send_ || api_.Busy() || canvas_vision_.Busy()) return;
   pending_send_ = false;
+  ResetUsage();
   auto history = messages_; history.pop_back();
-  api_.StreamChat(pending_request_settings_.server, pending_request_settings_.generation, history, session_id_);
+  auto generation = pending_request_settings_.generation;
+  const bool canvas = CanvasBrowserAvailable();
+  const auto context = canvas ? CanvasInstructions(conversation_.canvases) +
+                                    canvas_repair_instruction_
+                              : std::string{};
+  if (context != canvas_prompt_context_) {
+    session_id_.clear();
+    canvas_prompt_context_ = context;
+  }
+  generation.system_prompt += context;
+  api_.StreamChat(pending_request_settings_.server, generation, history,
+                  session_id_, canvas ? CanvasTools() : std::string{});
 }
 void StudioApp::PollChatStore() {
   try {
+    if (pending_send_ &&
+        (temporary_chat_ ||
+         (!chat_save_.valid() && saved_revision_ == chat_revision_ &&
+          storage_error_.empty())))
+      StartSavedRequest();
     if (!chat_listing_.valid() && (listed_search_!=chat_search_.data() || listed_archived_!=show_archived_) && std::chrono::steady_clock::now()-search_changed_>std::chrono::milliseconds(250)) { listed_search_=chat_search_.data(); listed_archived_=show_archived_; chat_listing_=chat_store_.List(show_archived_,listed_search_); }
     if (FutureReady(chat_save_)) {
       chat_save_.get(); saved_revision_ = saving_revision_; storage_error_.clear();
@@ -2302,6 +2435,7 @@ void StudioApp::PollChatStore() {
       conversation_ = std::move(loaded); messages_ = std::move(conversation_.messages); temporary_chat_ = false;
       session_id_.clear();
       ResetUsage();
+      ResetCanvasView();
       expanded_reasoning_.clear();
       attachment_textures_.clear();
       svg_previews_.Clear();
@@ -2325,6 +2459,7 @@ void StudioApp::NewConversation(bool temporary) {
   svg_previews_.Clear();
   messages_.clear(); pending_attachments_.clear(); session_id_.clear(); composer_[0] = 0;
   ResetUsage();
+  ResetCanvasView();
   expanded_reasoning_.clear(); performance_.reset(); attachment_error_.clear();
   chat_revision_ = saved_revision_ = 0; screen_ = Screen::kChat;
 }

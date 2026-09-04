@@ -187,7 +187,9 @@ J MessageJson(const ChatMessage& m, const std::filesystem::path& root) {
                      {"attempts", J(std::move(attempts))},
                      {"generation", J(m.generation)},
                      {"created", J(m.created)},
-                     {"error_message", J(m.error_message)}});
+                     {"error_message", J(m.error_message)},
+                     {"tool_calls", J(ToolCallsJson(m.tool_calls))},
+                     {"tool_call_id", J(m.tool_call_id)}});
 }
 std::string SearchText(const std::string& content, const std::string& reasoning,
                        const std::string& details) {
@@ -338,6 +340,7 @@ void PreserveAttempt(ChatMessage& m) {
   m.attempts.push_back({m.content, m.reasoning, m.error_message, m.generation,
                         m.created, m.error, m.interrupted});
   m.content.clear();
+  m.tool_calls.clear();
   m.reasoning.clear();
   m.error_message.clear();
   m.error = false;
@@ -423,7 +426,7 @@ void ChatStore::Open() {
   Statement version(db_, "PRAGMA user_version");
   version.Row();
   const auto schema_version = version.Int(0);
-  if (schema_version > 2)
+  if (schema_version > 3)
     throw std::runtime_error(
         "This chat database needs a newer Studio version.");
   Exec(db_,
@@ -457,12 +460,21 @@ void ChatStore::Open() {
       throw;
     }
   }
+  Exec(db_,
+       "BEGIN; CREATE TABLE IF NOT EXISTS canvases(chat TEXT NOT NULL "
+       "REFERENCES conversations(id) ON DELETE CASCADE,id TEXT NOT NULL,title "
+       "TEXT NOT NULL,type TEXT NOT NULL,PRIMARY KEY(chat,id));"
+       "CREATE TABLE IF NOT EXISTS canvas_revisions(chat TEXT NOT NULL,id TEXT "
+       "NOT NULL,revision INTEGER NOT NULL,source TEXT NOT NULL,PRIMARY "
+       "KEY(chat,id,revision),FOREIGN KEY(chat,id) REFERENCES "
+       "canvases(chat,id) ON DELETE CASCADE); PRAGMA user_version=3; COMMIT;");
   Exec(db_, "UPDATE messages SET state=3 WHERE state=1;");
 }
 void ChatStore::SaveNow(const Conversation& c) {
   if (!open_error_.empty()) throw std::runtime_error(open_error_);
   if (!SafeHash(c.id) || c.messages.size() > 10000 || c.title.size() > 512)
     throw std::runtime_error("Chat exceeds storage limits.");
+  ValidateCanvases(c.canvases);
   std::vector<std::string> details;
   std::size_t total = 0, media_bytes = 0;
   for (const auto& m : c.messages)
@@ -498,6 +510,35 @@ void ChatStore::SaveNow(const Conversation& c) {
     q.Int(7, c.archived);
     q.Int(8, c.created > 0 ? c.created : Now());
     q.Row();
+    for (const auto& d : c.canvases) {
+      Statement doc(db_,
+                    "INSERT INTO canvases VALUES(?,?,?,?) ON CONFLICT(chat,id) "
+                    "DO UPDATE SET title=excluded.title,type=excluded.type "
+                    "WHERE title!=excluded.title OR type!=excluded.type");
+      doc.Text(1, c.id);
+      doc.Text(2, d.id);
+      doc.Text(3, d.title);
+      doc.Text(4, d.type);
+      doc.Row();
+      for (const auto& r : d.revisions) {
+        Statement existing(db_,
+                           "SELECT source FROM canvas_revisions WHERE chat=? "
+                           "AND id=? AND revision=?");
+        existing.Text(1, c.id);
+        existing.Text(2, d.id);
+        existing.Int(3, r.number);
+        if (existing.Row() && existing.Text(0) != r.source)
+          throw std::runtime_error(
+              "Canvas revisions are immutable; append a new revision.");
+        Statement revision(
+            db_, "INSERT OR IGNORE INTO canvas_revisions VALUES(?,?,?,?)");
+        revision.Text(1, c.id);
+        revision.Text(2, d.id);
+        revision.Int(3, r.number);
+        revision.Text(4, r.source);
+        revision.Row();
+      }
+    }
     Statement erase(db_, "DELETE FROM messages WHERE chat=? AND pos>=?");
     erase.Text(1, c.id);
     erase.Int(2, c.messages.size());
@@ -582,12 +623,17 @@ Conversation ChatStore::LoadNow(const std::string& id) {
     total_text += metadata.size() + m.content.size() + m.reasoning.size();
     if (total_text > 32U * 1024U * 1024U)
       throw std::runtime_error("Saved chat exceeds text limit.");
-    if (m.role != "user" && m.role != "assistant")
+    if (m.role != "user" && m.role != "assistant" && m.role != "tool")
       throw std::runtime_error("Unsupported saved message role.");
     auto parsed = json::Parse(metadata, {32, 100000, 32U * 1024U * 1024U});
     if (!parsed.ok())
       throw std::runtime_error("Saved chat metadata is damaged.");
     const auto& d = parsed.value();
+    if (d.find("tool_calls"))
+      m.tool_calls = ParseToolCalls(Str(d, "tool_calls"));
+    if (d.find("tool_call_id")) m.tool_call_id = Str(d, "tool_call_id");
+    if (m.tool_call_id.size() > 256)
+      throw std::runtime_error("Invalid tool result identity.");
     m.generation = Str(d, "generation");
     m.created = Num(d, "created");
     m.error_message = Str(d, "error_message");
@@ -646,6 +692,30 @@ Conversation ChatStore::LoadNow(const std::string& id) {
            a.find("interrupted") ? Flag(a, "interrupted") : false});
     c.messages.push_back(std::move(m));
   }
+  Statement docs(
+      db_, "SELECT id,title,type FROM canvases WHERE chat=? ORDER BY rowid");
+  docs.Text(1, id);
+  std::size_t canvas_bytes = 0;
+  while (docs.Row()) {
+    if (c.canvases.size() >= 16)
+      throw std::runtime_error("Too many saved canvases.");
+    CanvasDocument d{docs.Text(0), docs.Text(1), docs.Text(2), {}};
+    Statement revisions(db_,
+                        "SELECT revision,source FROM canvas_revisions WHERE "
+                        "chat=? AND id=? ORDER BY revision");
+    revisions.Text(1, id);
+    revisions.Text(2, d.id);
+    while (revisions.Row()) {
+      auto source = revisions.Text(1);
+      canvas_bytes += source.size();
+      if (d.revisions.size() >= 128 || source.size() > kCanvasSourceLimit ||
+          canvas_bytes > 32U * 1024U * 1024U)
+        throw std::runtime_error("Canvas history exceeds limits.");
+      d.revisions.push_back({revisions.Int(0), std::move(source)});
+    }
+    c.canvases.push_back(std::move(d));
+  }
+  ValidateCanvases(c.canvases);
   return c;
 }
 std::future<Conversation> ChatStore::Load(std::string id) {
@@ -770,6 +840,19 @@ std::future<std::filesystem::path> ChatStore::Export(
                       attempt.reasoning + "\n\n" + attempt.error_message +
                       "\n\n";
       }
+      ValidateCanvases(chat.canvases);
+      J::Array canvases;
+      for (const auto& canvas : chat.canvases) {
+        J::Array revisions;
+        for (const auto& revision : canvas.revisions)
+          revisions.emplace_back(J::Object{{"revision", J(revision.number)},
+                                           {"source", J(revision.source)}});
+        canvases.emplace_back(
+            J::Object{{"id", J(canvas.id)},
+                      {"title", J(canvas.title)},
+                      {"type", J(canvas.type)},
+                      {"revisions", J(std::move(revisions))}});
+      }
       J document(
           J::Object{{"format", J(std::string("gem16-chat-v1"))},
                     {"id", J(chat.id)},
@@ -780,7 +863,8 @@ std::future<std::filesystem::path> ChatStore::Export(
                     {"updated", J(chat.updated)},
                     {"pinned", J(chat.pinned)},
                     {"archived", J(chat.archived)},
-                    {"messages", J(std::move(messages))}});
+                    {"messages", J(std::move(messages))},
+                    {"canvases", J(std::move(canvases))}});
       WriteText(staging / "chat.json", json::Stringify(document));
       WriteText(staging / "chat.md", markdown);
       std::filesystem::rename(staging, output);

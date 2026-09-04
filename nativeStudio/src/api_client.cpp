@@ -1,15 +1,16 @@
 #include "api_client.h"
 
-#include "media_loader.h"
-#include "util/json.h"
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <unordered_map>
+
+#include "media_loader.h"
+#include "util/json.h"
 
 namespace gem16::studio {
 namespace {
@@ -101,7 +102,8 @@ std::optional<PerformanceStats> PerformanceDifference(
 
 std::string BuildChatPayload(const ServerConfig& server,
                              const GenerationConfig& generation,
-                             const std::vector<ChatMessage>& messages) {
+                             const std::vector<ChatMessage>& messages,
+                             const std::string& tools) {
   std::ostringstream output;
   output << "{\"model\":" << json::Quote(server.model_name)
          << ",\"stream\":true,\"stream_options\":{\"include_usage\":true}"
@@ -111,6 +113,7 @@ std::string BuildChatPayload(const ServerConfig& server,
     output << ",\"vision_soft_token_budget\":"
            << server.vision_soft_token_budget;
   }
+  if (!tools.empty()) output << ",\"tools\":" << tools;
   output << ",\"messages\":[";
   bool first = true;
   if (!generation.system_prompt.empty()) {
@@ -118,13 +121,37 @@ std::string BuildChatPayload(const ServerConfig& server,
            << json::Quote(generation.system_prompt) << '}';
     first = false;
   }
+  // A cancelled/incomplete tool exchange must never produce orphan tool
+  // results.
+  std::vector<bool> excluded(messages.size(), false);
+  for (std::size_t begin = 0; begin < messages.size();) {
+    std::size_t end = begin + 1;
+    while (end < messages.size() && messages[end].role != "user") ++end;
+    bool invalid = false;
+    std::set<std::string> pending;
+    for (std::size_t i = begin; i < end; ++i) {
+      const auto& m = messages[i];
+      invalid |= m.error || m.streaming;
+      for (const auto& c : m.tool_calls)
+        if (c.id.empty() || !pending.insert(c.id).second) invalid = true;
+      if (m.role == "tool" && pending.erase(m.tool_call_id) != 1)
+        invalid = true;
+    }
+    invalid |= !pending.empty();
+    if (invalid)
+      std::fill(excluded.begin() + begin, excluded.begin() + end, true);
+    begin = end;
+  }
   for (std::size_t index = 0; index < messages.size(); ++index) {
     const ChatMessage& message = messages[index];
     // A failed exchange remains visible in Studio, but is not canonical history.
-    if (message.error || message.streaming ||
+    if (excluded[index] || message.error || message.streaming ||
         (message.role == "user" && index + 1 < messages.size() &&
-         messages[index + 1].role == "assistant" && messages[index + 1].error)) continue;
-    if (message.role != "user" && message.role != "assistant") continue;
+         messages[index + 1].role == "assistant" && messages[index + 1].error))
+      continue;
+    if (message.role != "user" && message.role != "assistant" &&
+        message.role != "tool")
+      continue;
     if (!first) output << ',';
     first = false;
     std::string content = message.role == "user" ? UserTextWithDocuments(message)
@@ -135,13 +162,21 @@ std::string BuildChatPayload(const ServerConfig& server,
       }
     }
     output << "{\"role\":" << json::Quote(message.role);
+    if (!message.tool_calls.empty())
+      output << ",\"tool_calls\":" << ToolCallsJson(message.tool_calls);
+    if (message.role == "tool")
+      output << ",\"tool_call_id\":" << json::Quote(message.tool_call_id);
     const bool has_media = message.role == "user" &&
         std::any_of(message.attachments.begin(), message.attachments.end(),
                     [](const MediaAttachment& attachment) {
                       return attachment.kind != MediaKind::kDocument;
                     });
     if (!has_media) {
-      output << ",\"content\":" << json::Quote(content);
+      output << ",\"content\":"
+             << (message.role == "assistant" && !message.tool_calls.empty() &&
+                         content.empty()
+                     ? "null"
+                     : json::Quote(content));
     } else {
       output << ",\"content\":[";
       bool first_part = true;
@@ -222,6 +257,9 @@ void ParseSseData(std::string_view data, const std::function<void(ChatEvent)>& e
   if (!choices || !choices->is_array() || choices->as_array().empty()) return;
   const json::Value* choice = &choices->as_array().front();
   const json::Value* delta = Member(choice, "delta");
+  if (const auto* calls = Member(delta, "tool_calls");
+      calls && calls->is_array())
+    emit({ChatEvent::Kind::kToolCall, json::Stringify(*calls)});
   const std::string reasoning = TextMember(delta, "reasoning_content");
   const std::string content = TextMember(delta, "content");
   if (!reasoning.empty()) emit({ChatEvent::Kind::kReasoning, reasoning});
@@ -238,7 +276,8 @@ ApiClient::~ApiClient() {
 void ApiClient::StreamChat(const ServerConfig& server,
                            const GenerationConfig& generation,
                            const std::vector<ChatMessage>& messages,
-                           const std::string& session_id) {
+                           const std::string& session_id,
+                           const std::string& tools) {
   if (Busy()) return;
   if (worker_.joinable()) worker_.join();
   cancel_requested_.store(false);
@@ -247,7 +286,8 @@ void ApiClient::StreamChat(const ServerConfig& server,
     busy_ = true;
     events_.clear();
   }
-  worker_ = std::jthread([this, server, generation, messages, session_id] {
+  worker_ = std::jthread([this, server, generation, messages, session_id,
+                          tools] {
     const std::string host = server.host == "0.0.0.0" ? "127.0.0.1" : server.host;
     auto client = std::make_shared<httplib::Client>(host, server.port);
     client->set_connection_timeout(std::chrono::seconds(5));
@@ -264,9 +304,15 @@ void ApiClient::StreamChat(const ServerConfig& server,
       active_client_.reset();
       busy_ = false;
     };
-    if (cancel_requested_.load()) { finish_cancelled(); return; }
+    if (cancel_requested_.load()) {
+      finish_cancelled();
+      return;
+    }
     const auto metrics_before = FetchServerMetrics(*client);
-    if (cancel_requested_.load()) { finish_cancelled(); return; }
+    if (cancel_requested_.load()) {
+      finish_cancelled();
+      return;
+    }
     client->set_read_timeout(std::chrono::minutes(30));
     httplib::Headers headers{{"Accept", "text/event-stream"},
                              {"Authorization", "Bearer gem16"}};
@@ -275,8 +321,11 @@ void ApiClient::StreamChat(const ServerConfig& server,
     std::string response_prefix;
     bool saw_done = false;
     bool saw_error = false;
-    const auto payload = BuildChatPayload(server, generation, messages);
-    if (cancel_requested_.load()) { finish_cancelled(); return; }
+    const auto payload = BuildChatPayload(server, generation, messages, tools);
+    if (cancel_requested_.load()) {
+      finish_cancelled();
+      return;
+    }
     const auto response = client->Post(
         "/v1/chat/completions", headers, payload.size(),
         [this, &payload](std::size_t offset, std::size_t length, httplib::DataSink& sink) {
@@ -326,7 +375,8 @@ void ApiClient::StreamChat(const ServerConfig& server,
       Emit({ChatEvent::Kind::kError, "The server stream ended without a [DONE] marker"});
     } else {
       const std::string returned_session = response->get_header_value("X-Gem16-Session-Id");
-      if (!returned_session.empty()) Emit({ChatEvent::Kind::kSession, returned_session});
+      if (!returned_session.empty())
+        Emit({ChatEvent::Kind::kSession, returned_session});
       if (metrics_before && !cancel_requested_.load()) {
         if (const auto metrics_after = FetchServerMetrics(*client)) {
           if (const auto performance =

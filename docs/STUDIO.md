@@ -35,9 +35,12 @@ controls. D2 requires the server's matching live capability. See the
 
 ## Chat and recovery
 
-Answers support selectable Markdown, code copying, bounded SVG previews and math.
-Reasoning is collapsed by default. Web links open only on explicit interaction;
-HTML is inert and remote images are not automatically fetched.
+Answers support selectable Markdown, code copying and math.
+Reasoning is collapsed by default. Tool calls also appear as collapsed rows labeled
+with the tool name. Expand a row to inspect and copy Input (model arguments) and
+Output (tool result or error). Results are matched within their own assistant turn. Web links open only on explicit interaction;
+HTML in chat is inert and remote images are not automatically fetched. HTML/SVG
+previews open in Canvas using the system WebView.
 The context meter adds the server's input and output usage, including reasoning.
 It shows **Pending** until usage arrives at completion, also after reopening a
 saved chat until its next request. Stream chunks are not treated as exact tokens.
@@ -60,6 +63,36 @@ The sidebar searches titles, messages, reasoning and attached documents and jump
 to matching turns. Export, backup and attachment cleanup remain internal storage
 operations with host-test coverage; they are not exposed in the chat interface.
 See [chat storage](STUDIO_STORAGE.md) for paths, durability, restore and limits.
+
+## Canvas
+
+Ask for an HTML page or SVG **in Canvas**. The model can create a document, read
+its current source, edit a unique fragment and inspect the preview. Existing HTML/SVG
+code blocks have **Open in Canvas**. The panel offers **Preview**, **Code** and
+**History**; restoring an older revision creates a new revision. Narrow windows
+show Canvas at full width with **Back to chat**.
+
+Canvas uses the installed system WebView: WebKitGTK 4.1 on Linux and Evergreen
+WebView2 on Windows. Studio does not download or package Chromium/CEF or a fixed
+WebView2 runtime. Missing runtime support is reported explicitly. The preview
+runs self-contained code in an isolated frame with external network/files,
+permissions, popups and host bindings disabled. Use system fonts and embedded images.
+
+`canvas_check` returns browser diagnostics and can request a real 1024×768 PNG.
+The same active Vision model reviews that screenshot in a separate, sequential,
+one-image request and returns its observations to the editing agent. This respects
+Compact Vision's single-image/single-slot limit; the chat session rebuilds afterward.
+The image is transient; source revisions and tool results persist with the chat.
+Temporary chats keep their Canvas documents only in memory.
+
+Checks are limited to three per user request and tool loops to twelve rounds.
+Malformed tool-call syntax gets at most two automatic retries with format feedback;
+previous failed attempts remain visible. Stop cancels recovery. Manual Retry also
+works after a chain of completed tools, preserving the Canvas revisions.
+Browser diagnostics include script/resource errors and SVG parse errors; they are
+not a full HTML validator. Opaque-frame errors can omit line/detail information.
+A screenshot covers the current viewport, not the entire document, and a visual
+review can miss problems. See [storage](STUDIO_STORAGE.md) for revision limits.
 
 ## Models and verification
 

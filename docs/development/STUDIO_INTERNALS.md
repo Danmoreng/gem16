@@ -124,10 +124,14 @@ new native product decision, not a parity requirement and not a reason to contin
 
 ## Build and run
 
-Requirements are CMake 3.28+, a C++20 compiler, and a current `gem16-server`. Linux additionally needs OpenGL, GTK 3,
+Requirements are CMake 3.28+, a C++20 compiler, and a current `gem16-server`. Linux additionally needs OpenGL, GTK 3, WebKitGTK 4.1 (2.40 or newer),
 and the GLFW build dependencies for X11 or Wayland; GLFW 3.4 is pinned and fetched by CMake. Poppler `pdftotext` is
 an optional runtime dependency for PDF attachments. Windows uses platform SDK Direct3D 11 libraries and requires no
-GLFW dependency.
+GLFW dependency. Canvas uses the installed Evergreen WebView2 runtime; CMake fetches
+only the pinned SDK and statically links its small loader. No browser engine is bundled.
+Install Linux headers with `sudo pacman -S webkit2gtk-4.1` (Arch) or
+`sudo apt install libwebkit2gtk-4.1-dev` (Ubuntu). The runtime package is
+`libwebkit2gtk-4.1-0` on Ubuntu. See [Canvas behavior](../STUDIO.md#canvas).
 
 Linux:
 

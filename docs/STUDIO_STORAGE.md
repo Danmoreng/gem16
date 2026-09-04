@@ -37,6 +37,20 @@ The real Studio lifecycle, Markdown renderer and host fixtures run as three sepa
 CTest processes. Linux test executables cap virtual memory at 2 GiB and each CTest has
 a 60-second timeout. Windows runtime and interactive desktop qualification remains separate.
 
+## Canvas revisions
+
+Schema 3 adds chat-owned `canvases` and immutable `canvas_revisions` tables.
+Document IDs are scoped to their conversation. An edit requires the current
+revision and exactly one matching source fragment; rejected edits change nothing.
+Canvas mutations and their tool transcript are committed before model continuation.
+Restoring history appends a revision. Deleting a conversation cascades to its Canvas.
+Limits are 16 documents, 128 revisions per document, 1 MiB per source revision and
+32 MiB of Canvas source history per chat. Screenshot pixels are transient; browser
+and visual-review observations are stored as tool results. Incomplete/interrupted
+tool exchanges are excluded from subsequent model context. Backup includes all
+revisions; JSON export includes source history. Canvas source has no separate FTS
+index; tool messages participate in ordinary chat indexing.
+
 ## Search, export and backup
 
 The chat UI exposes search and automatic persistence. Manual title editing, pinning,

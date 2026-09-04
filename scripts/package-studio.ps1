@@ -30,6 +30,7 @@ Copy-Item (Join-Path $Build "bin\gem16-studio.exe") (Join-Path $Stage "bin") -Fo
 Copy-Item (Join-Path $Build "bin\math-res") (Join-Path $Stage "bin") -Recurse -Force
 Copy-Item (Join-Path $Build "bin\licenses\*") (Join-Path $Stage "licenses") -Force
 Copy-Item $Server (Join-Path $Stage "bin") -Force
+"System dependencies: Evergreen WebView2 Runtime, NVIDIA driver/CUDA runtime. No browser engine is bundled." | Set-Content (Join-Path $Stage "SYSTEM-DEPENDENCIES.txt")
 Copy-Item (Join-Path $RepoRoot "VERSION") $Stage -Force
 Copy-Item (Join-Path $RepoRoot "LICENSE") $Stage -Force
 Copy-Item (Join-Path $RepoRoot "nativeStudio\third_party\imgui\LICENSE.txt") (Join-Path $Stage "licenses\Dear-ImGui-MIT.txt") -Force

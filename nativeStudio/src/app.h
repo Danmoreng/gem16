@@ -1,14 +1,5 @@
 #pragma once
 
-#include "api_client.h"
-#include "chat_store.h"
-#include "audio_recorder.h"
-#include "image_texture.h"
-#include "svg_preview.h"
-#include "model_manager.h"
-#include "server_manager.h"
-#include "types.h"
-
 #include <array>
 #include <chrono>
 #include <filesystem>
@@ -17,6 +8,16 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+
+#include "api_client.h"
+#include "audio_recorder.h"
+#include "canvas_browser.h"
+#include "chat_store.h"
+#include "image_texture.h"
+#include "model_manager.h"
+#include "server_manager.h"
+#include "svg_preview.h"
+#include "types.h"
 
 namespace gem16::studio {
 
@@ -50,6 +51,13 @@ class StudioApp final {
   bool CanNavigateChats() const;
   std::string ChatCompatibilityError() const;
   void DrawChat();
+  void DrawCanvas();
+  void PollCanvasTools();
+  void CancelGeneration();
+  bool CanvasBusy() const;
+  void FinishCanvasTool(std::string result);
+  void ImportCanvas(const std::string& source, const std::string& type);
+  void ResetCanvasView();
   void DrawModels();
   void DrawServer();
   void DrawSettings();
@@ -99,6 +107,20 @@ class StudioApp final {
   std::string server_action_error_;
   ModelManager models_;
   ApiClient api_;
+  ApiClient canvas_vision_;
+  CanvasBrowser canvas_browser_;
+  ImageTexture canvas_texture_;
+  std::string selected_canvas_, canvas_status_, canvas_visual_result_,
+      canvas_prompt_context_;
+  std::vector<ToolCall> canvas_calls_;
+  std::size_t canvas_call_index_ = 0;
+  int canvas_rounds_ = 0, canvas_checks_ = 0, canvas_format_retries_ = 0;
+  std::string canvas_repair_instruction_;
+  bool RecoverCanvasFormatError();
+  bool canvas_visible_ = false, canvas_check_started_ = false,
+       canvas_vision_started_ = false;
+  bool canvas_cancelled_ = false;
+  std::chrono::steady_clock::time_point canvas_check_at_{}, canvas_paint_at_{};
   AudioRecorder recorder_;
   Screen screen_ = Screen::kChat;
   std::vector<ChatMessage> messages_;
