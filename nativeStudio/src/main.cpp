@@ -219,6 +219,11 @@ int RunWindows() {
       ImGui_ImplDX11_NewFrame();
       ImGui_ImplWin32_NewFrame();
       ImGui::NewFrame();
+      const float seconds = std::chrono::duration<float>(
+          std::chrono::steady_clock::now() - started).count();
+      background.RenderNavigationFlame(seconds, app.DarkTheme());
+      app.SetNavigationFlameTexture(
+          static_cast<ImTextureID>(background.NavigationFlameTexture()));
       app.Render();
       ImGui::Render();
 
@@ -233,7 +238,6 @@ int RunWindows() {
       d3d.context->RSSetViewports(1, &viewport);
       D3D11_RECT scissor{0, 0, area.right, area.bottom};
       d3d.context->RSSetScissorRects(1, &scissor);
-      const float seconds = std::chrono::duration<float>(std::chrono::steady_clock::now() - started).count();
       background.Render(seconds, static_cast<float>(area.right), static_cast<float>(area.bottom), app.DarkTheme());
       ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
       d3d.swap_chain->Present(1, 0);
@@ -316,6 +320,11 @@ int RunLinux() {
       ImGui_ImplOpenGL3_NewFrame();
       ImGui_ImplGlfw_NewFrame();
       ImGui::NewFrame();
+      const float seconds = std::chrono::duration<float>(
+          std::chrono::steady_clock::now() - started).count();
+      background.RenderNavigationFlame(seconds, app.DarkTheme());
+      app.SetNavigationFlameTexture(
+          static_cast<ImTextureID>(background.NavigationFlameTexture()));
       app.Render();
       ImGui::Render();
       int width = 0;
@@ -324,7 +333,6 @@ int RunLinux() {
       glViewport(0, 0, width, height);
       glClearColor(0.01f, 0.015f, 0.015f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT);
-      const float seconds = std::chrono::duration<float>(std::chrono::steady_clock::now() - started).count();
       background.Render(seconds, static_cast<float>(width), static_cast<float>(height), app.DarkTheme());
       ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
       glfwSwapBuffers(window);

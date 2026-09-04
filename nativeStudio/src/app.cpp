@@ -122,10 +122,17 @@ void DrawGemstone(ImDrawList* draw, ImVec2 center, float radius) {
 
 void DrawNavIcon(ImDrawList* draw, Screen screen, ImVec2 center, ImU32 color) {
   if (screen == Screen::kChat) {
-    draw->AddCircle(center, Ui(9.0f), color, 18, Ui(1.7f));
-    draw->AddLine({center.x - Ui(6.0f), center.y + Ui(6.0f)},
+    const ImVec2 bubble_min{center.x - Ui(10.0f), center.y - Ui(7.5f)};
+    const ImVec2 bubble_max{center.x + Ui(10.0f), center.y + Ui(7.0f)};
+    draw->AddRect(bubble_min, bubble_max, color, Ui(6.0f), 0, Ui(1.7f));
+    draw->AddLine({center.x - Ui(5.5f), bubble_max.y - Ui(0.5f)},
                   {center.x - Ui(9.0f), center.y + Ui(11.0f)}, color,
                   Ui(1.7f));
+    draw->AddLine({center.x - Ui(9.0f), center.y + Ui(11.0f)},
+                  {center.x - Ui(1.0f), bubble_max.y}, color, Ui(1.7f));
+    for (int dot = -1; dot <= 1; ++dot)
+      draw->AddCircleFilled({center.x + dot * Ui(4.0f), center.y},
+                            Ui(1.05f), color, 8);
   } else if (screen == Screen::kModels) {
     draw->AddRect({center.x - Ui(9.0f), center.y - Ui(8.0f)},
                   {center.x + Ui(9.0f), center.y + Ui(8.0f)}, color, Ui(2.0f),
@@ -156,7 +163,8 @@ void DrawNavIcon(ImDrawList* draw, Screen screen, ImVec2 center, ImU32 color) {
   }
 }
 
-bool NavButton(const char* label, Screen screen, bool selected, float width) {
+bool NavButton(const char* label, Screen screen, bool selected, float width,
+               ImTextureID flame_texture) {
   static std::array<float, 4> glow_strength{};
   ImGui::InvisibleButton(label, {width, Ui(48.0f)});
   const bool clicked = ImGui::IsItemClicked();
@@ -182,23 +190,26 @@ bool NavButton(const char* label, Screen screen, bool selected, float width) {
         IM_COL32(8, 61, 43,
                  static_cast<int>((selected ? 162.0f : 105.0f) * glow)),
         Ui(11.0f), ImDrawFlags_RoundCornersRight);
-    draw->AddCircleFilled(
-        {minimum.x - Ui(2.0f), center.y}, Ui(34.0f),
-        IM_COL32(38, 244, 164, static_cast<int>(42.0f * glow)), 36);
-    draw->AddRectFilledMultiColor(
-        {minimum.x + Ui(1.0f), minimum.y + Ui(2.0f)},
-        {minimum.x + width * 0.72f, maximum.y - Ui(2.0f)},
-        IM_COL32(37, 239, 160, static_cast<int>(84.0f * glow)),
-        IM_COL32(37, 239, 160, 0), IM_COL32(37, 239, 160, 0),
-        IM_COL32(37, 239, 160, static_cast<int>(84.0f * glow)));
+    if (selected && flame_texture != ImTextureID_Invalid) {
+      draw->AddImageRounded(
+          ImTextureRef(flame_texture), minimum, maximum, {0.0f, 0.0f},
+          {1.0f, 1.0f},
+          IM_COL32(255, 255, 255, static_cast<int>(235.0f * glow)),
+          Ui(11.0f), ImDrawFlags_RoundCornersRight);
+    } else {
+      draw->AddCircleFilled(
+          {minimum.x - Ui(2.0f), center.y}, Ui(34.0f),
+          IM_COL32(38, 244, 164, static_cast<int>(42.0f * glow)), 36);
+      draw->AddRectFilledMultiColor(
+          {minimum.x + Ui(1.0f), minimum.y + Ui(2.0f)},
+          {minimum.x + width * 0.72f, maximum.y - Ui(2.0f)},
+          IM_COL32(37, 239, 160, static_cast<int>(84.0f * glow)),
+          IM_COL32(37, 239, 160, 0), IM_COL32(37, 239, 160, 0),
+          IM_COL32(37, 239, 160, static_cast<int>(84.0f * glow)));
+    }
     draw->AddRectFilled(
-        {minimum.x, minimum.y + Ui(5.0f)},
-        {minimum.x + Ui(2.0f), maximum.y - Ui(5.0f)},
-        IM_COL32(76, 255, 190, static_cast<int>(245.0f * glow)), Ui(1.0f));
-    draw->AddRectFilled(
-        {minimum.x + Ui(2.0f), minimum.y + Ui(8.0f)},
-        {minimum.x + Ui(5.0f), maximum.y - Ui(8.0f)},
-        IM_COL32(40, 244, 164, static_cast<int>(92.0f * glow)), Ui(2.0f));
+        minimum, {minimum.x + Ui(2.5f), maximum.y},
+        IM_COL32(76, 255, 190, static_cast<int>(245.0f * glow)));
   }
   draw->PopClipRect();
 
@@ -597,22 +608,23 @@ void StudioApp::DrawSidebar() {
   ImGui::SetWindowFontScale(1.34f);
   ImGui::TextUnformatted("Gem 16");
   ImGui::SetWindowFontScale(1.0f);
-  ImGui::SetCursorPosX(ImGui::GetCursorPosX() + Ui(52.0f));
-  ImGui::TextDisabled("Local AI Studio");
   ImGui::Dummy({0, Ui(32)});
-  const float width = ImGui::GetWindowWidth() - 2.0f;
+  const float width = ImGui::GetWindowWidth() - Ui(11.0f);
   ImGui::SetCursorPosX(1.0f);
-  if (NavButton("Chat", Screen::kChat, screen_ == Screen::kChat, width))
+  if (NavButton("Chat", Screen::kChat, screen_ == Screen::kChat, width,
+                navigation_flame_texture_))
     screen_ = Screen::kChat;
   ImGui::SetCursorPosX(1.0f);
-  if (NavButton("Models", Screen::kModels, screen_ == Screen::kModels, width))
+  if (NavButton("Models", Screen::kModels, screen_ == Screen::kModels, width,
+                navigation_flame_texture_))
     screen_ = Screen::kModels;
   ImGui::SetCursorPosX(1.0f);
-  if (NavButton("Server", Screen::kServer, screen_ == Screen::kServer, width))
+  if (NavButton("Server", Screen::kServer, screen_ == Screen::kServer, width,
+                navigation_flame_texture_))
     screen_ = Screen::kServer;
   ImGui::SetCursorPosX(1.0f);
   if (NavButton("Settings", Screen::kSettings, screen_ == Screen::kSettings,
-                width))
+                width, navigation_flame_texture_))
     screen_ = Screen::kSettings;
   ImGui::SetCursorPosX(ImGui::GetStyle().WindowPadding.x);
   ImGui::SetCursorPosY(ImGui::GetWindowHeight() - Ui(104));

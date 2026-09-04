@@ -3,6 +3,7 @@
 #include "math_renderer.h"
 #include "platform_ui.h"
 #include "selectable_text.h"
+#include "shader_background.h"
 #include "svg_preview.h"
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -233,9 +234,16 @@ bool TestExtendedMarkdown() {
   }
 #ifdef _WIN32
   Microsoft::WRL::ComPtr<ID3D11Device> device;
+  Microsoft::WRL::ComPtr<ID3D11DeviceContext> device_context;
   ok &= Check(SUCCEEDED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0, nullptr, 0,
-      D3D11_SDK_VERSION, &device, nullptr, nullptr)), "SVG software D3D device");
+      D3D11_SDK_VERSION, &device, nullptr, &device_context)), "Studio software D3D device");
   if (device) {
+    ShaderBackground navigation_shader;
+    ok &= Check(navigation_shader.Initialize(device.Get(), device_context.Get()),
+                "navigation flame HLSL and render target initialize");
+    navigation_shader.RenderNavigationFlame(1.25f, true);
+    ok &= Check(navigation_shader.NavigationFlameTexture() != 0,
+                "navigation flame renders to an ImGui texture");
     ImageTexture::InitializeRenderer(device.Get());
     SvgPreviewCache cache;
     ImGuiWindow* child = nullptr;

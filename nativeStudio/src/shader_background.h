@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace gem16::studio {
 
 class ShaderBackground final {
@@ -10,6 +12,8 @@ class ShaderBackground final {
   ShaderBackground& operator=(const ShaderBackground&) = delete;
 
   [[nodiscard]] bool Initialize(void* device, void* context);
+  void RenderNavigationFlame(float seconds, bool dark_theme);
+  [[nodiscard]] std::uint64_t NavigationFlameTexture() const;
   void Render(float seconds, float width, float height, bool dark_theme);
   void Shutdown();
   [[nodiscard]] bool Ready() const;
@@ -20,4 +24,3 @@ class ShaderBackground final {
 };
 
 }  // namespace gem16::studio
-

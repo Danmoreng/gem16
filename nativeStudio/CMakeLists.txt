@@ -175,8 +175,9 @@ if(BUILD_TESTING)
   )
   target_link_libraries(gem16-studio-tests PRIVATE Threads::Threads)
   if(WIN32)
+    target_sources(gem16-studio-tests PRIVATE src/shader_background.cpp)
     target_compile_options(gem16-studio-tests PRIVATE /utf-8)
-    target_link_libraries(gem16-studio-tests PRIVATE d3d11 ws2_32 comdlg32 shell32 ole32)
+    target_link_libraries(gem16-studio-tests PRIVATE d3d11 d3dcompiler ws2_32 comdlg32 shell32 ole32)
     target_compile_definitions(gem16-studio-tests PRIVATE
       UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
     set_target_properties(gem16-studio-tests PROPERTIES

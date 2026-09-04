@@ -25,6 +25,9 @@ class StudioApp final {
   ~StudioApp();
 
   void Render();
+  void SetNavigationFlameTexture(ImTextureID texture) {
+    navigation_flame_texture_ = texture;
+  }
   [[nodiscard]] bool DarkTheme() const { return settings_.dark_theme; }
 
  private:
@@ -82,6 +85,7 @@ class StudioApp final {
   std::size_t copied_message_index_ = static_cast<std::size_t>(-1);
   double copied_message_at_ = -100.0;
   float sidebar_width_ = 214.0f;
+  ImTextureID navigation_flame_texture_ = ImTextureID_Invalid;
   float ui_scale_ = 1.0f;
   float automatic_ui_scale_ = 1.0f;
   std::chrono::steady_clock::time_point generation_started_{};

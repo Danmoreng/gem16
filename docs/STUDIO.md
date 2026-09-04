@@ -24,8 +24,10 @@ license remains beside the vendored source.
 
 ## Current product slice
 
-- Chat, Models, Server, and Settings screens with a dark/light glass palette, procedural gemstone branding, and the
-  original animated GPU science-fiction wave.
+- Chat, Models, Server, and Settings screens with a dark/light glass palette, compact `Gem 16` sidebar branding,
+  procedural gemstone artwork, and the original animated GPU science-fiction wave. The active navigation row uses
+  a second transparent GPU shader target for a left-origin emerald flame with animated turbulence and sparks; its
+  static highlight remains the visible fallback when shader initialization is unavailable.
 - Neutral first-run onboarding and persisted selectors for qualified Gemma 4 12B Unified and Gemma 4 26B A4B
   Compact Vision. Either public profile or both can be installed.
 - One generated, lock-derived catalog for all public components plus the internally retained qualified NVFP4 26B
