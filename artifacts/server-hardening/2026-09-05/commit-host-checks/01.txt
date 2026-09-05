@@ -1,0 +1,8 @@
+[1/67] Scanning /home/sebastian/Development/gem16gb/src/runtime/tool_call_parser.cpp for CXX dependencies
+[2/67] Generating CXX dyndep file CMakeFiles/gem16_core.dir/CXX.dd
+[3/33] Scanning /home/sebastian/Development/gem16gb/tests/unit/openai_chat_test.cpp for CXX dependencies
+[4/33] Generating CXX dyndep file CMakeFiles/gem16-unit-tests.dir/CXX.dd
+[5/8] Building CXX object CMakeFiles/gem16_core.dir/src/runtime/tool_call_parser.cpp.o
+[6/8] Linking CXX static library lib/libgem16_core.a
+[7/8] Building CXX object CMakeFiles/gem16-unit-tests.dir/tests/unit/openai_chat_test.cpp.o
+[8/8] Linking CXX executable bin/gem16-unit-tests

@@ -1,0 +1,2 @@
+2026-09-05T16:34:40.366Z info server_starting version="0.2.0-dev" model="gem16" host="127.0.0.1" port="18083"
+2026-09-05T16:34:41.040Z error model_load_failed error="M08 artifact contains a non-regular entry"

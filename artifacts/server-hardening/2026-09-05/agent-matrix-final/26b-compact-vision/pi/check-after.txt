@@ -1,0 +1,6 @@
+test_signed_addition (test_arithmetic.AdditionTest.test_signed_addition) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK

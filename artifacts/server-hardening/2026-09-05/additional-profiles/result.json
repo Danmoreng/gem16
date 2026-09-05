@@ -1,0 +1,152 @@
+{
+  "server_sha256": "ef2cb0a2a98a8f47625cc08452603938bc907229fe6e699691325824af720b98",
+  "profiles": [
+    {
+      "profile": "compact-220000",
+      "command": [
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-server",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--assistant-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2",
+        "--max-context",
+        "220000",
+        "--max-sessions",
+        "1",
+        "--model-name",
+        "gem16",
+        "--port",
+        "18083",
+        "--vision-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--vision",
+        "--vision-max-soft-token-budget",
+        "280"
+      ],
+      "status": "passed",
+      "scope": "startup admission and short text turn, not long-context stability or benchmark",
+      "health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 220000,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 220000,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 258313728,
+        "assistant_workspace_bytes": 57718544,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 2357657600,
+        "workspace_bytes": 618487008,
+        "execution_slot_bytes": 2976144608,
+        "admission_free_bytes": 309133312,
+        "required_admission_margin_bytes": 209715200,
+        "admission_headroom_bytes": 99418112,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": true
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 0
+        }
+      },
+      "rss_status": [
+        "VmHWM:\t  589380 kB",
+        "VmRSS:\t  342348 kB"
+      ],
+      "response": {
+        "id": "chatcmpl-gem16-f367cdb7ec706304b73febfdd05de941",
+        "object": "chat.completion",
+        "created": 1788626080,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "READY."
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 17,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 3,
+          "total_tokens": 20
+        }
+      },
+      "shutdown_exit": 0
+    },
+    {
+      "profile": "internal-nvfp4",
+      "command": [
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-server",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/models--danmoreng--gemma-4-26B-A4B-it-GEM16/snapshots/6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "--assistant-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2",
+        "--max-context",
+        "16384",
+        "--max-sessions",
+        "1",
+        "--model-name",
+        "gem16",
+        "--port",
+        "18083"
+      ],
+      "status": "failed",
+      "scope": "startup admission and short text turn, not long-context stability or benchmark",
+      "error": "RuntimeError('startup failed')",
+      "shutdown_exit": 2
+    }
+  ]
+}

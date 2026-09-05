@@ -1,0 +1,29 @@
+{
+  "server_sha256": "1aa6fb8c113e37da5395f3caa0e52c8e57c748646064d0d01afb2750c9d98231",
+  "profiles": [
+    {
+      "profile": "internal-nvfp4",
+      "command": [
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-server",
+        "--model",
+        "/tmp/gem16-server-hardening-nvfp4",
+        "--assistant-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2",
+        "--max-context",
+        "16384",
+        "--max-sessions",
+        "1",
+        "--model-name",
+        "gem16",
+        "--port",
+        "18083"
+      ],
+      "status": "failed",
+      "scope": "startup admission and short text turn, not long-context stability or benchmark",
+      "error": "RuntimeError('startup failed')",
+      "shutdown_exit": 2
+    }
+  ]
+}

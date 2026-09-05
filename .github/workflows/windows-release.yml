@@ -1,4 +1,4 @@
-name: Windows Release
+name: Windows Release Candidate
 
 on:
   push:
@@ -10,14 +10,9 @@ on:
         description: "Release version. When supplied, it must match the root VERSION file."
         required: false
         type: string
-      prerelease:
-        description: "Mark the GitHub release as a prerelease."
-        required: false
-        default: false
-        type: boolean
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   # CUDA 13.3.0 contains nvcc 13.3.33, matching the validated Windows lock.
@@ -106,11 +101,15 @@ jobs:
 
       - name: Build CUDA release server
         shell: pwsh
-        run: .\scripts\build.ps1 -Cuda -Jobs 2
+        run: .\scripts\build.ps1 -Cuda -Test -Jobs 2
 
       - name: Verify native Blackwell instructions
         shell: pwsh
         run: python .\tools\verify_sm120_sass.py .\build\Windows\blackwell-release\bin\gem16-server.exe
+
+      - name: Package headless server
+        shell: pwsh
+        run: python .\tools\package_server.py --binary .\build\Windows\blackwell-release\bin\gem16-server.exe --platform windows-x64
 
       - name: Package native Studio
         shell: pwsh
@@ -128,6 +127,7 @@ jobs:
           $hash = Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256
           "$($hash.Hash.ToLowerInvariant())  $artifactName" |
             Set-Content -LiteralPath "$artifactPath.sha256" -Encoding ascii
+          Copy-Item .\build\packages\gem16-server-*-windows-x64.zip* artifacts
           Get-ChildItem artifacts | Format-Table Name, Length
 
       - name: Upload workflow artifacts
@@ -137,18 +137,6 @@ jobs:
           path: artifacts/*
           if-no-files-found: error
 
-      - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.RELEASE_VERSION }}
-          target_commitish: ${{ github.sha }}
-          name: gem16 ${{ env.RELEASE_VERSION }}
-          body: |
-            Windows download:
-
-            - `windows-x64-sm120a.zip`: native C++ gem16 Studio with the CUDA-enabled gem16 server for NVIDIA Blackwell SM120/SM120a.
-
-            The CUDA runtime is linked into the server executable, so the target machine does not need a CUDA Toolkit installation. A compatible NVIDIA driver and Blackwell GPU are required. Model checkpoints are not embedded. Choose the qualified 12B or 26B profile; populate the locked 12B cache with `tools/fetch_model.py`, or let native Studio download the separately pinned 26B Target and Assistant.
-          prerelease: ${{ contains(env.RELEASE_VERSION, '-') || inputs.prerelease || false }}
-          files: artifacts/*
-          fail_on_unmatched_files: true
+      # Candidate upload only. Tag creation cannot bypass the open two-platform,
+      # GPU and clean-machine gates. Publication requires separate explicit
+      # authorization and tools/verify_release_gates.py against these artifacts.

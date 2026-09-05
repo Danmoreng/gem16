@@ -1,0 +1,7 @@
+test_fresh_headless_stage_and_manifest (test_release_gates.ReleaseGatesTest.test_fresh_headless_stage_and_manifest) ... ok
+test_integrity_and_missing_gates (test_release_gates.ReleaseGatesTest.test_integrity_and_missing_gates) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.017s
+
+OK

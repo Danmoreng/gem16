@@ -18,12 +18,13 @@ if ($ServerVersion -ne "gem16-server $Version") {
 . (Join-Path $PSScriptRoot "windows-toolchain.ps1")
 Import-Gem16VisualStudioEnvironment
 $Build = Join-Path $RepoRoot "build\Windows\native-studio-package"
-$Stage = Join-Path $RepoRoot "build\packages\gem16-windows-x64"
+$Stage = Join-Path $RepoRoot ("build\packages\studio-stage-" + [guid]::NewGuid().ToString("N"))
 $Archive = Join-Path $RepoRoot "build\packages\gem16-windows-x64.zip"
 & cmake.exe -S (Join-Path $RepoRoot "nativeStudio") -B $Build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
 if ($LASTEXITCODE -ne 0) { throw "Native Studio configure failed" }
 & cmake.exe --build $Build --config Release --target gem16-studio --parallel
 if ($LASTEXITCODE -ne 0) { throw "Native Studio build failed" }
+try {
 New-Item -ItemType Directory -Path (Join-Path $Stage "bin") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $Stage "licenses") -Force | Out-Null
 Copy-Item (Join-Path $Build "bin\gem16-studio.exe") (Join-Path $Stage "bin") -Force
@@ -41,3 +42,7 @@ Compress-Archive -Path "$Stage\*" -DestinationPath $Archive
 $hash = Get-FileHash -LiteralPath $Archive -Algorithm SHA256
 Write-Host "Created $Archive"
 Write-Host "SHA256: $($hash.Hash)"
+
+} finally {
+  if (Test-Path -LiteralPath $Stage) { Remove-Item -LiteralPath $Stage -Recurse -Force }
+}

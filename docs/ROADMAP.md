@@ -14,17 +14,29 @@ Current authority: [active decisions](ACTIVE_DECISIONS.md),
   full-text search, JSON/Markdown exports and restorable backups.
 - User guides and active task routing consolidated; measurements and prior decisions archived intact.
 
-## Next increments
+## Active server-first launch backlog
 
-1. Extend the [bounded SDK/Pi matrix](AGENT_COMPATIBILITY.md) from its completed
-   Linux runs to Windows live GPU execution and the remaining Agent Core gates.
-   Close constrained tool-choice and reasoning-replay gaps before broader compatibility claims.
-2. Qualify Studio conversation persistence and model lifecycle on both platforms;
-   extend request-specific diagnostics without reopening the engine architecture.
-3. Close release gates: live Windows SM120 Compact Vision evidence, REL01/P21,
-   equal Windows/Linux archives, dependency contracts, notices, manifests, hashes,
-   full downloads and clean-machine first-run/restart smokes.
-4. Follow with installers, signing and updates after the portable release gate.
+Owner direction: 2026-09-05; review baseline c54cb790. Implement compatibility
+where practical; preserve model specialization and historical evidence.
+
+| Package | Scope | Status |
+|---|---|---|
+| C00 | Server-first docs, 220k Linux / 170k Windows, 200 MiB reserve | Implemented; Linux host/Studio checks passed |
+| C01 | Bounded schema evaluation and exact numbers | Implemented; host and sanitizer checks, including work limits |
+| C02 | Exception-safe session/Responses ownership | Lease/reservation guards implemented; systematic exception injection open |
+| C03 | Deadline/cancel admission, control capacity, shutdown | Bounded admission/control capacity implemented; pool-wait propagation and long-prefill cancellation open |
+| C04 | HTTP preflight and bounded media processing | HTTP/media limits implemented and tested; peak-RSS stress and historical-image CPU reuse open |
+| C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Live Linux affinity/cache/manual compaction passed for both profiles; full fork/resume/automatic-compaction matrix open |
+| C06 | Responses replay, practical sampling/tool compatibility | SDK output replay and parameter validation passed; per-request sampling, reasoning replay and constrained tool choice open |
+| C07 | Fresh headless packages, provenance, fail-closed publish | Fresh headless packages/manifests and gate verifier implemented; same-machine smoke passed, clean-machine qualification open |
+| C08 | Candidate GPU/SDK/agent/quality and two-platform evidence | Bounded Linux SDK/Pi/multi-image and internal NVFP4 smokes passed; Windows and full release qualification open |
+| C09 | Documentation consistency and release freeze | Requires C01–C08; publication needs explicit authorization |
+
+Implementation and bounded evidence: [server hardening checkpoint](evidence/server-hardening-2026-09-05.md).
+
+Windows GPU and clean-machine qualification must be recorded against the actual
+candidate. Missing evidence is open, never passed. The extended QUAL01 waiver
+remains unchanged. Studio lifecycle fixes remain in scope; GUI redesign does not.
 
 The normalized 26B Hub layout still needs verified lock migration before use by
 the runtime. Existing pins remain valid and immutable.

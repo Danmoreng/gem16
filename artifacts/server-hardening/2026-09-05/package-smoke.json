@@ -1,0 +1,8 @@
+{
+  "archive": "build/packages/server-hardening-candidate/gem16-server-0.2.0-dev-linux-x64.tar.gz",
+  "version": "gem16-server 0.2.0-dev",
+  "manifest_files_verified": 17,
+  "acquisition_help_exit": 0,
+  "scope": "same-machine unpack/integrity/tool smoke; not clean-machine qualification",
+  "sha256": "db9ef3f39b4a83af9bb135472b908768f1378108939bb9f69bea4756f66e4385"
+}

@@ -1,0 +1,5 @@
+[1/10] Scanning /home/sebastian/Development/gem16gb/src/server/openai_chat.cpp for CXX dependencies
+[2/10] Generating CXX dyndep file CMakeFiles/gem16_server_support.dir/CXX.dd
+[3/5] Building CXX object CMakeFiles/gem16_server_support.dir/src/server/openai_chat.cpp.o
+[4/5] Linking CXX static library lib/libgem16_server_support.a
+[5/5] Linking CXX executable bin/gem16-unit-tests

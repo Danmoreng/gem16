@@ -1,0 +1,1 @@
+{"status": "passed", "scope": "bounded live host/API checks; no long-prefill cancellation latency claim", "health_under_saturation_seconds": 0.0005206839996390045}

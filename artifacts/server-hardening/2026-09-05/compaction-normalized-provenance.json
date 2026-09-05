@@ -1,0 +1,23 @@
+{
+  "server_sha256": "3d7b5b1befc2b055f39396c149a2b6ed922ee4819b137965ab6d2400fd4d9c80",
+  "commit": "c54cb7909f0880fca036e12d5c6697c2e83187d8",
+  "dirty": true,
+  "source_sha256": {
+    "src/runtime/chat.cpp": "909a7be21ff255829d5ae5eea9c2dfb32d7c2fa17257ec135c477308522a752a",
+    "src/server/openai_chat.cpp": "76965a4c17afa939bf91db99c042703ed044e13cf02771e36bb8489c05c368bb",
+    "src/cli/server_main.cpp": "801ea817e48c22d6b58aadc226692bc91fd8f5bec4ee1a8c848ed5180ad48e9f"
+  },
+  "runs": [
+    {
+      "result": "artifacts/server-hardening/2026-09-05/compaction-normalized-12b-unified/pi/result.json",
+      "status": "passed",
+      "sha256": "2dfc624d3dfd5142dd1c364d51d28075475fd77b088bf504d9105a4e539a0add"
+    },
+    {
+      "result": "artifacts/server-hardening/2026-09-05/compaction-normalized-26b-compact-vision/pi/result.json",
+      "status": "passed",
+      "sha256": "1577565c0d28954db242c9f96e200afcf0ac061c6c3c27f6bf16263c2168a898"
+    }
+  ],
+  "scope": "Linux fixed-D2, real Pi 0.85.0 manual compaction, retained codeword and new session; no broad quality claim"
+}

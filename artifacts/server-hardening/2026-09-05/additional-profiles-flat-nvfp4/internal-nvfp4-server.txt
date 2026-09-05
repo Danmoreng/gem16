@@ -1,0 +1,2 @@
+2026-09-05T16:42:16.949Z info server_starting version="0.2.0-dev" model="gem16" host="127.0.0.1" port="18083"
+2026-09-05T16:42:17.327Z error model_load_failed error="Gemma 4 26B NVFP4 compilation metadata is not a safe regular file"

@@ -1,0 +1,110 @@
+{
+  "steps": [
+    {
+      "step": "first_image",
+      "session": "session_8387e3163cfb8a77f0b2394cc6a13c6c",
+      "usage": {
+        "prompt_tokens": 86,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens": 2,
+        "total_tokens": 88
+      },
+      "answer": {
+        "role": "assistant",
+        "content": "Red"
+      }
+    },
+    {
+      "step": "append_image",
+      "session": "session_8387e3163cfb8a77f0b2394cc6a13c6c",
+      "usage": {
+        "prompt_tokens": 131,
+        "prompt_tokens_details": {
+          "cached_tokens": 87
+        },
+        "completion_tokens": 4,
+        "total_tokens": 135
+      },
+      "answer": {
+        "role": "assistant",
+        "content": "Red, Blue"
+      }
+    },
+    {
+      "step": "request_screenshots",
+      "session": "session_8387e3163cfb8a77f0b2394cc6a13c6c",
+      "usage": {
+        "prompt_tokens": 159,
+        "prompt_tokens_details": {
+          "cached_tokens": 134
+        },
+        "completion_tokens": 9,
+        "total_tokens": 168
+      },
+      "answer": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_1",
+            "type": "function",
+            "function": {
+              "name": "canvas_check",
+              "arguments": "{}"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "step": "append_two_tool_images",
+      "session": "session_8387e3163cfb8a77f0b2394cc6a13c6c",
+      "usage": {
+        "prompt_tokens": 217,
+        "prompt_tokens_details": {
+          "cached_tokens": 167
+        },
+        "completion_tokens": 6,
+        "total_tokens": 223
+      },
+      "answer": {
+        "role": "assistant",
+        "content": "Green, Yellow"
+      }
+    },
+    {
+      "step": "recall_images",
+      "session": "session_8387e3163cfb8a77f0b2394cc6a13c6c",
+      "usage": {
+        "prompt_tokens": 252,
+        "prompt_tokens_details": {
+          "cached_tokens": 222
+        },
+        "completion_tokens": 8,
+        "total_tokens": 260
+      },
+      "answer": {
+        "role": "assistant",
+        "content": "Red, Blue, Green, Yellow"
+      }
+    },
+    {
+      "step": "fresh_history_replay",
+      "session": "session_d52e65a4d09f47c620fd37ef4cf5656c",
+      "usage": {
+        "prompt_tokens": 273,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens": 8,
+        "total_tokens": 281
+      },
+      "answer": {
+        "role": "assistant",
+        "content": "Red, Blue, Green, Yellow"
+      }
+    }
+  ]
+}

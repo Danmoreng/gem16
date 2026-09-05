@@ -1,0 +1,53 @@
+{
+  "command": [
+    "node",
+    "/home/sebastian/Development/gem16gb/tools/pi-agent/node_modules/@earendil-works/pi-coding-agent/dist/cli.js",
+    "--provider",
+    "gem16",
+    "--model",
+    "gem16",
+    "--thinking",
+    "off",
+    "--mode",
+    "rpc",
+    "--no-session",
+    "--no-extensions",
+    "--no-skills",
+    "--no-prompt-templates",
+    "--no-themes",
+    "--no-context-files"
+  ],
+  "status": "failed",
+  "compaction": {
+    "id": "compact",
+    "type": "response",
+    "command": "compact",
+    "success": true,
+    "data": {
+      "summary": "## Goal\n- Establish a shared understanding of a project's status and a specific codeword.\n\n## Constraints & Preferences\n- Reply briefly.\n- Use the codeword: ORCHID.\n\n## Progress\n### Done\n- [x] Acknowledged codeword ORCHID.\n- [x] Acknowledged project details (Python, two passing tests).\n\n### In Progress\n- [ ] Awaiting further instructions or tasks related to the project.\n\n### Blocked\n- [none]\n\n## Key Decisions\n- **Codeword Confirmation**: The assistant confirmed \"ORCHID\" as the designated codeword.\n\n## Next Steps\n1. Wait for the user to provide the next set of instructions or project requirements.\n\n## Critical Context\n- Codeword: ORCHID\n- Project Language: Python\n- Project Status: Two passing tests",
+      "firstKeptEntryId": "e87f48da",
+      "tokensBefore": 4458,
+      "estimatedTokensAfter": 1481,
+      "usage": {
+        "input": 2377,
+        "output": 176,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2553,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "details": {
+        "readFiles": [],
+        "modifiedFiles": []
+      }
+    }
+  },
+  "error": "AssertionError({'type': 'agent_end', 'messages': [{'role': 'user', 'content': [{'type': 'text', 'text': 'What was the codeword? Answer briefly.'}], 'timestamp': 1788625264904}, {'role': 'assistant', 'content': [], 'api': 'openai-completions', 'provider': 'gem16', 'model': 'gem16', 'usage': {'input': 0, 'output': 0, 'cacheRead': 0, 'cacheWrite': 0, 'totalTokens': 0, 'cost': {'input': 0, 'output': 0, 'cacheRead': 0, 'cacheWrite': 0, 'total': 0}}, 'stopReason': 'error', 'timestamp': 1788625264905, 'responseId': 'chatcmpl-gem16-bc6de2b0cfbcbc85ec9e3727b1241e77', 'errorMessage': 'native chat requires alternating user and assistant messages'}], 'willRetry': False})"
+}

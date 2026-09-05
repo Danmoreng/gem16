@@ -1,0 +1,146 @@
+{
+  "command": [
+    "node",
+    "/home/sebastian/Development/gem16gb/tools/pi-agent/node_modules/@earendil-works/pi-coding-agent/dist/cli.js",
+    "--provider",
+    "gem16",
+    "--model",
+    "gem16",
+    "--thinking",
+    "off",
+    "--mode",
+    "rpc",
+    "--no-session",
+    "--no-extensions",
+    "--no-skills",
+    "--no-prompt-templates",
+    "--no-themes",
+    "--no-context-files"
+  ],
+  "status": "passed",
+  "compaction": {
+    "id": "compact",
+    "type": "response",
+    "command": "compact",
+    "success": true,
+    "data": {
+      "summary": "## Goal\n- Assist with a Python project that currently has two passing tests.\n\n## Constraints & Preferences\n- Use the codeword ORCHID.\n- Responses should be brief.\n\n## Progress\n### Done\n- [x] Codeword ORCHID acknowledged.\n- [x] Project language (Python) and test status (two passing tests) acknowledged.\n\n### In Progress\n- [ ] Awaiting first instruction for the Python project.\n\n### Blocked\n- (none)\n\n## Key Decisions\n- **N/A**: No technical decisions have been made yet.\n\n## Next Steps\n1. Receive the first set of instructions or code from the user regarding the Python project.\n\n## Critical Context\n- **Codeword**: ORCHID\n- **Project Language**: Python\n- **Project State**: Two passing tests existing.",
+      "firstKeptEntryId": "729f1f54",
+      "tokensBefore": 4470,
+      "estimatedTokensAfter": 1481,
+      "usage": {
+        "input": 2387,
+        "output": 175,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2562,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "details": {
+        "readFiles": [],
+        "modifiedFiles": []
+      }
+    }
+  },
+  "after": {
+    "type": "agent_end",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What was the codeword? Answer briefly."
+          }
+        ],
+        "timestamp": 1788625572079
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "ORCHID"
+          }
+        ],
+        "api": "openai-completions",
+        "provider": "gem16",
+        "model": "gem16",
+        "usage": {
+          "input": 2588,
+          "output": 4,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 2592,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        "stopReason": "stop",
+        "timestamp": 1788625572079,
+        "responseId": "chatcmpl-gem16-f6134a789415b2536eaf8812aaa9c1ac",
+        "rawStopReason": "stop"
+      }
+    ],
+    "willRetry": false
+  },
+  "new": {
+    "type": "agent_end",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Say hello."
+          }
+        ],
+        "timestamp": 1788625572521
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello! How can I help you today?"
+          }
+        ],
+        "api": "openai-completions",
+        "provider": "gem16",
+        "model": "gem16",
+        "usage": {
+          "input": 1348,
+          "output": 10,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 1358,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        "stopReason": "stop",
+        "timestamp": 1788625572522,
+        "responseId": "chatcmpl-gem16-a05809c0192b86c9feb8990044887be8",
+        "rawStopReason": "stop"
+      }
+    ],
+    "willRetry": false
+  }
+}

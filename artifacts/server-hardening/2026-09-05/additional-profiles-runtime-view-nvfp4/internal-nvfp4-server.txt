@@ -1,0 +1,7 @@
+2026-09-05T16:44:56.505Z info server_starting version="0.2.0-dev" model="gem16" host="127.0.0.1" port="18083"
+2026-09-05T16:45:02.070Z info model_loaded variant="gemma4_moe_26b_a4b" native_path="sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv" weight_load_path="sm120_device_image_pinned_async_structural" weight_bytes="14696668160" assistant_weight_bytes="258313728" load_ms="5160.833380"
+2026-09-05T16:45:02.086Z info execution_slots_admitted slot_bytes="437623328" configured_slot_bytes="437623328" session_limit="1" device_free_bytes="990707712" safety_margin_bytes="734003200"
+2026-09-05T16:45:02.086Z info server_ready host="127.0.0.1" port="18083" model="gem16" session_limit="1" max_queued_requests="64" http_task_queue_limit="81" startup_ms="5581"
+2026-09-05T16:45:02.324Z info request_completed request_id="req_gem16_02a181a24b570767e484e0b34a4c90cf" method="POST" route="/v1/chat/completions" status="200" duration_ms="54.803000" queue_wait_ms="0.000000" request_bytes="139"
+2026-09-05T16:45:02.337Z info shutdown_requested signal="15"
+2026-09-05T16:45:02.338Z info shutdown_completed signal="15"

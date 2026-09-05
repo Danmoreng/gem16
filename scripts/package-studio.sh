@@ -13,7 +13,10 @@ if [[ "$server_version" != "gem16-server $version" ]]; then
   exit 1
 fi
 build_dir="$repo_root/build/native-studio-package"
-stage_dir="$repo_root/build/packages/gem16-linux-x64"
+mkdir -p "$repo_root/build/packages"
+stage_root="$(mktemp -d "$repo_root/build/packages/studio-stage.XXXXXXXX")"
+trap 'rm -rf -- "$stage_root"' EXIT
+stage_dir="$stage_root/gem16-linux-x64"
 cmake -S "$repo_root/nativeStudio" -B "$build_dir" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
 cmake --build "$build_dir" --target gem16-studio --parallel
 mkdir -p "$stage_dir/bin" "$stage_dir/licenses"
@@ -29,5 +32,5 @@ cp "$repo_root/nativeStudio/third_party/imgui/LICENSE.txt" "$stage_dir/licenses/
 cp "$repo_root/nativeStudio/licenses/Free-Solace-ImGui-Interface-MIT.txt" "$stage_dir/licenses/"
 cp "$repo_root/third_party/miniaudio/LICENSE" "$stage_dir/licenses/miniaudio-MIT-0-or-Public-Domain.txt"
 cp "$build_dir/_deps/glfw-src/LICENSE.md" "$stage_dir/licenses/GLFW-zlib.txt"
-tar -C "$repo_root/build/packages" -czf "$repo_root/build/packages/gem16-linux-x64.tar.gz" gem16-linux-x64
+tar -C "$stage_root" -czf "$repo_root/build/packages/gem16-linux-x64.tar.gz" gem16-linux-x64
 sha256sum "$repo_root/build/packages/gem16-linux-x64.tar.gz"

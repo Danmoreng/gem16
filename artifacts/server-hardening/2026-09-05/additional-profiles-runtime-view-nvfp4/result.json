@@ -1,0 +1,120 @@
+{
+  "server_sha256": "1aa6fb8c113e37da5395f3caa0e52c8e57c748646064d0d01afb2750c9d98231",
+  "profiles": [
+    {
+      "profile": "internal-nvfp4",
+      "command": [
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-server",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/diagnostics/server-hardening-nvfp4-2026-09-05",
+        "--assistant-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2",
+        "--max-context",
+        "16384",
+        "--max-sessions",
+        "1",
+        "--model-name",
+        "gem16",
+        "--port",
+        "18083"
+      ],
+      "status": "passed",
+      "scope": "startup admission and short text turn, not long-context stability or benchmark",
+      "health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 16384,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": true,
+        "base_max_context": 98304,
+        "mtp_max_context": 16384,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-nvfp4",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "sm120-text-hybrid-v1",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "sm120-text-hybrid-v1",
+        "head_format": "nvfp4",
+        "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "f433358b8e2c1250b95801fc898faee4fcedcbe5",
+        "resident_weight_bytes": 14696668160,
+        "assistant_weight_bytes": 258313728,
+        "assistant_workspace_bytes": 5482768,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 0,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": 272629760,
+        "workspace_bytes": 164993568,
+        "execution_slot_bytes": 437623328,
+        "admission_free_bytes": 990707712,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 256704512,
+        "text_only": true,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": false,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 0
+        }
+      },
+      "rss_status": [
+        "VmHWM:\t  583024 kB",
+        "VmRSS:\t  365788 kB"
+      ],
+      "response": {
+        "id": "chatcmpl-gem16-e2f20f586368238c7b9c72fe4aa16637",
+        "object": "chat.completion",
+        "created": 1788626702,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "READY."
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 17,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 3,
+          "total_tokens": 20
+        }
+      },
+      "shutdown_exit": 0
+    }
+  ]
+}

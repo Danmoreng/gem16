@@ -1,0 +1,7 @@
+2026-09-05T16:34:31.824Z info server_starting version="0.2.0-dev" model="gem16" host="127.0.0.1" port="18083"
+2026-09-05T16:34:40.001Z info model_loaded variant="gemma4_moe_26b_a4b" native_path="sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv" weight_load_path="trellis35_device_image_v2_pinned_async_structural" weight_bytes="12204692480" assistant_weight_bytes="258313728" load_ms="7796.183734"
+2026-09-05T16:34:40.010Z info execution_slots_admitted slot_bytes="2976144608" configured_slot_bytes="2976144608" session_limit="1" device_free_bytes="309133312" safety_margin_bytes="209715200"
+2026-09-05T16:34:40.011Z info server_ready host="127.0.0.1" port="18083" model="gem16" session_limit="1" max_queued_requests="64" http_task_queue_limit="81" startup_ms="8186"
+2026-09-05T16:34:40.148Z info request_completed request_id="req_gem16_6adf6a89f253490ad0da20310450c55f" method="POST" route="/v1/chat/completions" status="200" duration_ms="56.160000" queue_wait_ms="0.000000" request_bytes="139"
+2026-09-05T16:34:40.161Z info shutdown_requested signal="15"
+2026-09-05T16:34:40.162Z info shutdown_completed signal="15"
