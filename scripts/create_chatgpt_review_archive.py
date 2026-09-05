@@ -31,17 +31,21 @@ SKIP_DIRS = {
     "review-archives",
 }
 PROJECT_TREES = (
-    "gradle", "src", "include", "tests", "tools", "scripts", "cmake",
+    ".github/workflows", "gradle", "src", "include", "tests", "tools",
+    "scripts", "cmake",
     "examples", "toolchains", "docs", "studioApp/src",
     "benchmarks/baselines", "benchmarks/corpora", "benchmarks/prompts",
     "benchmarks/quality", "benchmarks/schemas", "nativeStudio/src",
-    "nativeStudio/tests", "nativeStudio/licenses",
+    "nativeStudio/tests", "nativeStudio/licenses", "nativeStudio/cmake",
+    "nativeStudio/tools",
 )
 ROOT_FILES = (
     "AGENTS.md", "README.md", "LICENSE", "VERSION", "CMakeLists.txt",
     "CMakePresets.json", "build.gradle.kts", "settings.gradle.kts", "gradlew",
-    "gradlew.bat", "nativeStudio/CMakeLists.txt", "nativeStudio/THIRD_PARTY.md",
+    "gradlew.bat", ".gitmodules", "nativeStudio/CMakeLists.txt",
+    "nativeStudio/THIRD_PARTY.md",
 )
+ROOT_GLOBS = ("models/*.lock.json",)
 DEFAULT_RAW_EVIDENCE_DIRS = {
     "m25", "main-promotion-bd5b1af", "max-performance",
     "external-mtp-20260825", "perf-target", "vllm",
@@ -260,6 +264,9 @@ def main() -> int:
             builder = ArchiveBuilder(archive)
             for relative in ROOT_FILES:
                 builder.add_file(ROOT / relative)
+            for pattern in ROOT_GLOBS:
+                for path in sorted(ROOT.glob(pattern)):
+                    builder.add_file(path)
             for relative in PROJECT_TREES:
                 builder.add_tree(ROOT / relative, relative)
             add_compact_artifacts(builder, raw_dirs)
