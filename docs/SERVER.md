@@ -116,6 +116,7 @@ slow-client availability guarantee. Non-streaming disconnects are checked during
 decode, and shutdown flags active sessions for cancellation. Long-prefill
 cancellation latency remains an open gate.
 
+Both APIs reject an unserved model identity before media parsing or decoding.
 Media preparation runs inside admission, limiting concurrent decoders to the
 execution capacity. Each parser request permits 32 million cumulative decoded
 image pixels and 256 MiB of accounted prepared image/resize storage, checked

@@ -1,0 +1,18 @@
+[1/45] Scanning /home/sebastian/Development/gem16gb/src/server/openai_chat.cpp for CXX dependencies
+[2/45] Scanning /home/sebastian/Development/gem16gb/src/server/session_pool.cpp for CXX dependencies
+[3/45] Scanning /home/sebastian/Development/gem16gb/src/server/http_streaming.cpp for CXX dependencies
+[4/45] Scanning /home/sebastian/Development/gem16gb/src/cli/server_main.cpp for CXX dependencies
+[5/45] Generating CXX dyndep file CMakeFiles/gem16_server_support.dir/CXX.dd
+[6/42] Generating CXX dyndep file CMakeFiles/gem16-server.dir/CXX.dd
+[7/42] Scanning /home/sebastian/Development/gem16gb/tests/unit/observability_test.cpp for CXX dependencies
+[8/42] Scanning /home/sebastian/Development/gem16gb/tests/unit/openai_chat_test.cpp for CXX dependencies
+[9/42] Generating CXX dyndep file CMakeFiles/gem16-unit-tests.dir/CXX.dd
+[10/18] Building CXX object CMakeFiles/gem16_server_support.dir/src/server/openai_chat.cpp.o
+[11/18] Building CXX object CMakeFiles/gem16_server_support.dir/src/server/session_pool.cpp.o
+[12/18] Building CXX object CMakeFiles/gem16_server_support.dir/src/server/http_streaming.cpp.o
+[13/18] Linking CXX static library lib/libgem16_server_support.a
+[14/18] Building CXX object CMakeFiles/gem16-unit-tests.dir/tests/unit/observability_test.cpp.o
+[15/18] Building CXX object CMakeFiles/gem16-server.dir/src/cli/server_main.cpp.o
+[16/18] Linking CXX executable bin/gem16-server
+[17/18] Building CXX object CMakeFiles/gem16-unit-tests.dir/tests/unit/openai_chat_test.cpp.o
+[18/18] Linking CXX executable bin/gem16-unit-tests

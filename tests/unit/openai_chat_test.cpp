@@ -73,6 +73,24 @@ std::vector<std::uint8_t> TinyWav() {
 }  // namespace
 
 void RunOpenAiChatTests() {
+  {
+    // Identity rejection must precede even invalid base64/media parsing.
+    const gem16::server::OpenAiChatAdapterOptions options{8192U, false, 280U, "served"};
+    const auto chat = gem16::server::ParseChatCompletionsRequest(
+        R"({"model":"unserved","messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,!invalid!"}}]}]})",
+        options);
+    GEM16_CHECK(!chat.ok() && chat.status().code() == gem16::StatusCode::kNotFound);
+    const auto responses = gem16::server::ParseResponsesRequest(
+        R"({"model":"unserved","input":[{"role":"user","content":[{"type":"input_image","image_url":"data:image/png;base64,!invalid!"}]}]})",
+        options);
+    GEM16_CHECK(!responses.ok() && responses.status().code() == gem16::StatusCode::kNotFound);
+    GEM16_CHECK(gem16::server::ParseChatCompletionsRequest(
+        R"({"model":"served","messages":[{"role":"user","content":"hello"}]})",
+        options).ok());
+    GEM16_CHECK(gem16::server::ParseResponsesRequest(
+        R"({"model":"served","input":"hello"})", options).ok());
+  }
+
   // Tiny encoded input with a 40M-pixel header must fail the request budget
   // before attempting the decoder's large allocation (or reading missing pixels).
   auto oversized_bmp = TinyBmp();

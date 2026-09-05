@@ -497,17 +497,10 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   auto parsed = gem16::server::ParseChatCompletionsRequest(
       request.body,
       {state.max_context, state.runtime->vision_module_loaded(),
-       state.runtime->vision_max_soft_token_budget()});
+       state.runtime->vision_max_soft_token_budget(), state.model_name});
   if (!parsed.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, parsed.status(), response);
-    return;
-  }
-  if (parsed.value().model != state.model_name) {
-    state.metrics.requests_failed.fetch_add(1U);
-    SetError(state, gem16::Status(gem16::StatusCode::kNotFound,
-                           "requested model is not served"),
-             response);
     return;
   }
   const gem16::Status capability =
@@ -705,17 +698,10 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
   auto parsed = gem16::server::ParseResponsesRequest(
       request.body,
       {state.max_context, state.runtime->vision_module_loaded(),
-       state.runtime->vision_max_soft_token_budget()});
+       state.runtime->vision_max_soft_token_budget(), state.model_name});
   if (!parsed.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, parsed.status(), response);
-    return;
-  }
-  if (parsed.value().model != state.model_name) {
-    state.metrics.requests_failed.fetch_add(1U);
-    SetError(state, gem16::Status(gem16::StatusCode::kNotFound,
-                           "requested model is not served"),
-             response);
     return;
   }
   const gem16::Status capability =

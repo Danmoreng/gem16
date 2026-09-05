@@ -28,6 +28,8 @@ struct OpenAiChatAdapterOptions {
   std::uint64_t context_tokens = 8192U;
   bool gemma4_moe26b_vision = false;
   std::uint32_t vision_max_soft_token_budget = 280U;
+  // Empty for offline adapter callers; HTTP supplies the served identity.
+  std::string_view served_model = {};
 };
 
 struct OpenAiResponsesRequest {

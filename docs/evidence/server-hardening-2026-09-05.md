@@ -69,3 +69,11 @@ through queued creation, named-session waits and Responses-chain waits. No CUDA
 kernel or prefill chunking changes are included. `session-wait-matrix` records the
 rebuilt candidate and exact source hashes, including `session_wait.h`; its per-profile
 outcomes are authoritative for this follow-up rather than the earlier binary.
+
+## Follow-up: model identity before media
+
+`model-preflight-host` records the host server build, full host tests and ASan/leak
+checks for early model identity validation on both APIs. Requests for an unserved
+model return NotFound before invalid base64/image processing; served-model text
+requests still pass. This host-only adapter change does not modify CUDA execution;
+the preceding GPU matrix is not relabeled as a run of this later source revision.

@@ -1,0 +1,12 @@
+{
+  "parent_commit": "2096c39836a9721e2e0a2d2724cc82f3c7b4f135",
+  "source_and_binary_sha256": {
+    "src/cli/server_main.cpp": "3b91f585e5a7c18ec4584a44020b353ffd108500dedf7fbe41ba0f0942ad883e",
+    "src/server/openai_chat.cpp": "30b4eaac84fe1945391a098a9b0c3290339153f536b16e284233d40a4aa2fc3e",
+    "src/server/openai_chat.h": "1f4962bd90b6bb25602ef541528dac9e3e4fedf43bf071f36141f592aef664e3",
+    "tests/unit/openai_chat_test.cpp": "28c251cb9c0a4ee46eec47b90ba9b3cb84ed4a20809b9562dacd4aee14ac49db",
+    "build/Linux/host-debug/bin/gem16-unit-tests": "9b59ba5ab36f9e94af6764e2a99a18396ce86529ac79f43f0e4383a44de8d13f",
+    "build/Linux/host-sanitize/bin/gem16-unit-tests": "dbf325ad13732d599566984e3705b7036b05dacbb55c06a2825f79cc681eefd1"
+  },
+  "scope": "Host/API identity preflight only; GPU behavior unchanged and not rerun for this slice"
+}

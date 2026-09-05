@@ -702,6 +702,9 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
   OpenAiChatRequest request;
   auto model = RequiredString(object, "model");
   if (!model.ok()) return model.status();
+  if (!options.served_model.empty() && model.value() != options.served_model) {
+    return Status(StatusCode::kNotFound, "requested model is not served");
+  }
   request.model = std::move(model).value();
 
   const json::Value* messages = root.value().find("messages");
@@ -880,6 +883,9 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
   OpenAiResponsesRequest request;
   auto model = RequiredString(object, "model");
   if (!model.ok()) return model.status();
+  if (!options.served_model.empty() && model.value() != options.served_model) {
+    return Status(StatusCode::kNotFound, "requested model is not served");
+  }
   request.model = std::move(model).value();
 
   if (const json::Value* previous = root.value().find("previous_response_id");
