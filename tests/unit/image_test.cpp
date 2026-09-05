@@ -1,4 +1,5 @@
 #include "gem16/image.h"
+#include "model/image_decode_budget.h"
 
 #include <cmath>
 #include <cstdint>
@@ -96,6 +97,14 @@ std::filesystem::path WriteSolidBmp() {
 }  // namespace
 
 void RunImageTests() {
+  {
+    gem16::internal::ImageDecodeBudget budget;
+    GEM16_CHECK(gem16::internal::ImageDecodeBudget::Pixels(31'000'000U));
+    GEM16_CHECK(!gem16::internal::ImageDecodeBudget::Pixels(2'000'000U));
+    GEM16_CHECK(!gem16::internal::ImageDecodeBudget::PreparedBytes(257U * 1024U * 1024U));
+  }
+  GEM16_CHECK(gem16::internal::ImageDecodeBudget::Pixels(33'000'000U));
+
   TestGemma4Moe26BVisionGridContract();
   GEM16_CHECK(gem16::AutomaticVisionSoftTokenBudget(1024U, 200U, 2U) ==
               280U);

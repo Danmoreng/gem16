@@ -243,16 +243,129 @@ const json::Value* ResolveReference(const json::Value& root,
   constexpr std::string_view kPrefix = "#/$defs/";
   if (!reference.starts_with(kPrefix)) return nullptr;
   const json::Value* definitions = root.find("$defs");
-  return definitions == nullptr || !definitions->is_object()
-             ? nullptr
-             : definitions->find(reference.substr(kPrefix.size()));
+  if (definitions == nullptr || !definitions->is_object()) return nullptr;
+  std::string name;
+  const auto encoded = reference.substr(kPrefix.size());
+  for (std::size_t i = 0; i < encoded.size(); ++i) {
+    if (encoded[i] == '/') return nullptr; // Only one $defs pointer segment.
+    if (encoded[i] != '~') { name.push_back(encoded[i]); continue; }
+    if (++i == encoded.size() || (encoded[i] != '0' && encoded[i] != '1')) return nullptr;
+    name.push_back(encoded[i] == '0' ? '~' : '/');
+  }
+  return definitions->find(name);
 }
 
-bool JsonEqual(const json::Value& left, const json::Value& right) {
-  if (left.is_number() && right.is_number()) {
-    return left.as_number() == right.as_number();
+// Compare an int64 with a double without rounding the integer, including on
+// Windows where long double has no additional precision.
+int CompareIntegerDouble(std::int64_t integer, double number) {
+  if (number >= 0x1p63) return -1;
+  if (number < -0x1p63) return 1;
+  const auto truncated = static_cast<std::int64_t>(number);
+  if (integer < truncated) return -1;
+  if (integer > truncated) return 1;
+  const double fraction = number - static_cast<double>(truncated);
+  return fraction > 0 ? -1 : fraction < 0 ? 1 : 0;
+}
+
+int CompareNumbers(const json::Value& left, const json::Value& right) {
+  if (left.is_integer() && right.is_integer()) {
+    return left.as_integer() < right.as_integer() ? -1 :
+           left.as_integer() > right.as_integer() ? 1 : 0;
   }
-  return json::Stringify(left) == json::Stringify(right);
+  if (left.is_integer()) return CompareIntegerDouble(left.as_integer(), right.as_number());
+  if (right.is_integer()) return -CompareIntegerDouble(right.as_integer(), left.as_number());
+  return left.as_number() < right.as_number() ? -1 :
+         left.as_number() > right.as_number() ? 1 : 0;
+}
+
+struct SchemaWork {
+  std::size_t remaining = 100'000U;
+  std::size_t string_bytes = 16U * 1024U * 1024U;
+  bool exhausted = false;
+  bool StringBytes(std::size_t count) {
+    if (count > string_bytes) { exhausted = true; return false; }
+    string_bytes -= count;
+    return true;
+  }
+  bool Step() {
+    if (remaining == 0U) { exhausted = true; return false; }
+    --remaining;
+    return true;
+  }
+};
+
+bool JsonEqual(const json::Value& left, const json::Value& right, SchemaWork& work) {
+  if (!work.Step()) return false;
+  if (left.is_number() && right.is_number()) return CompareNumbers(left, right) == 0;
+  if (left.is_object() && right.is_object()) {
+    if (left.as_object().size() != right.as_object().size()) return false;
+    for (const auto& [name, value] : left.as_object()) {
+      if (!work.Step() || !work.StringBytes(name.size())) return false;
+      const auto* other = right.find(name);
+      if (other == nullptr || !JsonEqual(value, *other, work)) return false;
+    }
+    return true;
+  }
+  if (left.is_array() && right.is_array()) {
+    if (left.as_array().size() != right.as_array().size()) return false;
+    for (std::size_t i = 0; i < left.as_array().size(); ++i) {
+      if (!JsonEqual(left.as_array()[i], right.as_array()[i], work)) return false;
+    }
+    return true;
+  }
+  if (left.is_string() && right.is_string()) {
+    return work.StringBytes(left.as_string().size() + right.as_string().size()) &&
+           left.as_string() == right.as_string();
+  }
+  if (left.is_bool() && right.is_bool()) return left.as_bool() == right.as_bool();
+  return left.is_null() && right.is_null();
+}
+
+// Validate the schema graph before admission. Recursive schemas are outside
+// this bounded subset, even when their recursion could advance the instance.
+Status ValidateSchemaGraph(const json::Value& schema, const json::Value& root,
+                           std::set<const json::Value*>& active,
+                           std::set<const json::Value*>& done,
+                           SchemaWork& work, std::uint32_t depth = 0U) {
+  if (!work.Step() || depth > 32U) return InvalidTool("schema graph exceeds work/depth limit");
+  if (active.contains(&schema)) return InvalidTool("recursive schema references are unsupported");
+  if (done.contains(&schema)) return Status::Ok();
+  active.insert(&schema);
+  auto visit = [&](const json::Value& child) {
+    return ValidateSchemaGraph(child, root, active, done, work, depth + 1U);
+  };
+  if (const auto* ref = schema.find("$ref")) {
+    if (!work.StringBytes(ref->as_string().size())) return InvalidTool("schema reference work limit exceeded");
+    const auto* target = ResolveReference(root, ref->as_string());
+    if (target == nullptr) return InvalidTool("schema reference cannot be resolved");
+    const auto status = visit(*target);
+    if (!status.ok()) return status;
+  }
+  for (const auto key : {"properties", "$defs"}) {
+    if (const auto* map = schema.find(key)) {
+      for (const auto& [name, child] : map->as_object()) {
+        const auto status = visit(child);
+        if (!status.ok()) return status;
+      }
+    }
+  }
+  for (const auto key : {"items", "additionalProperties"}) {
+    if (const auto* child = schema.find(key); child && child->is_object()) {
+      const auto status = visit(*child);
+      if (!status.ok()) return status;
+    }
+  }
+  for (const auto key : {"allOf", "anyOf", "oneOf"}) {
+    if (const auto* alternatives = schema.find(key)) {
+      for (const auto& child : alternatives->as_array()) {
+        const auto status = visit(child);
+        if (!status.ok()) return status;
+      }
+    }
+  }
+  active.erase(&schema);
+  done.insert(&schema);
+  return Status::Ok();
 }
 
 bool TypeMatches(const json::Value& value, std::string_view type) {
@@ -261,27 +374,30 @@ bool TypeMatches(const json::Value& value, std::string_view type) {
   if (type == "object") return value.is_object();
   if (type == "array") return value.is_array();
   if (type == "number") return value.is_number();
-  if (type == "integer") return value.is_integer();
+  if (type == "integer") return value.is_integer() ||
+      (value.is_number() && std::trunc(value.as_number()) == value.as_number());
   if (type == "string") return value.is_string();
   return false;
 }
 
 bool MatchesStrictSchema(const json::Value& value, const json::Value& schema,
-                         const json::Value& root, std::string& reason,
+                         const json::Value& root, std::string& reason, SchemaWork& work,
                          std::uint32_t depth = 0U) {
+  if (!work.Step()) { reason = "schema evaluation work limit exceeded"; return false; }
   if (depth > 32U) {
     reason = "schema recursion exceeds 32 levels";
     return false;
   }
   if (const json::Value* reference = schema.find("$ref");
       reference != nullptr) {
+    if (!work.StringBytes(reference->as_string().size())) { reason = "schema reference work limit exceeded"; return false; }
     const json::Value* target =
         ResolveReference(root, reference->as_string());
     if (target == nullptr) {
       reason = "schema reference cannot be resolved";
       return false;
     }
-    if (!MatchesStrictSchema(value, *target, root, reason, depth + 1U)) {
+    if (!MatchesStrictSchema(value, *target, root, reason, work, depth + 1U)) {
       return false;
     }
   }
@@ -291,8 +407,12 @@ bool MatchesStrictSchema(const json::Value& value, const json::Value& schema,
     std::size_t matches = 0U;
     for (const json::Value& alternative : alternatives->as_array()) {
       std::string ignored;
-      if (MatchesStrictSchema(value, alternative, root, ignored, depth + 1U)) {
+      if (MatchesStrictSchema(value, alternative, root, ignored, work, depth + 1U)) {
         ++matches;
+        if (keyword == "anyOf" || (keyword == "oneOf" && matches > 1U)) break;
+      } else if (work.exhausted || keyword == "allOf") {
+        reason = work.exhausted ? "schema evaluation work limit exceeded" : "allOf constraint did not match";
+        return false;
       }
     }
     const bool valid = keyword == "allOf"
@@ -310,6 +430,7 @@ bool MatchesStrictSchema(const json::Value& value, const json::Value& schema,
       matched = TypeMatches(value, type->as_string());
     } else {
       for (const json::Value& member : type->as_array()) {
+        if (!work.Step()) { reason = "schema evaluation work limit exceeded"; return false; }
         matched = matched || TypeMatches(value, member.as_string());
       }
     }
@@ -322,14 +443,14 @@ bool MatchesStrictSchema(const json::Value& value, const json::Value& schema,
       enumeration != nullptr) {
     const bool found = std::any_of(
         enumeration->as_array().begin(), enumeration->as_array().end(),
-        [&](const json::Value& candidate) { return JsonEqual(value, candidate); });
+        [&](const json::Value& candidate) { return JsonEqual(value, candidate, work); });
     if (!found) {
       reason = "value is not in the schema enum";
       return false;
     }
   }
   if (const json::Value* constant = schema.find("const");
-      constant != nullptr && !JsonEqual(value, *constant)) {
+      constant != nullptr && !JsonEqual(value, *constant, work)) {
     reason = "value differs from the schema const";
     return false;
   }
@@ -338,6 +459,7 @@ bool MatchesStrictSchema(const json::Value& value, const json::Value& schema,
     if (const json::Value* required = schema.find("required");
         required != nullptr) {
       for (const json::Value& name : required->as_array()) {
+        if (!work.Step() || !work.StringBytes(name.as_string().size())) { reason = "schema evaluation work limit exceeded"; return false; }
         if (value.find(name.as_string()) == nullptr) {
           reason = "required property '" + name.as_string() + "' is missing";
           return false;
@@ -345,10 +467,11 @@ bool MatchesStrictSchema(const json::Value& value, const json::Value& schema,
       }
     }
     for (const auto& [name, member] : value.as_object()) {
+      if (!work.Step() || !work.StringBytes(name.size())) { reason = "schema evaluation work limit exceeded"; return false; }
       const json::Value* member_schema =
           properties == nullptr ? nullptr : properties->find(name);
       if (member_schema != nullptr) {
-        if (!MatchesStrictSchema(member, *member_schema, root, reason,
+        if (!MatchesStrictSchema(member, *member_schema, root, reason, work,
                                  depth + 1U)) {
           reason = "property '" + name + "': " + reason;
           return false;
@@ -362,7 +485,7 @@ bool MatchesStrictSchema(const json::Value& value, const json::Value& schema,
         return false;
       }
       if (additional != nullptr && additional->is_object() &&
-          !MatchesStrictSchema(member, *additional, root, reason,
+          !MatchesStrictSchema(member, *additional, root, reason, work,
                                depth + 1U)) {
         reason = "additional property '" + name + "': " + reason;
         return false;
@@ -385,7 +508,7 @@ bool MatchesStrictSchema(const json::Value& value, const json::Value& schema,
     }
     if (const json::Value* items = schema.find("items"); items != nullptr) {
       for (const json::Value& member : value.as_array()) {
-        if (!MatchesStrictSchema(member, *items, root, reason, depth + 1U)) {
+        if (!MatchesStrictSchema(member, *items, root, reason, work, depth + 1U)) {
           reason = "array item: " + reason;
           return false;
         }
@@ -393,6 +516,7 @@ bool MatchesStrictSchema(const json::Value& value, const json::Value& schema,
     }
   }
   if (value.is_string()) {
+    if (!work.StringBytes(value.as_string().size())) { reason = "schema string work limit exceeded"; return false; }
     const std::optional<std::size_t> size =
         Utf8CodePointCount(value.as_string());
     if (!size.has_value()) {
@@ -413,24 +537,23 @@ bool MatchesStrictSchema(const json::Value& value, const json::Value& schema,
     }
   }
   if (value.is_number()) {
-    const double number = value.as_number();
     if (const json::Value* minimum = schema.find("minimum");
-        minimum != nullptr && number < minimum->as_number()) {
+        minimum != nullptr && CompareNumbers(value, *minimum) < 0) {
       reason = "number is below minimum";
       return false;
     }
     if (const json::Value* maximum = schema.find("maximum");
-        maximum != nullptr && number > maximum->as_number()) {
+        maximum != nullptr && CompareNumbers(value, *maximum) > 0) {
       reason = "number is above maximum";
       return false;
     }
     if (const json::Value* minimum = schema.find("exclusiveMinimum");
-        minimum != nullptr && number <= minimum->as_number()) {
+        minimum != nullptr && CompareNumbers(value, *minimum) <= 0) {
       reason = "number is not above exclusiveMinimum";
       return false;
     }
     if (const json::Value* maximum = schema.find("exclusiveMaximum");
-        maximum != nullptr && number >= maximum->as_number()) {
+        maximum != nullptr && CompareNumbers(value, *maximum) >= 0) {
       reason = "number is not below exclusiveMaximum";
       return false;
     }
@@ -625,6 +748,10 @@ Status ValidateToolDefinitions(
     const Status status = ValidateSchemaDefinition(
         schema.value(), tool.strict, "tool '" + tool.name + "' parameters");
     if (!status.ok()) return status;
+    SchemaWork graph_work;
+    std::set<const json::Value*> active, done;
+    const auto graph_status = ValidateSchemaGraph(schema.value(), schema.value(), active, done, graph_work);
+    if (!graph_status.ok()) return graph_status;
     const json::Value* root_type = schema.value().find("type");
     if (root_type == nullptr || !root_type->is_string() ||
         root_type->as_string() != "object") {
@@ -643,6 +770,7 @@ Status ValidateGeneratedToolCalls(
     return ParseError("model emitted a tool call while tool_choice is none");
   }
   std::set<std::string, std::less<>> call_ids;
+  SchemaWork work;
   for (const GenerationToolCall& call : calls) {
     if (call.id.empty() || !call_ids.insert(call.id).second) {
       return ParseError("model emitted an empty or duplicate tool-call ID");
@@ -668,6 +796,8 @@ Status ValidateGeneratedToolCalls(
                         call.name + "'");
     }
     if (!definition->strict) continue;
+    if (!work.StringBytes(definition->parameters_json.size() + call.arguments_json.size()))
+      return ParseError("strict tool validation input work limit exceeded");
     auto schema = json::Parse(
         definition->parameters_json,
         {.max_depth = 32U,
@@ -679,7 +809,7 @@ Status ValidateGeneratedToolCalls(
     }
     std::string reason;
     if (!MatchesStrictSchema(arguments.value(), schema.value(), schema.value(),
-                             reason)) {
+                             reason, work) || work.exhausted) {
       return ParseError("strict tool '" + call.name +
                         "' arguments violate its schema: " + reason);
     }

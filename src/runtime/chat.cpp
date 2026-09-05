@@ -525,43 +525,8 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
       tools.push_back({tool.name, tool.description, tool.parameters_json});
     }
   }
-  if (!impl_->committed_messages.empty()) {
-    const bool extends_prefix =
-        request.messages.size() > impl_->committed_messages.size() &&
-        std::equal(
-            impl_->committed_messages.begin(), impl_->committed_messages.end(),
-            request.messages.begin(),
-            [](const GenerationMessage& cached,
-               const GenerationMessage& supplied) {
-              return internal::ResidentMessageEquivalent(cached, supplied);
-            });
-    const auto added_begin = extends_prefix
-                                 ? request.messages.begin() +
-                                       static_cast<std::ptrdiff_t>(
-                                           impl_->committed_messages.size())
-                                 : request.messages.end();
-    const bool one_user =
-        extends_prefix && request.messages.size() ==
-                              impl_->committed_messages.size() + 1U &&
-        added_begin->role == "user";
-    const bool tool_results =
-        extends_prefix &&
-        std::all_of(added_begin, request.messages.end(),
-                    [](const GenerationMessage& message) {
-                      return message.role == "tool";
-                    });
-    if (!one_user && !tool_results) {
-      return Status(StatusCode::kInvalidArgument,
-                    "generation request must append one user turn or consecutive tool results");
-    }
-    if (request.tools != impl_->committed_tools) {
-      return Status(StatusCode::kInvalidArgument, "resident conversation tool definitions must not change");
-    }
-    if (request.tool_choice != impl_->committed_tool_choice) {
-      return Status(StatusCode::kInvalidArgument,
-                    "resident conversation tool choice must not change");
-    }
-  }
+  const Status continuation_status = ValidateContinuation(request);
+  if (!continuation_status.ok()) return continuation_status;
   auto messages = MaterializeMessages(request.messages,
                                       impl_->committed_messages);
   if (!messages.ok()) return messages.status();
@@ -760,6 +725,60 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   impl_->committed_tools = request.tools;
   impl_->committed_tool_choice = request.tool_choice;
   return response;
+}
+
+Status ChatSession::ValidateContinuation(const ChatGenerationRequest& request) const {
+  if (is_poisoned()) return Status(StatusCode::kInternal, "session cannot be reused after a failure");
+  if (!impl_->committed_messages.empty()) {
+    const bool extends_prefix =
+        request.messages.size() > impl_->committed_messages.size() &&
+        std::equal(
+            impl_->committed_messages.begin(), impl_->committed_messages.end(),
+            request.messages.begin(),
+            [](const GenerationMessage& cached,
+               const GenerationMessage& supplied) {
+              return internal::ResidentMessageEquivalent(cached, supplied);
+            });
+    const auto added_begin = extends_prefix
+                                 ? request.messages.begin() +
+                                       static_cast<std::ptrdiff_t>(
+                                           impl_->committed_messages.size())
+                                 : request.messages.end();
+    const bool one_user =
+        extends_prefix && request.messages.size() ==
+                              impl_->committed_messages.size() + 1U &&
+        added_begin->role == "user";
+    const bool tool_results =
+        extends_prefix &&
+        std::all_of(added_begin, request.messages.end(),
+                    [](const GenerationMessage& message) {
+                      return message.role == "tool";
+                    });
+    if (!one_user && !tool_results) {
+      return Status(StatusCode::kInvalidArgument,
+                    "generation request must append one user turn or consecutive tool results");
+    }
+    if (request.tools != impl_->committed_tools) {
+      return Status(StatusCode::kInvalidArgument, "resident conversation tool definitions must not change");
+    }
+    if (request.tool_choice != impl_->committed_tool_choice) {
+      return Status(StatusCode::kInvalidArgument,
+                    "resident conversation tool choice must not change");
+    }
+  }
+  return Status::Ok();
+}
+
+Status ChatSession::Restart(std::shared_ptr<ModelRuntime> runtime,
+                            const ChatSessionOptions& options,
+                            GemmaChatProcessor processor) {
+  // Release the old slot before reserving a new one: 26B has exactly one lease,
+  // and 12B must never transiently retain two arenas for one conversation.
+  impl_.reset();
+  auto replacement = Create(std::move(runtime), options, std::move(processor));
+  if (!replacement.ok()) return replacement.status();
+  *this = std::move(replacement).value();
+  return Status::Ok();
 }
 
 std::uint64_t ChatSession::cached_token_count() const {

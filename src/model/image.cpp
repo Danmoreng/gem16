@@ -1,4 +1,5 @@
 #include "gem16/image.h"
+#include "model/image_decode_budget.h"
 
 #include <algorithm>
 #include <chrono>
@@ -74,6 +75,9 @@ Result<RgbImage> DecodeImage(std::span<const std::uint8_t> encoded,
                      std::string(source_name));
   }
 
+  if (!internal::ImageDecodeBudget::Pixels(
+          static_cast<std::uint64_t>(width) * static_cast<std::uint64_t>(height)))
+    return Error(StatusCode::kResourceExhausted, "request image pixel budget exceeded");
   std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> decoded(
       stbi_load_from_memory(encoded.data(), encoded_size, &width, &height,
                             &channels, 3),
@@ -260,6 +264,12 @@ Result<VisionImage> LoadVisionImageBytes(
     return Error(StatusCode::kDataLoss,
                  "image patch count exceeds the model limit");
   }
+  // Account for retained float patches, positions and resize scratch before
+  // allocating any of them. The pixel budget separately bounds codec/RGB work.
+  if (!internal::ImageDecodeBudget::PreparedBytes(
+          static_cast<std::uint64_t>(target_width) * target_height * 16U +
+          static_cast<std::uint64_t>(target_width / 16U) * (target_height / 16U) * 8U))
+    return Error(StatusCode::kResourceExhausted, "request prepared image memory budget exceeded");
   auto resized = Resize(decoded.value(), target_width, target_height);
   VisionImage result;
   result.patch_count = patch_count;
@@ -364,6 +374,12 @@ Result<Gemma4Moe26BVisionImage> LoadGemma4Moe26BVisionImageBytes(
   }
 
   const auto resize_begin = std::chrono::steady_clock::now();
+  // Account for retained float patches, positions and resize scratch before
+  // allocating any of them. The pixel budget separately bounds codec/RGB work.
+  if (!internal::ImageDecodeBudget::PreparedBytes(
+          static_cast<std::uint64_t>(target_width) * target_height * 16U +
+          static_cast<std::uint64_t>(target_width / 16U) * (target_height / 16U) * 8U))
+    return Error(StatusCode::kResourceExhausted, "request prepared image memory budget exceeded");
   auto resized = Resize(decoded.value(), target_width, target_height);
   const auto resize_end = std::chrono::steady_clock::now();
   if (options.timings != nullptr) {

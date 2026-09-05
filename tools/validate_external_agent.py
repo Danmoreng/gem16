@@ -12,6 +12,7 @@ import platform
 import subprocess
 import sys
 import tempfile
+import urllib.request
 
 PI_VERSION = "0.85.0"
 SOURCE = "def add(a, b):\n    return a - b\n"
@@ -52,6 +53,20 @@ def main() -> int:
     ).strip()
     if version != PI_VERSION:
         raise RuntimeError(f"expected Pi {PI_VERSION}, found {version}")
+
+    def metrics():
+        with urllib.request.urlopen(
+            args.base_url.removesuffix("/v1") + "/metrics", timeout=5
+        ) as response:
+            return {
+                parts[0]: float(parts[1])
+                for line in response.read().decode().splitlines()
+                if not line.startswith("#")
+                and len(parts := line.split()) == 2
+                and "{" not in parts[0]
+            }
+
+    metrics_before = metrics()
     with tempfile.TemporaryDirectory(prefix="gem16-agent-fixture-") as temporary:
         root = Path(temporary)
         project = root / "project"
@@ -80,6 +95,8 @@ def main() -> int:
                         "supportsUsageInStreaming": True,
                         "supportsStrictMode": False,
                         "supportsLongCacheRetention": False,
+                        "sendSessionAffinityHeaders": True,
+                        "sessionAffinityFormat": "openai",
                     },
                     "models": [
                         {
@@ -173,7 +190,26 @@ def main() -> int:
             text=True,
         )
         edited = (project / "arithmetic.py").read_text()
+        metrics_after = metrics()
+        metrics_delta = {
+            key: value - metrics_before.get(key, 0)
+            for key, value in metrics_after.items()
+        }
+        assistant_rounds = [m for m in messages if m.get("role") == "assistant"]
         checks = {
+            "resident_session_created_once": metrics_delta.get(
+                "gem16_sessions_created_total"
+            )
+            == 1,
+            "no_slot_rebuild_per_turn": metrics_delta.get(
+                "gem16_sessions_rebuilt_total", 0
+            )
+            == 0,
+            "server_cache_hits": metrics_delta.get("gem16_cached_input_tokens_total", 0)
+            > 0,
+            "client_cache_hits": any(
+                m.get("usage", {}).get("cacheRead", 0) > 0 for m in assistant_rounds
+            ),
             "agent_exit_zero": run.returncode == 0,
             "no_agent_errors": not errors,
             "read_both_files": all(
@@ -226,6 +262,7 @@ def main() -> int:
             "checks": checks,
             "errors": errors,
             "tool_calls": calls,
+            "server_metrics_delta": metrics_delta,
             "command": command,
             "reasoning": "none",
             "transport": "Chat Completions full history",

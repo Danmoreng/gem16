@@ -46,6 +46,7 @@ struct ServerMetrics {
   std::atomic<std::uint64_t> requests_failed{0U};
   std::atomic<std::uint64_t> active_requests{0U};
   std::atomic<std::uint64_t> sessions_created{0U};
+  std::atomic<std::uint64_t> sessions_rebuilt{0U};
   std::atomic<std::uint64_t> sessions_evicted{0U};
   std::atomic<std::uint64_t> cancellations_requested{0U};
   std::atomic<std::uint64_t> cancellations_observed{0U};
@@ -143,6 +144,7 @@ struct ServerState {
 class SessionLease {
  public:
   SessionLease(ServerState& state, std::shared_ptr<SessionEntry> entry);
+  SessionLease(SessionLease&& other) noexcept;
   SessionLease(const SessionLease&) = delete;
   SessionLease& operator=(const SessionLease&) = delete;
   ~SessionLease();
@@ -154,6 +156,7 @@ class SessionLease {
   ServerState* state_ = nullptr;
   std::shared_ptr<SessionEntry> entry_;
   bool discard_ = false;
+  int uncaught_on_entry_ = 0;
 };
 
 [[nodiscard]] std::int64_t UnixSecondsNow();

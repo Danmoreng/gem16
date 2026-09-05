@@ -93,9 +93,32 @@ void TestParallelCapacity() {
   GEM16_CHECK(queue.Snapshot().active == 2U);
 }
 
+void TestDeadlineAndCancellation() {
+  using namespace std::chrono_literals;
+  gem16::server::RequestQueue queue(1U, 4U);
+  auto active = queue.Acquire();
+  auto expired = queue.Acquire(std::chrono::steady_clock::now() + 5ms);
+  GEM16_CHECK(!expired.ok());
+  GEM16_CHECK(queue.Snapshot().queued == 0U);
+  std::atomic<bool> cancel{false};
+  std::atomic<bool> cancelled{false};
+  std::thread waiter([&] {
+    auto result = queue.Acquire(std::chrono::steady_clock::now() + 1s,
+                               [&] { return cancel.load(); });
+    cancelled.store(!result.ok() && result.status().code() == gem16::StatusCode::kCancelled);
+  });
+  while (queue.Snapshot().queued != 1U) std::this_thread::yield();
+  cancel.store(true);
+  waiter.join();
+  GEM16_CHECK(cancelled.load());
+  GEM16_CHECK(queue.Snapshot().queued == 0U);
+  GEM16_CHECK(queue.Snapshot().active == 1U);
+}
+
 }  // namespace
 
 void RunRequestQueueTests() {
+  TestDeadlineAndCancellation();
   TestFifoAndCapacity();
   TestBoundedAndDraining();
   TestParallelCapacity();

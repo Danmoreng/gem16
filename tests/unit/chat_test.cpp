@@ -371,6 +371,52 @@ void TestStrictToolContract() {
       !gem16::internal::ValidateToolDefinitions(unsupported_strict).ok());
 }
 
+void TestStrictSchemaHardening() {
+  auto definition = [](std::string schema) {
+    return std::vector<gem16::GenerationToolDefinition>{{"probe", "", std::move(schema), true}};
+  };
+  const auto cycle = definition(R"({"type":"object","$defs":{"x":{"anyOf":[{"$ref":"#/$defs/x"},{"$ref":"#/$defs/x"}]}},"$ref":"#/$defs/x"})");
+  GEM16_CHECK(!gem16::internal::ValidateToolDefinitions(cycle).ok());
+  GEM16_CHECK(!gem16::internal::ValidateToolDefinitions(definition(
+      R"({"type":"object","$ref":"#/$defs/missing"})")).ok());
+  GEM16_CHECK(gem16::internal::ValidateToolDefinitions(definition(
+      R"({"type":"object","$defs":{"x":{"type":"integer"}},"properties":{"v":{"$ref":"#/$defs/x"}}})")).ok());
+  auto check = [&](std::string constraint, std::string value, bool expected) {
+    auto tools = definition("{\"type\":\"object\",\"properties\":{\"v\":{" + constraint + "}}}");
+    GEM16_CHECK(gem16::internal::ValidateToolDefinitions(tools).ok());
+    std::vector<gem16::GenerationToolCall> calls{{"call_1", "probe", "{\"v\":" + value + "}"}};
+    GEM16_CHECK(gem16::internal::ValidateGeneratedToolCalls(tools, {}, calls).ok() == expected);
+  };
+  check(R"("const":9007199254740992)", "9007199254740993", false);
+  check(R"("enum":[9007199254740992])", "9007199254740993", false);
+  check(R"("minimum":9007199254740993)", "9007199254740992", false);
+  check(R"("maximum":9007199254740992)", "9007199254740993", false);
+  check(R"("exclusiveMaximum":9223372036854775807)", "9223372036854775806", true);
+  check(R"("exclusiveMinimum":-9223372036854775808)", "-9223372036854775807", true);
+  check(R"("const":9223372036854775807)", "9223372036854775808.0", false);
+  check(R"("type":"integer","const":1)", "1.0", true);
+  check(R"("minimum":1.5)", "1", false);
+  check(R"("maximum":-1.5)", "-1", false);
+  check(R"("const":{"a":1,"b":2})", R"({"b":2,"a":1.0})", true);
+  // Acyclic shared references still produce exponential evaluation without a
+  // global budget. All oneOf branches must be counted, unlike anyOf.
+  std::string schema = R"({"type":"object","$ref":"#/$defs/n0","$defs":{)";
+  for (int n = 0; n < 15; ++n) {
+    if (n) schema += ",";
+    const auto next = "#/$defs/n" + std::to_string(n + 1);
+    schema += "\"n" + std::to_string(n) + "\":{\"oneOf\":[{\"$ref\":\"" + next + "\"},{\"$ref\":\"" + next + "\"}]}";
+  }
+  schema += R"(,"n15":{"type":"string"}}})";
+  const auto branching = definition(schema);
+  GEM16_CHECK(gem16::internal::ValidateToolDefinitions(branching).ok());
+  const std::vector<gem16::GenerationToolCall> calls{{"call_1", "probe", "{}"}};
+  const auto result = gem16::internal::ValidateGeneratedToolCalls(branching, {}, calls);
+  GEM16_CHECK(!result.ok());
+  GEM16_CHECK(result.message().find("work limit") != std::string::npos);
+  // Defense in depth also bounds evaluation when a caller skips definition validation.
+  GEM16_CHECK(!gem16::internal::ValidateGeneratedToolCalls(cycle, {}, calls).ok());
+}
+
 }  // namespace
 
 void RunChatTests() {
@@ -382,4 +428,5 @@ void RunChatTests() {
   TestResidentImageIdentity();
   TestResidentStreamedAssistantWhitespace();
   TestStrictToolContract();
+  TestStrictSchemaHardening();
 }

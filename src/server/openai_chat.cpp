@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "util/json.h"
+#include "model/image_decode_budget.h"
 #include "runtime/tool_call_parser.h"
 
 namespace gem16::server {
@@ -494,6 +495,33 @@ Result<PendingImage> ParseResponsesImage(const json::Value& part,
                       "Responses input_image data URL"};
 }
 
+// OpenAI clients (notably Pi compaction) can send adjacent user messages.
+// Gemma represents these as one user turn, preserving ordered parts with an
+// explicit paragraph separator. Run after media preparation so indices stay valid.
+void NormalizeAdjacentUserMessages(std::vector<GenerationMessage>& messages) {
+  std::vector<GenerationMessage> normalized;
+  normalized.reserve(messages.size());
+  for (auto& message : messages) {
+    if (message.role == "user" && !normalized.empty() && normalized.back().role == "user") {
+      auto& content = normalized.back().content;
+      content.push_back(GenerationContentPart::Text("\n\n"));
+      for (auto& part : message.content) content.push_back(std::move(part));
+    } else {
+      normalized.push_back(std::move(message));
+    }
+  }
+  messages = std::move(normalized);
+}
+
+Status ValidateReplayMetadata(const json::Value& item) {
+  if (const auto* id = item.find("id"); id && (!id->is_string() || id->as_string().empty()))
+    return Invalid("output item id must be a non-empty string");
+  if (const auto* status = item.find("status"); status &&
+      (!status->is_string() || (status->as_string() != "completed" && status->as_string() != "incomplete")))
+    return Invalid("replayed output item must be completed or incomplete");
+  return Status::Ok();
+}
+
 Result<ParsedMessage> ParseResponsesMessage(const json::Value& value) {
   if (!value.is_object()) return Invalid("each input item must be an object");
   const auto& object = value.as_object();
@@ -507,8 +535,10 @@ Result<ParsedMessage> ParseResponsesMessage(const json::Value& value) {
     return Invalid("Responses message role is unsupported");
   }
   const Status message_fields = RejectUnknownFields(
-      object, {"type", "role", "content"}, "Responses message");
+      object, {"type", "role", "content", "id", "status"}, "Responses message");
   if (!message_fields.ok()) return message_fields;
+  const auto metadata = ValidateReplayMetadata(value);
+  if (!metadata.ok()) return metadata;
   const json::Value* content = value.find("content");
   if (content == nullptr) return Invalid("message content is required");
   if (content->is_string()) {
@@ -525,8 +555,13 @@ Result<ParsedMessage> ParseResponsesMessage(const json::Value& value) {
     if (!type.ok()) return type.status();
     if (type.value() == "input_text" || type.value() == "output_text") {
       const Status fields = RejectUnknownFields(
-          part.as_object(), {"type", "text"}, "Responses text content");
+          part.as_object(), {"type", "text", "annotations", "logprobs"}, "Responses text content");
       if (!fields.ok()) return fields;
+      for (const auto key : {"annotations", "logprobs"}) {
+        if (const auto* part_metadata = part.find(key); part_metadata && !part_metadata->is_null() &&
+            (!part_metadata->is_array() || !part_metadata->as_array().empty()))
+          return Status(StatusCode::kUnsupported, "non-empty output text metadata is unsupported");
+      }
       auto text = RequiredString(part.as_object(), "text");
       if (!text.ok()) return text.status();
       parsed.message.content.push_back(
@@ -646,6 +681,7 @@ std::string ResponsesToolsJson(
 
 Result<OpenAiChatRequest> ParseChatCompletionsRequest(
     std::string_view body, const OpenAiChatAdapterOptions& options) {
+  internal::ImageDecodeBudget request_decode_budget;
   if (body.size() > 16U * 1024U * 1024U) {
     return Invalid("request body exceeds 16 MiB");
   }
@@ -689,6 +725,16 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
         std::move(message).value().message);
   }
 
+  for (const auto key : {"max_completion_tokens", "max_tokens"}) {
+    const auto* value = root.value().find(key);
+    if (value && (!value->is_integer() || value->as_integer() <= 0))
+      return Invalid(std::string(key) + " must be a positive integer");
+  }
+  if (const auto* alias = root.value().find("max_tokens"); alias) {
+    const auto* canonical = root.value().find("max_completion_tokens");
+    if (canonical && canonical->as_integer() != alias->as_integer())
+      return Invalid("max_tokens and max_completion_tokens conflict");
+  }
   const json::Value* max_tokens = root.value().find("max_completion_tokens");
   if (max_tokens == nullptr) max_tokens = root.value().find("max_tokens");
   if (max_tokens != nullptr) {
@@ -807,11 +853,13 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
         .content[located.image.part_index] =
         GenerationContentPart::Image(std::move(image).value());
   }
+  NormalizeAdjacentUserMessages(request.generation.messages);
   return request;
 }
 
 Result<OpenAiResponsesRequest> ParseResponsesRequest(
     std::string_view body, const OpenAiChatAdapterOptions& options) {
+  internal::ImageDecodeBudget request_decode_budget;
   if (body.size() > 16U * 1024U * 1024U) {
     return Invalid("request body exceeds 16 MiB");
   }
@@ -892,9 +940,11 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
             std::move(parsed).value().message);
       } else if (type == "function_call") {
         const Status fields = RejectUnknownFields(
-            item.as_object(), {"type", "call_id", "name", "arguments"},
+            item.as_object(), {"type", "call_id", "name", "arguments", "id", "status"},
             "Responses function_call");
         if (!fields.ok()) return fields;
+        const auto metadata = ValidateReplayMetadata(item);
+        if (!metadata.ok()) return metadata;
         auto call_id = RequiredString(item.as_object(), "call_id");
         if (!call_id.ok()) return call_id.status();
         auto name = RequiredString(item.as_object(), "name");
@@ -903,7 +953,8 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
         if (!arguments.ok()) return arguments.status();
         // Adjacent Responses call items belong to one assistant turn. Preserve
         // the call/result boundary when reconstructing client-managed history.
-        if (!previous_input_was_function_call) {
+        if (!previous_input_was_function_call &&
+            (request.generation.messages.empty() || request.generation.messages.back().role != "assistant")) {
           GenerationMessage message;
           message.role = "assistant";
           request.generation.messages.push_back(std::move(message));
@@ -1079,6 +1130,7 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
         .content[located.image.part_index] =
         GenerationContentPart::Image(std::move(image).value());
   }
+  NormalizeAdjacentUserMessages(request.generation.messages);
   return request;
 }
 

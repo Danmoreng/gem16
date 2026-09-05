@@ -86,13 +86,13 @@ installs the matching package as well. It does not launch a Pi server.
   to satisfy this helper. The TypeScript helper handles the terminal incomplete response.
 - Native generation currently accepts `tool_choice=auto|none` and
   `parallel_tool_calls=true`. Required/named tool choice and `parallel_tool_calls=false`
-  are parsed but fail visibly at execution; constrained decoding remains outstanding.
+  fail before session acquisition/SSE success; constrained decoding remains outstanding.
 - Assistant `reasoning_content` is an output extension, not an accepted replay field.
   The tested Pi configuration maps thinking `off` to `reasoning_effort=none` and
   disables the unsupported Chat `store` field. Thinking-enabled Pi replay is not qualified.
 - Responses state is a resident linear chain. Clients must serialize the documented
-  input subset; arbitrary SDK output objects can contain unsupported fields such as
-  `id` or `status`. Stale/evicted IDs, branching and durable storage remain outside v1.
+  input subset. Own message/function-call output items now accept validated `id`
+  and `status`, plus empty output-text annotations; reasoning replay is still unsupported. Stale/evicted IDs, branching and durable storage remain outside v1.
 
 ## Fixes established by this matrix
 
@@ -111,3 +111,33 @@ cover this independently of the model's scheduling choice.
 Primary client references: [OpenAI Python](https://github.com/openai/openai-python),
 [OpenAI TypeScript streaming](https://github.com/openai/openai-node/blob/main/docs/responses.md),
 and [Pi model configuration](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/models.md).
+
+## Server-first hardening (2026-09-05)
+
+The new [bounded reconciliation matrix](../artifacts/server-hardening/2026-09-05/agent-matrix-reconciliation/result.json)
+passes on Linux for both public fixed-D2 profiles: pinned Python/Node/Pi, HTTP
+policy, bounded inference saturation, history/tool reset and multi-image/tool-image
+continuation. It records its own binary/source hashes and is not a Windows pass
+or a current-after-every-later-edit claim. Pi's real read/edit/test task now proves
+one created resident session, no slot rebuild per tool turn and cache hits in both
+server counters and client usage. Earlier traces with zero cache hits are unchanged.
+
+For Pi 0.85.0 include these provider compatibility settings (alongside the other
+settings in the retained `pi/models.json`):
+
+```json
+{"sendSessionAffinityHeaders": true, "sessionAffinityFormat": "openai"}
+```
+
+Pi supplies its own conversation identity. Never configure one global ID for all
+chats. Normal tool/user continuations reuse KV; new/forked/compacted histories are
+reconciled against their exact content and tools. Incompatible histories rebuild
+visibly. Thinking remains off in the tested preset. The initial actual Pi RPC
+compaction probes exposed adjacent user messages; their failed evidence is retained
+under `artifacts/server-hardening/2026-09-05/compaction-*`.
+
+The [corrected real compaction runs](../artifacts/server-hardening/2026-09-05/compaction-normalized-provenance.json)
+pass for both Linux profiles: three turns, manual Pi compaction, retained-codeword
+follow-up and a new conversation. `tools/check_pi_compaction.py` exercises the
+unmodified RPC client with the saved Pi model configuration. This is bounded
+manual compaction evidence, not a long-duration automatic-compaction soak.

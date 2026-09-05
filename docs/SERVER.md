@@ -44,13 +44,15 @@ assistant=$(python3 -c "from pathlib import Path; from tools.hf_cache import loc
   --model "$model" --vision-model "$vision" --assistant-model "$assistant" \
   --mtp-draft-tokens 2 --vision-max-soft-token-budget 280 \
   --model-name gem16 --host 127.0.0.1 --port 8080 \
-  --max-context 8192 --max-sessions 1
+  --max-context 220000 --max-sessions 1
 ```
 
-Compact Vision is single-slot, rejects audio and a second image, and supports
+Compact Vision is single-slot, rejects audio and accepts multiple images within request/context capacity, and supports
 70/140/280 image soft-token budgets. Ordinary mode omits `--assistant-model`
-and `--mtp-draft-tokens`. Its qualified context ceilings are 229,376 Target+Vision
-and 229,120 with fixed-D2, subject to admission and available VRAM.
+and `--mtp-draft-tokens`. The recommended everyday context is **220,000 tokens on Linux** and
+**170,000 on Windows**, subject to admission and available VRAM. Historical
+capacity evidence reached 229,376 Target+Vision / 229,120 fixed-D2; these are
+not the recommended desktop presets.
 
 On Windows use `python` for acquisition and PowerShell variables, for example
 for the same Compact Vision launch after the three lock downloads:
@@ -63,7 +65,7 @@ $assistant = python -c "from pathlib import Path; from tools.hf_cache import loc
   --model $model --vision-model $vision --assistant-model $assistant `
   --mtp-draft-tokens 2 --vision-max-soft-token-budget 280 `
   --model-name gem16 --host 127.0.0.1 --port 8080 `
-  --max-context 8192 --max-sessions 1
+  --max-context 170000 --max-sessions 1
 ```
 
 For 12B on Windows resolve `default_target_model()` and `default_assistant_model()`
@@ -76,14 +78,18 @@ check `/health` for actual capabilities. The [internal NVFP4 profile](GEMMA4_26B
 is text-only, with separate 98,304 Target / 86,016 D2 context limits; those are not
 Compact Vision limits. Adaptive MTP is unsupported on 26B.
 
-The server has no authentication or TLS layer; loopback is the supported boundary.
+The server has no authentication or TLS layer and now rejects non-loopback
+binding. `Host` must name the local listener (`127.0.0.1`, `localhost`, or `[::1]`
+with its port). Native SDKs need no `Origin`; browser requests must be same-origin.
+Generation POSTs require `Content-Type: application/json` (optional parameters).
+These checks precede API parsing. No permissive CORS policy is installed.
 
 Startup creates one `ModelRuntime` and logs its target/assistant weight bytes
 and load time. It constructs one temporary execution-slot probe, measures the
 larger of allocator accounting and observed VRAM delta, and rejects a
 `--max-sessions`/`--max-context` combination that cannot retain every configured
-slot plus the selected safety margin: 700 MiB for the primary profile, 400 MiB for long-context 26B Target-only,
-or 200 MiB for qualified long-context 26B MTP. The probe is released before listening.
+slot plus the selected safety margin: 700 MiB for 12B and short-context 26B, or 200 MiB for 26B at
+65,536 tokens and above (ordinary and fixed-D2). The probe is released before listening.
 Sessions are then created on demand. Each receives an isolated `SessionState`
 plus `ExecutionSlot` while sharing the immutable runtime.
 `--max-sessions` bounds resident slots; inactive least-recently-used sessions
@@ -95,15 +101,26 @@ remain responsive while a new slot is being prepared.
 
 Generation admission uses a bounded FIFO in front of those execution slots.
 Up to `--max-sessions` independent requests may execute concurrently; the next
-`--max-queued-requests` wait in arrival order. A request beyond that bound gets
+`--max-queued-requests` (1–64, default 64) wait in arrival order for at most
+30 seconds. Disconnected waiters are removed, never later executed. A request beyond that bound gets
 HTTP 503 with `resource_exhausted` instead of growing host memory without a
 limit. Requests targeting the same resident session also wait for its current
 turn to finish. Thus the one-slot 26B profile serializes all generation while
 the qualified two-slot 12B profile retains two-request parallelism. Cancellation,
 health, readiness, liveness and metrics bypass the generation queue.
-The underlying HTTP worker-task queue is bounded separately with a small
-control-plane reserve, so connections cannot accumulate unbounded host work
-before reaching generation admission.
+HTTP workers number `max_sessions + max_queued_requests + 4`, keeping execution
+capacity beyond the admitted/waiting inference handlers. The HTTP task queue is
+separately bounded. This is an inference-saturation reserve, not an unlimited
+slow-client availability guarantee. Non-streaming disconnects are checked during
+decode, and shutdown flags active sessions for cancellation. Long-prefill
+cancellation latency remains an open gate.
+
+Media preparation runs inside admission, limiting concurrent decoders to the
+execution capacity. Each parser request permits 32 million cumulative decoded
+image pixels and 256 MiB of accounted prepared image/resize storage, checked
+before allocation. These are resource budgets, not a fixed image-count cap.
+Codec/JSON/audio overhead is additional; these numbers are not a peak-RSS claim.
+Historical full-history images are still decoded on the CPU before KV reuse.
 
 ## Endpoints
 
@@ -239,6 +256,8 @@ tool identity, object shape, required/additional properties, type, enum/const,
 array and string bounds, numeric bounds, local references, and composition
 constraints before a successful response is exposed. Unsupported strict-schema
 keywords return a visible request error instead of weakening the contract.
+The canonical [schema work/reference limits](OPENAI_AGENT_CORE_V1.md#bounded-schema-and-replay-semantics)
+also apply to recursive or highly branching definitions.
 
 ## Streaming
 
@@ -259,16 +278,20 @@ introduced in the successful token loop.
 ## Session identity and admission
 
 Responses sessions are addressed by `previous_response_id`. Chat Completions
-uses `X-Gem16-Session-Id`: omit it to create a session and read the generated ID
+uses `X-Gem16-Session-Id` (or Pi’s `session_id` / `x-session-affinity` aliases):
+omit affinity to create a session and read the generated ID
 from the response header; send it on later requests to reuse the same resident
 conversation. Server-generated chat-completion, response, and session handles
 contain 128 bits from the operating system cryptographic random generator; they
 are opaque and must not be inferred from creation order. A session remains
 single-flight internally; a second concurrent request waits in FIFO admission
 and then for that session, while distinct sessions can use separate slots.
-Request-validation
-or unsupported-option errors leave an unchanged resident cache available for a
-corrected retry; only state-mutating inference, cancellation, or streaming failures
+Changed Chat full history or tool definitions rebuild the slot before generation,
+report `X-Gem16-Cache-Reset: history_or_tools_changed`, and increment
+`gem16_sessions_rebuilt_total`. This supports compaction and forks without stale
+KV reuse. Adjacent user messages become one user turn separated by two newlines.
+Malformed protocol and unsupported-option errors before reconciliation leave the
+resident cache unchanged; only state-mutating inference, cancellation, or streaming failures
 poison and discard the slot. If every configured slot is active, admission
 waits up to the configured queue bound instead of evicting live state or
 allocating beyond the configured limit.
@@ -366,3 +389,22 @@ context, sampling, and MTP configuration, and validates every default media file
 against `benchmarks/media/suite.json` before sending traffic. Optional repeated
 `--image` and `--audio` arguments append local stress media rather than replacing
 the repository suite.
+
+## Headless candidate package
+
+After building the CUDA server, package it without building Studio:
+
+```bash
+python3 tools/package_server.py --binary build/Linux/blackwell-release/bin/gem16-server --platform linux-x64
+```
+
+Windows uses `python tools/package_server.py --binary build/Windows/blackwell-release/bin/gem16-server.exe --platform windows-x64`.
+The archive is a development candidate with a fresh allowlist stage, binary/file
+hashes, VERSION, source revision/dirty status, pinned model-lock hashes and a
+toolchain-lock reference. No model payload or GUI dependency is included.
+Full platform dependency/notices and clean-machine qualification remain open.
+
+The Windows workflow uploads candidates and does not publish a GitHub release.
+`tools/verify_release_gates.py` checks a separate two-platform manifest against
+exact archive hashes and per-gate raw evidence hashes; integrity checks cannot
+replace reviewing the actual test evidence or owner publication authorization.

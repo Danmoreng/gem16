@@ -128,7 +128,18 @@ their respective boundaries.
 ## Conversation state
 
 Chat Completions accepts full history and may additionally reuse a resident
-session through `X-Gem16-Session-Id`.
+session through `X-Gem16-Session-Id`, `session_id` or `x-session-affinity`.
+Supplied aliases must agree; empty, duplicate or malformed IDs fail. Compatible
+continuations reuse the resident prefix. Changed history/tools cause a full
+rebuild with `X-Gem16-Cache-Reset: history_or_tools_changed` and a
+`gem16_sessions_rebuilt_total` increment; no old KV is used for that request.
+The 26B reset retains its runtime arena; 12B recreates its slot after releasing
+the old one. This is not a per-turn weight load or a general prefix cache.
+Responses resident chains retain their stricter linear semantics.
+
+Adjacent user messages are normalized into one Gemma user turn with two newline
+characters between their ordered content parts, including Pi compaction summaries.
+This adapter normalization does not change the checkpoint template.
 
 Responses supports a linear resident chain through `previous_response_id`.
 The identifier must name the latest response in that chain. Stale, evicted,
@@ -179,6 +190,25 @@ results for both public profiles, pinned Python/TypeScript clients and an unmodi
 Pi workflow. It does not complete the two-platform release gate.
 
 Current execution gaps remain explicit: required/named tool choice and
-`parallel_tool_calls=false` are parsed but rejected by the native runtime.
+`parallel_tool_calls=false` require constrained generation and are rejected by
+the server capability check before session acquisition or an SSE success response.
 Assistant `reasoning_content` replay is unsupported. These implementation limits
 do not waive the broader contract or authorize silently ignoring those fields.
+
+## Bounded schema and replay semantics
+
+Schema parsing permits 32 JSON levels and 10,000 values per definition/argument.
+Schema graph traversal permits 32 levels and 100,000 visits. Only direct local
+`#/$defs/<name>` references are supported, including JSON Pointer `~0`/`~1`
+escapes. Missing references and recursive schema graphs fail before generation.
+Strict calls in one generated response share 100,000 schema/equality/member steps
+and 16 MiB of inspected string/schema/argument bytes. Exhaustion fails the entire validation, including within
+composition alternatives. `const`, `enum` and numeric bounds preserve int64
+identity and compare mixed floating/integer values without rounding integers.
+
+Supported Responses message/function-call outputs can be replayed with string
+`id` and completed/incomplete `status`. `output_text` permits empty or null `annotations`
+and `logprobs`; unknown or non-empty unsupported metadata fails. Reasoning-item
+replay remains unqualified/unsupported. Token-limit aliases must both be positive
+integers and, when supplied together, equal. Per-request sampling remains open:
+it requires resident sampler/RNG and D2 qualification, rather than ignoring values.

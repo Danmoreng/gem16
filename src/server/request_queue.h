@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <mutex>
 
 #include "gem16/status.h"
@@ -53,7 +54,9 @@ class RequestQueue {
   RequestQueue(const RequestQueue&) = delete;
   RequestQueue& operator=(const RequestQueue&) = delete;
 
-  [[nodiscard]] Result<RequestAdmission> Acquire();
+  [[nodiscard]] Result<RequestAdmission> Acquire(
+      std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max(),
+      const std::function<bool()>& cancelled = {});
   void StartDraining();
   [[nodiscard]] RequestQueueSnapshot Snapshot() const;
 

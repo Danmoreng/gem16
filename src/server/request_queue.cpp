@@ -30,9 +30,12 @@ RequestQueue::RequestQueue(std::size_t capacity, std::size_t max_queued)
     : capacity_(std::max<std::size_t>(capacity, 1U)),
       max_queued_(max_queued) {}
 
-Result<RequestAdmission> RequestQueue::Acquire() {
+Result<RequestAdmission> RequestQueue::Acquire(
+    std::chrono::steady_clock::time_point deadline,
+    const std::function<bool()>& cancelled) {
   const auto started = std::chrono::steady_clock::now();
   std::unique_lock lock(mutex_);
+  if (cancelled && cancelled()) return Status(StatusCode::kCancelled, "request cancelled before admission");
   if (draining_) {
     return Status(StatusCode::kResourceExhausted, "server is draining");
   }
@@ -48,16 +51,28 @@ Result<RequestAdmission> RequestQueue::Acquire() {
   const std::uint64_t ticket = next_ticket_++;
   waiters_.push_back(ticket);
   high_watermark_ = std::max(high_watermark_, waiters_.size());
-  available_.wait(lock, [&] {
-    return draining_ ||
-           (!waiters_.empty() && waiters_.front() == ticket &&
-            active_ < capacity_);
-  });
-  if (draining_) {
+  auto remove_ticket = [&] {
     const auto found = std::find(waiters_.begin(), waiters_.end(), ticket);
     if (found != waiters_.end()) waiters_.erase(found);
     available_.notify_all();
-    return Status(StatusCode::kResourceExhausted, "server is draining");
+  };
+  try {
+    for (;;) {
+      const bool aborted = cancelled && cancelled();
+      const bool expired = std::chrono::steady_clock::now() >= deadline;
+      if (draining_ || aborted || expired) {
+        remove_ticket();
+        return Status(aborted ? StatusCode::kCancelled : StatusCode::kResourceExhausted,
+                      aborted ? "request cancelled while queued" :
+                      draining_ ? "server is draining" : "request admission deadline exceeded");
+      }
+      if (!waiters_.empty() && waiters_.front() == ticket && active_ < capacity_) break;
+      available_.wait_until(lock, std::min(deadline,
+          std::chrono::steady_clock::now() + std::chrono::milliseconds(25)));
+    }
+  } catch (...) {
+    remove_ticket();
+    throw;
   }
   waiters_.pop_front();
   ++active_;

@@ -30,6 +30,7 @@
 #include "server/request_queue.h"
 #include "server/secure_id.h"
 #include "server/session_pool.h"
+#include "server/http_policy.h"
 #include "util/json.h"
 
 namespace {
@@ -192,9 +193,9 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
     } else if (argument == "--max-queued-requests" && index + 1 < argc) {
       std::uint64_t value = 0U;
       if (!ParseUnsigned(argv[++index], value) || value == 0U ||
-          value > 4096U) {
+          value > 64U) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
-                             "--max-queued-requests must be in [1, 4096]");
+                             "--max-queued-requests must be in [1, 64]");
       }
       options.max_queued_requests = static_cast<std::size_t>(value);
     } else if (argument == "--log-level" && index + 1 < argc) {
@@ -252,6 +253,10 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
   if (options.model_directory.empty()) {
     return gem16::Status(gem16::StatusCode::kInvalidArgument,
                          "--model is required");
+  }
+  if (!gem16::server::IsLoopbackHost(options.host)) {
+    return gem16::Status(gem16::StatusCode::kUnsupported,
+        "only loopback binding is supported; remote serving requires a separately secured gateway");
   }
   if (options.model_name.empty() || options.host.empty()) {
     return gem16::Status(gem16::StatusCode::kInvalidArgument,
@@ -351,8 +356,10 @@ void SetError(ServerState& state, const gem16::Status& status,
       "application/json; charset=utf-8");
 }
 
-gem16::Result<RequestAdmission> AcquireRequestAdmission(ServerState& state) {
-  auto admission = state.request_queue.Acquire();
+gem16::Result<RequestAdmission> AcquireRequestAdmission(ServerState& state, const httplib::Request& request) {
+  auto admission = state.request_queue.Acquire(
+      std::chrono::steady_clock::now() + std::chrono::seconds(30),
+      request.is_connection_closed);
   if (!admission.ok()) {
     state.metrics.queue_rejections.fetch_add(1U);
     return admission.status();
@@ -365,6 +372,13 @@ gem16::Result<RequestAdmission> AcquireRequestAdmission(ServerState& state) {
 
 gem16::Status ValidateRequestCapabilities(
     ServerState& state, const gem16::ChatGenerationRequest& request) {
+  if (request.tool_choice.mode != gem16::GenerationToolChoiceMode::kAuto &&
+      request.tool_choice.mode != gem16::GenerationToolChoiceMode::kNone)
+    return gem16::Status(gem16::StatusCode::kUnsupported,
+        "required/named tool choice needs constrained generation, which is not yet implemented");
+  if (!request.parallel_tool_calls)
+    return gem16::Status(gem16::StatusCode::kUnsupported,
+        "parallel_tool_calls=false needs constrained generation, which is not yet implemented");
   std::uint32_t image_count = 0U;
   bool has_compact_vision = false;
   for (const auto& message : request.messages) {
@@ -436,6 +450,7 @@ struct CancellationContext {
   std::atomic<std::uint64_t>* cancellations_observed = nullptr;
   std::atomic<std::uint64_t>* client_disconnects = nullptr;
   httplib::DataSink* sink = nullptr;
+  const httplib::Request* request = nullptr;
 };
 
 gem16::Status CheckCancellation(void* opaque_context,
@@ -446,16 +461,17 @@ gem16::Status CheckCancellation(void* opaque_context,
     return gem16::Status(gem16::StatusCode::kInternal,
                          "invalid cancellation callback");
   }
-  if (context->cancel_requested != nullptr &&
-      context->cancel_requested->load()) {
+  if (g_shutdown_signal != 0 || (context->cancel_requested != nullptr &&
+      context->cancel_requested->load())) {
     if (context->cancellations_observed != nullptr) {
       context->cancellations_observed->fetch_add(1U);
     }
     return gem16::Status(gem16::StatusCode::kCancelled,
                          "generation was cancelled");
   }
-  if (context->sink != nullptr && context->sink->is_writable &&
-      !context->sink->is_writable()) {
+  if ((context->sink != nullptr && context->sink->is_writable &&
+       !context->sink->is_writable()) ||
+      (context->request != nullptr && context->request->is_connection_closed())) {
     if (context->client_disconnects != nullptr) {
       context->client_disconnects->fetch_add(1U);
     }
@@ -468,6 +484,13 @@ gem16::Status CheckCancellation(void* opaque_context,
 void HandleCompletion(ServerState& state, const httplib::Request& request,
                       httplib::Response& response) {
   state.metrics.requests_total.fetch_add(1U);
+  auto admission_result = AcquireRequestAdmission(state, request);
+  if (!admission_result.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
+    SetError(state, admission_result.status(), response);
+    return;
+  }
+  RequestAdmission admission = std::move(admission_result).value();
   auto parsed = gem16::server::ParseChatCompletionsRequest(
       request.body,
       {state.max_context, state.runtime->vision_module_loaded(),
@@ -499,7 +522,18 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   }
   gem16::server::OpenAiResponseIdentity identity =
       std::move(identity_result).value();
-  std::string session_id = request.get_header_value("X-Gem16-Session-Id");
+  std::string session_id;
+  for (const auto header : {"X-Gem16-Session-Id", "session_id", "x-session-affinity"}) {
+    const auto count = request.get_header_value_count(header);
+    const auto value = request.get_header_value(header);
+    if (count > 1U || (count && value.empty()) ||
+        (!session_id.empty() && count && value != session_id)) {
+      SetError(state, gem16::Status(gem16::StatusCode::kInvalidArgument,
+          "session affinity headers are empty, duplicated or conflicting"), response);
+      return;
+    }
+    if (count) session_id = value;
+  }
   if (session_id.empty()) {
     auto generated_id = gem16::server::MakeSecureId("session_");
     if (!generated_id.ok()) {
@@ -522,13 +556,6 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
              response);
     return;
   }
-  auto admission_result = AcquireRequestAdmission(state);
-  if (!admission_result.ok()) {
-    state.metrics.requests_failed.fetch_add(1U);
-    SetError(state, admission_result.status(), response);
-    return;
-  }
-  RequestAdmission admission = std::move(admission_result).value();
   auto acquired = AcquireNamedSession(state, "chat:" + session_id);
   if (!acquired.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
@@ -536,13 +563,31 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     return;
   }
   std::shared_ptr<SessionEntry> entry = std::move(acquired).value();
+  SessionLease lease(state, entry);
+  {
+    std::lock_guard inference_lock(entry->inference_mutex);
+    const auto continuation = entry->session.ValidateContinuation(parsed.value().generation);
+    if (!continuation.ok()) {
+      if (continuation.code() != gem16::StatusCode::kInvalidArgument) {
+        lease.Discard();
+        SetError(state, continuation, response);
+        return;
+      }
+      lease.Discard();
+      const auto restarted = entry->session.Restart(state.runtime, state.session_options, state.processor);
+      if (!restarted.ok()) { SetError(state, restarted, response); return; }
+      lease.Keep();
+      state.metrics.sessions_rebuilt.fetch_add(1U);
+      response.set_header("X-Gem16-Cache-Reset", "history_or_tools_changed");
+    }
+  }
   response.set_header("X-Gem16-Session-Id", session_id);
   if (!parsed.value().stream) {
     std::lock_guard inference_lock(entry->inference_mutex);
     entry->cancel_requested.store(false);
     CancellationContext cancellation{
         &entry->cancel_requested, &state.metrics.cancellations_observed,
-        &state.metrics.client_disconnects, nullptr};
+        &state.metrics.client_disconnects, nullptr, &request};
     const auto generation_start = std::chrono::steady_clock::now();
     auto generated = entry->session.Generate(
         parsed.value().generation, CheckCancellation, &cancellation);
@@ -550,8 +595,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
       state.metrics.requests_failed.fetch_add(1U);
       SetError(state, generated.status(), response,
                HasVisionInput(parsed.value().generation));
-      if (entry->session.is_poisoned()) DiscardSession(state, entry);
-      ReleaseSession(state, entry);
+      if (entry->session.is_poisoned()) lease.Discard();
       return;
     }
     RecordGeneration(state, generated.value(),
@@ -559,7 +603,6 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     response.set_content(
         gem16::server::ChatCompletionJson(identity, generated.value()),
         "application/json; charset=utf-8");
-    ReleaseSession(state, entry);
     return;
   }
 
@@ -579,7 +622,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   provider->identity = identity;
   provider->entry = entry;
   provider->admission = std::move(admission);
-  provider->lease = std::make_unique<SessionLease>(state, entry);
+  provider->lease = std::make_unique<SessionLease>(std::move(lease));
   provider->include_usage = parsed.value().include_usage;
   response.set_header("Cache-Control", "no-cache");
   response.set_header("X-Accel-Buffering", "no");
@@ -646,6 +689,13 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
 void HandleResponses(ServerState& state, const httplib::Request& request,
                      httplib::Response& response) {
   state.metrics.requests_total.fetch_add(1U);
+  auto admission_result = AcquireRequestAdmission(state, request);
+  if (!admission_result.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
+    SetError(state, admission_result.status(), response);
+    return;
+  }
+  RequestAdmission admission = std::move(admission_result).value();
   auto parsed = gem16::server::ParseResponsesRequest(
       request.body,
       {state.max_context, state.runtime->vision_module_loaded(),
@@ -677,13 +727,6 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
   }
   gem16::server::OpenAiResponseIdentity identity =
       std::move(identity_result).value();
-  auto admission_result = AcquireRequestAdmission(state);
-  if (!admission_result.ok()) {
-    state.metrics.requests_failed.fetch_add(1U);
-    SetError(state, admission_result.status(), response);
-    return;
-  }
-  RequestAdmission admission = std::move(admission_result).value();
   gem16::Result<std::shared_ptr<SessionEntry>> acquired =
       parsed.value().previous_response_id.has_value()
           ? AcquireResponseSession(state,
@@ -695,6 +738,13 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     return;
   }
   std::shared_ptr<SessionEntry> entry = std::move(acquired).value();
+  SessionLease lease(state, entry);
+  struct ResponseIndexGuard {
+    ServerState& state;
+    const std::string& id;
+    bool keep = false;
+    ~ResponseIndexGuard() { if (!keep) UnindexResponse(state, id); }
+  } index_guard{state, identity.id};
   IndexResponse(state, entry, identity.id);
   if (!parsed.value().stream) {
     std::lock_guard inference_lock(entry->inference_mutex);
@@ -703,13 +753,12 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
       state.metrics.requests_failed.fetch_add(1U);
       SetError(state, status, response);
       UnindexResponse(state, identity.id);
-      ReleaseSession(state, entry);
       return;
     }
     entry->cancel_requested.store(false);
     CancellationContext cancellation{
         &entry->cancel_requested, &state.metrics.cancellations_observed,
-        &state.metrics.client_disconnects, nullptr};
+        &state.metrics.client_disconnects, nullptr, &request};
     const auto generation_start = std::chrono::steady_clock::now();
     auto generated = entry->session.Generate(
         parsed.value().generation, CheckCancellation, &cancellation);
@@ -717,8 +766,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
       state.metrics.requests_failed.fetch_add(1U);
       SetError(state, generated.status(), response,
                HasVisionInput(parsed.value().generation));
-      if (entry->session.is_poisoned()) DiscardSession(state, entry);
-      ReleaseSession(state, entry);
+      if (entry->session.is_poisoned()) lease.Discard();
       return;
     }
     RecordGeneration(state, generated.value(),
@@ -730,7 +778,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
         gem16::server::ResponseJson(identity, parsed.value(),
                                     generated.value()),
         "application/json; charset=utf-8");
-    ReleaseSession(state, entry);
+    index_guard.keep = true;
     return;
   }
 
@@ -755,9 +803,10 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
   provider->server = &state;
   provider->request = std::move(parsed).value();
   provider->identity = identity;
+  index_guard.keep = true;
   provider->entry = entry;
   provider->admission = std::move(admission);
-  provider->lease = std::make_unique<SessionLease>(state, entry);
+  provider->lease = std::make_unique<SessionLease>(std::move(lease));
   response.set_header("Cache-Control", "no-cache");
   response.set_header("X-Accel-Buffering", "no");
   response.set_header("Transfer-Encoding", "chunked");
@@ -1076,9 +1125,9 @@ int ServerMain(int argc, char** argv) {
   httplib::Server server;
   const std::size_t http_task_queue_limit =
       options.value().max_queued_requests + options.value().max_sessions + 16U;
-  server.new_task_queue = [http_task_queue_limit] {
-    return new httplib::ThreadPool(CPPHTTPLIB_THREAD_POOL_COUNT,
-                                   CPPHTTPLIB_THREAD_POOL_MAX_COUNT,
+  const auto http_workers = options.value().max_queued_requests + options.value().max_sessions + 4U;
+  server.new_task_queue = [http_task_queue_limit, http_workers] {
+    return new httplib::ThreadPool(http_workers, http_workers,
                                    http_task_queue_limit);
   };
   server.Get("/health",
@@ -1307,7 +1356,7 @@ int ServerMain(int argc, char** argv) {
                 HandleCancelResponse(state, request.matches[1].str(), response);
               });
   server.set_pre_request_handler(
-      [&state](const httplib::Request&, httplib::Response& response) {
+      [&state, &options](const httplib::Request& request, httplib::Response& response) {
         g_request_log_context = {};
         auto id = gem16::server::MakeSecureId("req_gem16_");
         if (!id.ok()) {
@@ -1322,6 +1371,11 @@ int ServerMain(int argc, char** argv) {
         g_request_log_context =
             {std::chrono::steady_clock::now(), std::move(id).value()};
         response.set_header("X-Request-Id", g_request_log_context.request_id);
+        const auto policy_error = gem16::server::ValidateLocalHttpRequest(request, options.value().port);
+        if (!policy_error.empty()) {
+          SetError(state, gem16::Status(gem16::StatusCode::kInvalidArgument, policy_error), response);
+          return httplib::Server::HandlerResponse::Handled;
+        }
         return httplib::Server::HandlerResponse::Unhandled;
       });
   server.set_logger([&state, &logger](const httplib::Request& request,
@@ -1438,6 +1492,11 @@ int ServerMain(int argc, char** argv) {
       if (g_shutdown_signal != 0) {
         const int signal = g_shutdown_signal;
         state.request_queue.StartDraining();
+        {
+          std::lock_guard lock(state.pool_mutex);
+          for (auto& [id, entry] : state.sessions) entry->cancel_requested.store(true);
+        }
+        state.pool_changed.notify_all();
         logger.Log(LogLevel::kInfo, "shutdown_requested",
                    {{"signal", std::to_string(signal)}});
         server.stop();

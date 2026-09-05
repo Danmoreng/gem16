@@ -60,6 +60,15 @@ def main() -> int:
 
     source_files = [
         "src/model/tokenizer.cpp",
+        "src/runtime/chat.cpp",
+        "src/runtime/tool_call_parser.cpp",
+        "src/cli/server_main.cpp",
+        "src/server/session_pool.cpp",
+        "src/server/request_queue.cpp",
+        "src/server/http_policy.h",
+        "src/model/image.cpp",
+        "src/model/image_decode_budget.h",
+        "tools/check_server_hardening.py",
         "src/server/openai_chat.cpp",
         "tests/unit/openai_chat_test.cpp",
         "src/model/tokenizer_config.h",
@@ -112,6 +121,8 @@ def main() -> int:
             "--max-sessions",
             "1",
             "--mtp-draft-tokens",
+            "2",
+            "--max-queued-requests",
             "2",
         ]
         if profile == "12b-unified":
@@ -203,6 +214,31 @@ def main() -> int:
                         ],
                     ),
                 ]
+                checks += [
+                    (
+                        "hardening",
+                        [
+                            sys.executable,
+                            str(ROOT / "tools/check_server_hardening.py"),
+                            "--base-url",
+                            base,
+                            "--output",
+                            str(out / "hardening-result.json"),
+                        ],
+                    ),
+                    (
+                        "multi-image",
+                        [
+                            sys.executable,
+                            str(ROOT / "tools/check_multi_image_conversation.py"),
+                            "--base-url",
+                            base,
+                            "--output",
+                            str(out / "multi-image-result.json"),
+                        ]
+                        + (["--compact"] if profile == "26b-compact-vision" else []),
+                    ),
+                ]
                 for name, cmd in checks:
                     print(f"{profile}: {name}", flush=True)
                     with (
@@ -232,7 +268,7 @@ def main() -> int:
         row["status"] = (
             "passed"
             if "error" not in row
-            and len(row["checks"]) == 3
+            and len(row["checks"]) == 5
             and all(c["exit_code"] == 0 for c in row["checks"])
             else "failed"
         )

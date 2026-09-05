@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <exception>
 #include <utility>
 
 #include "server/secure_id.h"
@@ -141,6 +142,15 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
     state.pending_sessions.insert(id);
   }
 
+  struct Reservation {
+    ServerState& state;
+    const std::string& id;
+    ~Reservation() {
+      { std::lock_guard lock(state.pool_mutex); state.pending_sessions.erase(id); }
+      state.pool_changed.notify_all();
+    }
+  } reservation{state, id};
+
   // CUDA arenas and graphs may take a material amount of time to construct.
   // The reservation above keeps the pool bounded while allowing unrelated
   // acquire, cancellation, health, and metrics operations to proceed.
@@ -155,7 +165,7 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
     return session.status();
   }
   auto entry = std::make_shared<SessionEntry>(
-      std::move(id), std::move(session).value());
+      id, std::move(session).value());
   entry->active_requests.store(1U);
   entry->last_used.store(state.lru_clock.fetch_add(1U));
   {
@@ -165,9 +175,9 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
       return gem16::Status(gem16::StatusCode::kInternal,
                            "session reservation was lost before publication");
     }
+    state.sessions.emplace(entry->id, entry);
     state.metrics.sessions_created.fetch_add(1U);
     state.metrics.active_requests.fetch_add(1U);
-    state.sessions.emplace(entry->id, entry);
   }
   state.pool_changed.notify_all();
   return entry;
@@ -294,11 +304,16 @@ void DiscardSession(ServerState& state,
 
 SessionLease::SessionLease(ServerState& state,
                            std::shared_ptr<SessionEntry> entry)
-    : state_(&state), entry_(std::move(entry)) {}
+    : state_(&state), entry_(std::move(entry)),
+      uncaught_on_entry_(std::uncaught_exceptions()) {}
+
+SessionLease::SessionLease(SessionLease&& other) noexcept
+    : state_(std::exchange(other.state_, nullptr)), entry_(std::move(other.entry_)),
+      discard_(other.discard_), uncaught_on_entry_(other.uncaught_on_entry_) {}
 
 SessionLease::~SessionLease() {
   if (state_ == nullptr) return;
-  if (discard_) DiscardSession(*state_, entry_);
+  if (discard_ || std::uncaught_exceptions() > uncaught_on_entry_) DiscardSession(*state_, entry_);
   ReleaseSession(*state_, entry_);
 }
 
@@ -568,6 +583,7 @@ std::string MetricsText(ServerState& state) {
   output.append("# TYPE gem16_pending_session_creations gauge\n");
   output.append(metric("gem16_pending_session_creations", pending_sessions));
   output.append(metric("gem16_session_limit", state.max_sessions));
+  output.append(metric("gem16_sessions_rebuilt_total", state.metrics.sessions_rebuilt.load()));
   output.append(metric("gem16_sessions_created_total",
                        state.metrics.sessions_created.load()));
   output.append(metric("gem16_sessions_evicted_total",

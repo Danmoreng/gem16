@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "server/openai_chat.h"
+#include "server/http_policy.h"
 #include "server/secure_id.h"
 #include "runtime/chat_internal.h"
 #include "server/sse_chunk.h"
@@ -72,6 +73,54 @@ std::vector<std::uint8_t> TinyWav() {
 }  // namespace
 
 void RunOpenAiChatTests() {
+  // Tiny encoded input with a 40M-pixel header must fail the request budget
+  // before attempting the decoder's large allocation (or reading missing pixels).
+  auto oversized_bmp = TinyBmp();
+  for (unsigned byte = 0; byte < 4; ++byte) {
+    oversized_bmp[18U + byte] = static_cast<std::uint8_t>(10000U >> (byte * 8U));
+    oversized_bmp[22U + byte] = static_cast<std::uint8_t>(4000U >> (byte * 8U));
+  }
+  auto oversized_image = gem16::server::ParseChatCompletionsRequest(
+      R"({"model":"gem16","messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/bmp;base64,)" +
+      Base64(oversized_bmp) + R"("}}]}]})");
+  GEM16_CHECK(!oversized_image.ok());
+  GEM16_CHECK(oversized_image.status().code() == gem16::StatusCode::kResourceExhausted);
+
+  auto compacted = gem16::server::ParseChatCompletionsRequest(
+      R"({"model":"gem16","messages":[{"role":"user","content":"Summary"},{"role":"user","content":"Continue"}]})");
+  GEM16_CHECK(compacted.ok());
+  if (compacted.ok()) {
+    GEM16_CHECK(compacted.value().generation.messages.size() == 1U);
+    const auto& parts = compacted.value().generation.messages.front().content;
+    GEM16_CHECK(parts.size() == 3U);
+    GEM16_CHECK(parts[0].text == "Summary" && parts[1].text == "\n\n" && parts[2].text == "Continue");
+  }
+
+  httplib::Request http;
+  http.method = "POST"; http.path = "/v1/chat/completions";
+  http.set_header("Host", "127.0.0.1:8080");
+  http.set_header("Content-Type", "application/json; charset=utf-8");
+  GEM16_CHECK(gem16::server::ValidateLocalHttpRequest(http, 8080).empty());
+  http.set_header("Origin", "https://attacker.example");
+  GEM16_CHECK(!gem16::server::ValidateLocalHttpRequest(http, 8080).empty());
+  http.headers.erase("Origin"); http.headers.erase("Host");
+  http.set_header("Host", "attacker.example:8080");
+  GEM16_CHECK(!gem16::server::ValidateLocalHttpRequest(http, 8080).empty());
+  http.headers.erase("Host"); http.set_header("Host", "127.0.0.1:8080");
+  http.headers.erase("Content-Type"); http.set_header("Content-Type", "text/plain");
+  GEM16_CHECK(!gem16::server::ValidateLocalHttpRequest(http, 8080).empty());
+
+  GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
+      R"({"model":"gem16","messages":[{"role":"user","content":"x"}],"max_tokens":1,"max_completion_tokens":2})").ok());
+  GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
+      R"({"model":"gem16","messages":[{"role":"user","content":"x"}],"max_tokens":"bad","max_completion_tokens":2})").ok());
+  GEM16_CHECK(gem16::server::ParseResponsesRequest(
+      R"({"model":"gem16","input":[{"type":"message","id":"msg_1","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Hello","annotations":[]}]},{"role":"user","content":"Continue"}]})").ok());
+  GEM16_CHECK(gem16::server::ParseResponsesRequest(
+      R"({"model":"gem16","input":[{"type":"function_call","id":"fc_1","status":"completed","call_id":"call_1","name":"probe","arguments":"{}"},{"type":"function_call_output","call_id":"call_1","output":"ok"}]})").ok());
+  GEM16_CHECK(!gem16::server::ParseResponsesRequest(
+      R"({"model":"gem16","input":[{"type":"message","id":1,"role":"assistant","content":"x"}]})").ok());
+
   auto secure_id_a = gem16::server::MakeSecureId("resp_test_");
   auto secure_id_b = gem16::server::MakeSecureId("resp_test_");
   GEM16_CHECK(secure_id_a.ok());
@@ -483,7 +532,7 @@ void RunOpenAiChatTests() {
   GEM16_CHECK(!gem16::server::ParseResponsesRequest(
                    R"({"model":"gem16","input":"x","reasoning":{"effort":"none","summary":"auto"}})")
                    .ok());
-  GEM16_CHECK(!gem16::server::ParseResponsesRequest(
+  GEM16_CHECK(gem16::server::ParseResponsesRequest(
                    R"({"model":"gem16","input":[{"type":"message","role":"user","content":"x","status":"completed"}]})")
                    .ok());
 

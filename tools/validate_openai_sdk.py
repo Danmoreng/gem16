@@ -117,9 +117,11 @@ def tool_loop(
     history = [
         {
             "role": "user",
-            "content": PROMPT
-            if multi
-            else "First use lookup for alpha. Only after receiving its result, use lookup for beta. Then report both exact markers.",
+            "content": (
+                PROMPT
+                if multi
+                else "First use lookup for alpha. Only after receiving its result, use lookup for beta. Then report both exact markers."
+            ),
         }
     ]
     seen, response_ids, parallel = set(), [], False
@@ -280,6 +282,44 @@ def parallel_history(client: OpenAI, model: str, api: str, stream: bool) -> dict
     return {"fixture_call_ids": [c["id"] for c in calls], "answer": answer}
 
 
+def output_roundtrip(client, model, stream):
+    history = [
+        {
+            "role": "user",
+            "content": "Use lookup for alpha, then report its exact marker.",
+        }
+    ]
+    outputs = []
+    for _ in range(6):
+        response = responses(
+            client,
+            stream,
+            model=model,
+            input=history,
+            tools=[TOOL],
+            reasoning={"effort": "none"},
+            max_output_tokens=128,
+        )
+        # Pass actual official SDK output objects, without field removal or
+        # hand-built replacement message/function-call items.
+        history.extend(response.output)
+        outputs.extend(item.model_dump() for item in response.output)
+        calls = [item for item in response.output if item.type == "function_call"]
+        if not calls:
+            assert RESULTS["alpha"] in response.output_text, response.output_text
+            return {"output_items": outputs, "answer": response.output_text}
+        for call in calls:
+            key = json.loads(call.arguments)["key"]
+            history.append(
+                {
+                    "type": "function_call_output",
+                    "call_id": call.call_id,
+                    "output": RESULTS[key],
+                }
+            )
+    raise AssertionError("output roundtrip did not finish")
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--base-url", default="http://127.0.0.1:8080/v1")
@@ -299,6 +339,12 @@ def main() -> int:
             cases.append({"name": name, "status": "passed", "detail": fn()})
         except Exception as exc:
             cases.append({"name": name, "status": "failed", "error": str(exc)})
+
+    for stream in [False, True]:
+        run(
+            f"responses-output-object-roundtrip-{stream}",
+            lambda stream=stream: output_roundtrip(client, args.model, stream),
+        )
 
     for api in ["chat", "responses"]:
         for stream in [False, True]:
@@ -361,6 +407,12 @@ def main() -> int:
                 }
 
             run(f"{api}-output-limit-{stream}", limit)
+    for stream in [False, True]:
+        run(
+            f"responses-output-object-roundtrip-{stream}",
+            lambda stream=stream: output_roundtrip(client, args.model, stream),
+        )
+
     for api in ["chat", "responses"]:
 
         def reject(api=api):
