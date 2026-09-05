@@ -33,8 +33,8 @@ Compact Vision offers 70/140/280 image budgets with preview, estimate and remove
 controls. D2 requires the server's matching live capability. See the
 [26B guide](GEMMA4_26B.md) for context limits.
 
-On Windows, newly selected Compact Vision profiles start with **170,000 context
-tokens** to leave room for WDDM and other desktop applications. The qualified
+Newly selected Compact Vision profiles start with **220,000 context tokens on
+Linux** and **170,000 on Windows**, leaving room for desktop applications. The qualified
 maximum is still configurable; it is not a guaranteed fit with other GPU users.
 Existing saved configurations retain their context value. If startup reports
 insufficient GPU memory, reduce **Server → Context tokens** (try 65,536) and

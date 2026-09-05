@@ -103,10 +103,10 @@ new multi-image evidence and platform limitations must be reported separately.
 
 ## Current model facts
 
-| Profile | Public selection | Input | Context Target / fixed-D2 | Slots |
+| Profile | Public selection | Input | Context policy / retained capacity | Slots |
 |---|---|---|---|---|
 | 12B Unified | Yes | Text, image, audio | Subject to configured capacity | Up to two |
-| 26B Compact Vision | Yes | Text, images, 70/140/280 soft tokens per image | 229,376 / 229,120 | One |
+| 26B Compact Vision | Yes | Text, images, 70/140/280 soft tokens per image | Everyday: Linux 220,000 / Windows 170,000 (ordinary and D2) | One |
 | 26B NVFP4 | Internal only | Text | 98,304 / 86,016 | One |
 
 Compact Vision requires the exact locked Trellis35 Target + FP8 Vision and,
@@ -167,3 +167,23 @@ No weight offload, precision change or automatic context fallback is authorized.
 - `VERSION` is the shared version source; the 0.2.x development line alone is no release claim.
 - The [roadmap](ROADMAP.md) routes remaining work. Historical evidence is preserved;
   no cleanup changes model precision, behavior, context, allocation or fallback rules.
+
+### Owner update: server-first hardening and everyday context (2026-09-05)
+
+Server/CLI and unmodified coding-agent operation are the primary entry and work
+priority; native Studio is optional. This supersedes the desktop-first entry
+requirement, not the equal public status of 12B Unified and 26B Compact Vision.
+Compact Vision (Trellis35 text plus FP8 Vision) is the public 26B agent target;
+NVFP4 remains internal regression/rollback, without public promotion.
+
+The public Compact Vision everyday context recommendation and new Studio profile
+default are 220,000 tokens on Linux and 170,000 on Windows, with or without D2.
+These owner-reported stable operating values supersede Linux's 229,120 default;
+they are not new independent GPU qualification. Saved explicit settings remain
+explicit. Historical capacity ceilings and evidence remain unchanged. Admission
+still requires the existing 200 MiB long-context reserve; no automatic fallback.
+
+Implement practical OpenAI interoperability where semantics can be preserved;
+only substantial unsupported behavior remains an explicit limitation. The
+server-first backlog in ROADMAP.md tracks review C00–C09. Two-platform release
+gates and the existing QUAL01 waiver remain unchanged.

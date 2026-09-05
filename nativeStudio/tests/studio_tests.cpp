@@ -103,7 +103,7 @@ bool TestVision26BDefaultsAndCommand() {
 #ifdef _WIN32
   constexpr std::int64_t expected_context = 170000;
 #else
-  constexpr std::int64_t expected_context = 229120;
+  constexpr std::int64_t expected_context = 220000;
 #endif
   return config.max_context_tokens == expected_context && config.max_sessions == 1 &&
          Contains(command, std::to_string(expected_context)) &&

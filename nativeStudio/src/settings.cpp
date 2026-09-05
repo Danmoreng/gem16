@@ -193,7 +193,7 @@ void ApplyProfileDefaults(ServerConfig& config, ModelProfile profile) {
 #ifdef _WIN32
     config.max_context_tokens = 170000;
 #else
-    config.max_context_tokens = 229120;
+    config.max_context_tokens = 220000;
 #endif
   } else {
     config.model_name = "gem16-12b";

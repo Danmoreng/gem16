@@ -6,7 +6,7 @@
 
 <p align="center">
   Run Gemma 4 12B or 26B locally on a single 16 GB NVIDIA GPU.<br>
-  Native desktop app, OpenAI Agent Core v1 server, and a purpose-built CUDA inference engine.
+  Local agent server, purpose-built CUDA inference engine, and optional native desktop app.
 </p>
 
 <p align="center">
@@ -15,14 +15,11 @@
   <img src="https://img.shields.io/badge/status-development%20preview-e3b341" alt="Development preview">
 </p>
 
-<p align="center">
-  <img src="docs/images/gem16-studio-models.png" alt="gem16 Studio showing the two public Gemma 4 model profiles" width="1200">
-</p>
+
 
 gem16 is a local inference stack built specifically for Gemma 4 on Blackwell GPUs with about 16 GB of VRAM. Gemma 4
-12B Unified and Gemma 4 26B A4B Compact Vision are the two equal, user-selectable product profiles. The native C++
-desktop app is the primary entry point: it starts or attaches to `gem16-server`, manages the selected profile, and
-provides local streamed chat. The 12B profile supports text, image, and audio; Compact Vision combines its locked
+12B Unified and Gemma 4 26B A4B Compact Vision are the two equal, user-selectable product profiles. The primary entry is `gem16-server` with a local coding agent; the optional native C++
+desktop app starts or attaches to the server, manages profiles and provides streamed chat. The 12B profile supports text, image, and audio; Compact Vision combines its locked
 Trellis35 W4A8 text Target with an FP8 E4M3FN Vision module and optional fixed-D2 Assistant.
 
 The 12B profile loads its pinned mixed FP8/NVFP4 Safetensors checkpoint directly. Compact Vision consumes its
@@ -41,11 +38,35 @@ qualified internally for regression and rollback, but is not shown as a normal S
 | Gemma 4 26B A4B Compact Vision | 25.2B total / 3.8B active parameters | Trellis35 W4A8 Target, FP8 E4M3FN Vision, optional hybrid NVFP4/FP8/BF16 Assistant | 12.8 GB without / 13.1 GB with Assistant | Text, images within context capacity, optional fixed-D2 MTP |
 
 The Compact Vision weight payloads occupy 13,060,400,408 bytes (12.16 GiB) with the Assistant. Its text Target is
-12,204,692,480 bytes, Vision is 597,390,648 bytes, and the Assistant is 258,317,280 bytes. The separate
-14,696,668,160-byte hybrid NVFP4 Target remains available internally for regression and rollback, but is not a
-third public Studio profile.
+12,204,692,480 bytes, Vision is 597,390,648 bytes, and the Assistant is 258,317,280 bytes.
 
-## Run the desktop app from source
+## Server and API
+
+Build the headless server with `./scripts/build.sh --cuda --test` on Linux or
+`.\scripts\build.ps1 -Cuda -Test` on Windows, then follow the server guide.
+Run the server independently or let Studio manage it. The [server guide](docs/SERVER.md)
+contains locked downloads and launch commands for **both public profiles**.
+Chat Completions and Responses support streamed text, reasoning and client-executed function tools.
+Compatibility is the explicit [OpenAI Agent Core v1 subset](docs/OPENAI_AGENT_CORE_V1.md);
+unsupported fields fail visibly. Networking defaults to local loopback.
+Use the [tested SDK/Pi configuration](docs/AGENT_COMPATIBILITY.md) for agent setup.
+Compact Vision everyday context: **220,000 Linux / 170,000 Windows tokens**,
+subject to VRAM admission with 200 MiB long-context reserve.
+
+```bash
+curl http://127.0.0.1:8080/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"gem16","messages":[{"role":"user","content":"Hello!"}],"max_completion_tokens":128}'
+```
+
+`gem16-chat` provides terminal chat; `gem16-run`, `gem16-inspect` and `gem16-bench`
+provide inference, checkpoint inspection and benchmarking tools.
+
+## Run the optional desktop app from source
+
+<p align="center">
+  <img src="docs/images/gem16-studio-models.png" alt="gem16 Studio showing the two public Gemma 4 model profiles" width="1200">
+</p>
 
 ### Prerequisites
 
@@ -96,23 +117,6 @@ two existing upstream repositories, so Studio creates a hardlink-only runtime vi
 not publish a mirror or duplicate the payload bytes.
 
 
-## Server and API
-
-Run the server independently or let Studio manage it. The [server guide](docs/SERVER.md)
-contains locked downloads and launch commands for **both public profiles**.
-Chat Completions and Responses support streamed text, reasoning and client-executed function tools.
-Compatibility is the explicit [OpenAI Agent Core v1 subset](docs/OPENAI_AGENT_CORE_V1.md);
-unsupported fields fail visibly. Networking defaults to local loopback.
-
-```bash
-curl http://127.0.0.1:8080/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"gem16","messages":[{"role":"user","content":"Hello!"}],"max_completion_tokens":128}'
-```
-
-`gem16-chat` provides terminal chat; `gem16-run`, `gem16-inspect` and `gem16-bench`
-provide inference, checkpoint inspection and benchmarking tools.
-
 ## Recorded performance
 
 On the RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, the public
@@ -131,7 +135,7 @@ The [benchmark contract](docs/BENCHMARKING.md) governs new claims.
 - Optimized inference targets Blackwell SM120/SM120a and batch one; no continuous batching.
 - 12B supports text, image and audio. Compact Vision supports text and images within context capacity, one resident slot,
   and its optional fixed-D2 Assistant. The internal NVFP4 profile is text-only.
-- Studio settings persist; chat history currently does not survive application restart.
+- Studio settings and non-temporary chats persist in SQLite; temporary chats are not retained.
 - Full Windows/Linux API qualification, packaging parity and clean-machine onboarding remain release gates.
   Bounded Compact Vision P20 acceptance does not mean a release has shipped; extended QUAL01 was waived.
 - Video, durable server-side conversations and Responses branching are outside the current product.

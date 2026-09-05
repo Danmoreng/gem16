@@ -19,6 +19,12 @@ of two independently runnable programs:
 The server remains a separate process. Studio may start and stop a server it
 owns or attach non-destructively to an already running local server.
 
+Server/CLI and coding-agent workflows are the primary entry; native Studio is
+an optional companion. For Compact Vision, the public everyday context is
+220,000 tokens on Linux and 170,000 on Windows, subject to actual VRAM admission
+with the unchanged 200 MiB long-context reserve. Historical capacity measurements
+are not recommended desktop defaults.
+
 ## Equal product platforms
 
 Windows x64 and Linux x86-64 are equal product platforms. A product release is
