@@ -25,6 +25,7 @@
 #include "model/config.h"
 #include "model/model_variant.h"
 #include "server/http_streaming.h"
+#include "server/test_fault.h"
 #include "server/observability.h"
 #include "server/openai_chat.h"
 #include "server/request_queue.h"
@@ -455,6 +456,10 @@ struct CancellationContext {
 
 gem16::Status CheckCancellation(void* opaque_context,
                                 const gem16::GenerationEvent& event) {
+  gem16::server::TestFaultPoint("generation");
+  if (gem16::server::TestStatusFailure("generation_status")) {
+    return gem16::Status(gem16::StatusCode::kCancelled, "injected generation cancellation");
+  }
   auto* context = static_cast<CancellationContext*>(opaque_context);
   if (context == nullptr ||
       event.kind != gem16::GenerationEventKind::kToken) {
@@ -483,6 +488,8 @@ gem16::Status CheckCancellation(void* opaque_context,
 
 void HandleCompletion(ServerState& state, const httplib::Request& request,
                       httplib::Response& response) {
+  const auto request_fault = gem16::server::RequestedTestFault(request);
+  gem16::server::TestFaultScope request_fault_scope(request_fault);
   state.metrics.requests_total.fetch_add(1U);
   const gem16::server::SessionWaitOptions wait{
       std::chrono::steady_clock::now() + std::chrono::seconds(30),
@@ -560,6 +567,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   }
   std::shared_ptr<SessionEntry> entry = std::move(acquired).value();
   SessionLease lease(state, entry);
+  gem16::server::TestFaultPoint("acquired");
   {
     std::lock_guard inference_lock(entry->inference_mutex);
     const auto continuation = entry->session.ValidateContinuation(parsed.value().generation);
@@ -587,6 +595,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     const auto generation_start = std::chrono::steady_clock::now();
     auto generated = entry->session.Generate(
         parsed.value().generation, CheckCancellation, &cancellation);
+    gem16::server::TestFaultPoint("generation_after");
     if (!generated.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
       SetError(state, generated.status(), response,
@@ -596,6 +605,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     }
     RecordGeneration(state, generated.value(),
                      std::chrono::steady_clock::now() - generation_start);
+    gem16::server::TestFaultPoint("serialization");
     response.set_content(
         gem16::server::ChatCompletionJson(identity, generated.value()),
         "application/json; charset=utf-8");
@@ -625,65 +635,75 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   response.set_header("Transfer-Encoding", "chunked");
   response.set_content_provider(
       "text/event-stream; charset=utf-8",
-      [provider](std::size_t, httplib::DataSink& sink) {
-        if (provider->ran) return false;
-        provider->ran = true;
-        std::lock_guard inference_lock(provider->entry->inference_mutex);
-        provider->entry->cancel_requested.store(false);
-        if (!WriteSse(sink, gem16::server::ChatCompletionChunkJson(
-                                provider->identity,
-                                "{\"role\":\"assistant\"}"))) {
-          return false;
-        }
-        gem16::server::ChatCompletionStream stream(
-            provider->server->processor, provider->identity, sink,
-            {&provider->entry->cancel_requested,
-             &provider->server->metrics.cancellations_observed,
-             &provider->server->metrics.client_disconnects});
-        const auto generation_start = std::chrono::steady_clock::now();
-        provider->lease->Discard();
-        auto generated = stream.Generate(provider->entry->session,
-                                         provider->generation);
-        const bool generation_completed = generated.ok();
-        if (!generated.ok()) {
-          provider->server->metrics.requests_failed.fetch_add(1U);
-          RecordStatusMetric(*provider->server, generated.status(),
-                             HasVisionInput(provider->generation));
-          (void)WriteSse(
-              sink, gem16::server::OpenAiErrorJson(
-                        generated.status().message(), "server_error"));
-          (void)FinishSse(sink);
-          if (!generation_completed &&
-              !provider->entry->session.is_poisoned()) {
-            provider->lease->Keep();
+      [provider, request_fault](std::size_t, httplib::DataSink& sink) {
+        gem16::server::TestFaultScope stream_fault_scope(request_fault);
+        return gem16::server::RunStreamCallback([&]() -> bool {
+          if (provider->ran) return false;
+          provider->ran = true;
+          std::lock_guard inference_lock(provider->entry->inference_mutex);
+          provider->entry->cancel_requested.store(false);
+          if (!WriteSse(sink, gem16::server::ChatCompletionChunkJson(
+                                  provider->identity,
+                                  "{\"role\":\"assistant\"}"))) {
+            return false;
           }
+          gem16::server::ChatCompletionStream stream(
+              provider->server->processor, provider->identity, sink,
+              {&provider->entry->cancel_requested,
+               &provider->server->metrics.cancellations_observed,
+               &provider->server->metrics.client_disconnects});
+          const auto generation_start = std::chrono::steady_clock::now();
+          provider->lease->Discard();
+          auto generated = stream.Generate(provider->entry->session,
+                                           provider->generation);
+          gem16::server::TestFaultPoint("generation_after");
+          const bool generation_completed = generated.ok();
+          if (!generated.ok()) {
+            provider->server->metrics.requests_failed.fetch_add(1U);
+            RecordStatusMetric(*provider->server, generated.status(),
+                               HasVisionInput(provider->generation));
+            (void)WriteSse(
+                sink, gem16::server::OpenAiErrorJson(
+                          generated.status().message(), "server_error"));
+            (void)FinishSse(sink);
+            if (!generation_completed &&
+                !provider->entry->session.is_poisoned()) {
+              provider->lease->Keep();
+            }
+            return true;
+          }
+          provider->lease->Keep();
+          RecordGeneration(*provider->server, generated.value(),
+                           std::chrono::steady_clock::now() - generation_start);
+          gem16::server::TestFaultPoint("serialization");
+          const gem16::Status tool_status =
+              stream.WriteToolCalls(generated.value());
+          if (!tool_status.ok()) return false;
+          if (!WriteSse(sink, gem16::server::ChatCompletionChunkJson(
+                                  provider->identity, {},
+                                  generated.value().finish_reason))) {
+            return false;
+          }
+          if (provider->include_usage &&
+              !WriteSse(sink, gem16::server::ChatCompletionChunkJson(
+                                      provider->identity, {}, std::nullopt,
+                                      &generated.value()))) {
+            return false;
+          }
+          if (!WriteSse(sink, "[DONE]") || !FinishSse(sink)) return false;
+          provider->lease->Keep();
           return true;
-        }
-        provider->lease->Keep();
-        RecordGeneration(*provider->server, generated.value(),
-                         std::chrono::steady_clock::now() - generation_start);
-        const gem16::Status tool_status =
-            stream.WriteToolCalls(generated.value());
-        if (!tool_status.ok()) return false;
-        if (!WriteSse(sink, gem16::server::ChatCompletionChunkJson(
-                                provider->identity, {},
-                                generated.value().finish_reason))) {
-          return false;
-        }
-        if (provider->include_usage &&
-            !WriteSse(sink, gem16::server::ChatCompletionChunkJson(
-                                    provider->identity, {}, std::nullopt,
-                                    &generated.value()))) {
-          return false;
-        }
-        if (!WriteSse(sink, "[DONE]") || !FinishSse(sink)) return false;
-        provider->lease->Keep();
-        return true;
+        }, [&]() noexcept {
+          provider->server->metrics.requests_failed.fetch_add(1U);
+          provider->lease->Discard();
+        });
       });
 }
 
 void HandleResponses(ServerState& state, const httplib::Request& request,
                      httplib::Response& response) {
+  const auto request_fault = gem16::server::RequestedTestFault(request);
+  gem16::server::TestFaultScope request_fault_scope(request_fault);
   state.metrics.requests_total.fetch_add(1U);
   const gem16::server::SessionWaitOptions wait{
       std::chrono::steady_clock::now() + std::chrono::seconds(30),
@@ -731,6 +751,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
   }
   std::shared_ptr<SessionEntry> entry = std::move(acquired).value();
   SessionLease lease(state, entry);
+  gem16::server::TestFaultPoint("acquired");
   struct ResponseIndexGuard {
     ServerState& state;
     const std::string& id;
@@ -744,7 +765,6 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     if (!status.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
       SetError(state, status, response);
-      UnindexResponse(state, identity.id);
       return;
     }
     entry->cancel_requested.store(false);
@@ -754,6 +774,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     const auto generation_start = std::chrono::steady_clock::now();
     auto generated = entry->session.Generate(
         parsed.value().generation, CheckCancellation, &cancellation);
+    gem16::server::TestFaultPoint("generation_after");
     if (!generated.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
       SetError(state, generated.status(), response,
@@ -766,6 +787,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     CommitResponsesRequest(*entry, parsed.value(), generated.value(),
                            identity.id);
     identity.completed = gem16::server::UnixSecondsNow();
+    gem16::server::TestFaultPoint("serialization");
     response.set_content(
         gem16::server::ResponseJson(identity, parsed.value(),
                                     generated.value()),
@@ -785,6 +807,9 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     bool ran = false;
 
     ~ProviderState() {
+      if (server != nullptr && entry != nullptr) {
+        ClearActiveResponse(*server, entry, identity.id);
+      }
       if (server != nullptr &&
           !keep_response_index.load(std::memory_order_acquire)) {
         UnindexResponse(*server, identity.id);
@@ -804,93 +829,102 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
   response.set_header("Transfer-Encoding", "chunked");
   response.set_content_provider(
       "text/event-stream; charset=utf-8",
-      [provider](std::size_t, httplib::DataSink& sink) {
-        if (provider->ran) return false;
-        provider->ran = true;
-        std::lock_guard inference_lock(provider->entry->inference_mutex);
-        gem16::Status status = PrepareResponsesRequest(
-            *provider->entry, provider->request);
-        if (!status.ok()) {
-          provider->server->metrics.requests_failed.fetch_add(1U);
-          RecordStatusMetric(*provider->server, status,
-                             HasVisionInput(provider->request.generation));
-          (void)WriteSse(
-              sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
-                        gem16::json::Quote(status.message()) +
-                        ",\"param\":null,\"sequence_number\":0}");
-          (void)FinishSse(sink);
-          return true;
-        }
-        provider->entry->cancel_requested.store(false);
-        SetActiveResponse(*provider->server, provider->entry,
-                          provider->identity.id);
-        if (!WriteSse(
-                sink,
-                "{\"type\":\"response.created\",\"response\":" +
-                    gem16::server::ResponseShellJson(
-                        provider->identity, provider->request, "in_progress") +
-                    ",\"sequence_number\":0}")) {
+      [provider, request_fault](std::size_t, httplib::DataSink& sink) {
+        gem16::server::TestFaultScope stream_fault_scope(request_fault);
+        return gem16::server::RunStreamCallback([&]() -> bool {
+          if (provider->ran) return false;
+          provider->ran = true;
+          std::lock_guard inference_lock(provider->entry->inference_mutex);
+          gem16::Status status = PrepareResponsesRequest(
+              *provider->entry, provider->request);
+          if (!status.ok()) {
+            provider->server->metrics.requests_failed.fetch_add(1U);
+            RecordStatusMetric(*provider->server, status,
+                               HasVisionInput(provider->request.generation));
+            (void)WriteSse(
+                sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
+                          gem16::json::Quote(status.message()) +
+                          ",\"param\":null,\"sequence_number\":0}");
+            (void)FinishSse(sink);
+            return true;
+          }
+          provider->entry->cancel_requested.store(false);
+          SetActiveResponse(*provider->server, provider->entry,
+                            provider->identity.id);
+          if (!WriteSse(
+                  sink,
+                  "{\"type\":\"response.created\",\"response\":" +
+                      gem16::server::ResponseShellJson(
+                          provider->identity, provider->request, "in_progress") +
+                      ",\"sequence_number\":0}")) {
+            ClearActiveResponse(*provider->server, provider->entry,
+                                provider->identity.id);
+            return false;
+          }
+          std::uint64_t reasoning_capacity = gem16::ThinkingBudgetTokens(
+              provider->request.generation.thinking.effort);
+          // The checkpoint template leaves a tool-result continuation at the
+          // model boundary. Even with thinking disabled, Gemma emits an empty
+          // thought channel containing one newline before the visible answer.
+          if (reasoning_capacity == 0U &&
+              !provider->request.generation.messages.empty() &&
+              provider->request.generation.messages.back().role == "tool") {
+            reasoning_capacity = 1U;
+          }
+          if (provider->request.generation.max_generated_tokens.has_value()) {
+            reasoning_capacity = std::min(
+                reasoning_capacity,
+                *provider->request.generation.max_generated_tokens);
+          }
+          gem16::server::ResponsesStream stream(
+              provider->server->processor, provider->identity, sink,
+              reasoning_capacity,
+              {&provider->entry->cancel_requested,
+               &provider->server->metrics.cancellations_observed,
+               &provider->server->metrics.client_disconnects});
+          const auto generation_start = std::chrono::steady_clock::now();
+          provider->lease->Discard();
+          auto generated = stream.Generate(provider->entry->session,
+                                           provider->request.generation);
+          gem16::server::TestFaultPoint("generation_after");
+          const bool generation_completed = generated.ok();
           ClearActiveResponse(*provider->server, provider->entry,
                               provider->identity.id);
-          return false;
-        }
-        std::uint64_t reasoning_capacity = gem16::ThinkingBudgetTokens(
-            provider->request.generation.thinking.effort);
-        // The checkpoint template leaves a tool-result continuation at the
-        // model boundary. Even with thinking disabled, Gemma emits an empty
-        // thought channel containing one newline before the visible answer.
-        if (reasoning_capacity == 0U &&
-            !provider->request.generation.messages.empty() &&
-            provider->request.generation.messages.back().role == "tool") {
-          reasoning_capacity = 1U;
-        }
-        if (provider->request.generation.max_generated_tokens.has_value()) {
-          reasoning_capacity = std::min(
-              reasoning_capacity,
-              *provider->request.generation.max_generated_tokens);
-        }
-        gem16::server::ResponsesStream stream(
-            provider->server->processor, provider->identity, sink,
-            reasoning_capacity,
-            {&provider->entry->cancel_requested,
-             &provider->server->metrics.cancellations_observed,
-             &provider->server->metrics.client_disconnects});
-        const auto generation_start = std::chrono::steady_clock::now();
-        provider->lease->Discard();
-        auto generated = stream.Generate(provider->entry->session,
-                                         provider->request.generation);
-        const bool generation_completed = generated.ok();
-        ClearActiveResponse(*provider->server, provider->entry,
-                            provider->identity.id);
-        if (!generated.ok()) {
-          provider->server->metrics.requests_failed.fetch_add(1U);
-          RecordStatusMetric(*provider->server, generated.status(),
-                             HasVisionInput(provider->request.generation));
-          (void)WriteSse(
-              sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
-                        gem16::json::Quote(generated.status().message()) +
-                        ",\"param\":null,\"sequence_number\":" +
-                        std::to_string(stream.sequence()) + "}");
-          (void)FinishSse(sink);
-          if (!generation_completed &&
-              !provider->entry->session.is_poisoned()) {
-            provider->lease->Keep();
+          if (!generated.ok()) {
+            provider->server->metrics.requests_failed.fetch_add(1U);
+            RecordStatusMetric(*provider->server, generated.status(),
+                               HasVisionInput(provider->request.generation));
+            (void)WriteSse(
+                sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
+                          gem16::json::Quote(generated.status().message()) +
+                          ",\"param\":null,\"sequence_number\":" +
+                          std::to_string(stream.sequence()) + "}");
+            (void)FinishSse(sink);
+            if (!generation_completed &&
+                !provider->entry->session.is_poisoned()) {
+              provider->lease->Keep();
+            }
+            return true;
           }
-          return true;
-        }
-        RecordGeneration(*provider->server, generated.value(),
-                         std::chrono::steady_clock::now() - generation_start);
-        CommitResponsesRequest(*provider->entry, provider->request,
-                               generated.value(), provider->identity.id);
-        // Generation and KV commit are complete at this point. The OpenAI SDK
-        // may stop reading immediately after response.completed, so a later
-        // final-chunk write failure must not discard an otherwise safe chain.
-        provider->keep_response_index.store(true, std::memory_order_release);
-        provider->lease->Keep();
-        const bool written = stream.WriteFinalEvents(
-            provider->request, generated.value(),
-            gem16::server::UnixSecondsNow());
-        return written && FinishSse(sink);
+          RecordGeneration(*provider->server, generated.value(),
+                           std::chrono::steady_clock::now() - generation_start);
+          CommitResponsesRequest(*provider->entry, provider->request,
+                                 generated.value(), provider->identity.id);
+          // Generation and KV commit are complete at this point. The OpenAI SDK
+          // may stop reading immediately after response.completed, so a later
+          // final-chunk write failure must not discard an otherwise safe chain.
+          provider->keep_response_index.store(true, std::memory_order_release);
+          provider->lease->Keep();
+          gem16::server::TestFaultPoint("serialization");
+          const bool written = stream.WriteFinalEvents(
+              provider->request, generated.value(),
+              gem16::server::UnixSecondsNow());
+          return written && FinishSse(sink);
+        }, [&]() noexcept {
+          provider->server->metrics.requests_failed.fetch_add(1U);
+          provider->keep_response_index.store(false, std::memory_order_release);
+          provider->lease->Discard();
+        });
       });
 }
 
@@ -996,6 +1030,9 @@ void HandleCancelResponse(ServerState& state, std::string_view response_id,
 }
 
 int ServerMain(int argc, char** argv) {
+#if defined(GEM16_SERVER_TEST_FAULTS)
+  std::cerr << "WARNING: lifecycle fault-injection test executable; not a product server\n";
+#endif
   if (argc == 2 && std::string_view(argv[1]) == "--version") {
     std::cout << "gem16-server " << GEM16_VERSION_STRING << '\n';
     return 0;

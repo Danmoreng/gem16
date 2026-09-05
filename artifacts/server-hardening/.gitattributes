@@ -1,0 +1,3 @@
+# These new Windows evidence sets record byte hashes; preserve captured bytes.
+/2026-09-05-195025-windows-*/** -text -whitespace
+/2026-09-05-c02-*/** -text -whitespace

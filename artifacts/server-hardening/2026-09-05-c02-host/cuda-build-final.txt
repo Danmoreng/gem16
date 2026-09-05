@@ -1,0 +1,65 @@
+Loading Visual Studio C++ environment from C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat
+> cmake.exe --preset blackwell-release -S C:\Development\gem16gb
+-- gem16 CUDA capability scaffold: enabled for 120a
+-- Configuring done (7.1s)
+-- Generating done (0.2s)
+-- Build files have been written to: C:/Development/gem16gb/build/Windows/blackwell-release
+> cmake.exe --build --preset blackwell-release --parallel 2
+[1/224] Generating CXX dyndep file CMakeFiles\gem16_json.dir\CXX.dd
+[2/222] Generating CXX dyndep file CMakeFiles\gem16_core.dir\CXX.dd
+[3/168] Generating CXX dyndep file CMakeFiles\gem16_fp8_compiler_support.dir\CXX.dd
+[4/165] Generating CXX dyndep file CMakeFiles\gem16_nvfp4_compiler_support.dir\CXX.dd
+[5/160] Generating CXX dyndep file CMakeFiles\gem16_server_support.dir\CXX.dd
+[6/153] Generating CXX dyndep file CMakeFiles\gem16_httplib.dir\CXX.dd
+[7/151] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-module-probe.dir\CXX.dd
+[8/148] Generating CXX dyndep file CMakeFiles\gem16-nvfp4-head-diagnostic.dir\CXX.dd
+[9/145] Generating CXX dyndep file CMakeFiles\gem16-trellis35-calibration.dir\CXX.dd
+[10/142] Generating CXX dyndep file CMakeFiles\gem16-trellis35-load-probe.dir\CXX.dd
+[11/139] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-load-probe.dir\CXX.dd
+[12/136] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-e2e-benchmark.dir\CXX.dd
+[13/133] Scanning C:\Development\gem16gb\tests\unit\responses_allocation_test.cpp for CXX dependencies
+[14/133] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-d2-diagnostic.dir\CXX.dd
+[15/130] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-v14-benchmark.dir\CXX.dd
+[16/127] Generating CXX dyndep file CMakeFiles\gem16-26b-memory-probe.dir\CXX.dd
+[17/124] Generating CXX dyndep file CMakeFiles\gem16-26b-assistant-residency-probe.dir\CXX.dd
+[18/121] Generating CXX dyndep file CMakeFiles\gem16-26b-assistant-smoke.dir\CXX.dd
+[19/118] Generating CXX dyndep file CMakeFiles\gem16-26b-assistant-acceptance.dir\CXX.dd
+[20/115] Generating CXX dyndep file CMakeFiles\gem16-26b-moe-probe.dir\CXX.dd
+[21/112] Generating CXX dyndep file CMakeFiles\gem16-26b-router-diagnostic.dir\CXX.dd
+[22/109] Generating CXX dyndep file CMakeFiles\gem16-26b-attention-probe.dir\CXX.dd
+[23/106] Generating CXX dyndep file CMakeFiles\gem16-26b-reference.dir\CXX.dd
+[24/103] Generating CXX dyndep file CMakeFiles\gem16-26b-benchmark.dir\CXX.dd
+[25/100] Generating CXX dyndep file CMakeFiles\gem16-26b-m21-context-driver.dir\CXX.dd
+[26/97] Generating CXX dyndep file CMakeFiles\gem16-26b-m25-context-driver.dir\CXX.dd
+[27/94] Generating CXX dyndep file CMakeFiles\gem16-26b-m22-product-driver.dir\CXX.dd
+[28/91] Generating CXX dyndep file CMakeFiles\gem16-26b-m19-q4-driver.dir\CXX.dd
+[29/88] Generating CXX dyndep file CMakeFiles\gem16-inspect.dir\CXX.dd
+[30/85] Generating CXX dyndep file CMakeFiles\gem16-run.dir\CXX.dd
+[31/82] Generating CXX dyndep file CMakeFiles\gem16-bench.dir\CXX.dd
+[32/79] Generating CXX dyndep file CMakeFiles\gem16-chat.dir\CXX.dd
+[33/76] Generating CXX dyndep file CMakeFiles\gem16-server.dir\CXX.dd
+[34/73] Generating CXX dyndep file CMakeFiles\gem16-unit-tests.dir\CXX.dd
+[35/44] Generating CXX dyndep file CMakeFiles\gem16-responses-allocation-tests.dir\CXX.dd
+[36/44] Generating CXX dyndep file CMakeFiles\gem16-fp8-compiler.dir\CXX.dd
+[37/42] Generating CXX dyndep file CMakeFiles\gem16-checkpoint-compiler.dir\CXX.dd
+[38/40] Building CXX object CMakeFiles\gem16-responses-allocation-tests.dir\tests\unit\responses_allocation_test.cpp.obj
+[39/40] Linking CXX executable CMakeFiles\gem16-responses-allocation-tests.dir\cmake_device_link.obj
+responses_allocation_test.cpp.obj
+gem16_server_support.lib
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+bcrypt.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[40/40] Linking CXX executable bin\gem16-responses-allocation-tests.exe

@@ -1,0 +1,69 @@
+Start testing: Sep 05 19:49 Mitteleuropäische Sommerzeit
+----------------------------------------------------------
+1/4 Testing: gem16-native-studio-host
+1/4 Test: gem16-native-studio-host
+Command: "C:/Development/gem16gb/build/Windows/native-studio/bin/gem16-studio-tests.exe"
+Directory: C:/Development/gem16gb/build/Windows/native-studio
+"gem16-native-studio-host" start time: Sep 05 19:49 Mitteleuropäische Sommerzeit
+Output:
+----------------------------------------------------------
+Chat storage: durability, isolation, recovery, attempts, metadata, media and rollback passed
+gem16 native Studio host tests passed
+<end of output>
+Test time =   0.76 sec
+----------------------------------------------------------
+Test Passed.
+"gem16-native-studio-host" end time: Sep 05 19:49 Mitteleuropäische Sommerzeit
+"gem16-native-studio-host" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/4 Testing: gem16-native-studio-webview
+2/4 Test: gem16-native-studio-webview
+Command: "C:/Development/gem16gb/build/Windows/native-studio/bin/gem16-studio.exe" "--canvas-smoke" "C:/Development/gem16gb/build/Windows/native-studio/canvas-webview-smoke.png"
+Directory: C:/Development/gem16gb/build/Windows/native-studio
+"gem16-native-studio-webview" start time: Sep 05 19:49 Mitteleuropäische Sommerzeit
+Output:
+----------------------------------------------------------
+Canvas system WebView: HTML/JS, 1024x768 PNG (31301 bytes), mouse interaction, blocked network/file, JS/SVG diagnostics, 800x600/1440x900 resize without reload, no outer overflow, inner scrolling, revision invalidation and close passed.
+<end of output>
+Test time =   3.03 sec
+----------------------------------------------------------
+Test Passed.
+"gem16-native-studio-webview" end time: Sep 05 19:49 Mitteleuropäische Sommerzeit
+"gem16-native-studio-webview" time elapsed: 00:00:03
+----------------------------------------------------------
+
+3/4 Testing: gem16-native-studio-lifecycle
+3/4 Test: gem16-native-studio-lifecycle
+Command: "C:/Development/gem16gb/build/Windows/native-studio/bin/gem16-studio-tests.exe" "--studio-lifecycle"
+Directory: C:/Development/gem16gb/build/Windows/native-studio
+"gem16-native-studio-lifecycle" start time: Sep 05 19:49 Mitteleuropäische Sommerzeit
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   9.22 sec
+----------------------------------------------------------
+Test Passed.
+"gem16-native-studio-lifecycle" end time: Sep 05 19:49 Mitteleuropäische Sommerzeit
+"gem16-native-studio-lifecycle" time elapsed: 00:00:09
+----------------------------------------------------------
+
+4/4 Testing: gem16-native-studio-markdown
+4/4 Test: gem16-native-studio-markdown
+Command: "C:/Development/gem16gb/build/Windows/native-studio/bin/gem16-studio-tests.exe" "--markdown"
+Directory: C:/Development/gem16gb/build/Windows/native-studio
+"gem16-native-studio-markdown" start time: Sep 05 19:49 Mitteleuropäische Sommerzeit
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   1.21 sec
+----------------------------------------------------------
+Test Passed.
+"gem16-native-studio-markdown" end time: Sep 05 19:49 Mitteleuropäische Sommerzeit
+"gem16-native-studio-markdown" time elapsed: 00:00:01
+----------------------------------------------------------
+
+End testing: Sep 05 19:49 Mitteleuropäische Sommerzeit
+
+integration =   3.03 sec*proc
+

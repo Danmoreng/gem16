@@ -1,0 +1,9 @@
+Test project C:/Development/gem16gb/build/Windows/blackwell-release
+    Start 2: gem16-unit
+1/2 Test #2: gem16-unit .......................   Passed    1.57 sec
+    Start 3: gem16-responses-allocation
+2/2 Test #3: gem16-responses-allocation .......   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   1.59 sec

@@ -735,6 +735,26 @@ if(BUILD_TESTING)
   )
 endif()
 if(BUILD_TESTING AND GEM16_BUILD_TESTS)
+  # Opt-in test binary; never alter the production server or package artifacts.
+  get_target_property(GEM16_SERVER_TEST_SOURCES gem16_server_support SOURCES)
+  add_library(gem16_server_fault_support STATIC EXCLUDE_FROM_ALL ${GEM16_SERVER_TEST_SOURCES})
+  target_compile_definitions(gem16_server_fault_support PUBLIC GEM16_SERVER_TEST_FAULTS=1)
+  target_include_directories(gem16_server_fault_support PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+  target_include_directories(gem16_server_fault_support SYSTEM PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/third_party/cpp-httplib")
+  target_link_libraries(gem16_server_fault_support PUBLIC gem16_core)
+  if(WIN32)
+    target_link_libraries(gem16_server_fault_support PRIVATE bcrypt)
+  endif()
+  if(GEM16_ENABLE_CUDA)
+    set_target_properties(gem16_server_fault_support PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS OFF)
+  endif()
+  gem16_set_project_warnings(gem16_server_fault_support)
+  gem16_enable_sanitizers(gem16_server_fault_support)
+  add_executable(gem16-server-fault-test EXCLUDE_FROM_ALL src/cli/server_main.cpp)
+  target_compile_definitions(gem16-server-fault-test PRIVATE GEM16_VERSION_STRING="${GEM16_VERSION}-fault-test")
+  target_link_libraries(gem16-server-fault-test PRIVATE gem16_server_fault_support gem16_httplib gem16_core)
+  gem16_set_project_warnings(gem16-server-fault-test)
+  gem16_enable_sanitizers(gem16-server-fault-test)
   add_executable(gem16-unit-tests
     tests/unit/file_sha256_test.cpp
     tests/unit/audio_test.cpp
@@ -772,8 +792,23 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
   gem16_enable_sanitizers(gem16-unit-tests)
   add_test(NAME gem16-unit COMMAND gem16-unit-tests)
 
+  add_executable(gem16-responses-allocation-tests tests/unit/responses_allocation_test.cpp)
+  target_include_directories(gem16-responses-allocation-tests PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/tests/unit")
+  target_link_libraries(gem16-responses-allocation-tests PRIVATE gem16_server_support gem16_core)
+  gem16_set_project_warnings(gem16-responses-allocation-tests)
+  gem16_enable_sanitizers(gem16-responses-allocation-tests)
+  add_test(NAME gem16-responses-allocation COMMAND gem16-responses-allocation-tests)
+  set_tests_properties(gem16-responses-allocation PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
+
   find_package(Python3 QUIET COMPONENTS Interpreter)
   if(Python3_Interpreter_FOUND)
+    add_test(NAME gem16-agent-process-cleanup
+      COMMAND "${Python3_EXECUTABLE}" -m unittest tests.python.test_validate_external_agent
+    )
+    set_tests_properties(gem16-agent-process-cleanup PROPERTIES
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" TIMEOUT 30
+    )
     add_test(NAME gem16-26b-m23-host-contract
       COMMAND "${Python3_EXECUTABLE}" -m unittest
         tests.python.test_qualify_gemma4_26b_m23

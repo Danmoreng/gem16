@@ -1,0 +1,23 @@
+{
+  "parent": "491f5f502a109f14bb7bd5d755f25c0d00bfc7ec",
+  "source_sha256": {
+    "CMakeLists.txt": "da4af6bb1e17827f77190c7d1f253ffe55b1e0e8cc81433d792f5bf016da594c",
+    "src/server/session_pool.cpp": "c3a3efc47a5197a4f17514578bc179eccc16f615cc2d9de75f3ab4d3f295fbef",
+    "src/server/session_pool.h": "169963142d5d85b9f5b24798235b5a7fe39a8fc340ac0d7bd58dfafeda1fd604",
+    "src/server/http_streaming.h": "33ce1b7beb8e31d023aa89a0e6c4786c2d64088a8e5bc227407d363eb63f99ab",
+    "src/cli/server_main.cpp": "1b156f26b776cfa99ae550a12b15960c1236551f7a89eca2688b211fce0fc6e1",
+    "tests/unit/responses_allocation_test.cpp": "94f8aa9d18f7f5a9f084711e68ce2c978969781f079e0870aff070e051366342",
+    "tests/unit/observability_test.cpp": "54c63851da241b078b448574ab67bc2f9ec48587f304af84f6091dbedad92396",
+    "tools/validate_external_agent.py": "65ad86f92e268e5d0001aac68286b5d80527f91123077ae4cec88fad65d9db9d",
+    "tests/python/test_validate_external_agent.py": "7eae3b3bc226c5b3d7a31bf9487daafeba9d79c26fc673d9cb7afc3cc87fec50"
+  },
+  "server_sha256": "6db31ef163935ba3fb2fc4558a7416b727c38601b5590c79a1f655e3d45759c5",
+  "matches_live_matrix_binary": true,
+  "files": {
+    "cuda-build-final.txt": "b9b6f5bea8de64cf1dd7f7b76ab1bebc68b66f5e44608a85aada6fc3d7fd40e0",
+    "host-final.txt": "1a5b8fd2f2bc2e8e5e7c15cb8ff431c2b00267f934bbed5d1135985a8789928d",
+    "initial-msvc-debug-failure.txt": "c68ed583979ae0bd5f7c12f305a7491dff2b633e4f0b04dfda2e99088492b188",
+    "release-final-tests.txt": "75989e1c3cd5af0cb93eced8de36de0e5d3d5337a1e1d32f5c98c486458c771c",
+    "release-host-tests.txt": "b11dc31d9e5d9d560a369aa3e21eae9288946a70ea9ede97dd0b319cc8ef9b28"
+  }
+}

@@ -1,0 +1,940 @@
+{
+  "status": "passed",
+  "scope": "bounded live host/API checks; no long-prefill cancellation latency claim",
+  "health_under_saturation_seconds": 0.011093999999957305,
+  "samples": [
+    {
+      "path": "/health",
+      "status": 400,
+      "seconds": 0.037096399999882124,
+      "response": {
+        "error": {
+          "message": "Host must identify the local server",
+          "type": "invalid_request_error",
+          "param": null,
+          "code": null
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_dacc20efdef3c84e9596df69a4b00599",
+        "Content-Length": "115",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/health",
+      "status": 400,
+      "seconds": 0.01552270000001954,
+      "response": {
+        "error": {
+          "message": "cross-origin browser requests are unsupported",
+          "type": "invalid_request_error",
+          "param": null,
+          "code": null
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_338092df565b5a65079b5fe1145f21e9",
+        "Content-Length": "125",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 400,
+      "seconds": 0.0011808999997811043,
+      "response": {
+        "error": {
+          "message": "generation requests require Content-Type: application/json",
+          "type": "invalid_request_error",
+          "param": null,
+          "code": null
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_c694dd9192e81921b4bb8fbbbddcd2a9",
+        "Content-Length": "138",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "seconds": 0.10216100000025108,
+      "response": {
+        "id": "chatcmpl-gem16-1b50de2d51d311b9d951e8fdee4a7ca4",
+        "object": "chat.completion",
+        "created": 1788632623,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "Hello! How can I help you today?"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 16,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 10,
+          "total_tokens": 26
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_e04bce105fafc2e4c40a2a5f1e2c53b2",
+        "Connection": "close",
+        "X-Gem16-Session-Id": "19888d118c3947b48b621947550b221f",
+        "Content-Length": "357"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "seconds": 0.09794350000038321,
+      "response": {
+        "id": "chatcmpl-gem16-8279ff75475f1ef1c10334b0cdf6810c",
+        "object": "chat.completion",
+        "created": 1788632623,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "Goodbye! Have a great one!"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 42,
+          "prompt_tokens_details": {
+            "cached_tokens": 25
+          },
+          "completion_tokens": 8,
+          "total_tokens": 50
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_b87442c61c53237262cd2ad8a94c5b4a",
+        "Connection": "close",
+        "X-Gem16-Session-Id": "19888d118c3947b48b621947550b221f",
+        "Content-Length": "351"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "seconds": 0.0705006000002868,
+      "response": {
+        "id": "chatcmpl-gem16-73c5336d0f57c3ae5cbd95ae0782e6ee",
+        "object": "chat.completion",
+        "created": 1788632624,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "Ready."
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 22,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 3,
+          "total_tokens": 25
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Gem16-Cache-Reset": "history_or_tools_changed",
+        "X-Request-Id": "req_gem16_622668c610d31a0415808644d19ba525",
+        "Connection": "close",
+        "X-Gem16-Session-Id": "19888d118c3947b48b621947550b221f",
+        "Content-Length": "330"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 400,
+      "seconds": 0.0253709999997227,
+      "response": {
+        "error": {
+          "message": "session affinity headers are empty, duplicated or conflicting",
+          "type": "invalid_request_error",
+          "param": null,
+          "code": null
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_15b72bf9606f70dd9468bc2b04cdf101",
+        "Content-Length": "141",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "seconds": 0.08484279999993305,
+      "response": {
+        "id": "chatcmpl-gem16-1a89ea4faa382c89ba7dbc8fca9feacb",
+        "object": "chat.completion",
+        "created": 1788632624,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 46,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 48
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Gem16-Cache-Reset": "history_or_tools_changed",
+        "X-Request-Id": "req_gem16_4b04d6d44dd9647c6259112fdef69241",
+        "Connection": "close",
+        "X-Gem16-Session-Id": "19888d118c3947b48b621947550b221f",
+        "Content-Length": "329"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 400,
+      "seconds": 0.0010063999998237705,
+      "response": {
+        "error": {
+          "message": "recursive schema references are unsupported",
+          "type": "invalid_request_error",
+          "param": null,
+          "code": null
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_46ef3e9e402a00da660d60123f2c1215",
+        "Content-Length": "123",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/responses",
+      "status": 200,
+      "seconds": 0.10327280000001338,
+      "response": {
+        "id": "resp_gem16_38ec0a6f3e78eb27a2969a4fed5ab484",
+        "object": "response",
+        "created_at": 1788632624,
+        "status": "completed",
+        "completed_at": 1788632624,
+        "error": null,
+        "incomplete_details": null,
+        "instructions": null,
+        "max_output_tokens": 32,
+        "model": "gem16",
+        "output": [
+          {
+            "id": "msg_resp_gem16_38ec0a6f3e78eb27a2969a4fed5ab484",
+            "type": "message",
+            "status": "completed",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "output_text",
+                "text": "Hello! How can I help you today?",
+                "annotations": []
+              }
+            ]
+          }
+        ],
+        "parallel_tool_calls": true,
+        "previous_response_id": null,
+        "reasoning": null,
+        "store": true,
+        "temperature": null,
+        "text": {
+          "format": {
+            "type": "text"
+          }
+        },
+        "tool_choice": "auto",
+        "tools": [],
+        "top_p": null,
+        "truncation": "disabled",
+        "usage": {
+          "input_tokens": 16,
+          "input_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 16
+          },
+          "output_tokens": 10,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 26
+        },
+        "metadata": {}
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_6ae957d4e1075399d48b8abcbb137d0e",
+        "Content-Length": "860",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/responses",
+      "status": 200,
+      "seconds": 0.1094849000000977,
+      "response": {
+        "id": "resp_gem16_3d235dd439176b183d680bd55d75e2a3",
+        "object": "response",
+        "created_at": 1788632624,
+        "status": "completed",
+        "completed_at": 1788632624,
+        "error": null,
+        "incomplete_details": null,
+        "instructions": null,
+        "max_output_tokens": 32,
+        "model": "gem16",
+        "output": [
+          {
+            "id": "msg_resp_gem16_3d235dd439176b183d680bd55d75e2a3",
+            "type": "message",
+            "status": "completed",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "output_text",
+                "text": "Goodbye! Have a great day!",
+                "annotations": []
+              }
+            ]
+          }
+        ],
+        "parallel_tool_calls": true,
+        "previous_response_id": null,
+        "reasoning": null,
+        "store": true,
+        "temperature": null,
+        "text": {
+          "format": {
+            "type": "text"
+          }
+        },
+        "tool_choice": "auto",
+        "tools": [],
+        "top_p": null,
+        "truncation": "disabled",
+        "usage": {
+          "input_tokens": 38,
+          "input_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 38
+          },
+          "output_tokens": 8,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 46
+        },
+        "metadata": {}
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_8a50080391ee431c23c7159f66137ea0",
+        "Content-Length": "853",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.0015951999998833344,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_694396b3e9e11aff3134fa7b50401ce0",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.002358300000196323,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_27cb56fdd5731d559b1a3fdd645718db",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.002515799999855517,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_1266ad82e577b92bcd7191749c9568c6",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.0027444999996077968,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_633913589812a0a0f9c1c54b8bb55998",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.0023028999999041844,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_d413c100458e11a8d0f81f9e68f1b7a0",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.0026212999996459985,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_6f84c4cf9176a23266a5f6feac8ddbe6",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.0019609000000855303,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_bada7279e9290d95335f9047188064b1",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.002960399999665242,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_b4adec9f122e68b67cdb83942a070662",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.001711799999611685,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_d68a01a9e3a889207585269a7889d843",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.001666500000283122,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_570576aa86dcc9f7cad4389b9846aea9",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.002178600000206643,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_b9bdb3b8cebe6291cb17c07b768f659d",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.0016522000000804837,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_319d9445f22c82b41c2cb46dc6a4b0f3",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "seconds": 0.021213900000020658,
+      "response": {
+        "error": {
+          "message": "request queue is full",
+          "type": "resource_exhausted",
+          "param": null,
+          "code": "request_queue_full"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_82a8fae5841630ba4b1555ce4c7ee99b",
+        "Retry-After": "1",
+        "Content-Length": "114",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/health",
+      "status": 200,
+      "seconds": 0.010997699999734323,
+      "response": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 2,
+        "request_queue_active": 1,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 16384,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 16384,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 258313728,
+        "assistant_workspace_bytes": 5482768,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 272629760,
+        "workspace_bytes": 459064992,
+        "execution_slot_bytes": 731694752,
+        "admission_free_bytes": 1982857216,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 1248854016,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": true
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 0
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_4f1d96aa7336373707e63f7cc9be5079",
+        "Content-Length": "1863",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "seconds": 2.277171499999895,
+      "response": {
+        "id": "chatcmpl-gem16-7dab54cffd9d05a36df654ae1141a729",
+        "object": "chat.completion",
+        "created": 1788632624,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n... (Due to character limits and system constraints for long outputs, providing 1,000 lines in a single response can be truncated by the interface. Below is a continuation of the count or a method to generate it.)\n\nHowever, to fulfill your request precisely as formatted:\n\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n...\n\n**Note:** Because a single response containing 1,000 lines of text exceeds the standard output window's practical character limit for a single turn, I will provide a representative sample. If you require the full list as a file, I can provide a script or a downloadable format.\n\n**Here is the full sequence represented efficiently:**\n\n[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80"
+            },
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 34,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 512,
+          "total_tokens": 546
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_a72d03332237bcfec22a79ef9f7dbf0f",
+        "Connection": "close",
+        "X-Gem16-Session-Id": "session_e33cee84b943c0114f4f64c8b1945657",
+        "Content-Length": "1364"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "seconds": 4.540693300000385,
+      "response": {
+        "id": "chatcmpl-gem16-c3b02f48f0af3a38f06e4600d35ec37d",
+        "object": "chat.completion",
+        "created": 1788632626,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n... (Due to character limits and system constraints for long outputs, providing 1,000 lines in a single response can be truncated by the interface. Below is a continuation of the count or a method to generate it.)\n\nHowever, to fulfill your request precisely as formatted:\n\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n...\n\n**Note:** Because a single response containing 1,000 lines of text exceeds the standard output window's practical character limit for a single turn, I will provide a representative sample. If you require the full list as a file, I can provide a script or a downloadable format.\n\n**Here is the full sequence represented efficiently:**\n\n[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80"
+            },
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 34,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 512,
+          "total_tokens": 546
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_a1a1cacda3027be24f366795eae2de86",
+        "Connection": "close",
+        "X-Gem16-Session-Id": "session_d6fc5d141ae5d5a1923d2285c55d3215",
+        "Content-Length": "1364"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "seconds": 6.804366500000015,
+      "response": {
+        "id": "chatcmpl-gem16-a99f1ad2e2db3295ce104daa8f6ff9e6",
+        "object": "chat.completion",
+        "created": 1788632629,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n... (Due to character limits and system constraints for long outputs, providing 1,000 lines in a single response can be truncated by the interface. Below is a continuation of the count or a method to generate it.)\n\nHowever, to fulfill your request precisely as formatted:\n\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n...\n\n**Note:** Because a single response containing 1,000 lines of text exceeds the standard output window's practical character limit for a single turn, I will provide a representative sample. If you require the full list as a file, I can provide a script or a downloadable format.\n\n**Here is the full sequence represented efficiently:**\n\n[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80"
+            },
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 34,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 512,
+          "total_tokens": 546
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_49d8beec39d7bc53f5aebe9f1f09b4e5",
+        "Connection": "close",
+        "X-Gem16-Session-Id": "session_1eed15d0580351a0316ab505dc4cd7c4",
+        "Content-Length": "1364"
+      }
+    },
+    {
+      "path": "/health",
+      "status": 200,
+      "seconds": 0.0008537000003343564,
+      "response": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 16384,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 16384,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 258313728,
+        "assistant_workspace_bytes": 5482768,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 272629760,
+        "workspace_bytes": 459064992,
+        "execution_slot_bytes": 731694752,
+        "admission_free_bytes": 1982857216,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 1248854016,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": true
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 0
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_ca0fa6eec5742115328eabbf4fe68ba0",
+        "Content-Length": "1863",
+        "Connection": "close"
+      }
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "seconds": 0.0857386000002407,
+      "response": {
+        "id": "chatcmpl-gem16-f9fc3d95a3004abbbb68152df0c60325",
+        "object": "chat.completion",
+        "created": 1788632631,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "Ready."
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 22,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 3,
+          "total_tokens": 25
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": "req_gem16_b1af2e33d3c5bf4e0c817d04d720346a",
+        "Connection": "close",
+        "X-Gem16-Session-Id": "session_a593e1e321b13e3e6e841cc2a51b0714",
+        "Content-Length": "330"
+      }
+    }
+  ]
+}

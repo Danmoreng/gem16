@@ -1,0 +1,92 @@
+{
+  "parent": "491f5f502a109f14bb7bd5d755f25c0d00bfc7ec",
+  "source_sha256": {
+    "src/cli/server_main.cpp": "893397b0c87e2a1653e876d38329bd1f22906c43e82e51acd4c053d8f7f03eec",
+    "src/server/session_pool.cpp": "af235637864d51faf731f55f70cbc3a81ff7b4625d691074e63695ba9986e528",
+    "src/server/session_pool.h": "2d3782d392b60677fb87a4bfe038bb015250891e424431e33ddb5e05cd47f4ba",
+    "src/server/http_streaming.cpp": "e38bca67a2f5f6c6af6ac9f973be8804f4b52d87759b8b36662249803d7b243a",
+    "src/server/http_streaming.h": "33ce1b7beb8e31d023aa89a0e6c4786c2d64088a8e5bc227407d363eb63f99ab",
+    "src/server/test_fault.h": "4af76418af8eb05e5bdab0738a4be853d5b543db2bcf93a477dc94664807b60b",
+    "CMakeLists.txt": "9e9fa75ca91e8e70d2bc069030bba4ee12d3d3edf530f6ede6040dbd656dec4f",
+    "tools/check_session_faults.py": "6f22a2813d939e1f4a3def04a0cbbf8162a1f3b832f5644f00aa698c399c9430",
+    "tools/check_server_hardening.py": "6c5c2c3b3cf49f6fb8ef47a300cfa29fee8ec3f010283caff96c5450fe930240",
+    "tools/validate_external_agent.py": "65ad86f92e268e5d0001aac68286b5d80527f91123077ae4cec88fad65d9db9d",
+    "tests/unit/responses_allocation_test.cpp": "94f8aa9d18f7f5a9f084711e68ce2c978969781f079e0870aff070e051366342",
+    "tests/unit/observability_test.cpp": "54c63851da241b078b448574ab67bc2f9ec48587f304af84f6091dbedad92396",
+    "tests/python/test_validate_external_agent.py": "7eae3b3bc226c5b3d7a31bf9487daafeba9d79c26fc673d9cb7afc3cc87fec50"
+  },
+  "binaries": {
+    "gem16-server.exe": "a35a26671507900bd095d5b950a6620ccb59cd506f397fe7498c25f71fcabef7",
+    "gem16-server-fault-test.exe": "a34c5bccd0d39736a0ce60ae8642c892f012cca19ac19b12df9aa2ed95d41fcc"
+  },
+  "results": {
+    "2026-09-05-c02-injection-final": {
+      "sha256": "7aae9461cd7a3f24773a75cdbf134899a828d019960924cc43e948b72995b908",
+      "profiles": [
+        {
+          "profile": "12b-unified",
+          "status": "passed",
+          "cases": 140
+        },
+        {
+          "profile": "26b-compact-vision",
+          "status": "passed",
+          "cases": 140
+        }
+      ]
+    },
+    "2026-09-05-c02-production-final": {
+      "sha256": "6cbdea2a63c87666d0c7e99aff1684856c8bbd9e8bbff2eee81c0e58355acb79",
+      "profiles": [
+        {
+          "profile": "12b-unified",
+          "status": "passed",
+          "cases": 8
+        },
+        {
+          "profile": "26b-compact-vision",
+          "status": "passed",
+          "cases": 8
+        }
+      ]
+    },
+    "2026-09-05-c02-complete-production": {
+      "sha256": "3d3cbdf9d394720bdea40b10d7d87a0a1ea5157e370e6a9afd938607f9721b8a",
+      "profiles": [
+        {
+          "profile": "12b-unified",
+          "status": "failed",
+          "cases": 0
+        },
+        {
+          "profile": "26b-compact-vision",
+          "status": "passed",
+          "cases": 0
+        }
+      ]
+    }
+  },
+  "logs": {
+    "c02-final-fault-build.txt": "39946d6c38b54647ff95fe20bf89121f267fe0cc5b1130089035d8d2a839ab89",
+    "c02-final-host.txt": "08f10754387641adf7c3cd69a60c0a639f7a887aab261b42828a4b57ca964caf",
+    "c02-final-production-build.txt": "09934a33f12e01bec562149a33e5d44642e0a5b4b003f94905107888b2e4096c",
+    "c02-final-release-tests.txt": "af2ef19f39ae88033dd7f61a6ec635b6d2c077146b7a1f98c48c71f998fd91a5",
+    "c02-injection-final.txt": "63bd930d11e447a3c692120f30d9b2786ad863b8c25568a85c22e6696e63f543"
+  },
+  "index_source_sha256": {
+    "src/cli/server_main.cpp": "3d0640e0a86af414381f39d240223feedf10611442b0d5a7d63fd1f6f5e1e7bd",
+    "src/server/session_pool.cpp": "af235637864d51faf731f55f70cbc3a81ff7b4625d691074e63695ba9986e528",
+    "src/server/session_pool.h": "2d3782d392b60677fb87a4bfe038bb015250891e424431e33ddb5e05cd47f4ba",
+    "src/server/http_streaming.cpp": "039b82ab4ab47e8f59d48b229e48395b3e0e7f313dcd463d8a7af11c9fc086a8",
+    "src/server/http_streaming.h": "33ce1b7beb8e31d023aa89a0e6c4786c2d64088a8e5bc227407d363eb63f99ab",
+    "src/server/test_fault.h": "4af76418af8eb05e5bdab0738a4be853d5b543db2bcf93a477dc94664807b60b",
+    "CMakeLists.txt": "9e9fa75ca91e8e70d2bc069030bba4ee12d3d3edf530f6ede6040dbd656dec4f",
+    "tools/check_session_faults.py": "6f22a2813d939e1f4a3def04a0cbbf8162a1f3b832f5644f00aa698c399c9430",
+    "tools/check_server_hardening.py": "6c5c2c3b3cf49f6fb8ef47a300cfa29fee8ec3f010283caff96c5450fe930240",
+    "tools/validate_external_agent.py": "65ad86f92e268e5d0001aac68286b5d80527f91123077ae4cec88fad65d9db9d",
+    "tests/unit/responses_allocation_test.cpp": "94f8aa9d18f7f5a9f084711e68ce2c978969781f079e0870aff070e051366342",
+    "tests/unit/observability_test.cpp": "54c63851da241b078b448574ab67bc2f9ec48587f304af84f6091dbedad92396",
+    "tests/python/test_validate_external_agent.py": "7eae3b3bc226c5b3d7a31bf9487daafeba9d79c26fc673d9cb7afc3cc87fec50"
+  },
+  "source_hash_note": "source_sha256 hashes compiler-input working files; index_source_sha256 hashes LF-normalized staged source. Raw evidence directories disable text normalization."
+}

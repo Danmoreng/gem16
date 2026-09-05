@@ -1,0 +1,85 @@
+CMake is re-running because C:/Development/gem16gb/build/Windows/native-studio/CMakeFiles/generate.stamp is out-of-date.
+  the file 'C:/Development/gem16gb/nativeStudio/CMakeLists.txt'
+  is newer than 'C:/Development/gem16gb/build/Windows/native-studio/CMakeFiles/generate.stamp.depend'
+  result='-1'
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+-- Using plutovg submodule.
+CMake Warning (dev) at C:/Program Files/CMake/share/cmake-4.1/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(studio_webview2) is deprecated, call
+  FetchContent_MakeAvailable(studio_webview2) instead.  Policy CMP0169 can be
+  set to OLD to allow FetchContent_Populate(studio_webview2) to be called
+  directly for now, but the ability to call it with declared details will be
+  removed completely in a future version.
+Call Stack (most recent call first):
+  cmake/webview-dependency.cmake:12 (FetchContent_Populate)
+  CMakeLists.txt:136 (include)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- Configuring done (5.6s)
+-- Generating done (0.2s)
+-- Build files have been written to: C:/Development/gem16gb/build/Windows/native-studio
+MSBuild-Version 17.14.23+b0019275e für .NET Framework
+
+  Checking File Globs
+  studio_md4c.vcxproj -> C:\Development\gem16gb\build\Windows\native-studio\Release\studio_md4c.lib
+  Quellen werden auf Modulabhängigkeiten überprüft...
+  plutovg.vcxproj -> C:\Development\gem16gb\build\Windows\native-studio\_deps\lunasvg-build\plutovg\Release\plutovg.lib
+  studio_sqlite.vcxproj -> C:\Development\gem16gb\build\Windows\native-studio\Release\studio_sqlite.lib
+  lunasvg.vcxproj -> C:\Development\gem16gb\build\Windows\native-studio\_deps\lunasvg-build\Release\lunasvg.lib
+  studio_microtex.vcxproj -> C:\Development\gem16gb\build\Windows\native-studio\Release\studio_microtex.lib
+  Quellen werden auf Modulabhängigkeiten überprüft...
+  Quellen werden auf Modulabhängigkeiten überprüft...
+  canvas.cpp
+  main.cpp
+  api_client.cpp
+  settings.cpp
+  canvas_browser.cpp
+  app.cpp
+  media_loader.cpp
+  app_canvas.cpp
+  studio_tests.cpp
+  media_loader.cpp
+  studio_lifecycle_tests.cpp
+  api_client.cpp
+  settings.cpp
+  app.cpp
+  app_canvas.cpp
+  canvas.cpp
+  canvas_tests.cpp
+  canvas_browser.cpp
+  Kompilieren...
+  api_client.cpp
+  app_canvas.cpp
+  canvas.cpp
+  Kompilieren...
+  media_loader.cpp
+  settings.cpp
+  main.cpp
+  canvas_browser.cpp
+  app.cpp
+  studio_tests.cpp
+  app.cpp
+  canvas_browser.cpp
+  canvas_tests.cpp
+  api_client.cpp
+  media_loader.cpp
+  canvas.cpp
+  settings.cpp
+  studio_lifecycle_tests.cpp
+  app_canvas.cpp
+C:\Development\gem16gb\nativeStudio\src\media_loader.cpp(89,33): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [C:\Development\gem16gb\build\Windows\native-studio\gem16-studio.vcxproj]
+C:\Development\gem16gb\nativeStudio\src\settings.cpp(54,32): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [C:\Development\gem16gb\build\Windows\native-studio\gem16-studio.vcxproj]
+C:\Development\gem16gb\nativeStudio\src\settings.cpp(55,32): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [C:\Development\gem16gb\build\Windows\native-studio\gem16-studio.vcxproj]
+C:\Development\gem16gb\nativeStudio\src\settings.cpp(57,32): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [C:\Development\gem16gb\build\Windows\native-studio\gem16-studio.vcxproj]
+C:\Development\gem16gb\nativeStudio\src\settings.cpp(60,32): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [C:\Development\gem16gb\build\Windows\native-studio\gem16-studio.vcxproj]
+C:\Development\gem16gb\nativeStudio\src\settings.cpp(149,40): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [C:\Development\gem16gb\build\Windows\native-studio\gem16-studio.vcxproj]
+C:\Development\gem16gb\nativeStudio\src\settings.cpp(161,27): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [C:\Development\gem16gb\build\Windows\native-studio\gem16-studio.vcxproj]
+C:\Development\gem16gb\nativeStudio\src\settings.cpp(219,42): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [C:\Development\gem16gb\build\Windows\native-studio\gem16-studio.vcxproj]
+C:\Development\gem16gb\nativeStudio\src\settings.cpp(290,42): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [C:\Development\gem16gb\build\Windows\native-studio\gem16-studio.vcxproj]
+C:\Development\gem16gb\nativeStudio\src\app.cpp(36,30): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [C:\Development\gem16gb\build\Windows\native-studio\gem16-studio.vcxproj]
+C:\Development\gem16gb\nativeStudio\src\app.cpp(1980,26): warning C4456: Deklaration von "health" blendet vorherige lokale Deklaration aus [C:\Development\gem16gb\build\Windows\native-studio\gem16-studio.vcxproj]
+      C:\Development\gem16gb\nativeStudio\src\app.cpp(1871,24):
+      Siehe Deklaration von "health"
+  
+  gem16-studio.vcxproj -> C:\Development\gem16gb\build\Windows\native-studio\bin\gem16-studio.exe
+  gem16-studio-tests.vcxproj -> C:\Development\gem16gb\build\Windows\native-studio\bin\gem16-studio-tests.exe

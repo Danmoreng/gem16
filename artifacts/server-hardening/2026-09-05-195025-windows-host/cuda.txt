@@ -1,0 +1,2462 @@
+Loading Visual Studio C++ environment from C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat
+> cmake.exe --preset blackwell-release -S C:\Development\gem16gb
+-- gem16 CUDA capability scaffold: enabled for 120a
+-- Configuring done (2.7s)
+-- Generating done (0.2s)
+-- Build files have been written to: C:/Development/gem16gb/build/Windows/blackwell-release
+> cmake.exe --build --preset blackwell-release --parallel 2
+[1/258] Generating CXX dyndep file CMakeFiles\gem16_json.dir\CXX.dd
+[2/256] Scanning C:\Development\gem16gb\src\model\image.cpp for CXX dependencies
+[3/256] Scanning C:\Development\gem16gb\src\runtime\capabilities.cpp for CXX dependencies
+[4/256] Scanning C:\Development\gem16gb\src\runtime\chat.cpp for CXX dependencies
+[5/256] Scanning C:\Development\gem16gb\src\runtime\tool_call_parser.cpp for CXX dependencies
+[6/256] Scanning C:\Development\gem16gb\src\runtime\result_json.cpp for CXX dependencies
+[7/256] Scanning C:\Development\gem16gb\src\cuda\engine\state_capture.cpp for CXX dependencies
+[8/256] Generating CXX dyndep file CMakeFiles\gem16_core.dir\CXX.dd
+[9/223] Scanning C:\Development\gem16gb\src\server\openai_chat.cpp for CXX dependencies
+[10/223] Scanning C:\Development\gem16gb\src\server\http_streaming.cpp for CXX dependencies
+[11/223] Scanning C:\Development\gem16gb\src\server\request_queue.cpp for CXX dependencies
+[12/223] Scanning C:\Development\gem16gb\src\server\session_pool.cpp for CXX dependencies
+[13/223] Building CXX object CMakeFiles\gem16_core.dir\src\runtime\capabilities.cpp.obj
+[14/223] Building CXX object CMakeFiles\gem16_core.dir\src\model\image.cpp.obj
+[15/223] Building CXX object CMakeFiles\gem16_core.dir\src\runtime\chat.cpp.obj
+[16/223] Building CXX object CMakeFiles\gem16_core.dir\src\runtime\tool_call_parser.cpp.obj
+[17/223] Building CXX object CMakeFiles\gem16_core.dir\src\runtime\result_json.cpp.obj
+[18/223] Building CXX object CMakeFiles\gem16_core.dir\src\cuda\engine\state_capture.cpp.obj
+[19/223] Building CUDA object CMakeFiles\gem16_core.dir\src\cuda\engine\gemma4_26b_reference.cu.obj
+gemma4_26b_reference.cu
+tmpxft_00001eec_00000000-7_gemma4_26b_reference.cudafe1.cpp
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3\include\cuda_fp4.hpp(107): warning C4100: „fp4_interpretation“: nicht referenzierter Parameter
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3\include\cuda_fp4.hpp(401): warning C4100: „fp4_interpretation“: nicht referenzierter Parameter
+C:/Development/gem16gb/src\cuda/engine/detail/gemma4_26b_mtp_graphs.inc(74): warning C4189: "global": Lokale Variable ist initialisiert aber nicht referenziert
+C:/Development/gem16gb/src\cuda/engine/detail/gemma4_26b_mtp_graphs.inc(215): warning C4458: Deklaration von "head_activation" blendet Klassenmember aus
+C:/Development/gem16gb/src\cuda/engine/detail/gemma4_26b_state.inc(110): note: Siehe Deklaration von "gem16::internal::Gemma4Moe26BReferenceEngine::Impl::head_activation"
+C:/Development/gem16gb/src\cuda/engine/detail/gemma4_26b_create.inc(502): warning C4456: Deklaration von "attention" blendet vorherige lokale Deklaration aus
+C:/Development/gem16gb/src\cuda/engine/detail/gemma4_26b_create.inc(246): note: Siehe Deklaration von "attention"
+C:/Development/gem16gb/src\cuda/engine/detail/gemma4_26b_prefill.inc(325): warning C4456: Deklaration von "status" blendet vorherige lokale Deklaration aus
+C:/Development/gem16gb/src\cuda/engine/detail/gemma4_26b_prefill.inc(181): note: Siehe Deklaration von "status"
+[20/223] Building CUDA object CMakeFiles\gem16_core.dir\src\cuda\engine\inference_engine.cu.obj
+C:\Development\gem16gb\src\cuda\engine\inference_engine.cu(502): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = internal::LaunchFp8CutlassProjectionBatch(
+           ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(33): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = assistant_.Load(assistant_model_directory);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(50): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = assistant_.Prepare(max_context_);
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(83): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = model_.ShareWeightsFrom(model);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(86): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = assistant_.ShareWeightsFrom(*assistant);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(89): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = assistant_.Prepare(max_context_);
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(105): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = AllocateWorkspace();
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(107): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = AllocatePrefillWorkspace();
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(110): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = AllocateMtpWorkspace();
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(115): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mtp_host_result_.Allocate(kHostTransactionFloats,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(122): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mtp_host_chain_.Allocate(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(129): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mtp_stream_ring_.Allocate(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(134): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRotaryEmbeddingTableBatch(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(139): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRotaryEmbeddingTableBatch(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(148): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = decode_host_state_.Allocate(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(159): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = PrepareDecodeGraphs();
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_forward.cuh(72): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchFusedOutputHeadCandidates(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_forward.cuh(87): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = SelectSampledToken(diagnostic_logits, selected);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_forward.cuh(90): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchFusedOutputHeadCandidates(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_forward.cuh(105): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchOutputHeadCandidateArgmax(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(192): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = RunLayerBatch(model_.layers()[index], start_position, tokens,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(198): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(210): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchFusedOutputHeadBatchCandidates(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(218): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchBuildSpeculativeRepetitionMasks(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(225): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = SelectSampledTokenWithState(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(231): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchOutputHeadBatchArgmax(candidates, tokens,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(239): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchAcceptMtpGroup(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(245): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchCommitSpeculativeRepetitionMask(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(259): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchCommitMtpKvFp8(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(265): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchCommitMtpKvBf16(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(275): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchCommitMtpHidden(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(292): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = ValidateCompletedMtpGroup(input_token, start_position,
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(339): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchBuildControlledMtpD2Inputs(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(355): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = RunLayerBatch(model_.layers()[index], 0U, kTokens, index,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(361): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(373): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchFusedOutputHeadBatchCandidates(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(382): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchBuildSpeculativeRepetitionMasks(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(389): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = SelectSampledTokenWithState(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(396): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchOutputHeadBatchArgmax(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(401): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchAcceptMtpGroup(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(407): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchCommitSpeculativeRepetitionMask(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(420): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchCommitMtpKvFp8ControlledD2(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(430): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchCommitMtpHidden(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(517): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = PrepareFixedD2ChainGraph();
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(610): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchControlledMtpD2GroupBody(false);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(612): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAdvanceMtpD2Chain(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(632): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchControlledMtpOrdinaryTailBody();
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(646): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchContinueMtpChain(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(734): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchMarkControlledRepetitionToken(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(750): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchControlledDecodeLayer(layer);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(754): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(769): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchFusedOutputHeadCandidates(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(777): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = SelectSampledToken(sampling_logits, selected, decode_control);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(779): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchOutputHeadCandidateArgmax(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(835): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            callback_status = callback(callback_context, token);
+                            ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(52): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchMarkRepetitionTokens(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(116): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchAudioProjection(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(123): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = LaunchStorePhysicalBf16(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(169): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchVisionProjection(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(178): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = LaunchStorePhysicalBf16(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(188): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = RunLayerBatch(layer, start_position + begin, tokens, kLayers,
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(195): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = physical_hidden
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(210): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchFusedOutputHeadCandidates(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(217): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchOutputHeadLogits(model_.embedding(), last,
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(230): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = SelectSampledToken(logits, selected);
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(233): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchLogitArgmax(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(60): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mtp_verification
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(90): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRoundBf16(v, tokens * layer.kv_elements, stream_);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(92): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRmsNormBf16(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(96): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRmsNormBf16Input(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(102): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchProjectionRmsNormRotaryBf16BatchControlled(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(118): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchProjectionRmsNormRotaryBf16Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(137): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchProjectionRmsNormRotaryBf16BatchInput(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(162): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchQuantizeKvFp8Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(183): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = controlled_mtp_d2
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(210): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = controlled_mtp_d2
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(227): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(233): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchAppendKvFp8BatchControlled(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(238): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = controlled_mtp_d2
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(260): warning #2810-D: ignoring return value type with "nodiscard" attribute
+                status = controlled_mtp_d2
+                       ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(283): warning #2810-D: ignoring return value type with "nodiscard" attribute
+                status = internal::LaunchLocalAttentionDecodeFp8(
+                       ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(296): warning #2810-D: ignoring return value type with "nodiscard" attribute
+                  status = internal::LaunchSetMtpAttentionPosition(
+                         ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(300): warning #2810-D: ignoring return value type with "nodiscard" attribute
+                status = internal::LaunchOnlineAttentionDecodeFp8Sm120(
+                       ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(312): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = controlled_mtp_d2
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(339): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = layer.global
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(356): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchAppendKvFp8Batch(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(379): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchCopyCircularMtpKvBf16(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(390): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchAppendKvBatch(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(399): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchAppendKvBatch(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(412): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchLocalAttentionDecode(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(421): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchCopyCircularMtpKvBf16(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(434): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchFusedCausalAttentionPrefill(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(440): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAppendKvBatch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(474): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchFp8ReferenceTokenQuantizationBf16Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(478): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status =
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(481): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchFp8ReferenceTokenQuantizationBatch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(486): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mtp_verification
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(498): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRoundBf16(projection, tokens * kHidden, stream_);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(501): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mtp_verification
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(524): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status =
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(549): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4Sm120FusedGateUpBatch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(557): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4CutlassInterleaveActivationScales(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(560): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(567): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4CutlassUpGatedGeluQuantizedBatch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(577): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mtp_verification
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(586): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(592): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(58): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchProjectionRmsNormRotaryBf16Controlled(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(67): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAppendKvFp8Controlled(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(73): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchLocalAttentionDecodeFp8Controlled(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(79): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchOnlineAttentionDecodeFp8Sm120(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(86): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAppendKvControlled(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(91): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchLocalAttentionDecodeControlled(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(137): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchFusedOutputHeadCandidates(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(144): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = SelectSampledToken(sampling_logits, selected, control);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(147): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchOutputHeadCandidateArgmax(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(172): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = CaptureDecodeGraph(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(203): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchFp8QkvProjection(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(215): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRoundBf16(v, layer.kv_elements, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(217): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(287): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchFp8ReferenceTokenQuantization(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(290): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchFp8Projection(o_activation, o_scale, layer.o, projection, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(292): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRoundBf16(projection, kHidden, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(295): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->attention_output, projection,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(299): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormResidualBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(304): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->post_attention_norm, post_norm,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(307): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->post_attention_residual, hidden_b,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(312): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(316): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRmsNormBf16(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(320): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->pre_feedforward_norm, normalized,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(323): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4ReferenceActivationQuantization(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(328): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.gate, gate,
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(331): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.up, up,
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(335): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchGatedGeluNvfp4ActivationQuantization(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(339): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRoundBf16(gate, kIntermediate, stream_);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(341): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRoundBf16(up, kIntermediate, stream_);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(343): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchGeluTanhProduct(gate, up, product, kIntermediate,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(346): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRoundBf16(product, kIntermediate, stream_);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(348): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_values(capture->gate, gate, kIntermediate,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(351): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_values(capture->up, up, kIntermediate,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(354): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_values(capture->gelu_product, product, kIntermediate,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(357): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4ReferenceActivationQuantization(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(362): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchNvfp4Projection(down_packed, down_scales, layer.down,
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(365): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRoundBf16(projection, kHidden, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(368): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->mlp_output, projection,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(372): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormResidualBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(377): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->post_feedforward_norm, post_norm,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(382): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->hidden, hidden_a,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(406): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchDecodePrefix(layer);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(410): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchProportionalRotaryEmbedding(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(413): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchProportionalRotaryEmbedding(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(417): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRotaryEmbedding(q_norm, kQueryHeads, layer.head_dimension,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(420): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRotaryEmbedding(k_norm, layer.kv_heads, layer.head_dimension,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(424): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRoundBf16(q_norm, layer.query_elements, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(426): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRoundBf16(k_norm, layer.kv_elements, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(453): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAppendKvFp8(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(458): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchLocalAttentionDecodeFp8(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(464): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAppendKv(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(468): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchLocalAttentionDecode(
+               ^
+
+C:\Development\gem16gb\src\cuda\engine\inference_engine.cu(502): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = internal::LaunchFp8CutlassProjectionBatch(
+           ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(33): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = assistant_.Load(assistant_model_directory);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(50): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = assistant_.Prepare(max_context_);
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(83): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = model_.ShareWeightsFrom(model);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(86): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = assistant_.ShareWeightsFrom(*assistant);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(89): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = assistant_.Prepare(max_context_);
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(105): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = AllocateWorkspace();
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(107): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = AllocatePrefillWorkspace();
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(110): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = AllocateMtpWorkspace();
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(115): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mtp_host_result_.Allocate(kHostTransactionFloats,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(122): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mtp_host_chain_.Allocate(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(129): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mtp_stream_ring_.Allocate(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(134): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRotaryEmbeddingTableBatch(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(139): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRotaryEmbeddingTableBatch(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(148): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = decode_host_state_.Allocate(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_initialize.cuh(159): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = PrepareDecodeGraphs();
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_forward.cuh(72): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchFusedOutputHeadCandidates(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_forward.cuh(87): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = SelectSampledToken(diagnostic_logits, selected);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_forward.cuh(90): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchFusedOutputHeadCandidates(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_forward.cuh(105): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchOutputHeadCandidateArgmax(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(192): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = RunLayerBatch(model_.layers()[index], start_position, tokens,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(198): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(210): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchFusedOutputHeadBatchCandidates(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(218): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchBuildSpeculativeRepetitionMasks(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(225): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = SelectSampledTokenWithState(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(231): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchOutputHeadBatchArgmax(candidates, tokens,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(239): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchAcceptMtpGroup(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(245): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchCommitSpeculativeRepetitionMask(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(259): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchCommitMtpKvFp8(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(265): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchCommitMtpKvBf16(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(275): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchCommitMtpHidden(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(292): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = ValidateCompletedMtpGroup(input_token, start_position,
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(339): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchBuildControlledMtpD2Inputs(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(355): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = RunLayerBatch(model_.layers()[index], 0U, kTokens, index,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(361): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(373): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchFusedOutputHeadBatchCandidates(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(382): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchBuildSpeculativeRepetitionMasks(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(389): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = SelectSampledTokenWithState(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(396): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchOutputHeadBatchArgmax(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(401): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchAcceptMtpGroup(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(407): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchCommitSpeculativeRepetitionMask(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(420): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchCommitMtpKvFp8ControlledD2(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(430): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchCommitMtpHidden(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(517): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = PrepareFixedD2ChainGraph();
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(610): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchControlledMtpD2GroupBody(false);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(612): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAdvanceMtpD2Chain(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(632): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchControlledMtpOrdinaryTailBody();
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(646): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchContinueMtpChain(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(734): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchMarkControlledRepetitionToken(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(750): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchControlledDecodeLayer(layer);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(754): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(769): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchFusedOutputHeadCandidates(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(777): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = SelectSampledToken(sampling_logits, selected, decode_control);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(779): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchOutputHeadCandidateArgmax(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_mtp.cuh(835): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            callback_status = callback(callback_context, token);
+                            ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(52): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchMarkRepetitionTokens(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(116): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchAudioProjection(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(123): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = LaunchStorePhysicalBf16(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(169): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchVisionProjection(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(178): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = LaunchStorePhysicalBf16(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(188): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = RunLayerBatch(layer, start_position + begin, tokens, kLayers,
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(195): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = physical_hidden
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(210): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchFusedOutputHeadCandidates(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(217): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchOutputHeadLogits(model_.embedding(), last,
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(230): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = SelectSampledToken(logits, selected);
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_api.cuh(233): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchLogitArgmax(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(60): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mtp_verification
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(90): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRoundBf16(v, tokens * layer.kv_elements, stream_);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(92): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRmsNormBf16(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(96): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRmsNormBf16Input(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(102): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchProjectionRmsNormRotaryBf16BatchControlled(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(118): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchProjectionRmsNormRotaryBf16Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(137): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchProjectionRmsNormRotaryBf16BatchInput(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(162): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchQuantizeKvFp8Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(183): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = controlled_mtp_d2
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(210): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = controlled_mtp_d2
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(227): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(233): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchAppendKvFp8BatchControlled(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(238): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = controlled_mtp_d2
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(260): warning #2810-D: ignoring return value type with "nodiscard" attribute
+                status = controlled_mtp_d2
+                       ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(283): warning #2810-D: ignoring return value type with "nodiscard" attribute
+                status = internal::LaunchLocalAttentionDecodeFp8(
+                       ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(296): warning #2810-D: ignoring return value type with "nodiscard" attribute
+                  status = internal::LaunchSetMtpAttentionPosition(
+                         ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(300): warning #2810-D: ignoring return value type with "nodiscard" attribute
+                status = internal::LaunchOnlineAttentionDecodeFp8Sm120(
+                       ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(312): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = controlled_mtp_d2
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(339): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = layer.global
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(356): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchAppendKvFp8Batch(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(379): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchCopyCircularMtpKvBf16(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(390): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchAppendKvBatch(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(399): warning #2810-D: ignoring return value type with "nodiscard" attribute
+            status = internal::LaunchAppendKvBatch(
+                   ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(412): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchLocalAttentionDecode(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(421): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchCopyCircularMtpKvBf16(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(434): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchFusedCausalAttentionPrefill(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(440): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAppendKvBatch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(474): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchFp8ReferenceTokenQuantizationBf16Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(478): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status =
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(481): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchFp8ReferenceTokenQuantizationBatch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(486): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mtp_verification
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(498): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRoundBf16(projection, tokens * kHidden, stream_);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(501): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mtp_verification
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(524): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status =
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(549): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4Sm120FusedGateUpBatch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(557): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4CutlassInterleaveActivationScales(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(560): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(567): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4CutlassUpGatedGeluQuantizedBatch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(577): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mtp_verification
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(586): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_prefill_layers.cuh(592): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(58): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchProjectionRmsNormRotaryBf16Controlled(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(67): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAppendKvFp8Controlled(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(73): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchLocalAttentionDecodeFp8Controlled(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(79): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = internal::LaunchOnlineAttentionDecodeFp8Sm120(
+                 ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(86): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAppendKvControlled(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(91): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchLocalAttentionDecodeControlled(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(137): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchFusedOutputHeadCandidates(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(144): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = SelectSampledToken(sampling_logits, selected, control);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(147): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchOutputHeadCandidateArgmax(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(172): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = CaptureDecodeGraph(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(203): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchFp8QkvProjection(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(215): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRoundBf16(v, layer.kv_elements, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(217): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(287): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchFp8ReferenceTokenQuantization(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(290): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchFp8Projection(o_activation, o_scale, layer.o, projection, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(292): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRoundBf16(projection, kHidden, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(295): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->attention_output, projection,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(299): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormResidualBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(304): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->post_attention_norm, post_norm,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(307): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->post_attention_residual, hidden_b,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(312): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(316): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRmsNormBf16(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(320): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->pre_feedforward_norm, normalized,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(323): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4ReferenceActivationQuantization(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(328): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.gate, gate,
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(331): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.up, up,
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(335): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchGatedGeluNvfp4ActivationQuantization(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(339): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRoundBf16(gate, kIntermediate, stream_);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(341): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRoundBf16(up, kIntermediate, stream_);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(343): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchGeluTanhProduct(gate, up, product, kIntermediate,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(346): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRoundBf16(product, kIntermediate, stream_);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(348): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_values(capture->gate, gate, kIntermediate,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(351): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_values(capture->up, up, kIntermediate,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(354): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_values(capture->gelu_product, product, kIntermediate,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(357): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchNvfp4ReferenceActivationQuantization(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(362): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchNvfp4Projection(down_packed, down_scales, layer.down,
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(365): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRoundBf16(projection, kHidden, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(368): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->mlp_output, projection,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(372): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = internal::LaunchRmsNormResidualBf16(
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(377): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->post_feedforward_norm, post_norm,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(382): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = capture_hidden(capture->hidden, hidden_a,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(406): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchDecodePrefix(layer);
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(410): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchProportionalRotaryEmbedding(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(413): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchProportionalRotaryEmbedding(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(417): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRotaryEmbedding(q_norm, kQueryHeads, layer.head_dimension,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(420): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchRotaryEmbedding(k_norm, layer.kv_heads, layer.head_dimension,
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(424): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRoundBf16(q_norm, layer.query_elements, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(426): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRoundBf16(k_norm, layer.kv_elements, stream_);
+             ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(453): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAppendKvFp8(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(458): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchLocalAttentionDecodeFp8(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(464): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchAppendKv(
+               ^
+
+C:/Development/gem16gb/src\cuda/engine/inference_engine_decode_graphs.cuh(468): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = internal::LaunchLocalAttentionDecode(
+               ^
+
+C:\Development\gem16gb\src\cuda\engine\inference_engine.cu(64): warning #177-D: variable "gem16::<unnamed>::kMaximumContext" was declared but never referenced
+  constexpr std::uint64_t kMaximumContext = 262144;
+                          ^
+
+inference_engine.cu
+tmpxft_00001d18_00000000-7_inference_engine.cudafe1.cpp
+C:\Users\User\AppData\Local\Temp\tmpxft_00001d18_00000000-7_inference_engine.cudafe1.stub.c(28): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+C:\Users\User\AppData\Local\Temp\tmpxft_00001d18_00000000-7_inference_engine.cudafe1.stub.c(12): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+C:\Users\User\AppData\Local\Temp\tmpxft_00001d18_00000000-7_inference_engine.cudafe1.stub.c(12): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+C:\Users\User\AppData\Local\Temp\tmpxft_00001d18_00000000-7_inference_engine.cudafe1.stub.c(12): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+[21/223] Building CUDA object CMakeFiles\gem16_core.dir\src\cuda\vision\gemma4_26b.cu.obj
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(645): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = elapsed(boundary, boundary + 1U,
+           ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(649): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = elapsed(boundary, boundary + 1U,
+           ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(665): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = elapsed(boundary, boundary + 1U, output);
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(670): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = elapsed(boundary, boundary + 1U,
+           ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(674): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = elapsed(boundary, boundary + 1U,
+           ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(677): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = elapsed(0U, impl_->events.size() - 1U,
+           ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(940): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = timing->Boundary(stream);
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(952): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchFp8ReferenceTokenQuantizationBatch(
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(956): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchFp8CutlassProjectionBatch(
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(963): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = timing->Boundary(stream);
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(990): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = timing->Boundary(stream);
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1005): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRmsNormFp8TokenQuantizationBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1010): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1018): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = LaunchFp8CutlassProjectionBatch(
+                 ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1025): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1055): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1065): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1069): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchFp8ReferenceTokenQuantizationBf16Batch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1073): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchFp8CutlassProjectionBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1078): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRmsNormResidualBf16Input(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1083): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1087): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRmsNormFp8TokenQuantizationBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1092): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1096): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchFp8CutlassProjectionBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1101): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchFp8CutlassProjectionBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1107): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1114): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = LaunchGemma4Moe26BVisionFusedGeluProductQuantization(
+                 ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1119): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mark_timing_boundary();
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1121): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mark_timing_boundary();
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1135): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mark_timing_boundary();
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1139): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = LaunchFp8ReferenceTokenQuantizationBf16Batch(
+                 ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1144): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mark_timing_boundary();
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1149): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchFp8CutlassProjectionBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1154): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRmsNormResidualBf16Input(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1159): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1185): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = mark_timing_boundary();
+           ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1189): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRmsNormFp8TokenQuantizationBatch(
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1193): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchFp8CutlassProjectionBatch(
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1206): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = mark_timing_boundary();
+           ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(645): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = elapsed(boundary, boundary + 1U,
+           ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(649): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = elapsed(boundary, boundary + 1U,
+           ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(665): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = elapsed(boundary, boundary + 1U, output);
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(670): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = elapsed(boundary, boundary + 1U,
+           ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(674): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = elapsed(boundary, boundary + 1U,
+           ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(677): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = elapsed(0U, impl_->events.size() - 1U,
+           ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(940): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = timing->Boundary(stream);
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(952): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchFp8ReferenceTokenQuantizationBatch(
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(956): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchFp8CutlassProjectionBatch(
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(963): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = timing->Boundary(stream);
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(990): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = timing->Boundary(stream);
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1005): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRmsNormFp8TokenQuantizationBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1010): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1018): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = LaunchFp8CutlassProjectionBatch(
+                 ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1025): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1055): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1065): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1069): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchFp8ReferenceTokenQuantizationBf16Batch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1073): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchFp8CutlassProjectionBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1078): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRmsNormResidualBf16Input(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1083): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1087): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRmsNormFp8TokenQuantizationBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1092): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1096): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchFp8CutlassProjectionBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1101): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchFp8CutlassProjectionBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1107): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1114): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = LaunchGemma4Moe26BVisionFusedGeluProductQuantization(
+                 ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1119): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mark_timing_boundary();
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1121): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mark_timing_boundary();
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1135): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mark_timing_boundary();
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1139): warning #2810-D: ignoring return value type with "nodiscard" attribute
+          status = LaunchFp8ReferenceTokenQuantizationBf16Batch(
+                 ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1144): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = mark_timing_boundary();
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1149): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchFp8CutlassProjectionBatch(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1154): warning #2810-D: ignoring return value type with "nodiscard" attribute
+        status = LaunchRmsNormResidualBf16Input(
+               ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1159): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = mark_timing_boundary();
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1185): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = mark_timing_boundary();
+           ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1189): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchRmsNormFp8TokenQuantizationBatch(
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1193): warning #2810-D: ignoring return value type with "nodiscard" attribute
+      status = LaunchFp8CutlassProjectionBatch(
+             ^
+
+C:\Development\gem16gb\src\cuda\vision\gemma4_26b.cu(1206): warning #2810-D: ignoring return value type with "nodiscard" attribute
+    status = mark_timing_boundary();
+           ^
+
+gemma4_26b.cu
+tmpxft_00001c0c_00000000-7_gemma4_26b.cudafe1.cpp
+C:\Users\User\AppData\Local\Temp\tmpxft_00001c0c_00000000-7_gemma4_26b.cudafe1.stub.c(35): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+C:\Users\User\AppData\Local\Temp\tmpxft_00001c0c_00000000-7_gemma4_26b.cudafe1.stub.c(16): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+C:\Users\User\AppData\Local\Temp\tmpxft_00001c0c_00000000-7_gemma4_26b.cudafe1.stub.c(12): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+C:\Users\User\AppData\Local\Temp\tmpxft_00001c0c_00000000-7_gemma4_26b.cudafe1.stub.c(18): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+C:\Users\User\AppData\Local\Temp\tmpxft_00001c0c_00000000-7_gemma4_26b.cudafe1.stub.c(14): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+C:\Users\User\AppData\Local\Temp\tmpxft_00001c0c_00000000-7_gemma4_26b.cudafe1.stub.c(14): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+C:\Users\User\AppData\Local\Temp\tmpxft_00001c0c_00000000-7_gemma4_26b.cudafe1.stub.c(22): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+C:\Users\User\AppData\Local\Temp\tmpxft_00001c0c_00000000-7_gemma4_26b.cudafe1.stub.c(18): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+C:\Users\User\AppData\Local\Temp\tmpxft_00001c0c_00000000-7_gemma4_26b.cudafe1.stub.c(12): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+[22/223] Generating CXX dyndep file CMakeFiles\gem16_fp8_compiler_support.dir\CXX.dd
+[23/220] Generating CXX dyndep file CMakeFiles\gem16_nvfp4_compiler_support.dir\CXX.dd
+[24/217] Generating CXX dyndep file CMakeFiles\gem16_server_support.dir\CXX.dd
+[25/215] Generating CXX dyndep file CMakeFiles\gem16_httplib.dir\CXX.dd
+[26/213] Scanning C:\Development\gem16gb\src\cli\trellis35_calibration_main.cpp for CXX dependencies
+[27/213] Scanning C:\Development\gem16gb\src\cli\trellis35_load_probe.cpp for CXX dependencies
+[28/213] Scanning C:\Development\gem16gb\src\cli\gemma4_26b_vision_e2e_benchmark.cpp for CXX dependencies
+[29/213] Scanning C:\Development\gem16gb\src\cli\gemma4_26b_vision_d2_diagnostic.cpp for CXX dependencies
+[30/213] Building CUDA object CMakeFiles\gem16_core.dir\src\cuda\inference.cu.obj
+inference.cu
+tmpxft_00005420_00000000-7_inference.cudafe1.cpp
+[31/213] Scanning C:\Development\gem16gb\src\cli\gemma4_26b_vision_v14_benchmark.cpp for CXX dependencies
+[32/213] Scanning C:\Development\gem16gb\src\cli\gemma4_26b_assistant_smoke.cpp for CXX dependencies
+[33/213] Scanning C:\Development\gem16gb\src\cli\gemma4_26b_assistant_acceptance.cpp for CXX dependencies
+[34/213] Scanning C:\Development\gem16gb\src\cli\gemma4_26b_reference_main.cpp for CXX dependencies
+[35/213] Scanning C:\Development\gem16gb\src\cli\gemma4_26b_benchmark_main.cpp for CXX dependencies
+[36/213] Scanning C:\Development\gem16gb\tests\cuda\gemma4_26b_m21_context_driver.cpp for CXX dependencies
+[37/213] Scanning C:\Development\gem16gb\tests\cuda\gemma4_26b_m25_context_driver.cpp for CXX dependencies
+[38/213] Scanning C:\Development\gem16gb\tests\cuda\gemma4_26b_m22_product_driver.cpp for CXX dependencies
+[39/213] Scanning C:\Development\gem16gb\tests\cuda\gemma4_26b_m19_q4_driver.cpp for CXX dependencies
+[40/213] Scanning C:\Development\gem16gb\src\cli\run_main.cpp for CXX dependencies
+[41/213] Scanning C:\Development\gem16gb\src\cli\bench_main.cpp for CXX dependencies
+[42/213] Scanning C:\Development\gem16gb\src\cli\chat_main.cpp for CXX dependencies
+[43/213] Scanning C:\Development\gem16gb\src\cli\server_main.cpp for CXX dependencies
+[44/213] Scanning C:\Development\gem16gb\tests\unit\chat_test.cpp for CXX dependencies
+[45/213] Scanning C:\Development\gem16gb\tests\unit\image_test.cpp for CXX dependencies
+[46/213] Scanning C:\Development\gem16gb\tests\unit\observability_test.cpp for CXX dependencies
+[47/213] Scanning C:\Development\gem16gb\tests\unit\openai_chat_test.cpp for CXX dependencies
+[48/213] Scanning C:\Development\gem16gb\tests\unit\request_queue_test.cpp for CXX dependencies
+[49/213] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-module-probe.dir\CXX.dd
+[50/212] Generating CXX dyndep file CMakeFiles\gem16-nvfp4-head-diagnostic.dir\CXX.dd
+[51/211] Linking CXX static library lib\gem16_core.lib
+[52/211] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\http_streaming.cpp.obj
+[53/211] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\openai_chat.cpp.obj
+[54/211] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\request_queue.cpp.obj
+[55/211] Generating CXX dyndep file CMakeFiles\gem16-trellis35-calibration.dir\CXX.dd
+[56/211] Generating CXX dyndep file CMakeFiles\gem16-trellis35-load-probe.dir\CXX.dd
+[57/211] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-load-probe.dir\CXX.dd
+[58/210] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-e2e-benchmark.dir\CXX.dd
+[59/210] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-d2-diagnostic.dir\CXX.dd
+[60/210] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-v14-benchmark.dir\CXX.dd
+[61/210] Generating CXX dyndep file CMakeFiles\gem16-26b-memory-probe.dir\CXX.dd
+[62/209] Generating CXX dyndep file CMakeFiles\gem16-26b-assistant-residency-probe.dir\CXX.dd
+[63/208] Generating CXX dyndep file CMakeFiles\gem16-26b-assistant-smoke.dir\CXX.dd
+[64/208] Generating CXX dyndep file CMakeFiles\gem16-26b-assistant-acceptance.dir\CXX.dd
+[65/208] Generating CXX dyndep file CMakeFiles\gem16-26b-moe-probe.dir\CXX.dd
+[66/207] Generating CXX dyndep file CMakeFiles\gem16-26b-router-diagnostic.dir\CXX.dd
+[67/206] Generating CXX dyndep file CMakeFiles\gem16-26b-attention-probe.dir\CXX.dd
+[68/205] Generating CXX dyndep file CMakeFiles\gem16-26b-reference.dir\CXX.dd
+[69/205] Generating CXX dyndep file CMakeFiles\gem16-26b-benchmark.dir\CXX.dd
+[70/205] Generating CXX dyndep file CMakeFiles\gem16-26b-m21-context-driver.dir\CXX.dd
+[71/205] Generating CXX dyndep file CMakeFiles\gem16-26b-m25-context-driver.dir\CXX.dd
+[72/205] Generating CXX dyndep file CMakeFiles\gem16-26b-m22-product-driver.dir\CXX.dd
+[73/205] Generating CXX dyndep file CMakeFiles\gem16-26b-m19-q4-driver.dir\CXX.dd
+[74/205] Generating CXX dyndep file CMakeFiles\gem16-inspect.dir\CXX.dd
+[75/204] Generating CXX dyndep file CMakeFiles\gem16-run.dir\CXX.dd
+[76/204] Generating CXX dyndep file CMakeFiles\gem16-bench.dir\CXX.dd
+[77/204] Generating CXX dyndep file CMakeFiles\gem16-chat.dir\CXX.dd
+[78/204] Generating CXX dyndep file CMakeFiles\gem16-server.dir\CXX.dd
+[79/204] Generating CXX dyndep file CMakeFiles\gem16-unit-tests.dir\CXX.dd
+[80/182] Generating CXX dyndep file CMakeFiles\gem16-fp8-compiler.dir\CXX.dd
+[81/180] Generating CXX dyndep file CMakeFiles\gem16-checkpoint-compiler.dir\CXX.dd
+[82/178] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\session_pool.cpp.obj
+[83/178] Linking CXX static library lib\gem16_server_support.lib
+[84/178] Building CXX object CMakeFiles\gem16-trellis35-load-probe.dir\src\cli\trellis35_load_probe.cpp.obj
+[85/178] Building CXX object CMakeFiles\gem16-trellis35-calibration.dir\src\cli\trellis35_calibration_main.cpp.obj
+[86/178] Building CUDA object CMakeFiles\gem16-26b-vision-oracle-dump.dir\src\cli\gemma4_26b_vision_oracle_dump.cu.obj
+gemma4_26b_vision_oracle_dump.cu
+tmpxft_00002ab8_00000000-7_gemma4_26b_vision_oracle_dump.cudafe1.cpp
+[87/178] Building CUDA object CMakeFiles\gem16-26b-vision-benchmark.dir\src\cli\gemma4_26b_vision_benchmark.cu.obj
+gemma4_26b_vision_benchmark.cu
+tmpxft_00002340_00000000-7_gemma4_26b_vision_benchmark.cudafe1.cpp
+[88/178] Building CXX object CMakeFiles\gem16-26b-vision-e2e-benchmark.dir\src\cli\gemma4_26b_vision_e2e_benchmark.cpp.obj
+[89/178] Building CXX object CMakeFiles\gem16-26b-vision-d2-diagnostic.dir\src\cli\gemma4_26b_vision_d2_diagnostic.cpp.obj
+[90/178] Building CXX object CMakeFiles\gem16-26b-vision-v14-benchmark.dir\src\cli\gemma4_26b_vision_v14_benchmark.cpp.obj
+[91/178] Building CXX object CMakeFiles\gem16-26b-assistant-smoke.dir\src\cli\gemma4_26b_assistant_smoke.cpp.obj
+[92/178] Building CXX object CMakeFiles\gem16-26b-assistant-acceptance.dir\src\cli\gemma4_26b_assistant_acceptance.cpp.obj
+[93/178] Building CXX object CMakeFiles\gem16-26b-reference.dir\src\cli\gemma4_26b_reference_main.cpp.obj
+[94/178] Building CXX object CMakeFiles\gem16-26b-benchmark.dir\src\cli\gemma4_26b_benchmark_main.cpp.obj
+[95/178] Building CXX object CMakeFiles\gem16-26b-m21-context-driver.dir\tests\cuda\gemma4_26b_m21_context_driver.cpp.obj
+[96/178] Building CXX object CMakeFiles\gem16-26b-m25-context-driver.dir\tests\cuda\gemma4_26b_m25_context_driver.cpp.obj
+[97/178] Building CXX object CMakeFiles\gem16-26b-m22-product-driver.dir\tests\cuda\gemma4_26b_m22_product_driver.cpp.obj
+[98/178] Building CXX object CMakeFiles\gem16-run.dir\src\cli\run_main.cpp.obj
+[99/178] Building CXX object CMakeFiles\gem16-26b-m19-q4-driver.dir\tests\cuda\gemma4_26b_m19_q4_driver.cpp.obj
+[100/178] Building CXX object CMakeFiles\gem16-bench.dir\src\cli\bench_main.cpp.obj
+[101/178] Building CXX object CMakeFiles\gem16-chat.dir\src\cli\chat_main.cpp.obj
+[102/178] Building CXX object CMakeFiles\gem16-server.dir\src\cli\server_main.cpp.obj
+[103/178] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\chat_test.cpp.obj
+[104/178] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\image_test.cpp.obj
+[105/178] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\observability_test.cpp.obj
+[106/178] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\openai_chat_test.cpp.obj
+[107/178] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\request_queue_test.cpp.obj
+[108/178] Building CUDA object CMakeFiles\gem16-cuda-vision26b-tests.dir\tests\cuda\gemma4_26b_vision_test.cu.obj
+gemma4_26b_vision_test.cu
+tmpxft_00001ac0_00000000-7_gemma4_26b_vision_test.cudafe1.cpp
+C:\Users\User\AppData\Local\Temp\tmpxft_00001ac0_00000000-7_gemma4_26b_vision_test.cudafe1.stub.c(25): warning C4211: Nicht dem Standard entsprechende Erweiterung: Neudefinition von extern als statisch
+[109/178] Linking CXX executable CMakeFiles\gem16-26b-vision-module-probe.dir\cmake_device_link.obj
+gemma4_26b_vision_module_probe_main.cpp.obj
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[110/178] Linking CXX executable CMakeFiles\gem16-nvfp4-head-diagnostic.dir\cmake_device_link.obj
+nvfp4_head_diagnostic_main.cpp.obj
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[111/178] Linking CXX executable CMakeFiles\gem16-trellis35-calibration.dir\cmake_device_link.obj
+trellis35_calibration_main.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[112/178] Linking CXX executable CMakeFiles\gem16-trellis35-load-probe.dir\cmake_device_link.obj
+trellis35_load_probe.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[113/178] Linking CXX executable CMakeFiles\gem16-26b-vision-oracle-dump.dir\cmake_device_link.obj
+gemma4_26b_vision_oracle_dump.cu.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[114/178] Linking CXX executable CMakeFiles\gem16-26b-vision-load-probe.dir\cmake_device_link.obj
+gemma4_26b_vision_load_probe.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[115/178] Linking CXX executable CMakeFiles\gem16-26b-vision-e2e-benchmark.dir\cmake_device_link.obj
+gemma4_26b_vision_e2e_benchmark.cpp.obj
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[116/178] Linking CXX executable CMakeFiles\gem16-26b-vision-benchmark.dir\cmake_device_link.obj
+gemma4_26b_vision_benchmark.cu.obj
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[117/178] Linking CXX executable CMakeFiles\gem16-26b-vision-d2-diagnostic.dir\cmake_device_link.obj
+gemma4_26b_vision_d2_diagnostic.cpp.obj
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[118/178] Linking CXX executable CMakeFiles\gem16-26b-vision-v14-benchmark.dir\cmake_device_link.obj
+gemma4_26b_vision_v14_benchmark.cpp.obj
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[119/178] Linking CXX executable CMakeFiles\gem16-26b-memory-probe.dir\cmake_device_link.obj
+gemma4_26b_memory_probe.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[120/178] Linking CXX executable CMakeFiles\gem16-26b-assistant-residency-probe.dir\cmake_device_link.obj
+gemma4_26b_assistant_residency_probe.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[121/178] Linking CXX executable CMakeFiles\gem16-26b-assistant-smoke.dir\cmake_device_link.obj
+gemma4_26b_assistant_smoke.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[122/178] Linking CXX executable CMakeFiles\gem16-26b-assistant-acceptance.dir\cmake_device_link.obj
+gemma4_26b_assistant_acceptance.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[123/178] Linking CXX executable CMakeFiles\gem16-26b-moe-probe.dir\cmake_device_link.obj
+gemma4_26b_moe_probe.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[124/178] Linking CXX executable CMakeFiles\gem16-26b-router-diagnostic.dir\cmake_device_link.obj
+gemma4_26b_router_diagnostic.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[125/178] Linking CXX executable CMakeFiles\gem16-26b-attention-probe.dir\cmake_device_link.obj
+gemma4_26b_attention_probe.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[126/178] Linking CXX executable CMakeFiles\gem16-26b-reference.dir\cmake_device_link.obj
+gemma4_26b_reference_main.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[127/178] Linking CXX executable CMakeFiles\gem16-26b-benchmark.dir\cmake_device_link.obj
+gemma4_26b_benchmark_main.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[128/178] Linking CXX executable CMakeFiles\gem16-26b-m21-context-driver.dir\cmake_device_link.obj
+gemma4_26b_m21_context_driver.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[129/178] Linking CXX executable CMakeFiles\gem16-26b-m22-product-driver.dir\cmake_device_link.obj
+gemma4_26b_m22_product_driver.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[130/178] Linking CXX executable CMakeFiles\gem16-26b-m25-context-driver.dir\cmake_device_link.obj
+gemma4_26b_m25_context_driver.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[131/178] Linking CXX executable CMakeFiles\gem16-26b-m19-q4-driver.dir\cmake_device_link.obj
+gemma4_26b_m19_q4_driver.cpp.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[132/178] Linking CXX executable CMakeFiles\gem16-inspect.dir\cmake_device_link.obj
+inspect_main.cpp.obj
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[133/178] Linking CXX executable CMakeFiles\gem16-run.dir\cmake_device_link.obj
+run_main.cpp.obj
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[134/178] Linking CXX executable CMakeFiles\gem16-bench.dir\cmake_device_link.obj
+bench_main.cpp.obj
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[135/178] Linking CXX executable CMakeFiles\gem16-chat.dir\cmake_device_link.obj
+chat_main.cpp.obj
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[136/178] Linking CXX executable CMakeFiles\gem16-server.dir\cmake_device_link.obj
+server_main.cpp.obj
+gem16_server_support.lib
+gem16_httplib.lib
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+bcrypt.lib
+ws2_32.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[137/178] Linking CXX executable CMakeFiles\gem16-cuda-tests.dir\cmake_device_link.obj
+nvfp4_reference_test.cu.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[138/178] Linking CXX executable CMakeFiles\gem16-unit-tests.dir\cmake_device_link.obj
+file_sha256_test.cpp.obj
+audio_test.cpp.obj
+chat_test.cpp.obj
+config_test.cpp.obj
+environment_test.cpp.obj
+fp8_test.cpp.obj
+fp8_batch_encoder_test.cpp.obj
+gemma4_26b_manifest_test.cpp.obj
+gemma4_26b_trellis35_test.cpp.obj
+image_test.cpp.obj
+json_test.cpp.obj
+gemma4_26b_moe_prefill_plan_test.cpp.obj
+layer_test.cpp.obj
+memory_plan_test.cpp.obj
+mtp_scheduler_test.cpp.obj
+nvfp4_test.cpp.obj
+nvfp4_batch_encoder_test.cpp.obj
+nvfp4_head_test.cpp.obj
+openai_chat_test.cpp.obj
+observability_test.cpp.obj
+request_queue_test.cpp.obj
+safetensors_test.cpp.obj
+sampling_test.cpp.obj
+sm120_layout_test.cpp.obj
+tokenizer_test.cpp.obj
+test_main.cpp.obj
+windows_utf8_test.cpp.obj
+gem16_core.lib
+gem16_server_support.lib
+gem16_httplib.lib
+gem16_fp8_compiler_support.lib
+gem16_nvfp4_compiler_support.lib
+cudart.lib
+bcrypt.lib
+ws2_32.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[139/178] Linking CXX executable CMakeFiles\gem16-cuda-moe-reference-tests.dir\cmake_device_link.obj
+gemma4_26b_moe_reference_test.cu.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[140/178] Linking CXX executable CMakeFiles\gem16-cuda-trellis35-tests.dir\cmake_device_link.obj
+trellis35_codec_test.cu.obj
+trellis35_transform_test.cu.obj
+trellis35_m1_test.cu.obj
+trellis35_t3_test.cu.obj
+trellis35_prefill_test.cu.obj
+trellis35_runtime_test.cu.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[141/178] Linking CXX executable CMakeFiles\gem16-cuda-attention-reference-tests.dir\cmake_device_link.obj
+gemma4_26b_attention_reference_test.cu.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[142/178] Linking CXX executable CMakeFiles\gem16-cuda-vision26b-tests.dir\cmake_device_link.obj
+gemma4_26b_vision_test.cu.obj
+gem16_core.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[143/178] Linking CXX executable bin\gem16-26b-vision-module-probe.exe
+[144/178] Linking CXX executable bin\gem16-nvfp4-head-diagnostic.exe
+[145/178] Linking CXX executable bin\gem16-trellis35-calibration.exe
+[146/178] Linking CXX executable bin\gem16-trellis35-load-probe.exe
+[147/178] Linking CXX executable bin\gem16-26b-vision-load-probe.exe
+[148/178] Linking CXX executable bin\gem16-26b-vision-oracle-dump.exe
+[149/178] Linking CXX executable bin\gem16-26b-vision-benchmark.exe
+[150/178] Linking CXX executable bin\gem16-26b-vision-e2e-benchmark.exe
+[151/178] Linking CXX executable CMakeFiles\gem16-cuda-nvfp4-consumption-tests.dir\cmake_device_link.obj
+gemma4_26b_nvfp4_consumption_test.cu.obj
+gem16_core.lib
+gem16_nvfp4_compiler_support.lib
+cudart.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[152/178] Linking CXX executable bin\gem16-26b-vision-d2-diagnostic.exe
+[153/178] Linking CXX executable bin\gem16-26b-vision-v14-benchmark.exe
+[154/178] Linking CXX executable bin\gem16-26b-memory-probe.exe
+[155/178] Linking CXX executable bin\gem16-26b-assistant-residency-probe.exe
+[156/178] Linking CXX executable bin\gem16-26b-assistant-smoke.exe
+[157/178] Linking CXX executable bin\gem16-26b-assistant-acceptance.exe
+[158/178] Linking CXX executable bin\gem16-26b-moe-probe.exe
+[159/178] Linking CXX executable bin\gem16-26b-router-diagnostic.exe
+[160/178] Linking CXX executable bin\gem16-26b-attention-probe.exe
+[161/178] Linking CXX executable bin\gem16-26b-reference.exe
+[162/178] Linking CXX executable bin\gem16-26b-benchmark.exe
+[163/178] Linking CXX executable bin\gem16-26b-m21-context-driver.exe
+[164/178] Linking CXX executable bin\gem16-26b-m25-context-driver.exe
+[165/178] Linking CXX executable bin\gem16-26b-m22-product-driver.exe
+[166/178] Linking CXX executable bin\gem16-26b-m19-q4-driver.exe
+[167/178] Linking CXX executable bin\gem16-inspect.exe
+[168/178] Linking CXX executable bin\gem16-run.exe
+[169/178] Linking CXX executable bin\gem16-bench.exe
+[170/178] Linking CXX executable bin\gem16-chat.exe
+[171/178] Linking CXX executable bin\gem16-server.exe
+[172/178] Linking CXX executable bin\gem16-unit-tests.exe
+[173/178] Linking CXX executable bin\gem16-cuda-tests.exe
+[174/178] Linking CXX executable bin\gem16-cuda-moe-reference-tests.exe
+[175/178] Linking CXX executable bin\gem16-cuda-trellis35-tests.exe
+[176/178] Linking CXX executable bin\gem16-cuda-vision26b-tests.exe
+[177/178] Linking CXX executable bin\gem16-cuda-attention-reference-tests.exe
+[178/178] Linking CXX executable bin\gem16-cuda-nvfp4-consumption-tests.exe
+> ctest.exe --preset blackwell-release
+Test project C:/Development/gem16gb/build/Windows/blackwell-release
+      Start  1: gem16-server-version
+ 1/15 Test  #1: gem16-server-version ................   Passed    0.02 sec
+      Start  2: gem16-unit
+ 2/15 Test  #2: gem16-unit ..........................   Passed    1.54 sec
+      Start  3: gem16-26b-m23-host-contract
+ 3/15 Test  #3: gem16-26b-m23-host-contract .........   Passed    0.21 sec
+      Start  4: gem16-trellis35-compiler-contract
+ 4/15 Test  #4: gem16-trellis35-compiler-contract ...   Passed    1.94 sec
+      Start  5: gem16-26b-vision-module-contract
+ 5/15 Test  #5: gem16-26b-vision-module-contract ....   Passed    0.18 sec
+      Start  6: gem16-cuda
+ 6/15 Test  #6: gem16-cuda ..........................   Passed   51.02 sec
+      Start  7: gem16-cuda-moe-reference
+ 7/15 Test  #7: gem16-cuda-moe-reference ............   Passed    0.14 sec
+      Start  8: gem16-cuda-trellis35
+ 8/15 Test  #8: gem16-cuda-trellis35 ................   Passed    0.39 sec
+      Start  9: gem16-cuda-vision26b
+ 9/15 Test  #9: gem16-cuda-vision26b ................   Passed    0.09 sec
+      Start 10: gem16-cuda-attention-reference
+10/15 Test #10: gem16-cuda-attention-reference ......   Passed    0.81 sec
+      Start 11: gem16-cuda-nvfp4-consumption
+11/15 Test #11: gem16-cuda-nvfp4-consumption ........***Skipped   0.01 sec
+      Start 12: gem16-26b-m21-host-contract
+12/15 Test #12: gem16-26b-m21-host-contract .........   Passed   15.94 sec
+      Start 13: gem16-26b-m17-engine-smoke
+13/15 Test #13: gem16-26b-m17-engine-smoke ..........***Skipped   1.12 sec
+      Start 14: gem16-26b-m22-product
+14/15 Test #14: gem16-26b-m22-product ...............***Skipped   0.21 sec
+      Start 15: gem16-12b-m22-product
+15/15 Test #15: gem16-12b-m22-product ...............***Skipped   1.14 sec
+
+100% tests passed, 0 tests failed out of 15
+
+Total Test time (real) =  74.78 sec
+
+The following tests did not run:
+	 11 - gem16-cuda-nvfp4-consumption (Skipped)
+	 13 - gem16-26b-m17-engine-smoke (Skipped)
+	 14 - gem16-26b-m22-product (Skipped)
+	 15 - gem16-12b-m22-product (Skipped)

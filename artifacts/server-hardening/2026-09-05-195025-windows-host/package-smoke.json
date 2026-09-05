@@ -1,0 +1,48 @@
+{
+  "status": "passed",
+  "scope": "Same-machine extracted archive integrity/version smoke, not clean-machine or full inference qualification",
+  "archive_sha256": "c83b1d98d3b6b36357e2c1126e728020eb8f1ab2237e08f31f5dfbe0b07f8c32",
+  "manifest": {
+    "version": "0.2.0-dev",
+    "commit": "491f5f502a109f14bb7bd5d755f25c0d00bfc7ec",
+    "dirty": true,
+    "platform": "windows-x64",
+    "backend": "Blackwell SM120/SM120a",
+    "qualification": "unqualified candidate; release gates required",
+    "files": {
+      "LICENSE": "ce0c65f46253c5378f81b4e90d13318cc83d6be3f6bf6bd82d9ca649b76bf336",
+      "README.txt": "045c98fc1df81856740f2593ded5aeea362e32701e237f15672974f4f36c050a",
+      "VERSION": "087509440683dd6f926ae8db949618b84117be5be3c705da9bbd25dd9fc6ba4f",
+      "bin/gem16-server.exe": "eb7adc3ab6cc5a3b34acedd4a52bbca534a259bdf21a2d692ee756a2cdb41a94",
+      "docs/AGENT_COMPATIBILITY.md": "1ec07cddfd8682d5026158c84648d4c2a712b8900f3f1dbfe8ad117c5b9fc611",
+      "docs/OPENAI_AGENT_CORE_V1.md": "7e17c6c822a2bd2edec7a1f5b1087bb60bac74904e8bc0e35f921521648b16fb",
+      "docs/SERVER.md": "956480a7acde217d48c7ddd4f18e5e3ece533b4814654b21a6066da8ef4c444d",
+      "licenses/cpp-httplib.txt": "91b0f1cdec385fd3b6a0c096f9c532df476e8840725ae4bdeb55b301e4d9f816",
+      "licenses/miniaudio.txt": "457f1b500e0adf6bc059edddfa78a2f62012e7c3bb43476c20e0bd23b25ba0eb",
+      "licenses/stb.txt": "bebfe904b14301657e4e5d655c811d51fd31b97c455b9cc2d8600d6bac6cff63",
+      "models/gemma4-12b-mtp-assistant.lock.json": "7d36ff6d1ab0b7362808d85012aa187468516e367dc52cbf0cc23cca9a10e649",
+      "models/gemma4-12b-nvfp4.lock.json": "d76e63f3366a0fb45957a78e3560e0a5865aac2cb542a609ba6a20ea9140eebe",
+      "models/gemma4-26b-gem16-assistant.lock.json": "c5df256e661a36eb91215f7a0dfd540429760ce8401ceb9725d5ea420f8b4e8e",
+      "models/gemma4-26b-trellis35-target.lock.json": "a356f7bf06e8aa9fdd999d9e57702edc29de8c53d9b2af9946e14d71268b1e17",
+      "models/gemma4-26b-vision-fp8.lock.json": "7055c830be39133f7cfeb8734ffa967594eff4882fbbe1723de91d669c880a99",
+      "tools/fetch_model.py": "f58b371981e71775e6964ff0b57bea6f654708d61a08cf5966d79cedfcacfcb0",
+      "tools/hf_cache.py": "22aa8cd733a807d01d0e44cec38c64ea2c818c97f382150b79a0389b9885b170"
+    },
+    "model_locks": {
+      "models\\gemma4-12b-mtp-assistant.lock.json": "7d36ff6d1ab0b7362808d85012aa187468516e367dc52cbf0cc23cca9a10e649",
+      "models\\gemma4-12b-nvfp4.lock.json": "d76e63f3366a0fb45957a78e3560e0a5865aac2cb542a609ba6a20ea9140eebe",
+      "models\\gemma4-26b-base-bf16.lock.json": "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620",
+      "models\\gemma4-26b-gem16-assistant.lock.json": "c5df256e661a36eb91215f7a0dfd540429760ce8401ceb9725d5ea420f8b4e8e",
+      "models\\gemma4-26b-gem16-target.lock.json": "bb88227ce0755787b86404ba1e61952f903fb3631b1563c4a5fef40df8dfa064",
+      "models\\gemma4-26b-qat-bf16.lock.json": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+      "models\\gemma4-26b-qat-q4_0-assistant.lock.json": "83e509316eab22749fade9c0968333b0a29f0daf99832314b333702bf45bdda5",
+      "models\\gemma4-26b-qat-q4_0.lock.json": "0893ac0a4db32f0c5549bc17b92f3951ab4da1a6180b188094190a4bbfc88784",
+      "models\\gemma4-26b-reference-sources.lock.json": "577528f96ac1e64d5e258a9a50eaa60f4cb48bf0294b8c6db96bace1f921ab6e",
+      "models\\gemma4-26b-trellis35-target.lock.json": "a356f7bf06e8aa9fdd999d9e57702edc29de8c53d9b2af9946e14d71268b1e17",
+      "models\\gemma4-26b-unsloth-nvfp4.lock.json": "6635b15f4f974dec22821c7a9efd4d2404ba4ce9afb1424ca2f3529d20db7941",
+      "models\\gemma4-26b-vision-fp8.lock.json": "7055c830be39133f7cfeb8734ffa967594eff4882fbbe1723de91d669c880a99"
+    },
+    "toolchain_lock_sha256": "9046e1e9f82735879232d8ed6848f1b6d87082a4e5ec73f6fef8d46c50248146"
+  },
+  "version_output": "gem16-server 0.2.0-dev"
+}

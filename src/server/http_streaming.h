@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <string_view>
+#include <type_traits>
 
 #include "httplib.h"
 
@@ -11,6 +12,19 @@
 #include "server/openai_chat.h"
 
 namespace gem16::server {
+
+// httplib catches routing exceptions, but executes body providers afterwards.
+// Never let a deferred generation/serialization exception escape its worker.
+template <typename Callback, typename Failure>
+bool RunStreamCallback(Callback&& callback, Failure&& failure) noexcept {
+  static_assert(std::is_nothrow_invocable_v<Failure>);
+  try {
+    return callback();
+  } catch (...) {
+    failure();
+    return false;
+  }
+}
 
 struct StreamCancellation {
   std::atomic<bool>* requested = nullptr;

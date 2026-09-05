@@ -1,4 +1,5 @@
 #include "server/http_streaming.h"
+#include "server/test_fault.h"
 
 #include <array>
 #include <charconv>
@@ -235,6 +236,10 @@ gem16::Status FeedReasoningText(StreamingContext& context,
 
 gem16::Status StreamToken(void* opaque_context,
                           const gem16::GenerationEvent& event) {
+  TestFaultPoint("generation");
+  if (TestStatusFailure("generation_status")) {
+    return gem16::Status(gem16::StatusCode::kCancelled, "injected generation cancellation");
+  }
   auto* context = static_cast<StreamingContext*>(opaque_context);
   if (context == nullptr || context->processor == nullptr ||
       context->sink == nullptr ||
@@ -627,6 +632,10 @@ gem16::Status FeedResponseUtf8(ResponsesStreamingContext& context,
 
 gem16::Status StreamResponseToken(void* opaque_context,
                                   const gem16::GenerationEvent& event) {
+  TestFaultPoint("generation");
+  if (TestStatusFailure("generation_status")) {
+    return gem16::Status(gem16::StatusCode::kCancelled, "injected generation cancellation");
+  }
   auto* context = static_cast<ResponsesStreamingContext*>(opaque_context);
   if (context == nullptr || context->processor == nullptr ||
       context->sink == nullptr ||

@@ -4,11 +4,28 @@
 #include <vector>
 
 #include "server/observability.h"
+#include "server/http_streaming.h"
 #include "server/session_pool.h"
 #include "test.h"
 #include "util/json.h"
 
 namespace {
+
+void TestStreamExceptionBoundary() {
+  int failures = 0;
+  const auto failed = [&]() noexcept { ++failures; };
+  GEM16_CHECK(gem16::server::RunStreamCallback([] { return true; }, failed));
+  GEM16_CHECK(!gem16::server::RunStreamCallback([] { return false; }, failed));
+  GEM16_CHECK(failures == 0);
+  GEM16_CHECK(!gem16::server::RunStreamCallback(
+      []() -> bool { throw std::bad_alloc(); }, failed));
+  GEM16_CHECK(failures == 1);
+  GEM16_CHECK(!gem16::server::RunStreamCallback(
+      []() -> bool { throw 42; }, failed));
+  GEM16_CHECK(failures == 2);
+  GEM16_CHECK(gem16::server::RunStreamCallback([] { return true; }, failed));
+  GEM16_CHECK(failures == 2);
+}
 
 void TestLogParsing() {
   GEM16_CHECK(gem16::server::ParseLogLevel("debug").ok());
@@ -111,6 +128,7 @@ void TestVisionErrorCodes() {
 }  // namespace
 
 void RunObservabilityTests() {
+  TestStreamExceptionBoundary();
   TestLogParsing();
   TestJsonLogRecord();
   TestConcurrentRecordsStayAtomic();

@@ -46,6 +46,7 @@ struct ServerMetrics {
   std::atomic<std::uint64_t> requests_total{0U};
   std::atomic<std::uint64_t> requests_failed{0U};
   std::atomic<std::uint64_t> active_requests{0U};
+  std::atomic<std::uint64_t> session_releases{0U};
   std::atomic<std::uint64_t> sessions_created{0U};
   std::atomic<std::uint64_t> sessions_rebuilt{0U};
   std::atomic<std::uint64_t> sessions_evicted{0U};
@@ -184,10 +185,15 @@ void CommitResponsesRequest(SessionEntry& entry,
                             const OpenAiResponsesRequest& request,
                             const ChatGenerationResponse& response,
                             std::string response_id);
+// Build separately so allocation failure leaves the resident chain unchanged.
+void CommitResponsesChain(ResponsesChain& chain,
+                          const OpenAiResponsesRequest& request,
+                          const ChatGenerationResponse& response,
+                          std::string response_id);
 void IndexResponse(ServerState& state,
                    const std::shared_ptr<SessionEntry>& entry,
                    const std::string& response_id);
-void UnindexResponse(ServerState& state, std::string_view response_id);
+void UnindexResponse(ServerState& state, const std::string& response_id);
 void SetActiveResponse(ServerState& state,
                        const std::shared_ptr<SessionEntry>& entry,
                        std::string_view response_id);

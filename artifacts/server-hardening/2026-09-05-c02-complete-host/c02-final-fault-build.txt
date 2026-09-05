@@ -1,0 +1,27 @@
+[1/13] Generating CXX dyndep file CMakeFiles\gem16-server-fault-test.dir\CXX.dd
+[2/12] Scanning C:\Development\gem16gb\src\server\session_pool.cpp for CXX dependencies
+[3/12] Generating CXX dyndep file CMakeFiles\gem16_server_fault_support.dir\CXX.dd
+[4/7] Building CXX object CMakeFiles\gem16_server_fault_support.dir\src\server\session_pool.cpp.obj
+[5/7] Linking CXX static library lib\gem16_server_fault_support.lib
+[6/7] Linking CXX executable CMakeFiles\gem16-server-fault-test.dir\cmake_device_link.obj
+server_main.cpp.obj
+gem16_server_fault_support.lib
+gem16_httplib.lib
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+bcrypt.lib
+ws2_32.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[7/7] Linking CXX executable bin\gem16-server-fault-test.exe

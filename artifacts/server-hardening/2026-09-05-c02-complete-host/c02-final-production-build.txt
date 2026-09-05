@@ -1,0 +1,138 @@
+Loading Visual Studio C++ environment from C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat
+> cmake.exe --preset blackwell-release -S C:\Development\gem16gb
+-- gem16 CUDA capability scaffold: enabled for 120a
+-- Configuring done (7.1s)
+-- Generating done (0.2s)
+-- Build files have been written to: C:/Development/gem16gb/build/Windows/blackwell-release
+> cmake.exe --build --preset blackwell-release --parallel 2
+[1/224] Generating CXX dyndep file CMakeFiles\gem16_json.dir\CXX.dd
+[2/222] Generating CXX dyndep file CMakeFiles\gem16_core.dir\CXX.dd
+[3/168] Generating CXX dyndep file CMakeFiles\gem16_fp8_compiler_support.dir\CXX.dd
+[4/165] Generating CXX dyndep file CMakeFiles\gem16_nvfp4_compiler_support.dir\CXX.dd
+[5/160] Generating CXX dyndep file CMakeFiles\gem16_httplib.dir\CXX.dd
+[6/158] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-module-probe.dir\CXX.dd
+[7/155] Generating CXX dyndep file CMakeFiles\gem16-nvfp4-head-diagnostic.dir\CXX.dd
+[8/152] Generating CXX dyndep file CMakeFiles\gem16-trellis35-calibration.dir\CXX.dd
+[9/149] Scanning C:\Development\gem16gb\src\server\session_pool.cpp for CXX dependencies
+[10/149] Generating CXX dyndep file CMakeFiles\gem16-trellis35-load-probe.dir\CXX.dd
+[11/146] Generating CXX dyndep file CMakeFiles\gem16_server_support.dir\CXX.dd
+[12/141] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-load-probe.dir\CXX.dd
+[13/138] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-e2e-benchmark.dir\CXX.dd
+[14/135] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-d2-diagnostic.dir\CXX.dd
+[15/132] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-v14-benchmark.dir\CXX.dd
+[16/129] Generating CXX dyndep file CMakeFiles\gem16-26b-memory-probe.dir\CXX.dd
+[17/126] Generating CXX dyndep file CMakeFiles\gem16-26b-assistant-residency-probe.dir\CXX.dd
+[18/123] Generating CXX dyndep file CMakeFiles\gem16-26b-assistant-smoke.dir\CXX.dd
+[19/120] Generating CXX dyndep file CMakeFiles\gem16-26b-assistant-acceptance.dir\CXX.dd
+[20/117] Generating CXX dyndep file CMakeFiles\gem16-26b-moe-probe.dir\CXX.dd
+[21/114] Generating CXX dyndep file CMakeFiles\gem16-26b-router-diagnostic.dir\CXX.dd
+[22/111] Generating CXX dyndep file CMakeFiles\gem16-26b-attention-probe.dir\CXX.dd
+[23/108] Generating CXX dyndep file CMakeFiles\gem16-26b-reference.dir\CXX.dd
+[24/105] Generating CXX dyndep file CMakeFiles\gem16-26b-benchmark.dir\CXX.dd
+[25/102] Generating CXX dyndep file CMakeFiles\gem16-26b-m21-context-driver.dir\CXX.dd
+[26/99] Generating CXX dyndep file CMakeFiles\gem16-26b-m25-context-driver.dir\CXX.dd
+[27/96] Generating CXX dyndep file CMakeFiles\gem16-26b-m22-product-driver.dir\CXX.dd
+[28/93] Generating CXX dyndep file CMakeFiles\gem16-26b-m19-q4-driver.dir\CXX.dd
+[29/90] Generating CXX dyndep file CMakeFiles\gem16-inspect.dir\CXX.dd
+[30/87] Generating CXX dyndep file CMakeFiles\gem16-run.dir\CXX.dd
+[31/84] Generating CXX dyndep file CMakeFiles\gem16-bench.dir\CXX.dd
+[32/81] Generating CXX dyndep file CMakeFiles\gem16-chat.dir\CXX.dd
+[33/78] Generating CXX dyndep file CMakeFiles\gem16-server.dir\CXX.dd
+[34/77] Generating CXX dyndep file CMakeFiles\gem16-unit-tests.dir\CXX.dd
+[35/50] Generating CXX dyndep file CMakeFiles\gem16-responses-allocation-tests.dir\CXX.dd
+[36/49] Generating CXX dyndep file CMakeFiles\gem16-fp8-compiler.dir\CXX.dd
+[37/47] Generating CXX dyndep file CMakeFiles\gem16-checkpoint-compiler.dir\CXX.dd
+[38/45] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\session_pool.cpp.obj
+[39/45] Linking CXX static library lib\gem16_server_support.lib
+[40/45] Linking CXX executable CMakeFiles\gem16-unit-tests.dir\cmake_device_link.obj
+file_sha256_test.cpp.obj
+audio_test.cpp.obj
+chat_test.cpp.obj
+config_test.cpp.obj
+environment_test.cpp.obj
+fp8_test.cpp.obj
+fp8_batch_encoder_test.cpp.obj
+gemma4_26b_manifest_test.cpp.obj
+gemma4_26b_trellis35_test.cpp.obj
+image_test.cpp.obj
+json_test.cpp.obj
+gemma4_26b_moe_prefill_plan_test.cpp.obj
+layer_test.cpp.obj
+memory_plan_test.cpp.obj
+mtp_scheduler_test.cpp.obj
+nvfp4_test.cpp.obj
+nvfp4_batch_encoder_test.cpp.obj
+nvfp4_head_test.cpp.obj
+openai_chat_test.cpp.obj
+observability_test.cpp.obj
+request_queue_test.cpp.obj
+safetensors_test.cpp.obj
+sampling_test.cpp.obj
+sm120_layout_test.cpp.obj
+tokenizer_test.cpp.obj
+test_main.cpp.obj
+windows_utf8_test.cpp.obj
+gem16_core.lib
+gem16_server_support.lib
+gem16_httplib.lib
+gem16_fp8_compiler_support.lib
+gem16_nvfp4_compiler_support.lib
+cudart.lib
+bcrypt.lib
+ws2_32.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[41/45] Linking CXX executable CMakeFiles\gem16-server.dir\cmake_device_link.obj
+server_main.cpp.obj
+gem16_server_support.lib
+gem16_httplib.lib
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+bcrypt.lib
+ws2_32.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[42/45] Linking CXX executable bin\gem16-server.exe
+[43/45] Linking CXX executable bin\gem16-unit-tests.exe
+[44/45] Linking CXX executable CMakeFiles\gem16-responses-allocation-tests.dir\cmake_device_link.obj
+responses_allocation_test.cpp.obj
+gem16_server_support.lib
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+bcrypt.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[45/45] Linking CXX executable bin\gem16-responses-allocation-tests.exe

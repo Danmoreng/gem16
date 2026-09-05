@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <chrono>
 #include <exception>
+#include <type_traits>
 #include <utility>
 
 #include "server/secure_id.h"
+#include "server/test_fault.h"
 
 namespace gem16::server {
 
@@ -145,41 +147,53 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
   struct Reservation {
     ServerState& state;
     const std::string& id;
+    bool owned = true;
     ~Reservation() {
-      { std::lock_guard lock(state.pool_mutex); state.pending_sessions.erase(id); }
+      if (owned) {
+        std::lock_guard lock(state.pool_mutex);
+        state.pending_sessions.erase(id);
+      }
       state.pool_changed.notify_all();
     }
   } reservation{state, id};
+  TestFaultPoint("reserved");
 
   // CUDA arenas and graphs may take a material amount of time to construct.
   // The reservation above keeps the pool bounded while allowing unrelated
   // acquire, cancellation, health, and metrics operations to proceed.
   auto session = gem16::ChatSession::Create(
       state.runtime, state.session_options, state.processor);
-  if (!session.ok()) {
-    {
-      std::lock_guard pool_lock(state.pool_mutex);
-      state.pending_sessions.erase(id);
-    }
-    state.pool_changed.notify_all();
-    return session.status();
-  }
+  if (!session.ok()) return session.status();
   auto entry = std::make_shared<SessionEntry>(
       id, std::move(session).value());
+  TestFaultPoint("before_publication");
+  struct Publication {
+    ServerState& state;
+    const std::shared_ptr<SessionEntry>& entry;
+    bool owned = false;
+    ~Publication() {
+      if (owned) { DiscardSession(state, entry); ReleaseSession(state, entry); }
+    }
+  } publication{state, entry};
   entry->active_requests.store(1U);
   entry->last_used.store(state.lru_clock.fetch_add(1U));
   {
     std::lock_guard pool_lock(state.pool_mutex);
-    if (state.pending_sessions.erase(entry->id) != 1U ||
+    if (!state.pending_sessions.contains(entry->id) ||
         state.sessions.contains(entry->id)) {
       return gem16::Status(gem16::StatusCode::kInternal,
                            "session reservation was lost before publication");
     }
     state.sessions.emplace(entry->id, entry);
+    state.pending_sessions.erase(entry->id);
+    reservation.owned = false;
     state.metrics.sessions_created.fetch_add(1U);
     state.metrics.active_requests.fetch_add(1U);
+    publication.owned = true;
   }
+  TestFaultPoint("after_publication");
   state.pool_changed.notify_all();
+  publication.owned = false;
   return entry;
 }
 
@@ -308,6 +322,7 @@ void ReleaseSession(ServerState& state,
   entry->last_used.store(state.lru_clock.fetch_add(1U));
   entry->active_requests.fetch_sub(1U);
   state.metrics.active_requests.fetch_sub(1U);
+  state.metrics.session_releases.fetch_add(1U);
   state.pool_changed.notify_all();
 }
 
@@ -379,7 +394,15 @@ void CommitResponsesRequest(
     SessionEntry& entry, const gem16::server::OpenAiResponsesRequest& request,
     const gem16::ChatGenerationResponse& response,
     std::string response_id) {
-  ResponsesChain& chain = entry.responses_chain;
+  CommitResponsesChain(entry.responses_chain, request, response,
+                       std::move(response_id));
+}
+
+void CommitResponsesChain(
+    ResponsesChain& destination, const OpenAiResponsesRequest& request,
+    const ChatGenerationResponse& response, std::string response_id) {
+  ResponsesChain chain;
+  TestFaultPoint("commit_begin");
   chain.messages = request.generation.messages;
   gem16::GenerationMessage assistant;
   assistant.role = "assistant";
@@ -392,22 +415,28 @@ void CommitResponsesRequest(
         gem16::GenerationContentPart::ToolCall(call));
   }
   chain.messages.push_back(std::move(assistant));
+  TestFaultPoint("commit_messages");
   chain.tools = request.generation.tools;
   chain.tool_choice = request.generation.tool_choice;
   chain.latest_response_id = std::move(response_id);
   chain.initialized = true;
+  static_assert(std::is_nothrow_move_assignable_v<ResponsesChain>);
+  destination = std::move(chain);
+  TestFaultPoint("commit_done");
 }
 
 void IndexResponse(ServerState& state,
                    const std::shared_ptr<SessionEntry>& entry,
                    const std::string& response_id) {
   std::lock_guard pool_lock(state.pool_mutex);
+  TestFaultPoint("index_before");
   state.response_index[response_id] = entry;
+  TestFaultPoint("index_after");
 }
 
-void UnindexResponse(ServerState& state, std::string_view response_id) {
+void UnindexResponse(ServerState& state, const std::string& response_id) {
   std::lock_guard pool_lock(state.pool_mutex);
-  state.response_index.erase(std::string(response_id));
+  state.response_index.erase(response_id);
 }
 
 void SetActiveResponse(ServerState& state,
@@ -560,16 +589,29 @@ std::string VisionMetricsText(const ServerMetrics& metrics) {
 std::string MetricsText(ServerState& state) {
   std::size_t resident_sessions = 0U;
   std::size_t pending_sessions = 0U;
+  std::size_t indexed_responses = 0U;
+  std::size_t active_response_ids = 0U;
   {
     std::lock_guard pool_lock(state.pool_mutex);
     resident_sessions = state.sessions.size();
     pending_sessions = state.pending_sessions.size();
+    indexed_responses = state.response_index.size();
+    for (const auto& [id, entry] : state.sessions) {
+      (void)id;
+      if (!entry->active_response_id.empty()) ++active_response_ids;
+    }
   }
   const auto metric = [](std::string_view name, std::uint64_t value) {
     return std::string(name) + " " + std::to_string(value) + "\n";
   };
   std::string output;
   const RequestQueueSnapshot queue = state.request_queue.Snapshot();
+  output.append(metric("gem16_indexed_responses", indexed_responses));
+  output.append(metric("gem16_active_response_ids", active_response_ids));
+  output.append(metric("gem16_session_releases_total", state.metrics.session_releases.load()));
+#if defined(GEM16_SERVER_TEST_FAULTS)
+  output.append(metric("gem16_test_faults_observed", test_faults_observed.load()));
+#endif
   output.append("# TYPE gem16_requests_total counter\n");
   output.append(metric("gem16_requests_total",
                        state.metrics.requests_total.load()));

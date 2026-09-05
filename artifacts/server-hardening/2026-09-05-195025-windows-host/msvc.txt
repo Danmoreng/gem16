@@ -1,0 +1,4 @@
+Microsoft (R) C/C++-Optimierungscompiler Version 19.44.35219 für x64
+Copyright (C) Microsoft Corporation. Alle Rechte vorbehalten.
+
+Syntax: cl [ Option... ] Dateiname... [ /link Linkeroption... ]

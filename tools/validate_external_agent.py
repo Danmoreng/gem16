@@ -9,12 +9,44 @@ import json
 import os
 from pathlib import Path
 import platform
+import shlex
+import signal
 import subprocess
 import sys
 import tempfile
 import urllib.request
 
 PI_VERSION = "0.85.0"
+
+
+def run_agent(command, *, cwd, env, stdout, timeout):
+    """Reap the agent's tool subprocesses before removing its working tree."""
+    with subprocess.Popen(
+        command, cwd=cwd, env=env, stdout=stdout, stderr=subprocess.STDOUT,
+        start_new_session=os.name != "nt",
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+    ) as process:
+        try:
+            return subprocess.CompletedProcess(command, process.wait(timeout=timeout))
+        except subprocess.TimeoutExpired:
+            if os.name == "nt":
+                # The parent is still alive, so taskkill can identify its tree.
+                subprocess.run(
+                    ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    creationflags=subprocess.CREATE_NO_WINDOW, timeout=15,
+                )
+            else:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            if process.poll() is None:
+                process.kill()
+            process.wait(timeout=15)
+            raise
+
+
 SOURCE = "def add(a, b):\n    return a - b\n"
 TEST = """import unittest
 from arithmetic import add
@@ -123,8 +155,8 @@ def main() -> int:
             json.dumps({"compaction": {"enabled": False}})
         )
         # Use the interpreter that owns this run on both Windows and Linux.
-        # JSON quoting also protects Windows interpreter paths containing spaces.
-        check_command = json.dumps(sys.executable) + " -m unittest -v"
+        # Pi's tool executes Bash, including on Windows. JSON is not shell quoting.
+        check_command = shlex.quote(Path(sys.executable).as_posix()) + " -m unittest -v"
         prompt = (
             "Work only in this temporary project. Read arithmetic.py and test_arithmetic.py with the read tool. "
             "Fix add using the edit tool. Do not change the test. Use bash to run "
@@ -154,15 +186,19 @@ def main() -> int:
             prompt,
         ]
         log = args.output_dir / "transcript.jsonl"
+        timed_out = False
         with log.open("w", encoding="utf-8") as out:
-            run = subprocess.run(
-                command,
-                cwd=project,
-                env={**os.environ, "PI_CODING_AGENT_DIR": str(config)},
-                stdout=out,
-                stderr=subprocess.STDOUT,
-                timeout=180,
-            )
+            try:
+                run = run_agent(
+                    command,
+                    cwd=project,
+                    env={**os.environ, "PI_CODING_AGENT_DIR": str(config)},
+                    stdout=out,
+                    timeout=180,
+                )
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                run = subprocess.CompletedProcess(command, 124)
         events = []
         for line in log.read_text(encoding="utf-8").splitlines():
             try:
@@ -183,6 +219,8 @@ def main() -> int:
             for m in messages
             if m.get("stopReason") in ("error", "aborted")
         ]
+        if timed_out:
+            errors.append("Pi agent exceeded 180 seconds; process tree terminated")
         after = subprocess.run(
             [sys.executable, "-m", "unittest", "-v"],
             cwd=project,

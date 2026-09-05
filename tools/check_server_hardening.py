@@ -44,6 +44,9 @@ def run(base, samples):
         "reasoning_effort": "none",
         "max_completion_tokens": 32,
     }
+    # The production binary must not expose the separate fault-test executable's hooks.
+    assert request("/v1/chat/completions", body,
+                   {"X-Gem16-Test-Fault": "acquired:exception"})[0] == 200
     assert (
         request("/v1/chat/completions", body, {"Content-Type": "text/plain"})[0] == 400
     )

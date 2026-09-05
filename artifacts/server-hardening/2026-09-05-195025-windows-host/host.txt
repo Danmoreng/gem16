@@ -1,0 +1,93 @@
+Loading Visual Studio C++ environment from C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat
+> cmake.exe --preset host-debug -S C:\Development\gem16gb
+-- gem16 CUDA capability scaffold: disabled
+-- Configuring done (1.3s)
+-- Generating done (0.1s)
+-- Build files have been written to: C:/Development/gem16gb/build/Windows/host-debug
+> cmake.exe --build --preset host-debug --parallel 4
+[1/137] Generating CXX dyndep file CMakeFiles\gem16_json.dir\CXX.dd
+[2/135] Scanning C:\Development\gem16gb\src\model\image.cpp for CXX dependencies
+[3/135] Scanning C:\Development\gem16gb\src\model\gemma4_26b_residency.cpp for CXX dependencies
+[4/135] Scanning C:\Development\gem16gb\src\runtime\capabilities.cpp for CXX dependencies
+[5/135] Scanning C:\Development\gem16gb\src\runtime\chat.cpp for CXX dependencies
+[6/135] Scanning C:\Development\gem16gb\src\runtime\result_json.cpp for CXX dependencies
+[7/135] Scanning C:\Development\gem16gb\src\cuda\engine\state_capture.cpp for CXX dependencies
+[8/135] Scanning C:\Development\gem16gb\src\runtime\inference_stub.cpp for CXX dependencies
+[9/135] Scanning C:\Development\gem16gb\src\runtime\tool_call_parser.cpp for CXX dependencies
+[10/135] Generating CXX dyndep file CMakeFiles\gem16_core.dir\CXX.dd
+[11/108] Scanning C:\Development\gem16gb\src\server\request_queue.cpp for CXX dependencies
+[12/108] Scanning C:\Development\gem16gb\src\server\openai_chat.cpp for CXX dependencies
+[13/108] Scanning C:\Development\gem16gb\src\server\session_pool.cpp for CXX dependencies
+[14/108] Scanning C:\Development\gem16gb\src\server\http_streaming.cpp for CXX dependencies
+[15/108] Building CXX object CMakeFiles\gem16_core.dir\src\runtime\capabilities.cpp.obj
+[16/108] Building CXX object CMakeFiles\gem16_core.dir\src\model\gemma4_26b_residency.cpp.obj
+[17/108] Building CXX object CMakeFiles\gem16_core.dir\src\model\image.cpp.obj
+[18/108] Building CXX object CMakeFiles\gem16_core.dir\src\runtime\chat.cpp.obj
+[19/108] Building CXX object CMakeFiles\gem16_core.dir\src\cuda\engine\state_capture.cpp.obj
+[20/108] Generating CXX dyndep file CMakeFiles\gem16_fp8_compiler_support.dir\CXX.dd
+[21/105] Building CXX object CMakeFiles\gem16_core.dir\src\runtime\result_json.cpp.obj
+[22/105] Generating CXX dyndep file CMakeFiles\gem16_nvfp4_compiler_support.dir\CXX.dd
+[23/102] Generating CXX dyndep file CMakeFiles\gem16_server_support.dir\CXX.dd
+[24/100] Generating CXX dyndep file CMakeFiles\gem16_httplib.dir\CXX.dd
+[25/98] Building CXX object CMakeFiles\gem16_core.dir\src\runtime\tool_call_parser.cpp.obj
+[26/98] Scanning C:\Development\gem16gb\src\cli\run_main.cpp for CXX dependencies
+[27/98] Scanning C:\Development\gem16gb\src\cli\bench_main.cpp for CXX dependencies
+[28/98] Building CXX object CMakeFiles\gem16_core.dir\src\runtime\inference_stub.cpp.obj
+[29/98] Scanning C:\Development\gem16gb\tests\unit\chat_test.cpp for CXX dependencies
+[30/98] Scanning C:\Development\gem16gb\src\cli\chat_main.cpp for CXX dependencies
+[31/98] Scanning C:\Development\gem16gb\src\cli\server_main.cpp for CXX dependencies
+[32/98] Scanning C:\Development\gem16gb\tests\unit\gemma4_26b_manifest_test.cpp for CXX dependencies
+[33/98] Scanning C:\Development\gem16gb\tests\unit\image_test.cpp for CXX dependencies
+[34/98] Scanning C:\Development\gem16gb\tests\unit\observability_test.cpp for CXX dependencies
+[35/98] Scanning C:\Development\gem16gb\tests\unit\request_queue_test.cpp for CXX dependencies
+[36/98] Generating CXX dyndep file CMakeFiles\gem16-fp8-compiler.dir\CXX.dd
+[37/96] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-module-probe.dir\CXX.dd
+[38/95] Generating CXX dyndep file CMakeFiles\gem16-checkpoint-compiler.dir\CXX.dd
+[39/93] Generating CXX dyndep file CMakeFiles\gem16-nvfp4-head-diagnostic.dir\CXX.dd
+[40/92] Linking CXX static library lib\gem16_core.lib
+[41/92] Scanning C:\Development\gem16gb\tests\unit\openai_chat_test.cpp for CXX dependencies
+[42/92] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\request_queue.cpp.obj
+[43/92] Generating CXX dyndep file CMakeFiles\gem16-inspect.dir\CXX.dd
+[44/91] Generating CXX dyndep file CMakeFiles\gem16-run.dir\CXX.dd
+[45/91] Generating CXX dyndep file CMakeFiles\gem16-bench.dir\CXX.dd
+[46/91] Generating CXX dyndep file CMakeFiles\gem16-chat.dir\CXX.dd
+[47/91] Generating CXX dyndep file CMakeFiles\gem16-server.dir\CXX.dd
+[48/91] Generating CXX dyndep file CMakeFiles\gem16-unit-tests.dir\CXX.dd
+[49/70] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\session_pool.cpp.obj
+[50/70] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\openai_chat.cpp.obj
+[51/70] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\http_streaming.cpp.obj
+[52/70] Linking CXX static library lib\gem16_server_support.lib
+[53/70] Building CXX object CMakeFiles\gem16-run.dir\src\cli\run_main.cpp.obj
+[54/70] Building CXX object CMakeFiles\gem16-bench.dir\src\cli\bench_main.cpp.obj
+[55/70] Building CXX object CMakeFiles\gem16-chat.dir\src\cli\chat_main.cpp.obj
+[56/70] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\chat_test.cpp.obj
+[57/70] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\gemma4_26b_manifest_test.cpp.obj
+[58/70] Building CXX object CMakeFiles\gem16-server.dir\src\cli\server_main.cpp.obj
+[59/70] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\image_test.cpp.obj
+[60/70] Linking CXX executable bin\gem16-26b-vision-module-probe.exe
+[61/70] Linking CXX executable bin\gem16-nvfp4-head-diagnostic.exe
+[62/70] Linking CXX executable bin\gem16-inspect.exe
+[63/70] Linking CXX executable bin\gem16-run.exe
+[64/70] Linking CXX executable bin\gem16-bench.exe
+[65/70] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\request_queue_test.cpp.obj
+[66/70] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\observability_test.cpp.obj
+[67/70] Linking CXX executable bin\gem16-chat.exe
+[68/70] Linking CXX executable bin\gem16-server.exe
+[69/70] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\openai_chat_test.cpp.obj
+[70/70] Linking CXX executable bin\gem16-unit-tests.exe
+> ctest.exe --preset host-debug
+Test project C:/Development/gem16gb/build/Windows/host-debug
+    Start 1: gem16-server-version
+1/5 Test #1: gem16-server-version ................   Passed    0.03 sec
+    Start 2: gem16-unit
+2/5 Test #2: gem16-unit ..........................   Passed   20.50 sec
+    Start 3: gem16-26b-m23-host-contract
+3/5 Test #3: gem16-26b-m23-host-contract .........   Passed    0.27 sec
+    Start 4: gem16-trellis35-compiler-contract
+4/5 Test #4: gem16-trellis35-compiler-contract ...   Passed    2.45 sec
+    Start 5: gem16-26b-vision-module-contract
+5/5 Test #5: gem16-26b-vision-module-contract ....   Passed    0.19 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =  23.47 sec

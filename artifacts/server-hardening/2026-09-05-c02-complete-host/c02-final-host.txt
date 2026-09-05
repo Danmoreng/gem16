@@ -1,0 +1,53 @@
+Loading Visual Studio C++ environment from C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat
+> cmake.exe --preset host-debug -S C:\Development\gem16gb
+-- gem16 CUDA capability scaffold: disabled
+-- Configuring done (5.7s)
+-- Generating done (0.1s)
+-- Build files have been written to: C:/Development/gem16gb/build/Windows/host-debug
+> cmake.exe --build --preset host-debug --parallel 4
+[1/119] Generating CXX dyndep file CMakeFiles\gem16_json.dir\CXX.dd
+[2/117] Generating CXX dyndep file CMakeFiles\gem16_fp8_compiler_support.dir\CXX.dd
+[3/114] Generating CXX dyndep file CMakeFiles\gem16_core.dir\CXX.dd
+[4/78] Generating CXX dyndep file CMakeFiles\gem16_nvfp4_compiler_support.dir\CXX.dd
+[5/75] Generating CXX dyndep file CMakeFiles\gem16_httplib.dir\CXX.dd
+[6/73] Generating CXX dyndep file CMakeFiles\gem16-fp8-compiler.dir\CXX.dd
+[7/71] Generating CXX dyndep file CMakeFiles\gem16-26b-vision-module-probe.dir\CXX.dd
+[8/69] Generating CXX dyndep file CMakeFiles\gem16-checkpoint-compiler.dir\CXX.dd
+[9/67] Generating CXX dyndep file CMakeFiles\gem16-nvfp4-head-diagnostic.dir\CXX.dd
+[10/65] Generating CXX dyndep file CMakeFiles\gem16-inspect.dir\CXX.dd
+[11/63] Generating CXX dyndep file CMakeFiles\gem16-run.dir\CXX.dd
+[12/61] Generating CXX dyndep file CMakeFiles\gem16-bench.dir\CXX.dd
+[13/59] Generating CXX dyndep file CMakeFiles\gem16-chat.dir\CXX.dd
+[14/57] Generating CXX dyndep file CMakeFiles\gem16-server.dir\CXX.dd
+[15/56] Generating CXX dyndep file CMakeFiles\gem16-responses-allocation-tests.dir\CXX.dd
+[16/55] Generating CXX dyndep file CMakeFiles\gem16-unit-tests.dir\CXX.dd
+[17/28] Scanning C:\Development\gem16gb\src\server\session_pool.cpp for CXX dependencies
+[18/28] Generating CXX dyndep file CMakeFiles\gem16_server_support.dir\CXX.dd
+[19/23] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\session_pool.cpp.obj
+[20/23] Linking CXX static library lib\gem16_server_support.lib
+[21/23] Linking CXX executable bin\gem16-responses-allocation-tests.exe
+[22/23] Linking CXX executable bin\gem16-server.exe
+[23/23] Linking CXX executable bin\gem16-unit-tests.exe
+> ctest.exe --preset host-debug
+Test project C:/Development/gem16gb/build/Windows/host-debug
+    Start 1: gem16-server-version
+1/7 Test #1: gem16-server-version ................   Passed    0.01 sec
+    Start 2: gem16-unit
+2/7 Test #2: gem16-unit ..........................   Passed   20.65 sec
+    Start 3: gem16-responses-allocation
+3/7 Test #3: gem16-responses-allocation ..........***Skipped   0.01 sec
+    Start 4: gem16-agent-process-cleanup
+4/7 Test #4: gem16-agent-process-cleanup .........   Passed    4.78 sec
+    Start 5: gem16-26b-m23-host-contract
+5/7 Test #5: gem16-26b-m23-host-contract .........   Passed    1.26 sec
+    Start 6: gem16-trellis35-compiler-contract
+6/7 Test #6: gem16-trellis35-compiler-contract ...   Passed    2.33 sec
+    Start 7: gem16-26b-vision-module-contract
+7/7 Test #7: gem16-26b-vision-module-contract ....   Passed    1.23 sec
+
+100% tests passed, 0 tests failed out of 7
+
+Total Test time (real) =  30.29 sec
+
+The following tests did not run:
+	  3 - gem16-responses-allocation (Skipped)

@@ -23,18 +23,28 @@ where practical; preserve model specialization and historical evidence.
 
 | Package | Scope | Status |
 |---|---|---|
-| C00 | Server-first docs, 220k Linux / 170k Windows, 200 MiB reserve | Implemented; Linux host/Studio checks passed |
+| C00 | Server-first docs, 220k Linux / 170k Windows, 200 MiB reserve | Implemented; Linux and Windows host/Studio checks passed |
 | C01 | Bounded schema evaluation and exact numbers | Implemented; host and sanitizer checks, including work limits |
-| C02 | Exception-safe session/Responses ownership | Lease/reservation guards implemented; systematic exception injection open |
+| C02 | Exception-safe session/Responses ownership | Completed and qualified on Windows: 280 real-GPU injected lifecycle/recovery cases; Linux release requalification remains separate |
 | C03 | Deadline/cancel admission, control capacity, shutdown | Bounded admission/control capacity and pool-wait cancellation/deadlines implemented; long-prefill cancellation open |
 | C04 | HTTP preflight and bounded media processing | HTTP/media limits implemented and tested; peak-RSS stress and historical-image CPU reuse open |
-| C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Live Linux affinity/cache/manual compaction passed for both profiles; full fork/resume/automatic-compaction matrix open |
+| C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Live Linux and Windows affinity/cache/manual compaction passed for both profiles; full fork/resume/automatic-compaction matrix open |
 | C06 | Responses replay, practical sampling/tool compatibility | SDK output replay and parameter validation passed; per-request sampling, reasoning replay and constrained tool choice open |
 | C07 | Fresh headless packages, provenance, fail-closed publish | Fresh headless packages/manifests and gate verifier implemented; same-machine smoke passed, clean-machine qualification open |
-| C08 | Candidate GPU/SDK/agent/quality and two-platform evidence | Bounded Linux SDK/Pi/multi-image and internal NVFP4 smokes passed; Windows and full release qualification open |
+| C08 | Candidate GPU/SDK/agent/quality and two-platform evidence | Bounded Linux and Windows SDK/Pi/multi-image matrices passed; internal NVFP4 Linux smokes retained; full release qualification open |
 | C09 | Documentation consistency and release freeze | Requires C01–C08; publication needs explicit authorization |
 
 Implementation and bounded evidence: [server hardening checkpoint](evidence/server-hardening-2026-09-05.md).
+
+Windows baseline on candidate `491f5f5` is now recorded in
+[Windows server-first evidence](evidence/windows-server-baseline-2026-09-05.md):
+host/CUDA/Studio builds, both public-profile SDK/Pi/hardening/multi-image matrices,
+separate manual compaction/new-session probes and the protected 12B product test
+passed. No portability fix was needed. Fresh headless ZIP integrity/version smoke
+passed on the development machine. C02 was subsequently completed in the
+separate lifecycle qualification below; the next implementation priority is C03.
+The baseline itself does not close long-prefill gates. Full Windows release and
+clean-machine qualification stay open.
 
 Windows GPU and clean-machine qualification must be recorded against the actual
 candidate. Missing evidence is open, never passed. The extended QUAL01 waiver
@@ -42,6 +52,11 @@ remains unchanged. Studio lifecycle fixes remain in scope; GUI redesign does not
 
 The normalized 26B Hub layout still needs verified lock migration before use by
 the runtime. Existing pins remain valid and immutable.
+
+Owner stop point (2026-09-05): C02 is complete on Windows; commit/push this
+checkpoint and stop for today. Resume with C03 next session, then C04. The latest
+12B Pi fixture's ineffective-edit loop is retained as a C05/C06 finding; it must
+not be hidden by the earlier successful agent smoke. See the C02 completion note.
 
 ## English continuation plan: Windows and remaining implementation
 
@@ -108,8 +123,8 @@ $handoffEvidence = "artifacts/server-hardening/" + (Get-Date -Format "yyyy-MM-dd
 .\.venv-agent-core\Scripts\python.exe tools/run_agent_core_matrix.py --server build/Windows/blackwell-release/bin/gem16-server.exe --pi-cli tools/pi-agent/node_modules/@earendil-works/pi-coding-agent/dist/cli.js --output-dir $handoffEvidence --port 18083
 ```
 
-These commands use existing script interfaces; they have **not** been run on
-Windows in this handoff. Fix harness portability explicitly if it fails. The
+These commands use existing script interfaces and were subsequently run on
+Windows at `491f5f5`, with the passing evidence linked above. The
 matrix currently uses 16,384 context and fixed-D2, so it does **not** cover the
 170,000 Windows recommendation, ordinary decode, manual compaction, long-prefill
 abort, or clean-machine installation. Run those as separately labeled probes.
@@ -117,13 +132,18 @@ Its process termination cleanup is not proof of graceful Windows shutdown.
 
 ### C02 — Finish lifecycle failure qualification
 
-- [ ] Add targeted error/exception injection before and after session publication,
+Completed Windows qualification: [C02 lifecycle completion](evidence/windows-c02-complete-2026-09-05.md).
+The earlier [bounded checkpoint](evidence/windows-c02-2026-09-05.md) remains
+historical. The separate test executable now covers all lifecycle stages below
+with real model sessions, without enabling fault control in the product binary.
+
+- [x] Add targeted error/exception injection before and after session publication,
   after acquisition, during generation, Responses commit/indexing and response
   serialization. Cover Chat Completions and Responses, stream and nonstream.
-- [ ] Assert reservations, active request counts, leases and response indexes are
+- [x] Assert reservations, active request counts, leases and response indexes are
   released/rolled back exactly once, followed by successful new generation.
   Use host fixtures where practical without introducing a generic fake engine.
-- [ ] Run actual slot recovery on both public profiles and protect internal
+- [x] Run actual slot recovery on both public profiles and protect internal
   NVFP4 when shared runtime behavior changes.
 
 Start at `src/server/session_pool.{h,cpp}` and `src/cli/server_main.cpp`.
@@ -155,6 +175,24 @@ inference-saturation worker reserve are already implemented in `2096c39`.
 **Done when:** abandoned requests never execute later, capacity is recovered,
 control routes remain reachable, and each phase has measured platform evidence.
 Host-only wait tests do not qualify GPU prefill abort latency.
+
+Source inspection for the next slice: `ChatSession::Generate` currently forwards
+only token events into the inference session, so the server cancellation callback
+cannot run during prefill. Thread a separate cancellation checkpoint through the
+existing 12B and specialized 26B prefill loops, preserving their chunk planning
+and image spans. The 26B loop already synchronizes before staging each chunk;
+the 12B path currently synchronizes after its loop. Qualify the synchronization
+and poisoned-session recovery behavior, rather than assuming equivalent latency.
+No C03 runtime change or long-prefill latency claim is included in the C02 slice.
+
+### Requested short comparison pilot
+
+The owner selected approximately 30 minutes for a bounded speed/quantization
+comparison. See [the concrete pilot plan](plans/SHORT_CROSS_ENGINE_BENCHMARK.md)
+for 512/8K/32K context, separate prefill/decode, quant candidates and full-KL
+reference requirements. This is additional diagnostic work, not a reopening of
+the closed tuning campaigns or the waived extended QUAL01 campaign. No new
+cross-engine result is claimed yet.
 
 ### C04 — Media work, cancellation and peak host memory
 
