@@ -1,0 +1,607 @@
+{
+  "date": "2026-09-05",
+  "base_revision": "a67c37fb52883f1c09c878fbd307df54c4bf8659",
+  "source_sha256": {
+    "src/cuda/inference_session.cuh": "3ebccaf2f26423accc5529db6410e3a6bbe366f630906a464cd72ee65ed743aa",
+    "src/runtime/chat.cpp": "dc79053a5e794482a37acb6d548ca318a6cd91b5449bf75bb7c2f63319cb3ffe",
+    "src/server/openai_chat.cpp": "7c32a9142a724e119c7d8e4c87ad2add1effc72789df824875955ec28ac52a97",
+    "src/cli/server_main.cpp": "d0dda1f6d3be86613afdaf723882d0a93856c4f8353aa46a109524d709a3a3c2",
+    "nativeStudio/src/app_canvas.cpp": "9fddb293436905aec22d5d7d3fae03acbba933db667c8b9fdb580c6ccf76e039",
+    "nativeStudio/src/canvas.cpp": "a7938df523942b154306ea9a3a09bda87abb9e2a272598b15fe54ccced79c5dc",
+    "nativeStudio/src/api_client.cpp": "8eba349e718b11e9fdd3bebc4bf4e2d179a81ece837d4d1fcbc5c90c3a19c9a3",
+    "tools/check_multi_image_conversation.py": "619527e5d99fad2a12f5524ba5537afa9eb5586d1a562154f1c2eefd8e424a05"
+  },
+  "runs": {
+    "compact_ordinary": {
+      "command": [
+        "build/Linux/blackwell-release/bin/gem16-server",
+        "--model-name",
+        "gem16",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "18169",
+        "--max-context",
+        "8192",
+        "--max-sessions",
+        "1",
+        "--greedy",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--vision-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--vision",
+        "--vision-max-soft-token-budget",
+        "280"
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 8192,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": null,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 188743680,
+        "workspace_bytes": 450035872,
+        "execution_slot_bytes": 638779552,
+        "admission_free_bytes": 2974613504,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 2240610304,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": false,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": false,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 0
+        }
+      },
+      "steps": [
+        {
+          "step": "first_image",
+          "session": "session_94f01e06fd0e9eb0e1db5d944efe198e",
+          "usage": {
+            "prompt_tokens": 146,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 2,
+            "total_tokens": 148
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red"
+          }
+        },
+        {
+          "step": "append_image",
+          "session": "session_94f01e06fd0e9eb0e1db5d944efe198e",
+          "usage": {
+            "prompt_tokens": 251,
+            "prompt_tokens_details": {
+              "cached_tokens": 147
+            },
+            "completion_tokens": 4,
+            "total_tokens": 255
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red, blue"
+          }
+        },
+        {
+          "step": "request_screenshots",
+          "session": "session_94f01e06fd0e9eb0e1db5d944efe198e",
+          "usage": {
+            "prompt_tokens": 279,
+            "prompt_tokens_details": {
+              "cached_tokens": 254
+            },
+            "completion_tokens": 9,
+            "total_tokens": 288
+          },
+          "answer": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "canvas_check",
+                  "arguments": "{}"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "step": "append_two_tool_images",
+          "session": "session_94f01e06fd0e9eb0e1db5d944efe198e",
+          "usage": {
+            "prompt_tokens": 457,
+            "prompt_tokens_details": {
+              "cached_tokens": 287
+            },
+            "completion_tokens": 10,
+            "total_tokens": 467
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red, blue, green, yellow"
+          }
+        },
+        {
+          "step": "recall_images",
+          "session": "session_94f01e06fd0e9eb0e1db5d944efe198e",
+          "usage": {
+            "prompt_tokens": 496,
+            "prompt_tokens_details": {
+              "cached_tokens": 466
+            },
+            "completion_tokens": 8,
+            "total_tokens": 504
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red, blue, green, yellow"
+          }
+        },
+        {
+          "step": "fresh_history_replay",
+          "session": "session_595284f8f9cbf5fdaa756a3427b3d45a",
+          "usage": {
+            "prompt_tokens": 517,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 8,
+            "total_tokens": 525
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red, blue, green, yellow"
+          }
+        }
+      ]
+    },
+    "compact_fixed_d2": {
+      "command": [
+        "build/Linux/blackwell-release/bin/gem16-server",
+        "--model-name",
+        "gem16",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "18169",
+        "--max-context",
+        "8192",
+        "--max-sessions",
+        "1",
+        "--greedy",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--vision-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--vision",
+        "--vision-max-soft-token-budget",
+        "280",
+        "--assistant-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2"
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 8192,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 8192,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 258313728,
+        "assistant_workspace_bytes": 3381520,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 188743680,
+        "workspace_bytes": 456799904,
+        "execution_slot_bytes": 645543584,
+        "admission_free_bytes": 2695692288,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 1961689088,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": true
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": false,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 0
+        }
+      },
+      "steps": [
+        {
+          "step": "first_image",
+          "session": "session_c540c2e5f7a0fde8b558238beab1e4fb",
+          "usage": {
+            "prompt_tokens": 146,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 2,
+            "total_tokens": 148
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red"
+          }
+        },
+        {
+          "step": "append_image",
+          "session": "session_c540c2e5f7a0fde8b558238beab1e4fb",
+          "usage": {
+            "prompt_tokens": 251,
+            "prompt_tokens_details": {
+              "cached_tokens": 147
+            },
+            "completion_tokens": 4,
+            "total_tokens": 255
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red, blue"
+          }
+        },
+        {
+          "step": "request_screenshots",
+          "session": "session_c540c2e5f7a0fde8b558238beab1e4fb",
+          "usage": {
+            "prompt_tokens": 279,
+            "prompt_tokens_details": {
+              "cached_tokens": 254
+            },
+            "completion_tokens": 9,
+            "total_tokens": 288
+          },
+          "answer": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "canvas_check",
+                  "arguments": "{}"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "step": "append_two_tool_images",
+          "session": "session_c540c2e5f7a0fde8b558238beab1e4fb",
+          "usage": {
+            "prompt_tokens": 457,
+            "prompt_tokens_details": {
+              "cached_tokens": 287
+            },
+            "completion_tokens": 10,
+            "total_tokens": 467
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red, blue, green, yellow"
+          }
+        },
+        {
+          "step": "recall_images",
+          "session": "session_c540c2e5f7a0fde8b558238beab1e4fb",
+          "usage": {
+            "prompt_tokens": 496,
+            "prompt_tokens_details": {
+              "cached_tokens": 466
+            },
+            "completion_tokens": 8,
+            "total_tokens": 504
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red, blue, green, yellow"
+          }
+        },
+        {
+          "step": "fresh_history_replay",
+          "session": "session_2b8f06196fa0abeb3b7778331c254f58",
+          "usage": {
+            "prompt_tokens": 517,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 8,
+            "total_tokens": 525
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red, blue, green, yellow"
+          }
+        }
+      ]
+    },
+    "unified_12b": {
+      "command": [
+        "build/Linux/blackwell-release/bin/gem16-server",
+        "--model-name",
+        "gem16",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "18169",
+        "--max-context",
+        "8192",
+        "--max-sessions",
+        "1",
+        "--greedy",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4"
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 8192,
+        "default_context": 8192,
+        "default_context_tokens": 8192,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 262144,
+        "model_variant": "gemma4_unified_12b",
+        "profile_id": "gemma4-12b-unified",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "native-checkpoint",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "gemma4_unified_12b_sm120",
+        "weight_profile": "native-checkpoint",
+        "head_format": "native-checkpoint",
+        "artifact_content_sha256": "",
+        "source_lock_sha256": "",
+        "compiler_commit": "",
+        "resident_weight_bytes": 9304895488,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": null,
+        "workspace_bytes": null,
+        "execution_slot_bytes": 1826619392,
+        "admission_free_bytes": 5294063616,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 4560060416,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": true,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": false,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 0
+        }
+      },
+      "steps": [
+        {
+          "step": "first_image",
+          "session": "session_d697d4bbf294a15dec590da00a8fcd9b",
+          "usage": {
+            "prompt_tokens": 86,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 2,
+            "total_tokens": 88
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red"
+          }
+        },
+        {
+          "step": "append_image",
+          "session": "session_d697d4bbf294a15dec590da00a8fcd9b",
+          "usage": {
+            "prompt_tokens": 131,
+            "prompt_tokens_details": {
+              "cached_tokens": 87
+            },
+            "completion_tokens": 4,
+            "total_tokens": 135
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red, Blue"
+          }
+        },
+        {
+          "step": "request_screenshots",
+          "session": "session_d697d4bbf294a15dec590da00a8fcd9b",
+          "usage": {
+            "prompt_tokens": 159,
+            "prompt_tokens_details": {
+              "cached_tokens": 134
+            },
+            "completion_tokens": 9,
+            "total_tokens": 168
+          },
+          "answer": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "canvas_check",
+                  "arguments": "{}"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "step": "append_two_tool_images",
+          "session": "session_d697d4bbf294a15dec590da00a8fcd9b",
+          "usage": {
+            "prompt_tokens": 217,
+            "prompt_tokens_details": {
+              "cached_tokens": 167
+            },
+            "completion_tokens": 6,
+            "total_tokens": 223
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Green, Yellow"
+          }
+        },
+        {
+          "step": "recall_images",
+          "session": "session_d697d4bbf294a15dec590da00a8fcd9b",
+          "usage": {
+            "prompt_tokens": 252,
+            "prompt_tokens_details": {
+              "cached_tokens": 222
+            },
+            "completion_tokens": 8,
+            "total_tokens": 260
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red, Blue, Green, Yellow"
+          }
+        },
+        {
+          "step": "fresh_history_replay",
+          "session": "session_c7728b922d05ab2902aca272947b5b0d",
+          "usage": {
+            "prompt_tokens": 273,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 8,
+            "total_tokens": 281
+          },
+          "answer": {
+            "role": "assistant",
+            "content": "Red, Blue, Green, Yellow"
+          }
+        }
+      ]
+    }
+  },
+  "limits": "Synthetic color-image regression on Linux SM120. Four images; not an unbounded-capacity or extended quality qualification. Fresh replay deliberately starts a new root only after the five-step resident chain."
+}

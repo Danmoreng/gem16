@@ -18,7 +18,7 @@ class CanvasBrowser {
   void Load(const CanvasDocument& document);
   void SetViewport(int width, int height);
   void BeginFrame();
-  void EndFrame();
+  void EndFrame(bool covered = false);
   bool Present(int client_x, int client_y);
   void RequestScreenshot();
   void Close();

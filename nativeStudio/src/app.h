@@ -55,7 +55,8 @@ class StudioApp final {
   void PollCanvasTools();
   void CancelGeneration();
   bool CanvasBusy() const;
-  void FinishCanvasTool(std::string result);
+  void FinishCanvasTool(std::string result,
+                        std::vector<MediaAttachment> attachments = {});
   void ImportCanvas(const std::string& source, const std::string& type);
   void ResetCanvasView();
   void DrawModels();
@@ -107,19 +108,17 @@ class StudioApp final {
   std::string server_action_error_;
   ModelManager models_;
   ApiClient api_;
-  ApiClient canvas_vision_;
   CanvasBrowser canvas_browser_;
   ImageTexture canvas_texture_;
   std::string canvas_check_viewport_;
-  std::string selected_canvas_, canvas_status_, canvas_visual_result_,
+  std::string selected_canvas_, canvas_status_,
       canvas_prompt_context_;
   std::vector<ToolCall> canvas_calls_;
   std::size_t canvas_call_index_ = 0;
   int canvas_rounds_ = 0, canvas_checks_ = 0, canvas_format_retries_ = 0;
   std::string canvas_repair_instruction_;
   bool RecoverCanvasFormatError();
-  bool canvas_visible_ = false, canvas_check_started_ = false,
-       canvas_vision_started_ = false;
+  bool canvas_visible_ = false, canvas_check_started_ = false;
   bool canvas_cancelled_ = false;
   std::chrono::steady_clock::time_point canvas_check_at_{}, canvas_paint_at_{};
   AudioRecorder recorder_;

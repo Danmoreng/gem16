@@ -609,7 +609,10 @@ void StudioApp::Render() {
   }
   ImGui::EndChild();
   ImGui::End();
-  canvas_browser_.EndFrame();
+  // Native child surfaces sit above ImGui's draw data. Hide the preview
+  // while a menu or modal is open so it cannot cover or intercept the popup.
+  canvas_browser_.EndFrame(ImGui::IsPopupOpen(nullptr,
+      ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel));
 }
 
 void StudioApp::DrainChatEvents() {
@@ -631,7 +634,8 @@ void StudioApp::DrainChatEvents() {
     if (messages_.empty() || messages_.back().role != "assistant") continue;
     ChatMessage& message = messages_.back();
     if (event.kind == ChatEvent::Kind::kText ||
-        event.kind == ChatEvent::Kind::kReasoning) {
+        event.kind == ChatEvent::Kind::kReasoning ||
+        event.kind == ChatEvent::Kind::kToolCall) {
       if (streamed_chunks_ == 0) first_token_at_ = std::chrono::steady_clock::now();
       ++streamed_chunks_;
     }
@@ -704,7 +708,7 @@ void StudioApp::PollServerAction() {
       server_action_error_ = e.what();
     }
   }
-  if (!pending_server_action_ || api_.Busy() || canvas_vision_.Busy()) return;
+  if (!pending_server_action_ || api_.Busy()) return;
   // Consume the worker's terminal events before invalidating its session.
   DrainChatEvents();
   const auto action = *pending_server_action_;
@@ -879,11 +883,11 @@ void StudioApp::DrawChat() {
   const float attachment_height = AttachmentGalleryHeight(
       pending_attachments_.size(), composer_content_width);
   const float error_height = attachment_error_.empty() ? 0.0f : ImGui::GetFontSize();
-  const int composer_gaps = 2 + (recorder_.Active() ? 1 : 0) +
+  const int composer_gaps = 3 + (recorder_.Active() ? 1 : 0) +
                             (!pending_attachments_.empty() ? 1 : 0) +
                             (!attachment_error_.empty() ? 1 : 0);
   const float composer_height = ImGui::GetStyle().WindowPadding.y * 2.0f +
-                                recording_height + toolbar_height + context_height +
+                                recording_height + toolbar_height + ImGui::GetFontSize() + context_height +
                                 attachment_height +
                                 error_height + input_height +
                                 static_cast<float>(composer_gaps) * Ui(6.0f);
@@ -1003,8 +1007,6 @@ void StudioApp::DrawChat() {
   const ImVec2 toolbar_origin = ImGui::GetCursorScreenPos();
   ImDrawList* composer_draw = ImGui::GetWindowDrawList();
   const ImU32 disabled_text = ImGui::GetColorU32(ImGuiCol_TextDisabled);
-  const float toolbar_text_y = toolbar_origin.y +
-                               (toolbar_height - ImGui::GetFontSize()) * 0.5f;
   float toolbar_x = toolbar_origin.x;
   ImGui::SetCursorScreenPos({toolbar_x, toolbar_origin.y});
   const bool attach_disabled = busy || recorder_.Active();
@@ -1101,23 +1103,25 @@ void StudioApp::DrawChat() {
                                       ? 0.0
                                       : std::chrono::duration<double>(end - first_token_at_).count();
     const double rate = decode_seconds > 0.0
-                            ? static_cast<double>(observed_tokens) / decode_seconds
+                            ? static_cast<double>(std::max<std::int64_t>(0, observed_tokens - 1)) / decode_seconds
                             : 0.0;
     if (busy && streamed_chunks_ == 0)
-      std::snprintf(status_label, sizeof(status_label), "Prefilling...");
+      std::snprintf(status_label, sizeof(status_label), "Prefill running · %.1fs", seconds);
     else if (!busy && performance_)
       std::snprintf(
           status_label, sizeof(status_label),
-          "%lld in · %lld out · Decode %.1f tok/s · Prefill %.0f tok/s · %.1fs",
-          static_cast<long long>(prompt_tokens_),
-          static_cast<long long>(completion_tokens_),
+          "Decode %.1f tok/s · Prefill %.0f tok/s · %lld tokens",
           performance_->decode_tokens_per_second,
-          performance_->prefill_tokens_per_second, seconds);
+          performance_->prefill_tokens_per_second,
+          static_cast<long long>(completion_tokens_));
+    else if (!busy)
+      std::snprintf(status_label, sizeof(status_label),
+                    "Performance unavailable · %lld tokens · %.1fs",
+                    static_cast<long long>(completion_tokens_), seconds);
     else
       std::snprintf(status_label, sizeof(status_label),
-                    "%lld in · %lld out · Stream %.1f tok/s · %.1fs",
-                    static_cast<long long>(prompt_tokens_),
-                    static_cast<long long>(observed_tokens), rate, seconds);
+                    "Decode ~%.1f tok/s · Prefill pending · %.1fs",
+                    rate, seconds);
   } else if (!settings_.onboarding_complete) {
     std::snprintf(status_label, sizeof(status_label),
                   "Select a model profile in Models to begin");
@@ -1125,35 +1129,26 @@ void StudioApp::DrawChat() {
     if (settings_.server.profile ==
         ModelProfile::kGemma4Moe26BTrellis35VisionFp8) {
       std::snprintf(status_label, sizeof(status_label),
-                    "Vision · one image · %d-token budget",
+                    "Vision · %d tokens/image",
                     settings_.server.vision_soft_token_budget);
     } else {
       std::snprintf(status_label, sizeof(status_label),
                     "Drop files anywhere · media follow the selected profile");
     }
   }
-  const float toolbar_right = ImGui::GetWindowPos().x +
-                              ImGui::GetWindowContentRegionMax().x;
-  if (toolbar_x + ImGui::CalcTextSize(status_label).x > toolbar_right &&
-      !busy && performance_) {
-    std::snprintf(status_label, sizeof(status_label),
-                  "%lld/%lld · D %.1f · P %.0f tok/s",
-                  static_cast<long long>(prompt_tokens_),
-                  static_cast<long long>(completion_tokens_),
-                  performance_->decode_tokens_per_second,
-                  performance_->prefill_tokens_per_second);
-  }
-  if (toolbar_x < toolbar_right) {
-    composer_draw->PushClipRect({toolbar_x, toolbar_origin.y},
-                                {toolbar_right, toolbar_origin.y + toolbar_height},
-                                true);
-    composer_draw->AddText({toolbar_x, toolbar_text_y},
-                           busy ? ImGui::GetColorU32(kAccent) : disabled_text,
-                           status_label);
-    composer_draw->PopClipRect();
+  // A full-width row keeps performance visible with the Canvas open.
+  const float status_y = toolbar_origin.y + toolbar_height + Ui(6.0f);
+  ImGui::SetCursorScreenPos({toolbar_origin.x, status_y});
+  ImGui::TextColored(busy ? kAccent : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled),
+                     "%s", status_label);
+  if (ImGui::IsItemHovered()) {
+    ImGui::SetTooltip(
+        "Live Decode is an estimate from streamed text, reasoning and tool chunks.\n"
+        "Final Prefill and Decode use server measurements for the last request.\n"
+        "Prefill counts newly processed tokens; cached tokens are excluded.");
   }
   ImGui::SetCursorScreenPos({toolbar_origin.x,
-                             toolbar_origin.y + toolbar_height + Ui(6.0f)});
+                             status_y + ImGui::GetFontSize() + Ui(6.0f)});
 
   const std::int64_t context_limit = health.max_context_tokens > 0
                                          ? health.max_context_tokens
@@ -1582,9 +1577,10 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
         ImGui::PopID();
       };
       detail("Input", call.arguments);
-      if (result)
+      if (result) {
         detail("Output", result->content);
-      else
+        DrawAttachmentGallery(result->attachments);
+      } else
         ImGui::TextDisabled("%s", message.error
                                       ? "No result: the call was not completed."
                                       : "Waiting for tool result...");
@@ -2397,9 +2393,11 @@ void StudioApp::SaveChat() {
   }
 }
 void StudioApp::StartSavedRequest() {
-  if (!pending_send_ || api_.Busy() || canvas_vision_.Busy()) return;
+  if (!pending_send_ || api_.Busy()) return;
   pending_send_ = false;
   ResetUsage();
+  // Start timing after the save barrier, including automatic tool continuations.
+  generation_started_ = std::chrono::steady_clock::now();
   auto history = messages_; history.pop_back();
   auto generation = pending_request_settings_.generation;
   const bool canvas = CanvasBrowserAvailable();

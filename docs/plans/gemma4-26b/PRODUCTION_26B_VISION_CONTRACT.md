@@ -1,3 +1,9 @@
+> Owner update 2026-09-05: the multiple-image decision in
+> [ACTIVE_DECISIONS.md](../../ACTIVE_DECISIONS.md) supersedes this contract's
+> one-image future requirement. The original single-image quality suite and its
+> recorded evidence below remain historical; they do not assert multi-image
+> qualification. Precision, locked components and the single execution slot remain.
+
 # Gemma 4 26B A4B Compact Vision production contract
 
 **Status:** owner-bounded P20 accepted 2026-09-04; REL01 and P21 deferred

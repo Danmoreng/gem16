@@ -45,8 +45,10 @@ revision and exactly one matching source fragment; rejected edits change nothing
 Canvas mutations and their tool transcript are committed before model continuation.
 Restoring history appends a revision. Deleting a conversation cascades to its Canvas.
 Limits are 16 documents, 128 revisions per document, 1 MiB per source revision and
-32 MiB of Canvas source history per chat. Screenshot pixels are transient; browser
-and visual-review observations are stored as tool results. Incomplete/interrupted
+32 MiB of Canvas source history per chat. Canvas screenshots are content-addressed image attachments on their tool-result
+messages. They are saved, reloaded and resent as actual images, so the same model
+can interpret earlier screenshots in context. Browser diagnostics remain text
+in the tool result. Temporary chats retain screenshots only in memory. Incomplete/interrupted
 tool exchanges are excluded from subsequent model context. Backup includes all
 revisions; JSON export includes source history. Canvas source has no separate FTS
 index; tool messages participate in ordinary chat indexing.

@@ -334,9 +334,7 @@ std::string AttachmentPolicyError(ModelProfile profile, MediaKind kind,
   if (kind == MediaKind::kAudio) {
     return "Gemma 4 26B Vision supports image input, but not audio input.";
   }
-  if (existing_images != 0U) {
-    return "Gemma 4 26B Vision supports exactly one image per chat. Remove the existing image or start a new chat.";
-  }
+  (void)existing_images;  // Context and bounded attachment storage limit the conversation.
   return {};
 }
 

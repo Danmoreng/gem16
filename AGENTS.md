@@ -65,7 +65,7 @@ supersedes. Historical evidence is not rewritten.
 
 The two equal public product choices are 12B Unified and 26B Compact Vision, not a default and an experimental
 alternative. Equal status does not imply identical capabilities: 12B supports qualified text, image and audio,
-while Compact Vision supports text plus one image, is single-slot and may use its separately pinned fixed-D2
+while Compact Vision supports text plus images bounded by context and request/storage capacity, is single-slot and may use its separately pinned fixed-D2
 Assistant. The qualified text-only 26B NVFP4 profile is retained internally for regression and rollback and is not
 offered in the normal Studio selection. Product surfaces must disclose capability differences and never substitute
 profiles. New unqualified work remains visibly experimental/reference or diagnostic until its owning gates pass. It

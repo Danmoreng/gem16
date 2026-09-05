@@ -166,7 +166,7 @@ std::string BuildChatPayload(const ServerConfig& server,
       output << ",\"tool_calls\":" << ToolCallsJson(message.tool_calls);
     if (message.role == "tool")
       output << ",\"tool_call_id\":" << json::Quote(message.tool_call_id);
-    const bool has_media = message.role == "user" &&
+    const bool has_media = (message.role == "user" || message.role == "tool") &&
         std::any_of(message.attachments.begin(), message.attachments.end(),
                     [](const MediaAttachment& attachment) {
                       return attachment.kind != MediaKind::kDocument;

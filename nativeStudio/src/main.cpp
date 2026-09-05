@@ -30,6 +30,8 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_X11
+#include <GLFW/glfw3native.h>
 #endif
 
 namespace {
@@ -261,6 +263,7 @@ void GlfwError(int code, const char* description) {
 
 int RunLinux() {
   glfwSetErrorCallback(GlfwError);
+  glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
   if (!glfwInit()) return 2;
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -271,6 +274,8 @@ int RunLinux() {
     glfwTerminate();
     return 3;
   }
+  gem16::studio::SetCanvasBrowserHost(
+      reinterpret_cast<void*>(static_cast<std::uintptr_t>(glfwGetX11Window(window))));
   glfwSetWindowPos(window, 100, 100);
   const gem16::studio::DecodedImage window_icon =
       gem16::studio::DecodePreviewImage(gem16::studio::kGem16LogoPng,
@@ -280,6 +285,11 @@ int RunLinux() {
                    const_cast<unsigned char*>(window_icon.rgba.data())};
     glfwSetWindowIcon(window, 1, &icon);
   }
+  // Clicking back into ImGui returns keyboard focus from the WebKit child.
+  // The ImGui backend chains this callback when it installs its input hooks.
+  glfwSetMouseButtonCallback(window, [](GLFWwindow* host, int, int action, int) {
+    if (action == GLFW_PRESS) glfwFocusWindow(host);
+  });
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
   glfwSetDropCallback(window, [](GLFWwindow*, int count, const char** paths) {
@@ -344,6 +354,7 @@ int RunLinux() {
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
+  gem16::studio::SetCanvasBrowserHost(nullptr);
   glfwDestroyWindow(window);
   glfwTerminate();
   return 0;

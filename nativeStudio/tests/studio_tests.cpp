@@ -148,8 +148,8 @@ bool TestVisionAttachmentPolicyAndEstimate() {
       !AttachmentPolicyError(ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
                              MediaKind::kImage, 0U)
            .empty() ||
-      AttachmentPolicyError(ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
-                            MediaKind::kImage, 1U)
+      !AttachmentPolicyError(ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
+                            MediaKind::kImage, 100U)
           .empty() ||
       AttachmentPolicyError(ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
                             MediaKind::kAudio, 0U)

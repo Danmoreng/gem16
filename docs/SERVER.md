@@ -31,7 +31,7 @@ assistant=$(python3 -c "from tools.hf_cache import default_assistant_model; prin
   --max-context 8192 --max-sessions 2
 ```
 
-### 26B Compact Vision: text and one image
+### 26B Compact Vision: text and images within context capacity
 
 ```bash
 python3 tools/fetch_model.py --lock models/gemma4-26b-trellis35-target.lock.json

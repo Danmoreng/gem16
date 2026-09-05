@@ -43,7 +43,7 @@ Equal product status does not imply identical model capabilities:
 | Profile | Status | Product capability boundary |
 |---|---|---|
 | Gemma 4 12B Unified | Qualified | Text, image, and audio input; up to two resident execution slots on the qualified profile |
-| Gemma 4 26B A4B — Compact Vision | Qualified | Trellis35 text Target plus FP8 Vision; one image, text output, 70/140/280 image soft tokens, one resident slot, and optional separately pinned fixed-D2 Assistant on the exact validated composite |
+| Gemma 4 26B A4B — Compact Vision | Qualified | Trellis35 text Target plus FP8 Vision; images within context capacity, text output, 70/140/280 image soft tokens, one resident slot, and optional separately pinned fixed-D2 Assistant on the exact validated composite |
 
 The qualified text-only Gemma 4 26B NVFP4 path remains implemented, pinned,
 and regression-protected as an internal rollback profile. It is not a third
@@ -169,3 +169,7 @@ Permanent safety and integrity rules in `AGENTS.md` remain binding. For product
 scope, this contract and `docs/ACTIVE_DECISIONS.md` supersede older roadmap,
 milestone, GUI, branch, and “12B default / 26B experimental” wording. Historical
 records remain evidence and are not rewritten.
+
+The 2026-09-05 owner update in ACTIVE_DECISIONS.md removes the conversation-wide
+single-image restriction and requires Canvas screenshots in the same persistent
+conversation. Existing single-image evidence is not multi-image qualification.

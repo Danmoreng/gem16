@@ -21,7 +21,7 @@ The existing numbered decisions retain their identities below.
    A4B Compact Vision are the two user-selectable public profiles and may be
    installed side by side. Neither is preferred. The 12B profile supports
    qualified text, image and audio. Compact Vision is the exact Trellis35 text
-   Target plus FP8 Vision composite, accepts one image, is single-slot, and may
+   Target plus FP8 Vision composite, accepts images within context capacity, is single-slot, and may
    use its separately pinned fixed-D2 Assistant. The qualified text-only 26B
    NVFP4 path remains implemented and regression-protected as an internal
    rollback profile, but is not offered in the normal Studio selection. This
@@ -83,12 +83,30 @@ The existing numbered decisions retain their identities below.
     the repository's default revision does not alter the pinned product.
     Evidence is `artifacts/vision/hf-layout-normalization-2026-09-04.json`.
 
+### Owner update: multiple images and one Canvas conversation (2026-09-05)
+
+The owner explicitly removes the one-image-per-conversation restriction. This
+supersedes the single-image requirement in decision 3, AGENTS.md's profile wording,
+the product/API contracts and the earlier Vision production scope. Conversations
+may retain successive images and accept multiple images in a turn, bounded by
+context, validated request sizes and storage capacity, with no fixed image-count
+product limit. This is separate from the unchanged single execution slot.
+
+Canvas checks append the actual screenshot to the same conversation as a tool
+result. Images persist with non-temporary chats. No separate visual-review model
+call or session eviction is permitted. New image spans reuse the existing Vision
+workspace sequentially; historical image spans remain in the resident KV prefix.
+Document revisions belong in tool results, not a changing system prompt. Precision,
+per-image budgets, model locks and fixed-D2 semantics remain unchanged. Historical
+single-image qualification evidence is not reclassified as multi-image evidence;
+new multi-image evidence and platform limitations must be reported separately.
+
 ## Current model facts
 
 | Profile | Public selection | Input | Context Target / fixed-D2 | Slots |
 |---|---|---|---|---|
 | 12B Unified | Yes | Text, image, audio | Subject to configured capacity | Up to two |
-| 26B Compact Vision | Yes | Text, one image, 70/140/280 soft tokens | 229,376 / 229,120 | One |
+| 26B Compact Vision | Yes | Text, images, 70/140/280 soft tokens per image | 229,376 / 229,120 | One |
 | 26B NVFP4 | Internal only | Text | 98,304 / 86,016 | One |
 
 Compact Vision requires the exact locked Trellis35 Target + FP8 Vision and,

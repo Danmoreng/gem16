@@ -38,7 +38,7 @@ qualified internally for regression and rollback, but is not shown as a normal S
 | Profile | Model size | Quantization / components | Download size | Capabilities |
 |---|---:|---|---:|---|
 | Gemma 4 12B Unified | 11.95B parameters | Mixed FP8/NVFP4 Target plus Assistant | about 10.2 GB | Text, image, audio, MTP |
-| Gemma 4 26B A4B Compact Vision | 25.2B total / 3.8B active parameters | Trellis35 W4A8 Target, FP8 E4M3FN Vision, optional hybrid NVFP4/FP8/BF16 Assistant | 12.8 GB without / 13.1 GB with Assistant | Text, one image, optional fixed-D2 MTP |
+| Gemma 4 26B A4B Compact Vision | 25.2B total / 3.8B active parameters | Trellis35 W4A8 Target, FP8 E4M3FN Vision, optional hybrid NVFP4/FP8/BF16 Assistant | 12.8 GB without / 13.1 GB with Assistant | Text, images within context capacity, optional fixed-D2 MTP |
 
 The Compact Vision weight payloads occupy 13,060,400,408 bytes (12.16 GiB) with the Assistant. Its text Target is
 12,204,692,480 bytes, Vision is 597,390,648 bytes, and the Assistant is 258,317,280 bytes. The separate
@@ -129,7 +129,7 @@ The [benchmark contract](docs/BENCHMARKING.md) governs new claims.
 ## Current limits and release status
 
 - Optimized inference targets Blackwell SM120/SM120a and batch one; no continuous batching.
-- 12B supports text, image and audio. Compact Vision supports text and one image, one resident slot,
+- 12B supports text, image and audio. Compact Vision supports text and images within context capacity, one resident slot,
   and its optional fixed-D2 Assistant. The internal NVFP4 profile is text-only.
 - Studio settings persist; chat history currently does not survive application restart.
 - Full Windows/Linux API qualification, packaging parity and clean-machine onboarding remain release gates.

@@ -288,7 +288,7 @@ bool ModelRuntime::vision_mtp_supported() const {
   return impl_ != nullptr && impl_->vision_mtp_supported;
 }
 std::uint32_t ModelRuntime::maximum_images() const {
-  return supports_vision() ? 1U : 0U;
+  return supports_vision() ? std::numeric_limits<std::uint32_t>::max() : 0U;
 }
 std::span<const std::uint32_t>
 ModelRuntime::vision_soft_token_budgets() const {
@@ -616,10 +616,6 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     return Error(StatusCode::kUnsupported,
                  "Gemma 4 26B Vision input requires an explicitly loaded Vision module");
   }
-  if (moe26b_vision_segments.size() > 1U) {
-    return Error(StatusCode::kUnsupported,
-                 "Gemma 4 26B Vision v1 supports one image per conversation");
-  }
   for (const AudioEmbeddingSegment& segment : audio_segments) {
     if (segment.frames.empty() || segment.frames.size() % 640U != 0U) {
       return Error(StatusCode::kInvalidArgument,
@@ -662,6 +658,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       }
     }
   }
+  std::uint64_t previous_vision_end = 0U;
   for (const Gemma4Moe26BVisionInputSegment& segment :
        moe26b_vision_segments) {
     if (segment.soft_token_count == 0U || segment.soft_token_count > 280U ||
@@ -676,6 +673,11 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       return Error(StatusCode::kInvalidArgument,
                    "Gemma 4 26B Vision segment does not fit in the rendered prompt");
     }
+    if (segment.prompt_offset < previous_vision_end) {
+      return Error(StatusCode::kInvalidArgument,
+                   "Gemma 4 26B Vision spans must be ordered and disjoint");
+    }
+    previous_vision_end = segment.prompt_offset + segment.soft_token_count;
     for (std::uint32_t token = 0U; token < segment.soft_token_count; ++token) {
       if (full_prompt_token_ids[segment.prompt_offset + token] != 258880U) {
         return Error(StatusCode::kInvalidArgument,
@@ -750,9 +752,9 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       }
     }
     const auto prompt_start = std::chrono::steady_clock::now();
-    std::optional<Gemma4Moe26BVisionInputSegment> uncached_vision;
-    if (!moe26b_vision_segments.empty()) {
-      const auto& segment = moe26b_vision_segments.front();
+    // Validate every span before writing KV. Historical image spans stay in
+    // the resident prefix and are never encoded again on continuation.
+    for (const auto& segment : moe26b_vision_segments) {
       const std::uint64_t segment_end =
           segment.prompt_offset + segment.soft_token_count;
       auto cache_relation = internal::ClassifyGemma4Moe26BVisionCacheSpan(
@@ -779,40 +781,43 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
                  "product and performance claims\n";
           impl_->vision_d2_diagnostic_warning_emitted = true;
         }
-        uncached_vision = segment;
-        uncached_vision->prompt_offset -= prefix_tokens;
       }
     }
     auto selected = [&]() -> Result<std::uint32_t> {
       const NvtxRange range("gem16.26b.prefill");
-      Status prefill = uncached_vision.has_value()
-                           ? impl_->runtime->impl_->moe26b_engine
-                                 ->PrefillTokensWithVision(
-                                     suffix, *uncached_vision)
-                           : impl_->runtime->impl_->moe26b_engine
-                                 ->PrefillTokens(suffix);
-      if (!prefill.ok()) return prefill;
+      auto& engine = *impl_->runtime->impl_->moe26b_engine;
+      std::size_t consumed = prefix_tokens;
+      for (std::size_t index = 0; index < moe26b_vision_segments.size(); ++index) {
+        const auto& segment = moe26b_vision_segments[index];
+        if (segment.prompt_offset < prefix_tokens) continue;
+        // Reuse the single-image workspace sequentially. Finish the current
+        // image (including its bidirectional attention span) before encoding
+        // the next. Text following it sees all earlier image KV positions.
+        const auto end = index + 1U < moe26b_vision_segments.size()
+            ? moe26b_vision_segments[index + 1U].prompt_offset
+            : full_prompt_token_ids.size();
+        auto relative = segment;
+        relative.prompt_offset -= consumed;
+        Status prefill = engine.PrefillTokensWithVision(
+            full_prompt_token_ids.subspan(consumed, end - consumed), relative);
+        if (!prefill.ok()) return prefill;
+        auto timings = engine.ResolveVisionPhaseTimings();
+        if (!timings.ok()) return timings.status();
+        result.vision_upload_milliseconds += timings.value().upload_milliseconds;
+        result.vision_tower_milliseconds += timings.value().tower_milliseconds;
+        result.vision_pool_project_milliseconds += timings.value().pool_project_milliseconds;
+        result.text_prefill_milliseconds += timings.value().text_prefill_milliseconds;
+        consumed = end;
+      }
+      if (consumed < full_prompt_token_ids.size()) {
+        Status prefill = engine.PrefillTokens(full_prompt_token_ids.subspan(consumed));
+        if (!prefill.ok()) return prefill;
+      }
       return impl_->runtime->impl_->moe26b_engine->SelectToken();
     }();
     if (!selected.ok()) {
       impl_->poisoned = true;
       return selected.status();
-    }
-    if (uncached_vision.has_value()) {
-      auto phase_timings = impl_->runtime->impl_->moe26b_engine
-                               ->ResolveVisionPhaseTimings();
-      if (!phase_timings.ok()) {
-        impl_->poisoned = true;
-        return phase_timings.status();
-      }
-      result.vision_upload_milliseconds =
-          phase_timings.value().upload_milliseconds;
-      result.vision_tower_milliseconds =
-          phase_timings.value().tower_milliseconds;
-      result.vision_pool_project_milliseconds =
-          phase_timings.value().pool_project_milliseconds;
-      result.text_prefill_milliseconds =
-          phase_timings.value().text_prefill_milliseconds;
     }
     result.prompt_milliseconds = Milliseconds(
         std::chrono::steady_clock::now() - prompt_start);

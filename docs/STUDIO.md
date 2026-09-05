@@ -27,7 +27,7 @@ attached external server is controlled by its owner.
 | Profile | Inputs | Execution |
 |---|---|---|
 | 12B Unified | Text, image, audio | Optional Assistant; up to two resident slots subject to VRAM |
-| 26B Compact Vision | Text and one image; no audio | One slot; optional fixed-D2 on the validated composite |
+| 26B Compact Vision | Text and images within context capacity; no audio | One slot; optional fixed-D2 on the validated composite |
 
 Compact Vision offers 70/140/280 image budgets with preview, estimate and remove
 controls. D2 requires the server's matching live capability. See the
@@ -51,6 +51,12 @@ previews open in Canvas using the system WebView.
 The context meter adds the server's input and output usage, including reasoning.
 It shows **Pending** until usage arrives at completion, also after reopening a
 saved chat until its next request. Stream chunks are not treated as exact tokens.
+A dedicated composer row shows the live Decode estimate (marked `~`) from streamed
+chunks, including reasoning and tool output. While waiting for the first chunk it
+shows elapsed prefill time. After each completed request it retains measured
+Prefill and Decode tokens/s and the output token count. Prefill excludes cached
+tokens. Final rates use server metrics deltas; simultaneous external requests can
+affect these process-wide counters. Rates are not persisted when reopening a chat.
 
 **Stop** interrupts an in-flight request. Partial text remains visible and copyable;
 failed or cancelled exchanges are excluded from future context until retried.
@@ -85,10 +91,15 @@ WebView2 runtime. Missing runtime support is reported explicitly. The preview
 runs self-contained code in an isolated frame with external network/files,
 permissions, popups and host bindings disabled. Use system fonts and embedded images.
 
-On Windows, Canvas embeds a live WebView2 child window with native input handling.
-Normal display does not capture PNGs or upload preview textures; screenshots are
-requested only for `canvas_check` image review. Linux still displays WebKitGTK
-snapshots in ImGui; direct live embedding there remains follow-up work.
+Canvas embeds a live native child window on both platforms: WebView2 on Windows
+and WebKitGTK on Linux, with native mouse, keyboard and scrolling input. Normal
+display does not capture PNGs or upload preview textures; screenshots are requested
+only for `canvas_check` image review. On Linux, menus and dialogs temporarily hide
+the native preview so that it cannot cover their controls.
+
+Linux Studio uses X11; Wayland desktops require XWayland. A native Wayland-only
+session without XWayland is not supported. The Canvas surface uses physical pixels
+independently of GTK dialog scaling, keeping its bounds aligned with the ImGui panel.
 
 The preview viewport follows the available panel width and height, including
 framebuffer scaling, instead of stretching a fixed 4:3 image. Resizing preserves
@@ -99,11 +110,13 @@ inside the isolated page itself.
 
 `canvas_check` returns browser diagnostics and can request a real PNG of the
 current viewport, reporting its actual pixel dimensions.
-The same active Vision model reviews that screenshot in a separate, sequential,
-one-image request and returns its observations to the editing agent. This respects
-Compact Vision's single-image/single-slot limit; the chat session rebuilds afterward.
-The image is transient; source revisions and tool results persist with the chat.
-Temporary chats keep their Canvas documents only in memory.
+The screenshot is attached directly to the tool result in the existing chat.
+Gemma interprets it in the same conversation and resident session, with earlier
+images still in context. There is no separate visual-review call or summary that
+replaces the image. Screenshots persist with source revisions and tool results;
+expand the tool row to view an earlier screenshot. Temporary chats keep them only
+in memory. Successive images reuse the Vision workspace; context, request-size
+and chat-storage bounds apply rather than a fixed image-count limit.
 
 Checks are limited to three per user request and tool loops to twelve rounds.
 Malformed tool-call syntax gets at most two automatic retries with format feedback;

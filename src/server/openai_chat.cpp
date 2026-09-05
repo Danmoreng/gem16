@@ -147,11 +147,37 @@ Result<ParsedMessage> ParseMessage(const json::Value& value) {
   if (message.role == "tool") {
     auto call_id = RequiredString(object, "tool_call_id");
     if (!call_id.ok()) return call_id.status();
-    if (content == nullptr || !content->is_string()) {
-      return Invalid("tool message content must be a string");
+    if (content == nullptr || (!content->is_string() && !content->is_array())) {
+      return Invalid("tool message content must be a string or text/image array");
     }
-    message.content.push_back(GenerationContentPart::ToolResult(
-        {std::move(call_id).value(), content->as_string()}));
+    if (content->is_string()) {
+      message.content.push_back(GenerationContentPart::ToolResult(
+          {std::move(call_id).value(), content->as_string()}));
+    } else {
+      // Reuse exactly the same MIME/base64/size validation as user images.
+      json::Value image_message(json::Value::Object{
+          {"role", json::Value(std::string("user"))}, {"content", *content}});
+      auto parts = ParseMessage(image_message);
+      if (!parts.ok()) return parts.status();
+      auto& content_parts = parts.value().message.content;
+      for (const auto& part : content_parts) {
+        if (part.kind != GenerationContentKind::kText &&
+            part.kind != GenerationContentKind::kImage) {
+          return Invalid("tool content supports only text and images");
+        }
+      }
+      const bool leading_text = !content_parts.empty() &&
+          content_parts.front().kind == GenerationContentKind::kText;
+      message.content.push_back(GenerationContentPart::ToolResult(
+          {std::move(call_id).value(), leading_text ? content_parts.front().text : std::string{}}));
+      for (std::size_t index = leading_text ? 1U : 0U; index < content_parts.size(); ++index)
+        message.content.push_back(std::move(content_parts[index]));
+      for (auto& image : parts.value().images) {
+        // Preserve interleaved text/image order as well as each image's location.
+        if (!leading_text) ++image.part_index;
+        parsed.images.push_back(std::move(image));
+      }
+    }
     return parsed;
   }
 
@@ -742,10 +768,6 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
   // check separately for every turn.
   const std::uint64_t output_reserve =
       std::min<std::uint64_t>(128U, options.context_tokens / 4U);
-  if (options.gemma4_moe26b_vision && images.size() > 1U) {
-    return Status(StatusCode::kUnsupported,
-                  "the Gemma 4 26B Vision profile supports exactly one image");
-  }
   const std::uint64_t fixed_reserve =
       output_reserve + audio_tokens + 64U + images.size() * 2U;
   const std::uint32_t image_budget = AutomaticVisionSoftTokenBudget(
@@ -1018,10 +1040,6 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
   }
   const std::uint64_t output_reserve =
       std::min<std::uint64_t>(128U, options.context_tokens / 4U);
-  if (options.gemma4_moe26b_vision && images.size() > 1U) {
-    return Status(StatusCode::kUnsupported,
-                  "the Gemma 4 26B Vision profile supports exactly one image");
-  }
   const std::uint64_t fixed_reserve =
       output_reserve + audio_tokens + 64U + images.size() * 2U;
   const std::uint32_t image_budget = AutomaticVisionSoftTokenBudget(

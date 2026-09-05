@@ -3,6 +3,7 @@
 
 #include "api_client.h"
 #include "canvas.h"
+#include "gem16_logo.generated.h"
 #include "chat_history.h"
 #include "chat_store.h"
 #include "util/json.h"
@@ -30,7 +31,11 @@ bool TestCanvas() {
     ToolCall create{
         "c1", "canvas_create",
         R"({"title":"Hello","type":"html","source":"<h1>Hello</h1>"})"};
+    const auto initial_instructions = CanvasInstructions(docs);
     ExecuteCanvasTool(docs, create);
+    Require(CanvasInstructions(docs) == initial_instructions, "canvas creation preserves system/KV prefix");
+    Require(ExecuteCanvasTool(docs, {"list", "canvas_list", "{}"}).find(docs.front().id) != std::string::npos,
+            "documents discovered by tool without changing system prompt");
     const auto id = docs.front().id;
     ToolCall edit{
         "c2", "canvas_edit",
@@ -40,6 +45,7 @@ bool TestCanvas() {
     Require(docs[0].revisions.size() == 2 &&
                 docs[0].revisions.back().source == "<h1>Grüße</h1>",
             "bounded Unicode edit");
+    Require(CanvasInstructions(docs) == initial_instructions, "canvas edit preserves system/KV prefix");
     Reject([&] { ExecuteCanvasTool(docs, edit); });
     Require(docs[0].revisions.size() == 2,
             "stale edit leaves history untouched");
@@ -68,6 +74,14 @@ bool TestCanvas() {
     assistant.tool_calls = {create};
     ChatMessage tool{"tool", "created"};
     tool.tool_call_id = "c1";
+    MediaAttachment screenshot;
+    screenshot.kind = MediaKind::kImage;
+    screenshot.file_name = "canvas.png";
+    screenshot.mime_type = "image/png";
+    screenshot.format = "png";
+    screenshot.bytes.assign(kGem16LogoPng, kGem16LogoPng + kGem16LogoPngSize);
+    screenshot.byte_size = screenshot.bytes.size();
+    tool.attachments.push_back(screenshot);
     c.messages = {user, assistant, tool, {"assistant", "Done"}};
     auto repeated = c.messages;
     repeated.push_back(assistant);
@@ -99,7 +113,12 @@ bool TestCanvas() {
       auto loaded = store.Load(c.id).get();
       Require(loaded.canvases[0].revisions.back().source == "<h1>Grüße</h1>",
               "restart preserves code");
+      Require(loaded.messages[2].attachments.size() == 1 &&
+                  loaded.messages[2].attachments[0].bytes == screenshot.bytes,
+              "tool screenshot survives save and reopening");
       auto payload = BuildChatPayload({}, {}, loaded.messages, CanvasTools());
+      Require(payload.find("data:image/png;base64,") != std::string::npos,
+              "tool screenshot remains in canonical wire history");
       Require(payload.find("\"tools\"") != std::string::npos &&
                   payload.find("\"tool_call_id\":\"c1\"") != std::string::npos,
               "tool wire history");

@@ -119,19 +119,24 @@ license remains beside the vendored source.
 This native slice covers the two public profiles and retains NVFP4 internally, but does not yet satisfy the full release contract.
 Complete real-model downloads and clean-machine installation still require equal Windows and Linux qualification.
 Bundled PDF extraction, local time tools, request-specific performance attribution, model-payload reclamation, and native
-installers remain open work. Compact Vision is single-image and has no audio support. Deprecated Compose behavior is input to a
+installers remain open work. Compact Vision accepts multiple images within context capacity and has no audio support. Deprecated Compose behavior is input to a
 new native product decision, not a parity requirement and not a reason to continue modifying the old GUI.
 
 ## Build and run
 
 Requirements are CMake 3.28+, a C++20 compiler, and a current `gem16-server`. Linux additionally needs OpenGL, GTK 3, WebKitGTK 4.1 (2.40 or newer),
-and the GLFW build dependencies for X11 or Wayland; GLFW 3.4 is pinned and fetched by CMake. Poppler `pdftotext` is
+X11 (XWayland in Wayland sessions),
+and the GLFW build dependencies; GLFW 3.4 is pinned and fetched by CMake. Poppler `pdftotext` is
 an optional runtime dependency for PDF attachments. Windows uses platform SDK Direct3D 11 libraries and requires no
 GLFW dependency. Canvas uses the installed Evergreen WebView2 runtime; CMake fetches
 only the pinned SDK and statically links its small loader. No browser engine is bundled.
 Install Linux headers with `sudo pacman -S webkit2gtk-4.1` (Arch) or
 `sudo apt install libwebkit2gtk-4.1-dev` (Ubuntu). The runtime package is
-`libwebkit2gtk-4.1-0` on Ubuntu. See [Canvas behavior](../STUDIO.md#canvas).
+`libwebkit2gtk-4.1-0` on Ubuntu. Canvas embeds WebKitGTK in the GLFW X11 window;
+GLFW and GTK select X11 explicitly. GTK dialogs retain desktop scaling, while a
+process-lifetime GDK display connection keeps the Canvas child in physical pixels.
+The preview is mapped only on frames that present it without an ImGui popup.
+Normal presentation performs no snapshots or texture uploads. See [Canvas behavior](../STUDIO.md#canvas).
 
 Linux:
 
@@ -225,3 +230,19 @@ initialization before mutation; a test exercises that guard. Linux host tests en
 a 2 GiB virtual-memory cap; all three groups have a 60-second timeout. This prevents a
 failing renderer fixture from exhausting the desktop's memory. The 2026-09-04 failure
 and bounded rerun are recorded in `artifacts/studio/storage-lifecycle-2026-09-04.json`.
+
+### Linux live Canvas smoke
+
+On an X11 desktop (or a Wayland desktop with XWayland), run:
+
+```bash
+build/native-studio/bin/gem16-studio --canvas-smoke build/native-studio/canvas-webview-smoke.png
+GDK_SCALE=2 build/native-studio/bin/gem16-studio --canvas-smoke build/native-studio/canvas-webview-hidpi-smoke.png
+```
+
+The smoke needs `libXtst.so.6` for real X11 mouse/keyboard events and briefly opens
+a test window. It checks the foreign X11 parent, placement, live animation without
+PNG capture, text input, on-demand screenshots, resizing without reload, hidden
+capture, popup hiding and close with pending callbacks. The earlier diagnostic
+checks still cover network/file blocking, JS/SVG errors and inner scrolling.
+It is a desktop integration check, separate from the display-independent CTest suite.

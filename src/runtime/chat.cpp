@@ -89,16 +89,16 @@ Result<std::string> MaterializeContent(const GenerationMessage& message, ChatMes
       continue;
     }
     if (part.kind == GenerationContentKind::kToolResult) {
-      if (message.role != "tool" || message.content.size() != 1U) {
-        return Status(StatusCode::kInvalidArgument, "a tool message must contain exactly one tool result");
+      if (message.role != "tool" || !chat_message.tool_call_id.empty()) {
+        return Status(StatusCode::kInvalidArgument, "a tool message must contain exactly one tool result plus optional images");
       }
       chat_message.tool_call_id = part.tool_result.call_id;
       text.append(part.tool_result.output);
       continue;
     }
     if (part.kind == GenerationContentKind::kImage) {
-      if (message.role != "user") {
-        return Status(StatusCode::kInvalidArgument, "image content is supported only in user messages");
+      if (message.role != "user" && message.role != "tool") {
+        return Status(StatusCode::kInvalidArgument, "image content is supported only in user or tool messages");
       }
       if (part.image.patch_count == 0U || part.image.patch_count > 280U ||
           part.image.patches.size() != static_cast<std::size_t>(part.image.patch_count) * 6912U ||
@@ -114,9 +114,9 @@ Result<std::string> MaterializeContent(const GenerationMessage& message, ChatMes
       continue;
     }
     if (part.kind == GenerationContentKind::kGemma4Moe26BImage) {
-      if (message.role != "user") {
+      if (message.role != "user" && message.role != "tool") {
         return Status(StatusCode::kInvalidArgument,
-                      "image content is supported only in user messages");
+                      "image content is supported only in user or tool messages");
       }
       const auto& image = part.moe26b_image;
       if (image.soft_token_count == 0U || image.soft_token_count > 280U ||
@@ -593,7 +593,7 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
               StatusCode::kInvalidArgument,
               "tool result does not match the resident assistant calls"));
         }
-        results.push_back({tool_name, result_part.tool_result.output});
+        results.push_back({tool_name, messages.value().messages[index].content});
       }
       auto continuation = impl_->processor.EncodeToolResultsContinuation(
           results, request.thinking.effort != ThinkingEffort::kOff);

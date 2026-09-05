@@ -54,10 +54,16 @@ Supported top-level fields:
 
 Supported roles are `developer`, `system`, `user`, `assistant`, and `tool`.
 Assistant `tool_calls` and tool results linked by `tool_call_id` are required.
+Chat Completions additionally accepts a tool result `content` array containing
+text and inline `image_url` parts. This GEM16 extension keeps Canvas screenshots
+in the same resident conversation; string tool results remain compatible. The
+Responses function-call-output shape remains text-only. `maximum_images` uses
+UINT32_MAX (4294967295) to denote no fixed image-count cap on a Vision profile;
+context, request-body and storage limits still apply.
 Text input is required for every profile. Inline image/audio content remains a
 capability extension and is not necessary for Agent Core conformance. The
 qualified 12B profile supports its declared image/audio inputs. The separate
-26B Compact Vision profile accepts exactly one image, rejects
+26B Compact Vision profile accepts multiple images within context/request capacity, rejects
 audio, and consumes `vision_soft_token_budget` without silently substituting a
 different processing budget. If the request omits the extension, the server
 uses the greatest qualified budget that fits both the remaining context and

@@ -213,7 +213,7 @@ void RunOpenAiChatTests() {
   GEM16_CHECK(one_image.ok());
   GEM16_CHECK(two_images.ok());
   GEM16_CHECK(moe26b_image.ok());
-  GEM16_CHECK(!moe26b_multiple_images.ok());
+  GEM16_CHECK(moe26b_multiple_images.ok());
   GEM16_CHECK(moe26b_requested_budget.ok());
   GEM16_CHECK(moe26b_configured_70.ok());
   GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
@@ -238,10 +238,41 @@ void RunOpenAiChatTests() {
     GEM16_CHECK(excessive_budget.status().message() ==
                 "remaining context cannot fit the requested 26B image budget");
   }
-  if (!moe26b_multiple_images.ok()) {
-    GEM16_CHECK(moe26b_multiple_images.status().message() ==
-                "the Gemma 4 26B Vision profile supports exactly one image");
+  if (moe26b_multiple_images.ok()) {
+    const auto& messages = moe26b_multiple_images.value().generation.messages;
+    GEM16_CHECK(messages.size() == 3U);
+    GEM16_CHECK(messages.front().content.front().kind == gem16::GenerationContentKind::kGemma4Moe26BImage);
+    GEM16_CHECK(messages.back().content.front().kind == gem16::GenerationContentKind::kGemma4Moe26BImage);
   }
+  const std::string image_tool_result =
+      "{\"model\":\"gem16\",\"messages\":[{\"role\":\"tool\","
+      "\"tool_call_id\":\"canvas-1\",\"content\":[{\"type\":\"text\",\"text\":\"revision 1\"},"
+      "{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/bmp;base64," +
+      encoded_image + "\"}}]}]}";
+  for (bool compact : {false, true}) {
+    auto tool_image = gem16::server::ParseChatCompletionsRequest(image_tool_result, {512U, compact});
+    GEM16_CHECK(tool_image.ok());
+    if (tool_image.ok()) {
+      const auto& parts = tool_image.value().generation.messages.front().content;
+      GEM16_CHECK(parts.size() == 2U);
+      GEM16_CHECK(parts[0].kind == gem16::GenerationContentKind::kToolResult);
+      GEM16_CHECK(parts[0].tool_result.call_id == "canvas-1");
+      GEM16_CHECK(parts[0].tool_result.output == "revision 1");
+      GEM16_CHECK(parts[1].kind == (compact ? gem16::GenerationContentKind::kGemma4Moe26BImage
+                                          : gem16::GenerationContentKind::kImage));
+    }
+  }
+  // Multiple image turns remain capacity-bounded, not limited to a fixed count.
+  std::string many_images = "{\"model\":\"gem16\",\"vision_soft_token_budget\":70,\"messages\":[{\"role\":\"user\",\"content\":[";
+  for (int index = 0; index < 17; ++index) {
+    if (index) many_images += ',';
+    many_images += "{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/bmp;base64," + encoded_image + "\"}}";
+  }
+  many_images += "]}]}";
+  auto many = gem16::server::ParseChatCompletionsRequest(many_images, {4096U, true});
+  GEM16_CHECK(many.ok());
+  if (many.ok()) GEM16_CHECK(many.value().generation.messages[0].content.size() == 17U);
+  GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(many_images, {512U, true}).ok());
   if (moe26b_image.ok()) {
     const auto& content =
         moe26b_image.value().generation.messages.front().content.front();
@@ -391,11 +422,7 @@ void RunOpenAiChatTests() {
       encoded_image + "\"}]}]}";
   auto responses_multiple_images = gem16::server::ParseResponsesRequest(
       responses_two_images, {512U, true});
-  GEM16_CHECK(!responses_multiple_images.ok());
-  if (!responses_multiple_images.ok()) {
-    GEM16_CHECK(responses_multiple_images.status().message() ==
-                "the Gemma 4 26B Vision profile supports exactly one image");
-  }
+  GEM16_CHECK(responses_multiple_images.ok());
   const std::string responses_requested_budget =
       "{\"model\":\"gem16\",\"vision_soft_token_budget\":140,"
       "\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":["

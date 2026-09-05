@@ -6,7 +6,7 @@ fixed-D2 Assistant. It is an equal public choice alongside 12B Unified.
 
 | Boundary | Public Compact Vision | Internal NVFP4 regression/rollback |
 |---|---|---|
-| Input | Text and one image; no audio | Text only |
+| Input | Text and images within context capacity; no audio | Text only |
 | Resident slots | One | One |
 | Qualified Target context | 229,376 | 98,304 |
 | Qualified fixed-D2 context | 229,120 | 86,016 |

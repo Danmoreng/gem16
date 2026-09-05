@@ -366,6 +366,7 @@ gem16::Result<RequestAdmission> AcquireRequestAdmission(ServerState& state) {
 gem16::Status ValidateRequestCapabilities(
     ServerState& state, const gem16::ChatGenerationRequest& request) {
   std::uint32_t image_count = 0U;
+  bool has_compact_vision = false;
   for (const auto& message : request.messages) {
     for (const auto& part : message.content) {
       if (part.kind == gem16::GenerationContentKind::kAudio &&
@@ -386,6 +387,7 @@ gem16::Status ValidateRequestCapabilities(
         ++image_count;
       }
       if (part.kind == gem16::GenerationContentKind::kGemma4Moe26BImage) {
+        has_compact_vision = true;
         if (!state.runtime->supports_vision()) {
           return gem16::Status(gem16::StatusCode::kUnsupported,
                                "a Vision profile is required for 26B image input");
@@ -408,9 +410,12 @@ gem16::Status ValidateRequestCapabilities(
   }
   if (image_count == 0U) return gem16::Status::Ok();
   state.metrics.vision_requests.fetch_add(1U);
+  // The module/context/fixed-D2 qualification below belongs to 26B. 12B's
+  // integrated Vision path has its own admitted context and MTP support.
+  if (!has_compact_vision) return gem16::Status::Ok();
   if (image_count > state.runtime->maximum_images()) {
     return gem16::Status(gem16::StatusCode::kUnsupported,
-                         "the active Vision profile supports exactly one image");
+                         "image count exceeds the active Vision profile capacity");
   }
   if (state.max_context > state.runtime->vision_max_context_tokens()) {
     return gem16::Status(gem16::StatusCode::kUnsupported,

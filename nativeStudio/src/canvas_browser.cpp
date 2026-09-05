@@ -11,6 +11,8 @@
 #include "util/json.h"
 #if defined(GEM16_WITH_WEBKIT)
 #include <webkit2/webkit2.h>
+#include <gdk/gdkx.h>
+#include <dlfcn.h>
 #elif defined(GEM16_WITH_WEBVIEW2)
 #include <windows.h>
 #include <objbase.h>
@@ -43,8 +45,17 @@ struct Preview {
 };
 }  // namespace
 #if defined(GEM16_WITH_WEBKIT)
+namespace {
+GdkWindow* canvas_host = nullptr;
+GdkDisplay* canvas_display = nullptr;
+struct GtkPreview : Preview {
+  bool direct = false, presented = false, visible = false, want_capture = false;
+  Clock::time_point observed_at{};
+  int width = 1024, height = 768;
+};
+}  // namespace
 struct CanvasBrowser::Impl {
-  std::shared_ptr<Preview> state = std::make_shared<Preview>();
+  std::shared_ptr<GtkPreview> state = std::make_shared<GtkPreview>();
   GtkWidget* window = nullptr;
   WebKitWebView* view = nullptr;
   GCancellable* cancel = nullptr;
@@ -53,13 +64,14 @@ struct CanvasBrowser::Impl {
     if (!view || !s->loaded || s->closed ||
         Clock::now() - s->loaded_at < std::chrono::milliseconds(500))
       return;
-    if (!s->observing) {
+    if (!s->observing && Clock::now() - s->observed_at > std::chrono::milliseconds(100)) {
+      s->observed_at = Clock::now();
       s->observing = true;
       webkit_web_view_evaluate_javascript(
           view, kCanvasObservationScript, -1, nullptr, nullptr, cancel,
           [](GObject* object, GAsyncResult* result, gpointer data) {
-            std::unique_ptr<std::shared_ptr<Preview>> hold(
-                static_cast<std::shared_ptr<Preview>*>(data));
+            std::unique_ptr<std::shared_ptr<GtkPreview>> hold(
+                static_cast<std::shared_ptr<GtkPreview>*>(data));
             auto s = *hold;
             GError* error = nullptr;
             auto value = webkit_web_view_evaluate_javascript_finish(
@@ -73,15 +85,16 @@ struct CanvasBrowser::Impl {
             if (error) g_error_free(error);
             s->observing = false;
           },
-          new std::shared_ptr<Preview>(s));
+          new std::shared_ptr<GtkPreview>(s));
     }
+    if (s->direct && !s->want_capture) return;
     if (s->capturing ||
         Clock::now() - s->captured_at < std::chrono::milliseconds(100))
       return;
     s->capturing = true;
     s->captured_at = Clock::now();
     const auto viewport_revision = s->viewport_revision;
-    struct Snapshot { std::shared_ptr<Preview> state; unsigned revision; };
+    struct Snapshot { std::shared_ptr<GtkPreview> state; unsigned revision; };
     webkit_web_view_get_snapshot(
         view, WEBKIT_SNAPSHOT_REGION_VISIBLE, WEBKIT_SNAPSHOT_OPTIONS_NONE,
         cancel,
@@ -104,8 +117,12 @@ struct CanvasBrowser::Impl {
                 },
                 &png);
             if (status == CAIRO_STATUS_SUCCESS) {
-              s->pixels = DecodePreviewImage(png.data(), png.size());
-              s->png = std::move(png);
+              auto pixels = DecodePreviewImage(png.data(), png.size());
+              if (pixels.width == s->width && pixels.height == s->height) {
+                s->pixels = std::move(pixels);
+                s->png = std::move(png);
+                s->want_capture = false;
+              }
             }
           }
           if (surface) cairo_surface_destroy(surface);
@@ -119,7 +136,18 @@ struct CanvasBrowser::Impl {
   }
 };
 int InitializeCanvasBrowser(int, char**) {
+  // Both toolkits must use the same X11 display. Wayland sessions use
+  // XWayland; native Wayland cannot reparent a foreign toolkit surface.
+  gdk_set_allowed_backends("x11");
   initialized = gtk_init_check(nullptr, nullptr);
+  if (initialized) {
+    // Dedicated connection: Canvas uses physical pixels, while GTK file
+    // dialogs retain the desktop's scale on the default connection.
+    if (!canvas_display)
+      canvas_display = gdk_display_open(gdk_display_get_name(gdk_display_get_default()));
+    initialized = canvas_display && GDK_IS_X11_DISPLAY(canvas_display);
+    if (initialized) gdk_x11_display_set_window_scale(canvas_display, 1);
+  }
   return -1;
 }
 void PumpCanvasBrowser() {
@@ -129,6 +157,9 @@ void PumpCanvasBrowser() {
 }
 void ShutdownCanvasBrowser() {
   PumpCanvasBrowser();
+  SetCanvasBrowserHost(nullptr);
+  // GDK owns the display until process exit, just like its default display.
+  // WebKit can still release asynchronous renderer resources after Close().
   initialized = false;
 }
 bool CanvasBrowserAvailable() { return initialized; }
@@ -146,7 +177,7 @@ void CanvasBrowser::Close() {
     impl_->window = nullptr;
     impl_->view = nullptr;
   }
-  impl_->state = std::make_shared<Preview>();
+  impl_->state = std::make_shared<GtkPreview>();
 }
 void CanvasBrowser::Load(const CanvasDocument& d) {
   auto key = d.id + ":" + std::to_string(d.revisions.back().number);
@@ -159,6 +190,8 @@ void CanvasBrowser::Load(const CanvasDocument& d) {
   auto& i = *impl_;
   auto s = i.state;
   s->key = key;
+  s->width = width_;
+  s->height = height_;
   i.cancel = g_cancellable_new();
   auto context = webkit_web_context_new_ephemeral();
   webkit_web_context_set_sandbox_enabled(context, true);
@@ -179,20 +212,38 @@ void CanvasBrowser::Load(const CanvasDocument& d) {
   webkit_settings_set_enable_page_cache(settings, false);
   webkit_settings_set_media_playback_requires_user_gesture(settings, true);
   webkit_web_view_set_is_muted(i.view, true);
-  // A realized GTK window is required by modern WebKitGTK. Its contents are
-  // composited into ImGui via the official snapshot API (not
-  // GtkOffscreenWindow).
+  // A real X11 child surface receives native WebKit mouse, keyboard and
+  // scrolling events. The no-host window exists only for diagnostic smokes.
+  s->direct = canvas_host != nullptr;
   i.window = gtk_window_new(GTK_WINDOW_POPUP);
-  gtk_window_set_accept_focus(GTK_WINDOW(i.window), false);
-  gtk_widget_set_opacity(i.window, 0);
-  gtk_window_move(GTK_WINDOW(i.window), -12000, -12000);
+  gtk_window_set_screen(GTK_WINDOW(i.window), gdk_display_get_default_screen(canvas_display));
+  gtk_window_set_accept_focus(GTK_WINDOW(i.window), s->direct);
+  gtk_window_set_focus_on_map(GTK_WINDOW(i.window), false);
+  if (!s->direct) {
+    gtk_widget_set_opacity(i.window, 0);
+    gtk_window_move(GTK_WINDOW(i.window), -12000, -12000);
+  }
+  // GLFW X11 coordinates and viewport dimensions are physical pixels.
+  // Keep the GTK surface in the same coordinate space even with GDK_SCALE=2.
+  gtk_widget_realize(i.window);
   gtk_widget_set_size_request(GTK_WIDGET(i.view), width_, height_);
   gtk_container_add(GTK_CONTAINER(i.window), GTK_WIDGET(i.view));
+  if (s->direct) {
+    gdk_window_reparent(gtk_widget_get_window(i.window), canvas_host, 0, 0);
+    g_signal_connect(i.view, "button-press-event",
+        G_CALLBACK(+[](GtkWidget* widget, GdkEventButton* event, gpointer window) -> gboolean {
+          auto surface = gtk_widget_get_window(GTK_WIDGET(window));
+          XSetInputFocus(gdk_x11_display_get_xdisplay(canvas_display),
+                         gdk_x11_window_get_xid(surface), RevertToParent, event->time);
+          gtk_widget_grab_focus(widget);
+          return false;
+        }), i.window);
+  }
   auto raw = s.get();
   g_signal_connect(
       i.view, "load-changed",
       G_CALLBACK(+[](WebKitWebView*, WebKitLoadEvent event, gpointer p) {
-        auto s = static_cast<Preview*>(p);
+        auto s = static_cast<GtkPreview*>(p);
         if (event == WEBKIT_LOAD_FINISHED) {
           s->loaded = true;
           s->loaded_at = Clock::now();
@@ -213,7 +264,7 @@ void CanvasBrowser::Load(const CanvasDocument& d) {
           if (type == WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION || !uri ||
               (std::strcmp(uri, "about:blank") &&
                std::strcmp(uri, "about:srcdoc"))) {
-            auto s = static_cast<Preview*>(p);
+            auto s = static_cast<GtkPreview*>(p);
             if (s->diagnostics.size() < 22000)
               s->diagnostics += "Blocked navigation\n";
             webkit_policy_decision_ignore(decision);
@@ -238,16 +289,20 @@ void CanvasBrowser::Load(const CanvasDocument& d) {
       i.view, "web-process-terminated",
       G_CALLBACK(
           +[](WebKitWebView*, WebKitWebProcessTerminationReason, gpointer p) {
-            auto s = static_cast<Preview*>(p);
+            auto s = static_cast<GtkPreview*>(p);
             s->ready = s->loaded = false;
             s->diagnostics = "System WebView renderer terminated.";
           }),
       raw);
   gtk_widget_show_all(i.window);
-  auto empty_region = cairo_region_create();
-  gdk_window_input_shape_combine_region(gtk_widget_get_window(i.window),
-                                        empty_region, 0, 0);
-  cairo_region_destroy(empty_region);
+  if (s->direct) {
+    gtk_widget_hide(i.window);
+  } else {
+    auto empty_region = cairo_region_create();
+    gdk_window_input_shape_combine_region(gtk_widget_get_window(i.window),
+                                          empty_region, 0, 0);
+    cairo_region_destroy(empty_region);
+  }
   auto page = CanvasPage(d);
   webkit_web_view_load_html(i.view, page.c_str(), "about:blank");
 }
@@ -270,7 +325,8 @@ void CanvasBrowser::Mouse(int x, int y, int button, bool up, bool move,
   if (wheel) {
     event->scroll.x = x;
     event->scroll.y = y;
-    event->scroll.direction = wheel > 0 ? GDK_SCROLL_UP : GDK_SCROLL_DOWN;
+    event->scroll.direction = GDK_SCROLL_SMOOTH;
+    event->scroll.delta_y = -wheel / 100.0;
   } else if (move) {
     event->motion.x = x;
     event->motion.y = y;
@@ -331,6 +387,8 @@ void CanvasBrowser::SetViewport(int width, int height) {
   s->height = height;
   if (s->controller) s->controller->put_Bounds({0, 0, width, height});
 #elif defined(GEM16_WITH_WEBKIT)
+  s->width = width;
+  s->height = height;
   if (impl_->view) gtk_widget_set_size_request(GTK_WIDGET(impl_->view), width, height);
   if (impl_->window) gtk_window_resize(GTK_WINDOW(impl_->window), width, height);
 #endif
@@ -338,22 +396,42 @@ void CanvasBrowser::SetViewport(int width, int height) {
 void SetCanvasBrowserHost(void* window) {
 #if defined(GEM16_WITH_WEBVIEW2)
   canvas_host = static_cast<HWND>(window);
+#elif defined(GEM16_WITH_WEBKIT)
+  if (canvas_host) g_object_unref(canvas_host);
+  canvas_host = window && initialized
+      ? gdk_x11_window_foreign_new_for_display(canvas_display,
+            static_cast<Window>(reinterpret_cast<std::uintptr_t>(window)))
+      : nullptr;
 #else
   (void)window;
 #endif
 }
 void CanvasBrowser::BeginFrame() {
-#if defined(GEM16_WITH_WEBVIEW2)
+#if defined(GEM16_WITH_WEBVIEW2) || defined(GEM16_WITH_WEBKIT)
   impl_->state->presented = false;
 #endif
 }
-void CanvasBrowser::EndFrame() {
+void CanvasBrowser::EndFrame(bool covered) {
+#if defined(GEM16_WITH_WEBKIT)
+  if (covered) impl_->state->presented = false;
+#else
+  (void)covered;
+#endif
 #if defined(GEM16_WITH_WEBVIEW2)
   auto s = impl_->state;
   if (s->direct && s->visible && !s->presented) {
     ShowWindow(s->window, SW_HIDE);
     s->visible = false;
     if (s->controller) s->controller->put_IsVisible(FALSE);
+  }
+#elif defined(GEM16_WITH_WEBKIT)
+  auto s = impl_->state;
+  if (s->direct && s->visible != s->presented) {
+    // Decide mapping once, after ImGui has finished opening menus/modals.
+    // Showing in Present and hiding here would flash beneath an open popup.
+    if (s->presented) gtk_widget_show(impl_->window);
+    else gtk_widget_hide(impl_->window);
+    s->visible = s->presented;
   }
 #endif
 }
@@ -376,6 +454,13 @@ bool CanvasBrowser::Present(int client_x, int client_y) {
     if (s->controller) s->controller->put_IsVisible(TRUE);
   }
   return true;
+#elif defined(GEM16_WITH_WEBKIT)
+  auto s = impl_->state;
+  if (!s->direct || !impl_->window) return false;
+  s->presented = true;
+  auto window = gtk_widget_get_window(impl_->window);
+  gdk_window_move_resize(window, client_x, client_y, width_, height_);
+  return true;
 #else
   (void)client_x;
   (void)client_y;
@@ -383,7 +468,7 @@ bool CanvasBrowser::Present(int client_x, int client_y) {
 #endif
 }
 void CanvasBrowser::RequestScreenshot() {
-#if defined(GEM16_WITH_WEBVIEW2)
+#if defined(GEM16_WITH_WEBVIEW2) || defined(GEM16_WITH_WEBKIT)
   auto s = impl_->state;
   s->png.clear();
   s->want_capture = true;
@@ -392,7 +477,7 @@ void CanvasBrowser::RequestScreenshot() {
 bool CanvasBrowser::Ready() const {
   impl_->Capture();
   auto s = impl_->state;
-#if defined(GEM16_WITH_WEBVIEW2)
+#if defined(GEM16_WITH_WEBVIEW2) || defined(GEM16_WITH_WEBKIT)
   if (s->direct) return s->ready && !s->want_capture;
 #endif
   return s->ready && !s->png.empty();
@@ -528,8 +613,12 @@ int RunCanvasBrowserSmoke(const std::string& output) {
   browser.Mouse(100, 100, 0, false, false, -1200);
   if (!wait(browser, [&] {
         auto p = browser.Pixels();
+        // Inspect inside the page: WebKit may draw a focus indicator at
+        // the viewport edge after the native click preceding the scroll.
+        const auto at = (50 * p.width + 50) * 4;
         return browser.Diagnostics().find("inner-scroll-passed") != std::string::npos &&
-               !p.rgba.empty() && p.rgba[0] == 0x11;
+               p.width > 50 && p.height > 50 && !p.rgba.empty() &&
+               p.rgba[at] == 0x11 && p.rgba[at + 1] == 0x88 && p.rgba[at + 2] == 0x44;
       })) {
     std::fprintf(stderr, "Canvas inner page scrolling failed: %s\n",
                  browser.Diagnostics().c_str());
@@ -540,6 +629,113 @@ int RunCanvasBrowserSmoke(const std::string& output) {
   // chats.
   browser.Close();
   PumpCanvasBrowser();
+#if defined(GEM16_WITH_WEBKIT)
+  // Exercise a native child on the same foreign-window boundary as GLFW.
+  auto host = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_default_size(GTK_WINDOW(host), 1200, 900);
+  gtk_widget_show(host);
+  SetCanvasBrowserHost(reinterpret_cast<void*>(static_cast<std::uintptr_t>(
+      gdk_x11_window_get_xid(gtk_widget_get_window(host)))));
+  const bool direct_passed = [&] {
+    CanvasBrowser live;
+    d.revisions.push_back({4, R"HTML(<body style="margin:0;background:#123456"><input style="position:absolute;left:20px;top:20px" onfocus="console.error('native-focus')" oninput="console.error('native-key-'+this.value)"><button style="position:absolute;left:20px;top:80px;width:180px;height:50px" onclick="document.body.style.background='#118844';console.error('native-click')">Click</button><script>let frames=0;function tick(){if(++frames===30)console.error('animation-passed');requestAnimationFrame(tick)}tick()</script></body>)HTML"});
+    live.SetViewport(800, 600);
+    live.Load(d);
+    live.BeginFrame();
+    if (!live.Present(200, 100)) return false;
+    live.EndFrame();
+    if (!wait(live, [&] {
+          return live.Ready() && live.Diagnostics().find("animation-passed") != std::string::npos;
+        })) { std::fprintf(stderr, "Live load/animation: %s\n", live.Diagnostics().c_str()); return false; }
+    auto state = live.impl_->state;
+    auto window = gtk_widget_get_window(live.impl_->window);
+    int x = 0, y = 0;
+    gdk_window_get_position(window, &x, &y);
+    Window root = 0, parent = 0, *children = nullptr;
+    unsigned count = 0;
+    XQueryTree(gdk_x11_display_get_xdisplay(canvas_display),
+               gdk_x11_window_get_xid(window), &root, &parent, &children, &count);
+    if (children) XFree(children);
+    if (!state->direct || !state->png.empty() || state->capturing ||
+        x != 200 || y != 100 || parent != gdk_x11_window_get_xid(canvas_host))
+      { std::fprintf(stderr, "Live placement: %d,%d\n", x, y); return false; }
+    // XTEST drives the real server input route (not CanvasBrowser::Mouse or
+    // synthetic GTK signals). This dependency is only needed by the smoke.
+    auto xtst = dlopen("libXtst.so.6", RTLD_NOW | RTLD_LOCAL);
+    if (!xtst) return false;
+    auto motion = reinterpret_cast<int (*)(Display*, int, int, int, unsigned long)>(
+        dlsym(xtst, "XTestFakeMotionEvent"));
+    auto button = reinterpret_cast<int (*)(Display*, unsigned, Bool, unsigned long)>(
+        dlsym(xtst, "XTestFakeButtonEvent"));
+    auto key = reinterpret_cast<int (*)(Display*, unsigned, Bool, unsigned long)>(
+        dlsym(xtst, "XTestFakeKeyEvent"));
+    if (!motion || !button || !key) { dlclose(xtst); return false; }
+    auto display = gdk_x11_display_get_xdisplay(canvas_display);
+    int root_x = 0, root_y = 0;
+    gdk_window_get_origin(window, &root_x, &root_y);
+    motion(display, -1, root_x + 50, root_y + 100, 0);
+    button(display, 1, True, 0);
+    button(display, 1, False, 0);
+    XFlush(display);
+    if (!wait(live, [&] { return live.Diagnostics().find("native-click") != std::string::npos; })) {
+      dlclose(xtst);
+      std::fprintf(stderr, "Live click: %s\n", live.Diagnostics().c_str()); return false;
+    }
+    motion(display, -1, root_x + 50, root_y + 30, 0);
+    button(display, 1, True, 0);
+    button(display, 1, False, 0);
+    XSync(display, False);
+    if (!wait(live, [&] { return live.Diagnostics().find("native-focus") != std::string::npos; })) {
+      dlclose(xtst); return false;
+    }
+    key(display, XKeysymToKeycode(display, XK_a), True, 0);
+    key(display, XKeysymToKeycode(display, XK_a), False, 0);
+    XFlush(display);
+    dlclose(xtst);
+    if (!wait(live, [&] { return live.Diagnostics().find("native-key-a") != std::string::npos; }))
+      { std::fprintf(stderr, "Live keyboard: %s\n", live.Diagnostics().c_str()); return false; }
+    if (!state->png.empty() || state->capturing) return false;
+    live.RequestScreenshot();
+    if (!wait(live, [&] { return live.Ready(); }) || live.Screenshot().empty() ||
+        live.Pixels().width != 800 || live.Pixels().height != 600 ||
+        live.Pixels().rgba[0] != 0x11) return false;
+    live.SetViewport(900, 700);
+    live.Present(150, 120);
+    live.EndFrame();
+    if (!state->png.empty() || state->want_capture) return false;
+    live.RequestScreenshot();
+    if (!wait(live, [&] { return live.Ready(); }) || live.Pixels().width != 900 ||
+        live.Pixels().height != 700 || live.Pixels().rgba[0] != 0x11) return false;
+    live.BeginFrame();
+    live.EndFrame();
+    if (state->visible || gtk_widget_get_visible(live.impl_->window)) return false;
+    // canvas_check must also work while Code/History or another screen is open.
+    live.RequestScreenshot();
+    if (!wait(live, [&] { return live.Ready(); }) || live.Screenshot().empty()) return false;
+    live.BeginFrame();
+    live.Present(200, 100);
+    live.EndFrame();
+    if (!state->visible) return false;
+    live.EndFrame(true);
+    if (state->visible) return false;
+    live.BeginFrame();
+    live.Present(200, 100);
+    live.EndFrame();
+    live.RequestScreenshot();
+    live.Ready();
+    live.Close();
+    PumpCanvasBrowser();
+    return true;
+  }();
+  SetCanvasBrowserHost(nullptr);
+  gtk_widget_destroy(host);
+  PumpCanvasBrowser();
+  if (!direct_passed) {
+    std::fprintf(stderr, "Canvas native embedding/input/on-demand capture failed\n");
+    return 1;
+  }
+  std::fprintf(stdout, "Linux native child: animation, native mouse/keyboard, on-demand PNG, resize/state, hide/show and pending close passed.\n");
+#endif
 #if defined(GEM16_WITH_WEBVIEW2)
   // Exercise the production windowed controller, not just the diagnostic
   // composition controller. Normal rendering must never request a PNG.

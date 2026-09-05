@@ -276,6 +276,7 @@ class ModelRuntime {
   // fixed-D2 Assistant combination. Generic Vision and MTP support must not
   // be combined to infer this capability.
   [[nodiscard]] bool vision_mtp_supported() const;
+  // UINT32_MAX means no fixed count limit; context and request bounds apply.
   [[nodiscard]] std::uint32_t maximum_images() const;
   [[nodiscard]] std::span<const std::uint32_t>
   vision_soft_token_budgets() const;
