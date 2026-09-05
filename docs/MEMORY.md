@@ -1,5 +1,14 @@
 # Memory
 
+## Current 26B long-context admission reserve
+
+Per the 2026-09-05 owner decision, 26B contexts of at least 65,536 tokens require
+200 MiB (209,715,200 bytes) free at startup, including the engine's preliminary
+slot check. The final long-context fixed-D2 admission already used 200 MiB.
+This changes the admission threshold, not any allocation, format or numerical
+behavior. Short-context and 12B reserves remain unchanged. Historical measurements
+below retain the thresholds under which they were originally accepted.
+
 ## Windows checkpoint-hash staging
 
 Trellis35 metadata hashing and compiled 26B Target/Assistant range hashing use

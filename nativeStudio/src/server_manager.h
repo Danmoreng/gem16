@@ -7,6 +7,7 @@
 #include <deque>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <thread>
 
 namespace gem16::studio {
@@ -47,5 +48,6 @@ class ServerManager final {
 [[nodiscard]] std::vector<std::string> BuildServerCommand(const ServerConfig& config);
 [[nodiscard]] std::string HealthCompatibilityError(
     const ServerConfig& config, const HealthSnapshot& health);
+[[nodiscard]] std::string ServerStartupError(std::string_view log_line);
 
 }  // namespace gem16::studio

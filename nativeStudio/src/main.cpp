@@ -136,7 +136,6 @@ LRESULT WINAPI WindowProc(HWND window, UINT message, WPARAM w_param, LPARAM l_pa
 }
 
 int RunWindows() {
-  ImGui_ImplWin32_EnableDpiAwareness();
   HICON window_icon = CreateGem16WindowIcon();
   WNDCLASSEXW window_class{};
   window_class.cbSize = sizeof(window_class);
@@ -199,6 +198,7 @@ int RunWindows() {
   ImGui_ImplWin32_Init(window);
   ImGui_ImplDX11_Init(d3d.device.Get(), d3d.context.Get());
   gem16::studio::ImageTexture::InitializeRenderer(d3d.device.Get());
+  gem16::studio::SetCanvasBrowserHost(window);
 
   gem16::studio::ShaderBackground background;
   if (!background.Initialize(d3d.device.Get(), d3d.context.Get())) {
@@ -354,9 +354,20 @@ int RunLinux() {
 
 #ifdef _WIN32
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
+  ImGui_ImplWin32_EnableDpiAwareness();
   const int webview = gem16::studio::InitializeCanvasBrowser(0, nullptr);
   if (webview >= 0) return webview;
-  const int result = RunWindows();
+  int argc = 0;
+  auto argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+  int result = 0;
+  if (argv && argc == 3 && std::wstring(argv[1]) == L"--canvas-smoke") {
+    const auto path = std::filesystem::path(argv[2]).u8string();
+    result = gem16::studio::RunCanvasBrowserSmoke(
+        std::string(reinterpret_cast<const char*>(path.data()), path.size()));
+  } else {
+    result = RunWindows();
+  }
+  LocalFree(argv);
   gem16::studio::ShutdownCanvasBrowser();
   return result;
 #else

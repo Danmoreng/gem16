@@ -100,7 +100,13 @@ bool TestVision26BDefaultsAndCommand() {
       config,
       gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8);
   const auto command = gem16::studio::BuildServerCommand(config);
-  return config.max_context_tokens == 229120 && config.max_sessions == 1 &&
+#ifdef _WIN32
+  constexpr std::int64_t expected_context = 170000;
+#else
+  constexpr std::int64_t expected_context = 229120;
+#endif
+  return config.max_context_tokens == expected_context && config.max_sessions == 1 &&
+         Contains(command, std::to_string(expected_context)) &&
          config.mtp_draft_tokens == 2 && !config.mtp_adaptive &&
          config.vision_soft_token_budget == 280 &&
          config.model_directory ==
@@ -114,6 +120,19 @@ bool TestVision26BDefaultsAndCommand() {
          Contains(command, "--vision-max-soft-token-budget") &&
          Contains(command, "280") &&
          Contains(command, "--assistant-model");
+}
+
+bool TestServerStartupErrors() {
+  using gem16::studio::ServerStartupError;
+  if (!ServerStartupError("info model_loaded").empty() ||
+      ServerStartupError("error model_load_failed error=\"cannot create Gemma 4 26B execution slot: free=0\"")
+              .find("Reduce Context tokens") == std::string::npos ||
+      ServerStartupError("error model_load_failed error=\"cudaErrorMemoryAllocation\"")
+              .find("GPU memory") == std::string::npos ||
+      ServerStartupError("error model_load_failed error=\"invalid checkpoint\"")
+              .find("invalid checkpoint") == std::string::npos)
+    return false;
+  return true;
 }
 
 bool TestVisionAttachmentPolicyAndEstimate() {
@@ -1198,7 +1217,7 @@ int main(int argc, char** argv) {
   if (argc == 2 && std::string_view(argv[1]) == "--markdown")
     return TestExtendedMarkdown() ? 0 : 1;
   if (!TestCanvas() || !TestChatStore()) return 1;
-  if (!TestModelLifecycle()) return 1;
+  if (!TestModelLifecycle() || !TestServerStartupErrors()) return 1;
   if (!TestFailedChatHistory() || !TestStreamingErrorPreservesPartial() || !TestCancelBeforeChatDispatch() || !TestReverifySameSizeCorruption()) {
     std::fprintf(stderr, "chat cancellation/history or model re-verification regression failed\n");
     return 1;

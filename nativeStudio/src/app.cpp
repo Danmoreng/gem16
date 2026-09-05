@@ -538,6 +538,7 @@ void StudioApp::ApplyTheme() const {
 }
 
 void StudioApp::Render() {
+  canvas_browser_.BeginFrame();
   DrainChatEvents();
   PollServerAction();
   PollChatStore();
@@ -608,6 +609,7 @@ void StudioApp::Render() {
   }
   ImGui::EndChild();
   ImGui::End();
+  canvas_browser_.EndFrame();
 }
 
 void StudioApp::DrainChatEvents() {
@@ -782,6 +784,10 @@ void StudioApp::DrawSidebar() {
       ImGui::GetColorU32(ImGuiCol_TextDisabled));
   if (ImGui::IsItemHovered())
     ImGui::SetTooltip("Server controls: start, stop or restart");
+  ImGui::SetNextWindowPos({status_position.x, status_position.y - Ui(6)},
+                          ImGuiCond_Always, {0, 1});
+  ImGui::SetNextWindowSizeConstraints({Ui(300), 0},
+                                     {Ui(300), ImGui::GetMainViewport()->WorkSize.y - Ui(24)});
   if (ImGui::BeginPopup("Server controls")) {
     const bool owned = server_.OwnsProcess();
     ImGui::TextUnformatted(PhaseLabel(phase));

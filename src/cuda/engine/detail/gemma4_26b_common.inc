@@ -23,7 +23,7 @@ constexpr unsigned kArgmaxBlocks =
 constexpr std::array<std::uint32_t, 4> kCaptureLayers{0U, 5U, 6U, 29U};
 constexpr std::uint64_t kMiB = 1024U * 1024U;
 constexpr std::uint64_t kPrimaryContextMargin = 700U * kMiB;
-constexpr std::uint64_t kLongContextMargin = 400U * kMiB;
+constexpr std::uint64_t kLongContextMargin = 200U * kMiB;
 constexpr std::uint32_t kMaximumSuppressedTokens = 16U;
 constexpr std::uint32_t kRepetitionMaskWords =
     static_cast<std::uint32_t>((kVocabulary + 31U) / 32U);

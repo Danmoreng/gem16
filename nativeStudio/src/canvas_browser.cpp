@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <thread>
@@ -11,9 +12,10 @@
 #if defined(GEM16_WITH_WEBKIT)
 #include <webkit2/webkit2.h>
 #elif defined(GEM16_WITH_WEBVIEW2)
+#include <windows.h>
+#include <objbase.h>
 #include <WebView2.h>
 #include <dcomp.h>
-#include <windows.h>
 #include <wrl.h>
 
 #include <filesystem>
@@ -30,6 +32,7 @@ struct Preview {
   bool closed = false, loaded = false, capturing = false, observing = false,
        ready = false;
   Clock::time_point loaded_at{}, captured_at{};
+  unsigned viewport_revision = 0;
   void Observe(const std::string& text) {
     auto p = json::Parse(text, {8, 100, 32768});
     if (!p.ok() || !p.value().is_object()) return;
@@ -77,17 +80,18 @@ struct CanvasBrowser::Impl {
       return;
     s->capturing = true;
     s->captured_at = Clock::now();
+    const auto viewport_revision = s->viewport_revision;
+    struct Snapshot { std::shared_ptr<Preview> state; unsigned revision; };
     webkit_web_view_get_snapshot(
         view, WEBKIT_SNAPSHOT_REGION_VISIBLE, WEBKIT_SNAPSHOT_OPTIONS_NONE,
         cancel,
         [](GObject* object, GAsyncResult* result, gpointer data) {
-          std::unique_ptr<std::shared_ptr<Preview>> hold(
-              static_cast<std::shared_ptr<Preview>*>(data));
-          auto s = *hold;
+          std::unique_ptr<Snapshot> hold(static_cast<Snapshot*>(data));
+          auto s = hold->state;
           GError* error = nullptr;
           auto surface = webkit_web_view_get_snapshot_finish(
               WEBKIT_WEB_VIEW(object), result, &error);
-          if (surface && !s->closed) {
+          if (surface && !s->closed && hold->revision == s->viewport_revision) {
             std::vector<std::uint8_t> png;
             auto status = cairo_surface_write_to_png_stream(
                 surface,
@@ -111,7 +115,7 @@ struct CanvasBrowser::Impl {
           }
           s->capturing = false;
         },
-        new std::shared_ptr<Preview>(s));
+        new Snapshot{s, viewport_revision});
   }
 };
 int InitializeCanvasBrowser(int, char**) {
@@ -182,7 +186,7 @@ void CanvasBrowser::Load(const CanvasDocument& d) {
   gtk_window_set_accept_focus(GTK_WINDOW(i.window), false);
   gtk_widget_set_opacity(i.window, 0);
   gtk_window_move(GTK_WINDOW(i.window), -12000, -12000);
-  gtk_widget_set_size_request(GTK_WIDGET(i.view), 1024, 768);
+  gtk_widget_set_size_request(GTK_WIDGET(i.view), width_, height_);
   gtk_container_add(GTK_CONTAINER(i.window), GTK_WIDGET(i.view));
   auto raw = s.get();
   g_signal_connect(
@@ -304,9 +308,93 @@ void CanvasBrowser::Load(const CanvasDocument&) {}
 void CanvasBrowser::Close() {}
 void CanvasBrowser::Mouse(int, int, int, bool, bool, int) {}
 #endif
+void CanvasBrowser::SetViewport(int width, int height) {
+  // Match the image decoder's bounded preview allocation.
+  width = std::clamp(width, 1, 7680);
+  height = std::clamp(height, 1, 4320);
+  const double scale = std::min(1.0, std::sqrt(16.0 * 1024 * 1024 / (double(width) * height)));
+  width = std::max(1, static_cast<int>(width * scale));
+  height = std::max(1, static_cast<int>(height * scale));
+  if (width == width_ && height == height_) return;
+  width_ = width;
+  height_ = height;
+  auto s = impl_->state;
+  ++s->viewport_revision;
+  s->png.clear();
+  s->pixels = {};
+  s->captured_at = {};
+#if defined(GEM16_WITH_WEBVIEW2)
+  if (s->window)
+    SetWindowPos(s->window, nullptr, 0, 0, width, height,
+                 SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOZORDER);
+  s->width = width;
+  s->height = height;
+  if (s->controller) s->controller->put_Bounds({0, 0, width, height});
+#elif defined(GEM16_WITH_WEBKIT)
+  if (impl_->view) gtk_widget_set_size_request(GTK_WIDGET(impl_->view), width, height);
+  if (impl_->window) gtk_window_resize(GTK_WINDOW(impl_->window), width, height);
+#endif
+}
+void SetCanvasBrowserHost(void* window) {
+#if defined(GEM16_WITH_WEBVIEW2)
+  canvas_host = static_cast<HWND>(window);
+#else
+  (void)window;
+#endif
+}
+void CanvasBrowser::BeginFrame() {
+#if defined(GEM16_WITH_WEBVIEW2)
+  impl_->state->presented = false;
+#endif
+}
+void CanvasBrowser::EndFrame() {
+#if defined(GEM16_WITH_WEBVIEW2)
+  auto s = impl_->state;
+  if (s->direct && s->visible && !s->presented) {
+    ShowWindow(s->window, SW_HIDE);
+    s->visible = false;
+    if (s->controller) s->controller->put_IsVisible(FALSE);
+  }
+#endif
+}
+bool CanvasBrowser::Present(int client_x, int client_y) {
+#if defined(GEM16_WITH_WEBVIEW2)
+  auto s = impl_->state;
+  if (!s->direct) return false;
+  s->presented = true;
+  POINT point{client_x, client_y};
+  RECT bounds{point.x, point.y, point.x + width_, point.y + height_};
+  if (!EqualRect(&bounds, &s->placement)) {
+    SetWindowPos(s->window, nullptr, point.x, point.y, width_, height_,
+                 SWP_NOACTIVATE | SWP_NOZORDER);
+    s->placement = bounds;
+    if (s->controller) s->controller->NotifyParentWindowPositionChanged();
+  }
+  if (!s->visible) {
+    ShowWindow(s->window, SW_SHOWNOACTIVATE);
+    s->visible = true;
+    if (s->controller) s->controller->put_IsVisible(TRUE);
+  }
+  return true;
+#else
+  (void)client_x;
+  (void)client_y;
+  return false;
+#endif
+}
+void CanvasBrowser::RequestScreenshot() {
+#if defined(GEM16_WITH_WEBVIEW2)
+  auto s = impl_->state;
+  s->png.clear();
+  s->want_capture = true;
+#endif
+}
 bool CanvasBrowser::Ready() const {
   impl_->Capture();
   auto s = impl_->state;
+#if defined(GEM16_WITH_WEBVIEW2)
+  if (s->direct) return s->ready && !s->want_capture;
+#endif
   return s->ready && !s->png.empty();
 }
 std::string CanvasBrowser::Key() const { return impl_->state->key; }
@@ -340,8 +428,10 @@ int RunCanvasBrowserSmoke(const std::string& output) {
   CanvasBrowser browser;
   browser.Load(d);
   if (!wait(browser, [&] {
+        const auto diagnostics = browser.Diagnostics();
         return browser.Ready() &&
-               browser.Diagnostics().find("Script error") != std::string::npos;
+               (diagnostics.find("Script error") != std::string::npos ||
+                diagnostics.find("deliberate-js-error") != std::string::npos);
       })) {
     std::fprintf(stderr, "Canvas render/diagnostics failed: %s\n",
                  browser.Diagnostics().c_str());
@@ -351,13 +441,24 @@ int RunCanvasBrowserSmoke(const std::string& output) {
   auto pixels = browser.Pixels();
   if (pixels.width != 1024 || pixels.height != 768 || pixels.rgba.empty() ||
       pixels.rgba[0] != 0x12) {
-    std::fprintf(stderr, "Canvas screenshot dimensions/color failed\n");
+    std::fprintf(stderr, "Canvas screenshot dimensions/color failed: %dx%d, first red=%u\n",
+                 pixels.width, pixels.height,
+                 pixels.rgba.empty() ? 0 : pixels.rgba[0]);
     return 1;
   }
   if (browser.Diagnostics().find("Network blocked") == std::string::npos ||
       browser.Diagnostics().find("File blocked") == std::string::npos) {
     std::fprintf(stderr, "Canvas isolation diagnostics missing\n");
     return 1;
+  }
+  // The host document must not add a scrollbar or an inline-iframe baseline
+  // below a page that fits. Both far edges must show the child background.
+  for (const auto at : {((768 * 1024) - 1) * 4, (400 * 1024 + 1023) * 4}) {
+    if (pixels.rgba[at] != 0x12 || pixels.rgba[at + 1] != 0x34 ||
+        pixels.rgba[at + 2] != 0x56) {
+      std::fprintf(stderr, "Canvas outer frame adds overflow or a border\n");
+      return 1;
+    }
   }
   std::ofstream file(output, std::ios::binary);
   file.write(reinterpret_cast<const char*>(image.data()), image.size());
@@ -386,6 +487,23 @@ int RunCanvasBrowserSmoke(const std::string& output) {
                  browser.Diagnostics().c_str());
     return 1;
   }
+  for (const auto size : {ImageDimensions{800, 600}, ImageDimensions{1440, 900}}) {
+    browser.SetViewport(size.width, size.height);
+    if (browser.Ready()) {
+      std::fprintf(stderr, "Canvas reused a screenshot from before resize\n");
+      return 1;
+    }
+    if (!wait(browser, [&] {
+          const auto p = browser.Pixels();
+          return browser.Ready() && p.width == size.width && p.height == size.height &&
+                 !p.rgba.empty() && p.rgba[0] == 0x11 &&
+                 browser.Diagnostics().find("interaction-passed") != std::string::npos;
+        })) {
+      std::fprintf(stderr, "Canvas resize/state preservation failed: %s\n",
+                   browser.Diagnostics().c_str());
+      return 1;
+    }
+  }
   d.type = "svg";
   d.revisions.push_back(
       {2, "<svg xmlns=\"http://www.w3.org/2000/svg\"><path></svg>"});
@@ -402,15 +520,66 @@ int RunCanvasBrowserSmoke(const std::string& output) {
                  browser.Diagnostics().c_str());
     return 1;
   }
+  d.type = "html";
+  d.revisions.push_back({3, R"HTML(<body style="margin:0;background:#118844"><div style="height:200px;background:#123456"></div><div style="height:3000px"></div><script>addEventListener('scroll',()=>{if(scrollY>200)console.error('inner-scroll-passed')})</script></body>)HTML"});
+  browser.Load(d);
+  if (!wait(browser, [&] { return browser.Ready(); })) return 1;
+  browser.Mouse(100, 100, 0, false, true);
+  browser.Mouse(100, 100, 0, false, false, -1200);
+  if (!wait(browser, [&] {
+        auto p = browser.Pixels();
+        return browser.Diagnostics().find("inner-scroll-passed") != std::string::npos &&
+               !p.rgba.empty() && p.rgba[0] == 0x11;
+      })) {
+    std::fprintf(stderr, "Canvas inner page scrolling failed: %s\n",
+                 browser.Diagnostics().c_str());
+    return 1;
+  }
   // Closing while a snapshot/observation is pending must not retain callbacks
   // into the destroyed browser. The same lifecycle is used when switching
   // chats.
   browser.Close();
   PumpCanvasBrowser();
+#if defined(GEM16_WITH_WEBVIEW2)
+  // Exercise the production windowed controller, not just the diagnostic
+  // composition controller. Normal rendering must never request a PNG.
+  HWND host = CreateWindowExW(0, L"STATIC", L"Canvas test", WS_POPUP,
+                              100, 100, 1600, 1000, nullptr, nullptr,
+                              GetModuleHandle(nullptr), nullptr);
+  if (!host) return 1;
+  SetCanvasBrowserHost(host);
+  const bool direct_passed = [&] {
+    CanvasBrowser live;
+    live.Load(d);
+    live.BeginFrame();
+    if (!live.Present(200, 100) || !wait(live, [&] { return live.Ready(); })) return false;
+    auto state = live.impl_->state;
+    if (!state->direct || state->composition || !state->png.empty() || state->capturing)
+      return false;
+    RECT rect{};
+    GetWindowRect(state->window, &rect);
+    MapWindowPoints(nullptr, host, reinterpret_cast<POINT*>(&rect), 2);
+    if (rect.left != 200 || rect.top != 100) return false;
+    live.RequestScreenshot();
+    if (!wait(live, [&] { return live.Ready(); }) || live.Screenshot().empty()) return false;
+    live.SetViewport(900, 700);
+    live.Present(250, 120);
+    if (!state->png.empty() || state->want_capture) return false;
+    live.BeginFrame();
+    live.EndFrame();
+    return !state->visible && !IsWindowVisible(state->window);
+  }();
+  SetCanvasBrowserHost(nullptr);
+  DestroyWindow(host);
+  if (!direct_passed) {
+    std::fprintf(stderr, "Canvas direct embedding/on-demand capture failed\n");
+    return 1;
+  }
+#endif
   std::fprintf(stdout,
                "Canvas system WebView: HTML/JS, 1024x768 PNG (%zu bytes), "
                "mouse interaction, blocked network/file, JS/SVG diagnostics, "
-               "revision invalidation and close passed.\n",
+               "800x600/1440x900 resize without reload, no outer overflow, inner scrolling, revision invalidation and close passed.\n",
                image.size());
   return 0;
 }

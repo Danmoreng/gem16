@@ -20,7 +20,7 @@ for(const level of ['warn','error']){const old=console[level];console[level]=(..
   const auto child = prefix + source;
   const auto encoded =
       EncodeBase64(std::vector<std::uint8_t>(child.begin(), child.end()));
-  return R"(<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src about: 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'"><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;background:white}</style><iframe sandbox="allow-scripts"></iframe><script>
+  return R"(<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src about: 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'"><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;background:white}html,body{overflow:hidden}iframe{display:block;position:absolute;inset:0}</style><iframe sandbox="allow-scripts"></iframe><script>
 window.__canvasDiagnostics=[];window.__canvasReady=false;
 const frame=document.querySelector('iframe');
 function report(s){if(__canvasDiagnostics.length<12)__canvasDiagnostics.push(String(s).slice(0,2000))}

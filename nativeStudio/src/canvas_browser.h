@@ -10,11 +10,17 @@ int InitializeCanvasBrowser(int argc, char** argv);
 void PumpCanvasBrowser();
 void ShutdownCanvasBrowser();
 bool CanvasBrowserAvailable();
+void SetCanvasBrowserHost(void* window);
 class CanvasBrowser {
  public:
   CanvasBrowser();
   ~CanvasBrowser();
   void Load(const CanvasDocument& document);
+  void SetViewport(int width, int height);
+  void BeginFrame();
+  void EndFrame();
+  bool Present(int client_x, int client_y);
+  void RequestScreenshot();
   void Close();
   bool Ready() const;
   std::string Key() const;
@@ -24,8 +30,10 @@ class CanvasBrowser {
   void Mouse(int x, int y, int button, bool up, bool move, int wheel = 0);
 
  private:
+  friend int RunCanvasBrowserSmoke(const std::string& output);
   struct Impl;
   std::unique_ptr<Impl> impl_;
+  int width_ = 1024, height_ = 768;
 };
 }  // namespace gem16::studio
 namespace gem16::studio {

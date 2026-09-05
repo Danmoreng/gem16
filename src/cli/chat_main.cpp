@@ -904,7 +904,7 @@ int ChatMain(int argc, char** argv) {
     const std::uint64_t admission_margin =
         long_mtp ? 200U * 1024U * 1024U
                  : moe26b && options.max_context >= 65536U
-                       ? 400U * 1024U * 1024U
+                       ? 200U * 1024U * 1024U
                        : 700U * 1024U * 1024U;
     std::cout
         << "{\"schema_version\":1,\"model_variant\":"

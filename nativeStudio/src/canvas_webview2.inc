@@ -2,6 +2,7 @@
 using Microsoft::WRL::Callback;
 using Microsoft::WRL::ComPtr;
 namespace {
+HWND canvas_host = nullptr;
 std::wstring Wide(const std::string& text) {
   int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
                               static_cast<int>(text.size()), nullptr, 0);
@@ -23,6 +24,9 @@ std::string Utf8(const wchar_t* text) {
 }
 struct WinPreview : Preview {
   HWND window = nullptr;
+  bool direct = false, presented = false, visible = false, want_capture = false;
+  RECT placement{};
+  Clock::time_point observed_at{};
   ComPtr<ICoreWebView2Environment> environment;
   ComPtr<ICoreWebView2Controller> controller;
   ComPtr<ICoreWebView2CompositionController> composition;
@@ -31,7 +35,9 @@ struct WinPreview : Preview {
   ComPtr<IDCompositionVisual> visual;
   ComPtr<IDCompositionTarget> target;
   unsigned buttons = 0;
+  int width = 1024, height = 768;
   std::string page;
+  std::wstring initial_document_uri;
 };
 }  // namespace
 struct CanvasBrowser::Impl {
@@ -41,7 +47,8 @@ struct CanvasBrowser::Impl {
     if (!s->view || s->closed || !s->loaded ||
         Clock::now() - s->loaded_at < std::chrono::milliseconds(500))
       return;
-    if (!s->observing) {
+    if (!s->observing && Clock::now() - s->observed_at > std::chrono::milliseconds(100)) {
+      s->observed_at = Clock::now();
       s->observing = true;
       std::weak_ptr<WinPreview> weak = s;
       auto hr = s->view->ExecuteScript(
@@ -61,6 +68,7 @@ struct CanvasBrowser::Impl {
               .Get());
       if (FAILED(hr)) s->observing = false;
     }
+    if (s->direct && !s->want_capture) return;
     if (s->capturing ||
         Clock::now() - s->captured_at < std::chrono::milliseconds(100))
       return;
@@ -71,12 +79,12 @@ struct CanvasBrowser::Impl {
     std::weak_ptr<WinPreview> weak = s;
     auto hr = s->view->CapturePreview(
         COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_PNG, stream.Get(),
-        Callback<ICoreWebView2CapturePreviewCompletedHandler>([weak, stream](
+        Callback<ICoreWebView2CapturePreviewCompletedHandler>([weak, stream, revision = s->viewport_revision](
                                                                   HRESULT hr)
                                                                   -> HRESULT {
           if (auto s = weak.lock()) {
             s->capturing = false;
-            if (!s->closed && SUCCEEDED(hr)) {
+            if (!s->closed && SUCCEEDED(hr) && revision == s->viewport_revision) {
               STATSTG stat{};
               if (SUCCEEDED(stream->Stat(&stat, STATFLAG_NONAME)) &&
                   stat.cbSize.QuadPart <= 8U * 1024U * 1024U) {
@@ -88,8 +96,12 @@ struct CanvasBrowser::Impl {
                 if (SUCCEEDED(stream->Read(
                         png.data(), static_cast<ULONG>(png.size()), &read)) &&
                     read == png.size()) {
-                  s->pixels = DecodePreviewImage(png.data(), png.size());
-                  s->png = std::move(png);
+                  auto pixels = DecodePreviewImage(png.data(), png.size());
+                  if (pixels.width == s->width && pixels.height == s->height) {
+                    s->pixels = std::move(pixels);
+                    s->png = std::move(png);
+                    s->want_capture = false;
+                  }
                 }
               }
             }
@@ -159,10 +171,18 @@ void CanvasBrowser::Load(const CanvasDocument& d) {
   if (!initialized) return;
   auto s = impl_->state;
   s->key = key;
+  s->direct = canvas_host != nullptr;
+  s->width = width_;
+  s->height = height_;
   s->page = CanvasPage(d);
+  // NavigateToString reports its bootstrap as a data URI on WebView2. Permit
+  // exactly this host-generated document once, only in the top-level view.
+  s->initial_document_uri = L"data:text/html;charset=utf-8;base64," +
+      Wide(EncodeBase64(std::vector<std::uint8_t>(s->page.begin(), s->page.end())));
   s->window = CreateWindowExW(
-      WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, L"STATIC", L"gem16 Canvas", WS_POPUP,
-      0, 0, 1024, 768, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
+      s->direct ? 0 : WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, L"STATIC", L"gem16 Canvas",
+      s->direct ? WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS : WS_POPUP,
+      0, 0, width_, height_, canvas_host, nullptr, GetModuleHandle(nullptr), nullptr);
   if (!s->window) {
     s->diagnostics = "Cannot create WebView host.";
     return;
@@ -193,38 +213,36 @@ void CanvasBrowser::Load(const CanvasDocument& d) {
               return S_OK;
             }
             options->put_IsInPrivateModeEnabled(TRUE);
-            auto result = env10->CreateCoreWebView2CompositionControllerWithOptions(
-                s->window, options.Get(),
-                Callback<
-                    ICoreWebView2CreateCoreWebView2CompositionControllerCompletedHandler>(
-                    [weak](HRESULT hr,
-                           ICoreWebView2CompositionController* c) -> HRESULT {
+            auto setup = [weak](HRESULT hr, ICoreWebView2Controller* controller,
+                                ICoreWebView2CompositionController* composition) -> HRESULT {
                       auto s = weak.lock();
                       if (!s || s->closed) return S_OK;
-                      if (FAILED(hr) || !c) {
+                      if (FAILED(hr) || !controller) {
                         s->diagnostics = "System WebView2 controller failed.";
                         return S_OK;
                       }
-                      s->composition = c;
-                      c->QueryInterface(IID_PPV_ARGS(&s->controller));
-                      if (!s->controller) {
-                        s->diagnostics =
-                            "System WebView2 controller unavailable.";
+                      s->controller = controller;
+                      s->composition = composition;
+                      if (composition) {
+                        if (FAILED(DCompositionCreateDevice(nullptr, IID_PPV_ARGS(&s->device))) ||
+                            FAILED(s->device->CreateVisual(&s->visual)) ||
+                            FAILED(s->device->CreateTargetForHwnd(s->window, TRUE, &s->target))) {
+                          s->diagnostics = "WebView composition initialization failed.";
+                          return S_OK;
+                        }
+                        s->target->SetRoot(s->visual.Get());
+                        composition->put_RootVisualTarget(s->visual.Get());
+                        s->device->Commit();
+                      }
+                      ComPtr<ICoreWebView2Controller3> scale;
+                      if (FAILED(s->controller.As(&scale)) ||
+                          FAILED(scale->put_ShouldDetectMonitorScaleChanges(FALSE)) ||
+                          FAILED(scale->put_RasterizationScale(1.0)) ||
+                          FAILED(scale->put_BoundsMode(COREWEBVIEW2_BOUNDS_MODE_USE_RAW_PIXELS))) {
+                        s->diagnostics = "Cannot configure WebView pixel coordinates.";
                         return S_OK;
                       }
-                      if (FAILED(DCompositionCreateDevice(
-                              nullptr, IID_PPV_ARGS(&s->device))) ||
-                          FAILED(s->device->CreateVisual(&s->visual)) ||
-                          FAILED(s->device->CreateTargetForHwnd(s->window, TRUE,
-                                                                &s->target))) {
-                        s->diagnostics =
-                            "WebView composition initialization failed.";
-                        return S_OK;
-                      }
-                      s->target->SetRoot(s->visual.Get());
-                      c->put_RootVisualTarget(s->visual.Get());
-                      s->device->Commit();
-                      s->controller->put_Bounds({0, 0, 1024, 768});
+                      s->controller->put_Bounds({0, 0, s->width, s->height});
                       s->controller->put_IsVisible(TRUE);
                       s->controller->get_CoreWebView2(&s->view);
                       ComPtr<ICoreWebView2Settings> settings;
@@ -235,9 +253,10 @@ void CanvasBrowser::Load(const CanvasDocument& d) {
                       settings->put_IsWebMessageEnabled(FALSE);
                       settings->put_AreHostObjectsAllowed(FALSE);
                       EventRegistrationToken token{};
-                      auto nav =
+                      const auto navigation = [weak](bool top_level) {
+                        return
                           Callback<ICoreWebView2NavigationStartingEventHandler>(
-                              [](ICoreWebView2*,
+                              [weak, top_level](ICoreWebView2*,
                                  ICoreWebView2NavigationStartingEventArgs* args)
                                   -> HRESULT {
                                 LPWSTR uri = nullptr;
@@ -245,12 +264,26 @@ void CanvasBrowser::Load(const CanvasDocument& d) {
                                 bool allowed =
                                     uri && (!wcscmp(uri, L"about:blank") ||
                                             !wcscmp(uri, L"about:srcdoc"));
+                                if (auto s = weak.lock(); s && top_level &&
+                                    !s->initial_document_uri.empty()) {
+                                  allowed = allowed ||
+                                      (uri && s->initial_document_uri == uri);
+                                  s->initial_document_uri.clear();
+                                }
+                                if (!allowed) {
+                                  if (auto s = weak.lock())
+                                    s->diagnostics = "Blocked WebView navigation: " +
+                                                     Utf8(uri).substr(0, 32);
+                                }
                                 CoTaskMemFree(uri);
                                 args->put_Cancel(!allowed);
                                 return S_OK;
                               });
+                      };
+                      auto nav = navigation(true);
+                      auto frame_nav = navigation(false);
                       s->view->add_NavigationStarting(nav.Get(), &token);
-                      s->view->add_FrameNavigationStarting(nav.Get(), &token);
+                      s->view->add_FrameNavigationStarting(frame_nav.Get(), &token);
                       s->view->add_NewWindowRequested(
                           Callback<ICoreWebView2NewWindowRequestedEventHandler>(
                               [](ICoreWebView2*,
@@ -284,9 +317,12 @@ void CanvasBrowser::Load(const CanvasDocument& d) {
                                   args->get_IsSuccess(&success);
                                   s->loaded = success;
                                   s->loaded_at = Clock::now();
-                                  if (!success)
-                                    s->diagnostics =
-                                        "WebView navigation failed.";
+                                  if (!success) {
+                                    COREWEBVIEW2_WEB_ERROR_STATUS status{};
+                                    args->get_WebErrorStatus(&status);
+                                    s->diagnostics += " WebView navigation failed (status " +
+                                        std::to_string(static_cast<int>(status)) + ").";
+                                  }
                                 }
                                 return S_OK;
                               })
@@ -308,11 +344,34 @@ void CanvasBrowser::Load(const CanvasDocument& d) {
                           &token);
                       // CSP also applies to subresources in the opaque
                       // generated frame.
-                      s->view->NavigateToString(Wide(s->page).c_str());
+                      const auto navigate = s->view->NavigateToString(Wide(s->page).c_str());
+                      if (FAILED(navigate)) {
+                        s->initial_document_uri.clear();
+                        s->diagnostics = "WebView document submission failed (HRESULT " +
+                            std::to_string(static_cast<unsigned long>(navigate)) + ").";
+                      }
                       s->page.clear();
                       return S_OK;
-                    })
-                    .Get());
+                    };
+            HRESULT result;
+            if (s->direct) {
+              result = env10->CreateCoreWebView2ControllerWithOptions(
+                  s->window, options.Get(),
+                  Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+                      [setup](HRESULT hr, ICoreWebView2Controller* controller) {
+                        return setup(hr, controller, nullptr);
+                      }).Get());
+            } else {
+              result = env10->CreateCoreWebView2CompositionControllerWithOptions(
+                  s->window, options.Get(),
+                  Callback<ICoreWebView2CreateCoreWebView2CompositionControllerCompletedHandler>(
+                      [setup](HRESULT hr, ICoreWebView2CompositionController* composition) {
+                        ComPtr<ICoreWebView2Controller> controller;
+                        if (composition) composition->QueryInterface(IID_PPV_ARGS(&controller));
+                        return setup(hr, controller.Get(), composition);
+                      }).Get());
+            }
+
             if (FAILED(result))
               s->diagnostics = "System WebView2 creation failed.";
             return S_OK;

@@ -15,7 +15,7 @@ namespace {
 constexpr std::uint64_t kMiB = 1024U * 1024U;
 constexpr std::uint64_t kWeightAlignment = 256U;
 constexpr std::uint64_t kPrimaryMargin = 700U * kMiB;
-constexpr std::uint64_t kLongContextMargin = 400U * kMiB;
+constexpr std::uint64_t kLongContextMargin = 200U * kMiB;
 constexpr std::uint64_t kM08PayloadBytes = 14'696'569'196ULL;
 constexpr std::uint64_t kM25AssistantPayloadBytes = 258'306'160ULL;
 

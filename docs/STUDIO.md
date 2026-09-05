@@ -33,6 +33,13 @@ Compact Vision offers 70/140/280 image budgets with preview, estimate and remove
 controls. D2 requires the server's matching live capability. See the
 [26B guide](GEMMA4_26B.md) for context limits.
 
+On Windows, newly selected Compact Vision profiles start with **170,000 context
+tokens** to leave room for WDDM and other desktop applications. The qualified
+maximum is still configurable; it is not a guaranteed fit with other GPU users.
+Existing saved configurations retain their context value. If startup reports
+insufficient GPU memory, reduce **Server → Context tokens** (try 65,536) and
+start again. Studio never silently retries at a different context or precision.
+
 ## Chat and recovery
 
 Answers support selectable Markdown, code copying and math.
@@ -78,7 +85,20 @@ WebView2 runtime. Missing runtime support is reported explicitly. The preview
 runs self-contained code in an isolated frame with external network/files,
 permissions, popups and host bindings disabled. Use system fonts and embedded images.
 
-`canvas_check` returns browser diagnostics and can request a real 1024×768 PNG.
+On Windows, Canvas embeds a live WebView2 child window with native input handling.
+Normal display does not capture PNGs or upload preview textures; screenshots are
+requested only for `canvas_check` image review. Linux still displays WebKitGTK
+snapshots in ImGui; direct live embedding there remains follow-up work.
+
+The preview viewport follows the available panel width and height, including
+framebuffer scaling, instead of stretching a fixed 4:3 image. Resizing preserves
+the loaded page and its JavaScript state. Preview allocations retain the existing
+16-megapixel image limit.
+The outer preview document does not scroll; overflowing page content scrolls
+inside the isolated page itself.
+
+`canvas_check` returns browser diagnostics and can request a real PNG of the
+current viewport, reporting its actual pixel dimensions.
 The same active Vision model reviews that screenshot in a separate, sequential,
 one-image request and returns its observations to the editing agent. This respects
 Compact Vision's single-image/single-slot limit; the chat session rebuilds afterward.

@@ -59,6 +59,19 @@ std::string Timestamp() {
 
 }  // namespace
 
+std::string ServerStartupError(std::string_view line) {
+  if (line.find("model_load_failed") == std::string_view::npos) return {};
+  if (line.find("execution slot") != std::string_view::npos ||
+      line.find("out of memory") != std::string_view::npos ||
+      line.find("cudaErrorMemoryAllocation") != std::string_view::npos) {
+    return "Not enough free GPU memory to load this model at the configured "
+           "context. Reduce Context tokens in Server settings, "
+           "or close other GPU applications, then start again. "
+           "The server log contains the memory details.";
+  }
+  return std::string(line);
+}
+
 std::string HealthCompatibilityError(const ServerConfig& config,
                                      const HealthSnapshot& health) {
   if (!health.available) return "Server health is unavailable";
@@ -179,7 +192,8 @@ void ServerManager::Start(const ServerConfig& config) {
           phase_ = ServerPhase::kStopped;
         } else {
           phase_ = exit_code == 0 ? ServerPhase::kStopped : ServerPhase::kError;
-          if (exit_code != 0) error_ = "gem16-server exited with code " + std::to_string(exit_code);
+          if (exit_code != 0 && error_.empty())
+            error_ = "gem16-server exited with code " + std::to_string(exit_code);
         }
       },
       start_error);
@@ -352,6 +366,8 @@ std::string ServerManager::Validate(const ServerConfig& config) const {
 
 void ServerManager::AppendLog(std::string line) {
   std::lock_guard lock(mutex_);
+  if (const auto failure = ServerStartupError(line); !failure.empty())
+    error_ = failure;
   logs_.push_back(Timestamp() + "  " + std::move(line));
   while (logs_.size() > 1000) logs_.pop_front();
 }

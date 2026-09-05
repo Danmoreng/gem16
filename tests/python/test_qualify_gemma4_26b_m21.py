@@ -36,7 +36,7 @@ parser.add_argument("--device")
 args = parser.parse_args()
 if args.context > 65_536:
     raise SystemExit(20)
-margin = (400 if args.context >= 65_536 else 700) * 1024 * 1024
+margin = (200 if args.context >= 65_536 else 700) * 1024 * 1024
 free = margin + 1024 * 1024
 payload = {
     "schema_version": 1,
@@ -93,7 +93,7 @@ class M21QualificationTest(unittest.TestCase):
     def test_context_parser_and_margins(self) -> None:
         self.assertEqual(MODULE.parse_contexts("65536,32768,65536"), [32768, 65536])
         self.assertEqual(MODULE.expected_margin(32768), 700 * 1024 * 1024)
-        self.assertEqual(MODULE.expected_margin(65536), 400 * 1024 * 1024)
+        self.assertEqual(MODULE.expected_margin(65536), 200 * 1024 * 1024)
         self.assertEqual(
             MODULE.driver_command(Path("driver.py")),
             [sys.executable, "driver.py"],

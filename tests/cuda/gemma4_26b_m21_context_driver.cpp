@@ -205,7 +205,7 @@ int main(int argc, char** argv) {
     return 8;
   }
   const std::uint64_t required_margin =
-      options.context >= 65536U ? 400U * 1024U * 1024U
+      options.context >= 65536U ? 200U * 1024U * 1024U
                                 : 700U * 1024U * 1024U;
   output << std::setprecision(9)
          << "{\"schema_version\":1,\"milestone\":\"M21\","

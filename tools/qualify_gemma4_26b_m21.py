@@ -97,7 +97,7 @@ def parse_contexts(value: str) -> list[int]:
 
 
 def expected_margin(context: int) -> int:
-    return (400 if context >= 65_536 else 700) * MIB
+    return (200 if context >= 65_536 else 700) * MIB
 
 
 def driver_command(executable: Path) -> list[str]:

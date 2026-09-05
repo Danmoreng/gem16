@@ -128,6 +128,16 @@ capability, checkpoint or quality claim; wider performance publication still
 requires the permanent benchmark contract.
 
 
+### Owner update: 26B long-context admission reserve (2026-09-05)
+
+Use 200 MiB (209,715,200 bytes) of free device memory for 26B long-context
+startup admission at 65,536 tokens and above, including the preliminary engine
+slot check. This supersedes the previous 400 MiB long-context requirement;
+the existing 200 MiB final fixed-D2 check remains consistent with it. The 700 MiB
+short-context and 12B policies are unchanged. Context capacity must still be
+explicit and pass actual admission with Vision, Assistant and the desktop active.
+No weight offload, precision change or automatic context fallback is authorized.
+
 ## Open product gates
 
 - [Bounded Linux SDK and Pi development evidence](AGENT_COMPATIBILITY.md) covers

@@ -50,6 +50,41 @@ void Require(bool value, const char* message) {
 }  // namespace
 namespace gem16::studio {
 struct StudioAppTestAccess {
+  static void CheckServerPopup(StudioApp& app) {
+    auto& io = ImGui::GetIO();
+    const auto original_size = io.DisplaySize;
+    const auto frame = [&](bool open) {
+      ImGui::NewFrame();
+      if (open) {
+        ImGuiWindow* sidebar = nullptr;
+        for (auto* window : GImGui->Windows)
+          if (window->ParentWindow &&
+              std::string_view(window->ParentWindow->Name) == "##gem16-root" &&
+              std::string_view(window->Name).find("##sidebar") != std::string_view::npos)
+            sidebar = window;
+        Require(sidebar != nullptr, "sidebar exists before opening controls");
+        ImGui::OpenPopupEx(ImHashStr("Server controls", 0, sidebar->IDStack.back()),
+                           ImGuiPopupFlags_None);
+      }
+      app.Render();
+      ImGui::Render();
+    };
+    io.AddMousePosEvent(450, 350);
+    frame(true);
+    for (const auto height : {1050.0f, 1250.0f}) {
+      io.DisplaySize.y = height;
+      for (int i = 0; i < 3; ++i) frame(false);
+      Require(!GImGui->OpenPopupStack.empty(), "server controls remain open");
+      const auto* popup = GImGui->OpenPopupStack.back().Window;
+      Require(popup && popup->Pos.y + popup->Size.y > height - 180 &&
+                  popup->Pos.y + popup->Size.y < height - 60,
+              "server popup stays above footer after resize, away from mouse position");
+    }
+    ImGui::ClosePopupToLevel(0, true);
+    io.DisplaySize = original_size;
+    frame(false);
+  }
+
   static void Run(StudioApp& app, const std::string& id) {
     const auto frame = [&] {
       unsigned char* pixels;
@@ -92,6 +127,7 @@ struct StudioAppTestAccess {
     for (int i = 0; i < 4; ++i) frame();
     CaptureStudioScreenshot("studio-models-preview.bmp");
     Require(app.CanNavigateChats(), "idle navigation");
+    CheckServerPopup(app);
     app.NewConversation(true);
     Require(!app.usage_received_ && app.ContextTokens() == 0,
             "new conversation clears the previous context meter");

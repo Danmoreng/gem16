@@ -188,9 +188,13 @@ void ApplyProfileDefaults(ServerConfig& config, ModelProfile profile) {
     config.model_directory = ProfileTargetDirectory(profile).string();
     config.assistant_directory = ProfileAssistantDirectory(profile).string();
     config.vision_directory = ProfileVisionDirectory(profile).string();
-    // V19 repeatedly admitted the full Target+Vision profile at 229,376,
-    // while the default fixed-D2 composite is bounded to 229,120.
+    // Leave room for WDDM and desktop applications on Windows. The qualified
+    // fixed-D2 maximum remains available as an explicit context setting.
+#ifdef _WIN32
+    config.max_context_tokens = 170000;
+#else
     config.max_context_tokens = 229120;
+#endif
   } else {
     config.model_name = "gem16-12b";
     config.model_directory = ProfileTargetDirectory(profile).string();

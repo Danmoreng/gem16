@@ -110,6 +110,7 @@ class StudioApp final {
   ApiClient canvas_vision_;
   CanvasBrowser canvas_browser_;
   ImageTexture canvas_texture_;
+  std::string canvas_check_viewport_;
   std::string selected_canvas_, canvas_status_, canvas_visual_result_,
       canvas_prompt_context_;
   std::vector<ToolCall> canvas_calls_;

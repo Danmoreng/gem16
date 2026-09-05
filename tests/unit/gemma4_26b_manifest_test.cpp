@@ -676,7 +676,7 @@ void RunGemma426BManifestTests() {
     const auto& standard = residency.value().context_profiles[2];
     GEM16_CHECK(standard.required_free_margin_bytes == 734'003'200ULL);
     GEM16_CHECK(residency.value().context_profiles[3]
-                    .required_free_margin_bytes == 419'430'400ULL);
+                    .required_free_margin_bytes == 209'715'200ULL);
     GEM16_CHECK(gem16::internal::CheckGemma4Moe26BAdmission(
                     residency.value(), 32768U, standard.admission_bytes, true)
                     .ok());

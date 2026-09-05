@@ -68,7 +68,7 @@ using gem16::server::WriteSse;
 constexpr std::uint64_t kPrimaryServerVramSafetyBytes =
     700U * 1024U * 1024U;
 constexpr std::uint64_t kLong26BServerVramSafetyBytes =
-    400U * 1024U * 1024U;
+    200U * 1024U * 1024U;
 constexpr std::uint64_t kLong26BMtpServerVramSafetyBytes =
     200U * 1024U * 1024U;
 constexpr std::uint64_t kRequestPayloadLimit = 16U * 1024U * 1024U;
