@@ -35,9 +35,15 @@ Result<RequestAdmission> RequestQueue::Acquire(
     const std::function<bool()>& cancelled) {
   const auto started = std::chrono::steady_clock::now();
   std::unique_lock lock(mutex_);
-  if (cancelled && cancelled()) return Status(StatusCode::kCancelled, "request cancelled before admission");
   if (draining_) {
     return Status(StatusCode::kResourceExhausted, "server is draining");
+  }
+  if (cancelled && cancelled()) {
+    return Status(StatusCode::kCancelled, "request cancelled before admission");
+  }
+  if (started >= deadline) {
+    return Status(StatusCode::kResourceExhausted,
+                  "request admission deadline exceeded");
   }
   if (waiters_.empty() && active_ < capacity_) {
     ++active_;

@@ -64,6 +64,7 @@ def main() -> int:
         "src/runtime/tool_call_parser.cpp",
         "src/cli/server_main.cpp",
         "src/server/session_pool.cpp",
+        "src/server/session_wait.h",
         "src/server/request_queue.cpp",
         "src/server/http_policy.h",
         "src/model/image.cpp",

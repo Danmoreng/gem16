@@ -356,10 +356,10 @@ void SetError(ServerState& state, const gem16::Status& status,
       "application/json; charset=utf-8");
 }
 
-gem16::Result<RequestAdmission> AcquireRequestAdmission(ServerState& state, const httplib::Request& request) {
+gem16::Result<RequestAdmission> AcquireRequestAdmission(
+    ServerState& state, const gem16::server::SessionWaitOptions& wait) {
   auto admission = state.request_queue.Acquire(
-      std::chrono::steady_clock::now() + std::chrono::seconds(30),
-      request.is_connection_closed);
+      wait.deadline, wait.cancelled);
   if (!admission.ok()) {
     state.metrics.queue_rejections.fetch_add(1U);
     return admission.status();
@@ -484,7 +484,10 @@ gem16::Status CheckCancellation(void* opaque_context,
 void HandleCompletion(ServerState& state, const httplib::Request& request,
                       httplib::Response& response) {
   state.metrics.requests_total.fetch_add(1U);
-  auto admission_result = AcquireRequestAdmission(state, request);
+  const gem16::server::SessionWaitOptions wait{
+      std::chrono::steady_clock::now() + std::chrono::seconds(30),
+      request.is_connection_closed};
+  auto admission_result = AcquireRequestAdmission(state, wait);
   if (!admission_result.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, admission_result.status(), response);
@@ -556,7 +559,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
              response);
     return;
   }
-  auto acquired = AcquireNamedSession(state, "chat:" + session_id);
+  auto acquired = AcquireNamedSession(state, "chat:" + session_id, wait);
   if (!acquired.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, acquired.status(), response);
@@ -689,7 +692,10 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
 void HandleResponses(ServerState& state, const httplib::Request& request,
                      httplib::Response& response) {
   state.metrics.requests_total.fetch_add(1U);
-  auto admission_result = AcquireRequestAdmission(state, request);
+  const gem16::server::SessionWaitOptions wait{
+      std::chrono::steady_clock::now() + std::chrono::seconds(30),
+      request.is_connection_closed};
+  auto admission_result = AcquireRequestAdmission(state, wait);
   if (!admission_result.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, admission_result.status(), response);
@@ -730,8 +736,8 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
   gem16::Result<std::shared_ptr<SessionEntry>> acquired =
       parsed.value().previous_response_id.has_value()
           ? AcquireResponseSession(state,
-                                   *parsed.value().previous_response_id)
-          : CreateSessionQueued(state, "responses:" + identity.id);
+                                   *parsed.value().previous_response_id, wait)
+          : CreateSessionQueued(state, "responses:" + identity.id, wait);
   if (!acquired.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, acquired.status(), response);

@@ -16,6 +16,7 @@
 #include "gem16/chat.h"
 #include "server/openai_chat.h"
 #include "server/request_queue.h"
+#include "server/session_wait.h"
 
 namespace gem16::server {
 
@@ -167,11 +168,12 @@ class SessionLease {
 [[nodiscard]] Result<std::shared_ptr<SessionEntry>> CreateSession(
     ServerState& state, std::string id);
 [[nodiscard]] Result<std::shared_ptr<SessionEntry>> CreateSessionQueued(
-    ServerState& state, std::string id);
+    ServerState& state, std::string id, const SessionWaitOptions& wait = {});
 [[nodiscard]] Result<std::shared_ptr<SessionEntry>> AcquireNamedSession(
-    ServerState& state, const std::string& id);
+    ServerState& state, const std::string& id, const SessionWaitOptions& wait = {});
 [[nodiscard]] Result<std::shared_ptr<SessionEntry>> AcquireResponseSession(
-    ServerState& state, const std::string& response_id);
+    ServerState& state, const std::string& response_id,
+    const SessionWaitOptions& wait = {});
 void ReleaseSession(ServerState& state,
                     const std::shared_ptr<SessionEntry>& entry);
 void DiscardSession(ServerState& state,

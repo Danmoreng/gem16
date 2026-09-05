@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "server/request_queue.h"
+#include "server/session_wait.h"
 #include "test.h"
 
 namespace {
@@ -115,9 +116,59 @@ void TestDeadlineAndCancellation() {
   GEM16_CHECK(queue.Snapshot().active == 1U);
 }
 
+void TestSessionWaitBudget() {
+  using namespace std::chrono_literals;
+  gem16::server::RequestQueue queue(2U, 4U);
+  std::mutex mutex;
+  std::condition_variable changed;
+  std::unique_lock lock(mutex);
+  gem16::server::SessionWaitOptions expired{
+      std::chrono::steady_clock::now() - 1ms, {}};
+  // An expired request cannot claim an immediately available session either.
+  GEM16_CHECK(!expired.Wait(changed, lock, queue, [] { return true; }).ok());
+  GEM16_CHECK(!queue.Acquire(expired.deadline).ok());
+  GEM16_CHECK(queue.Snapshot().active == 0U);
+
+  std::atomic<bool> checked{false};
+  std::atomic<bool> cancelled{false};
+  gem16::server::SessionWaitOptions wait{
+      std::chrono::steady_clock::now() + 2s, [&] {
+        checked.store(true);
+        return cancelled.load();
+      }};
+  std::thread disconnect([&] {
+    while (!checked.load()) std::this_thread::yield();
+    cancelled.store(true);  // No pool notification accompanies a disconnect.
+  });
+  const auto cancelled_status = wait.Wait(changed, lock, queue, [] { return false; });
+  disconnect.join();
+  GEM16_CHECK(cancelled_status.code() == gem16::StatusCode::kCancelled);
+  GEM16_CHECK(lock.owns_lock());
+
+  wait.cancelled = {};
+  wait.deadline = std::chrono::steady_clock::now() + 5ms;
+  GEM16_CHECK(wait.Wait(changed, lock, queue, [] { return false; }).code() ==
+              gem16::StatusCode::kResourceExhausted);
+  wait.deadline = std::chrono::steady_clock::now() + 2s;
+  bool ready = false;
+  std::thread release([&] {
+    std::lock_guard guard(mutex);
+    ready = true;
+    changed.notify_all();
+  });
+  GEM16_CHECK(wait.Wait(changed, lock, queue, [&] { return ready; }).ok());
+  lock.unlock();
+  release.join();
+  lock.lock();
+  queue.StartDraining();
+  GEM16_CHECK(wait.Wait(changed, lock, queue, [] { return true; }).code() ==
+              gem16::StatusCode::kResourceExhausted);
+}
+
 }  // namespace
 
 void RunRequestQueueTests() {
+  TestSessionWaitBudget();
   TestDeadlineAndCancellation();
   TestFifoAndCapacity();
   TestBoundedAndDraining();

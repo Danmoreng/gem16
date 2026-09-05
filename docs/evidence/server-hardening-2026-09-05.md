@@ -54,8 +54,18 @@ and pinned Pi CLI; exact commands/configuration and raw outcomes live in the log
 
 ## Remaining qualification
 
-Pool waits still need the admission cancellation/deadline propagated. Long-prefill
+Pool waits now share the admission deadline and observe disconnect/draining. Long-prefill
 abort, systematic exception injection, peak-RSS media stress, historical-image CPU
 reuse, full Pi fork/resume/automatic-compaction coverage, sampling/reasoning/tool
 constraints, Windows GPU and clean-machine tests remain open. The package verifier
 is available, but no publish workflow or release is approved by these results.
+
+## Follow-up: bounded resident-session waits
+
+`session-wait-host` records host and ASan/leak regressions, including expired
+immediate admission, disconnected pool wait without a condition notification,
+deadline expiry, normal wakeup and draining. Both HTTP APIs propagate one budget
+through queued creation, named-session waits and Responses-chain waits. No CUDA
+kernel or prefill chunking changes are included. `session-wait-matrix` records the
+rebuilt candidate and exact source hashes, including `session_wait.h`; its per-profile
+outcomes are authoritative for this follow-up rather than the earlier binary.

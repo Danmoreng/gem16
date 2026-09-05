@@ -184,15 +184,18 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
 }
 
 gem16::Result<std::shared_ptr<SessionEntry>> CreateSessionQueued(
-    ServerState& state, std::string id) {
+    ServerState& state, std::string id, const SessionWaitOptions& wait) {
   for (;;) {
+    const gem16::Status admission_status = wait.Check(state.request_queue);
+    if (!admission_status.ok()) return admission_status;
     auto created = CreateSession(state, id);
     if (created.ok()) return created;
     if (created.status().code() != gem16::StatusCode::kResourceExhausted) {
       return created.status();
     }
     std::unique_lock pool_lock(state.pool_mutex);
-    state.pool_changed.wait(pool_lock, [&] {
+    const gem16::Status wait_status = wait.Wait(
+        state.pool_changed, pool_lock, state.request_queue, [&] {
       if (state.sessions.contains(id) || state.pending_sessions.contains(id)) {
         return false;
       }
@@ -205,20 +208,25 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSessionQueued(
                            return item.second->active_requests.load() == 0U;
                          });
     });
+    if (!wait_status.ok()) return wait_status;
   }
 }
 
 gem16::Result<std::shared_ptr<SessionEntry>> AcquireNamedSession(
-    ServerState& state, const std::string& id) {
+    ServerState& state, const std::string& id, const SessionWaitOptions& wait) {
   for (;;) {
+    const gem16::Status admission_status = wait.Check(state.request_queue);
+    if (!admission_status.ok()) return admission_status;
     std::unique_lock pool_lock(state.pool_mutex);
     const auto found = state.sessions.find(id);
     if (found != state.sessions.end()) {
       if (found->second->active_requests.load() != 0U) {
         const std::shared_ptr<SessionEntry> busy_entry = found->second;
-        state.pool_changed.wait(pool_lock, [busy_entry] {
+        const gem16::Status wait_status = wait.Wait(
+        state.pool_changed, pool_lock, state.request_queue, [busy_entry] {
           return busy_entry->active_requests.load() == 0U;
         });
+        if (!wait_status.ok()) return wait_status;
         continue;
       }
       found->second->active_requests.fetch_add(1U);
@@ -227,9 +235,11 @@ gem16::Result<std::shared_ptr<SessionEntry>> AcquireNamedSession(
       return found->second;
     }
     if (state.pending_sessions.contains(id)) {
-      state.pool_changed.wait(pool_lock, [&] {
+      const gem16::Status wait_status = wait.Wait(
+        state.pool_changed, pool_lock, state.request_queue, [&] {
         return !state.pending_sessions.contains(id);
       });
+      if (!wait_status.ok()) return wait_status;
       continue;
     }
     pool_lock.unlock();
@@ -240,7 +250,8 @@ gem16::Result<std::shared_ptr<SessionEntry>> AcquireNamedSession(
       return created.status();
     }
     std::unique_lock retry_lock(state.pool_mutex);
-    state.pool_changed.wait(retry_lock, [&] {
+    const gem16::Status wait_status = wait.Wait(
+        state.pool_changed, retry_lock, state.request_queue, [&] {
       const auto current = state.sessions.find(id);
       if (current != state.sessions.end()) {
         return current->second->active_requests.load() == 0U;
@@ -255,12 +266,16 @@ gem16::Result<std::shared_ptr<SessionEntry>> AcquireNamedSession(
                            return item.second->active_requests.load() == 0U;
                          });
     });
+    if (!wait_status.ok()) return wait_status;
   }
 }
 
 gem16::Result<std::shared_ptr<SessionEntry>> AcquireResponseSession(
-    ServerState& state, const std::string& response_id) {
+    ServerState& state, const std::string& response_id,
+    const SessionWaitOptions& wait) {
   for (;;) {
+    const gem16::Status admission_status = wait.Check(state.request_queue);
+    if (!admission_status.ok()) return admission_status;
     std::unique_lock pool_lock(state.pool_mutex);
     const auto found = state.response_index.find(response_id);
     if (found == state.response_index.end()) {
@@ -274,9 +289,11 @@ gem16::Result<std::shared_ptr<SessionEntry>> AcquireResponseSession(
                            "previous_response_id was evicted");
     }
     if (entry->active_requests.load() != 0U) {
-      state.pool_changed.wait(pool_lock, [entry] {
+      const gem16::Status wait_status = wait.Wait(
+        state.pool_changed, pool_lock, state.request_queue, [entry] {
         return entry->active_requests.load() == 0U;
       });
+      if (!wait_status.ok()) return wait_status;
       continue;
     }
     entry->active_requests.fetch_add(1U);

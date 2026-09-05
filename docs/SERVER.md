@@ -105,7 +105,8 @@ Up to `--max-sessions` independent requests may execute concurrently; the next
 30 seconds. Disconnected waiters are removed, never later executed. A request beyond that bound gets
 HTTP 503 with `resource_exhausted` instead of growing host memory without a
 limit. Requests targeting the same resident session also wait for its current
-turn to finish. Thus the one-slot 26B profile serializes all generation while
+turn to finish within the same admission deadline. These pool waits poll disconnect
+and draining state at most every 25 ms; they do not receive a fresh 30-second budget. Thus the one-slot 26B profile serializes all generation while
 the qualified two-slot 12B profile retains two-request parallelism. Cancellation,
 health, readiness, liveness and metrics bypass the generation queue.
 HTTP workers number `max_sessions + max_queued_requests + 4`, keeping execution

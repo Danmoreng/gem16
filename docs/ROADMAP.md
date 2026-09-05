@@ -24,7 +24,7 @@ where practical; preserve model specialization and historical evidence.
 | C00 | Server-first docs, 220k Linux / 170k Windows, 200 MiB reserve | Implemented; Linux host/Studio checks passed |
 | C01 | Bounded schema evaluation and exact numbers | Implemented; host and sanitizer checks, including work limits |
 | C02 | Exception-safe session/Responses ownership | Lease/reservation guards implemented; systematic exception injection open |
-| C03 | Deadline/cancel admission, control capacity, shutdown | Bounded admission/control capacity implemented; pool-wait propagation and long-prefill cancellation open |
+| C03 | Deadline/cancel admission, control capacity, shutdown | Bounded admission/control capacity and pool-wait cancellation/deadlines implemented; long-prefill cancellation open |
 | C04 | HTTP preflight and bounded media processing | HTTP/media limits implemented and tested; peak-RSS stress and historical-image CPU reuse open |
 | C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Live Linux affinity/cache/manual compaction passed for both profiles; full fork/resume/automatic-compaction matrix open |
 | C06 | Responses replay, practical sampling/tool compatibility | SDK output replay and parameter validation passed; per-request sampling, reasoning replay and constrained tool choice open |
