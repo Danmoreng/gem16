@@ -264,6 +264,11 @@ if(GEM16_ENABLE_CUDA)
   enable_language(CUDA)
   find_package(CUDAToolkit REQUIRED)
   gem16_configure_cuda_architectures()
+  # These executables predate enable_language(CUDA), so a fresh configure
+  # cannot inherit the architecture needed to device-link gem16_core.
+  set_target_properties(gem16-26b-vision-module-probe gem16-nvfp4-head-diagnostic PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
   add_executable(gem16-trellis35-quantize
     src/cli/trellis35_quantize_main.cu
   )

@@ -1,0 +1,94 @@
+name: Linux Release Candidate
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-linux:
+    name: Package Linux SM120a native archive
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify version
+        run: |
+          version="$(tr -d '\r\n' < VERSION)"
+          if [[ "$GITHUB_REF" == refs/tags/* && "${GITHUB_REF_NAME#v}" != "$version" ]]; then
+            echo 'Release tag must match root VERSION' >&2
+            exit 1
+          fi
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Install build dependencies
+        run: |
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/cuda-keyring.deb" https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+          sudo dpkg -i "$RUNNER_TEMP/cuda-keyring.deb"
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cuda-toolkit-13-3=13.3.1-1 ninja-build libgl1-mesa-dev libgtk-3-dev libwebkit2gtk-4.1-dev libwayland-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxkbcommon-dev pkg-config wayland-protocols
+          echo '/usr/local/cuda-13.3/bin' >> "$GITHUB_PATH"
+          echo 'CUDA_PATH=/usr/local/cuda-13.3' >> "$GITHUB_ENV"
+          echo 'CUDAToolkit_ROOT=/usr/local/cuda-13.3' >> "$GITHUB_ENV"
+          python3 -m venv .ci-venv
+          .ci-venv/bin/python -m pip install -r tools/requirements-ci.txt
+          echo "$PWD/.ci-venv/bin" >> "$GITHUB_PATH"
+
+      - name: Build CUDA release
+        run: |
+          nvcc --version
+          cmake --preset blackwell-release
+          cmake --build --preset blackwell-release --parallel 2
+
+      # Hosted runners have no NVIDIA GPU. Compile GPU tests, but run only
+      # host checks here; this is not GPU or model release qualification.
+      - name: Test CUDA build host contracts
+        run: ctest --preset blackwell-release -R '^gem16-(server-version|unit|responses-allocation|agent-process-cleanup|26b-m23-host-contract|trellis35-compiler-contract|26b-vision-module-contract|26b-m21-host-contract)$'
+
+      - name: Verify native Blackwell instructions
+        run: python tools/verify_sm120_sass.py build/Linux/blackwell-release/bin/gem16-server
+
+      - name: Package headless server
+        run: python tools/package_server.py --binary build/Linux/blackwell-release/bin/gem16-server --platform linux-x64
+
+      - name: Build and test native Studio
+        run: |
+          cmake -S nativeStudio -B build/native-studio-package -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake --build build/native-studio-package --parallel 2
+          ctest --test-dir build/native-studio-package --output-on-failure
+
+      - name: Package native Studio
+        run: bash scripts/package-studio.sh
+
+      - name: Collect release artifacts
+        run: |
+          mkdir -p build/release-artifacts
+          archive="gem16-$RELEASE_VERSION-linux-x64-sm120a.tar.gz"
+          cp build/packages/gem16-linux-x64.tar.gz "build/release-artifacts/$archive"
+          (cd build/release-artifacts && sha256sum "$archive" > "$archive.sha256")
+          cp build/packages/gem16-server-*-linux-x64.tar.gz* build/release-artifacts/
+          {
+            git rev-parse HEAD
+            nvcc --version
+            c++ --version
+            cmake --version
+            ldd build/native-studio-package/bin/gem16-studio
+            ldd build/Linux/blackwell-release/bin/gem16-server
+          } > build/release-artifacts/linux-build-environment.txt
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gem16-linux-${{ env.RELEASE_VERSION }}
+          path: build/release-artifacts/*
+          if-no-files-found: error
+
+      # Publication is separate. The bounded development preview exception is
+      # recorded in docs/ACTIVE_DECISIONS.md; regular release gates remain open.

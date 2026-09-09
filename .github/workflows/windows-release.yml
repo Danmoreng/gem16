@@ -36,6 +36,15 @@ jobs:
           git submodule update --init --recursive --depth=1
           git submodule status --recursive
 
+      - name: Prepare Python test environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python test dependencies
+        shell: pwsh
+        run: python -m pip install -r tools/requirements-ci.txt
+
       - name: Resolve release version
         shell: pwsh
         run: |
@@ -101,7 +110,13 @@ jobs:
 
       - name: Build CUDA release server
         shell: pwsh
-        run: .\scripts\build.ps1 -Cuda -Test -Jobs 2
+        run: .\scripts\build.ps1 -Cuda -Jobs 2
+
+      # Hosted runners have no NVIDIA GPU. Compile GPU tests, but run only
+      # host checks here; this is not GPU or model release qualification.
+      - name: Test CUDA build host contracts
+        shell: pwsh
+        run: ctest --preset blackwell-release -R '^gem16-(server-version|unit|responses-allocation|agent-process-cleanup|26b-m23-host-contract|trellis35-compiler-contract|26b-vision-module-contract|26b-m21-host-contract)$'
 
       - name: Verify native Blackwell instructions
         shell: pwsh
@@ -120,23 +135,25 @@ jobs:
         run: |
           $package = Get-Item .\build\packages\gem16-windows-x64.zip
 
-          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          New-Item -ItemType Directory -Path build/release-artifacts -Force | Out-Null
           $artifactName = "gem16-$env:RELEASE_VERSION-windows-x64-sm120a.zip"
-          $artifactPath = Join-Path (Resolve-Path artifacts) $artifactName
+          $artifactPath = Join-Path (Resolve-Path build/release-artifacts) $artifactName
           Copy-Item -LiteralPath $package.FullName -Destination $artifactPath
           $hash = Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256
           "$($hash.Hash.ToLowerInvariant())  $artifactName" |
             Set-Content -LiteralPath "$artifactPath.sha256" -Encoding ascii
-          Copy-Item .\build\packages\gem16-server-*-windows-x64.zip* artifacts
-          Get-ChildItem artifacts | Format-Table Name, Length
+          Copy-Item .\build\packages\gem16-server-*-windows-x64.zip* build/release-artifacts
+          Get-ChildItem build/release-artifacts | Format-Table Name, Length
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
           name: gem16-windows-${{ env.RELEASE_VERSION }}
-          path: artifacts/*
+          path: build/release-artifacts/*
           if-no-files-found: error
 
       # Candidate upload only. Tag creation cannot bypass the open two-platform,
       # GPU and clean-machine gates. Publication requires separate explicit
-      # authorization and tools/verify_release_gates.py against these artifacts.
+      # authorization. Regular releases also require tools/verify_release_gates.py;
+      # the explicitly authorized development preview exception is recorded in
+      # docs/ACTIVE_DECISIONS.md.

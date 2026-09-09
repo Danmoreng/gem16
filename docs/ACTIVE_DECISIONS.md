@@ -158,6 +158,17 @@ No weight offload, precision change or automatic context fallback is authorized.
 
 ## Open product gates
 
+### Owner update: Windows and Linux development preview (2026-09-09)
+
+The owner authorizes publication of the current 0.2.0-dev Windows and Linux
+development preview, with Studio/server archives and separate headless archives.
+For this clearly marked prerelease only, this supersedes the requirement in
+standing decisions 1 and 10 to finish all two-platform GPU, package and
+clean-machine gates before publication. Build checks, archive integrity and
+honest reporting of missing qualification remain required. It does not waive
+those gates for regular releases, claim new GPU qualification or change model
+behavior. The preview must not replace the latest stable release.
+
 - [Bounded Linux SDK and Pi development evidence](AGENT_COMPATIBILITY.md) covers
   both public profiles. Full Agent Core v1 still needs Windows live execution and
   the remaining contract/lifecycle gates; the bounded matrix is not a release waiver.
