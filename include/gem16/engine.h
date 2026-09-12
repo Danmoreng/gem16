@@ -36,6 +36,17 @@ struct DeviceMemoryInfo {
 using GeneratedTokenCallback = Status (*)(void* context,
                                           std::uint32_t token_id);
 
+// Cooperative checkpoints do not emit tokens or alter prefill chunk planning.
+// The caller owns the context for the duration of Generate.
+struct GenerationCancellation {
+  Status (*callback)(void* context) = nullptr;
+  void* context = nullptr;
+
+  [[nodiscard]] Status Check() const {
+    return callback == nullptr ? Status::Ok() : callback(context);
+  }
+};
+
 struct AudioEmbeddingSegment {
   // Absolute prompt position of the first repeated <|audio|> token.
   std::uint64_t prompt_offset = 0U;
@@ -320,7 +331,8 @@ class ConversationSession {
       std::span<const AudioEmbeddingSegment> audio_segments = {},
       std::span<const VisionEmbeddingSegment> vision_segments = {},
       std::span<const Gemma4Moe26BVisionInputSegment>
-          moe26b_vision_segments = {});
+          moe26b_vision_segments = {},
+      GenerationCancellation cancellation = {});
   [[nodiscard]] std::uint64_t cached_token_count() const;
   [[nodiscard]] std::uint64_t reserved_device_bytes() const;
   [[nodiscard]] bool is_poisoned() const;

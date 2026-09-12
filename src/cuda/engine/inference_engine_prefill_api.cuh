@@ -20,7 +20,8 @@
       std::span<const std::uint32_t> token_ids, std::uint64_t start_position,
       std::span<float> host_logits = {},
       std::span<const AudioEmbeddingSegment> audio_segments = {},
-      std::span<const VisionEmbeddingSegment> vision_segments = {}) {
+      std::span<const VisionEmbeddingSegment> vision_segments = {},
+      GenerationCancellation cancellation = {}) {
     const NvtxRange range("gem16.prefill");
     if (token_ids.empty() || start_position > max_context_ ||
         token_ids.size() > max_context_ - start_position) {
@@ -32,6 +33,14 @@
     }
     std::uint32_t selected_token = 0U;
     for (std::size_t begin = 0; begin < token_ids.size();) {
+      if (cancellation.callback != nullptr) {
+        // Bound outstanding work to one existing chunk. Finish GPU reads of
+        // caller-owned media before an aborted session can release its inputs.
+        const cudaError_t pending = cudaStreamSynchronize(stream_);
+        if (pending != cudaSuccess) return CudaFailure("synchronize prefill checkpoint", pending);
+        const Status cancelled = cancellation.Check();
+        if (!cancelled.ok()) return cancelled;
+      }
       const std::uint64_t maximum_tokens = std::min<std::size_t>(
           prefill_chunk_tokens_, token_ids.size() - begin);
       const std::uint64_t proposed_begin = start_position + begin;
@@ -243,5 +252,7 @@
     }
     const cudaError_t error = cudaStreamSynchronize(stream_);
     if (error != cudaSuccess) return CudaFailure("synchronize prefill", error);
+    const Status cancelled = cancellation.Check();
+    if (!cancelled.ok()) return cancelled;
     return selected_token;
   }

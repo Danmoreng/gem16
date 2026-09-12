@@ -454,18 +454,8 @@ struct CancellationContext {
   const httplib::Request* request = nullptr;
 };
 
-gem16::Status CheckCancellation(void* opaque_context,
-                                const gem16::GenerationEvent& event) {
-  gem16::server::TestFaultPoint("generation");
-  if (gem16::server::TestStatusFailure("generation_status")) {
-    return gem16::Status(gem16::StatusCode::kCancelled, "injected generation cancellation");
-  }
+gem16::Status CheckGenerationCancellation(void* opaque_context) {
   auto* context = static_cast<CancellationContext*>(opaque_context);
-  if (context == nullptr ||
-      event.kind != gem16::GenerationEventKind::kToken) {
-    return gem16::Status(gem16::StatusCode::kInternal,
-                         "invalid cancellation callback");
-  }
   if (g_shutdown_signal != 0 || (context->cancel_requested != nullptr &&
       context->cancel_requested->load())) {
     if (context->cancellations_observed != nullptr) {
@@ -484,6 +474,21 @@ gem16::Status CheckCancellation(void* opaque_context,
                          "client disconnected during generation");
   }
   return gem16::Status::Ok();
+}
+
+gem16::Status CheckCancellation(void* opaque_context,
+                                const gem16::GenerationEvent& event) {
+  gem16::server::TestFaultPoint("generation");
+  if (gem16::server::TestStatusFailure("generation_status")) {
+    return gem16::Status(gem16::StatusCode::kCancelled, "injected generation cancellation");
+  }
+  auto* context = static_cast<CancellationContext*>(opaque_context);
+  if (context == nullptr ||
+      event.kind != gem16::GenerationEventKind::kToken) {
+    return gem16::Status(gem16::StatusCode::kInternal,
+                         "invalid cancellation callback");
+  }
+  return CheckGenerationCancellation(opaque_context);
 }
 
 void HandleCompletion(ServerState& state, const httplib::Request& request,
@@ -588,13 +593,14 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   response.set_header("X-Gem16-Session-Id", session_id);
   if (!parsed.value().stream) {
     std::lock_guard inference_lock(entry->inference_mutex);
-    entry->cancel_requested.store(false);
+    entry->cancel_requested.store(g_shutdown_signal != 0);
     CancellationContext cancellation{
         &entry->cancel_requested, &state.metrics.cancellations_observed,
         &state.metrics.client_disconnects, nullptr, &request};
     const auto generation_start = std::chrono::steady_clock::now();
     auto generated = entry->session.Generate(
-        parsed.value().generation, CheckCancellation, &cancellation);
+        parsed.value().generation, CheckCancellation, &cancellation,
+        {CheckGenerationCancellation, &cancellation});
     gem16::server::TestFaultPoint("generation_after");
     if (!generated.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
@@ -641,7 +647,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
           if (provider->ran) return false;
           provider->ran = true;
           std::lock_guard inference_lock(provider->entry->inference_mutex);
-          provider->entry->cancel_requested.store(false);
+          provider->entry->cancel_requested.store(g_shutdown_signal != 0);
           if (!WriteSse(sink, gem16::server::ChatCompletionChunkJson(
                                   provider->identity,
                                   "{\"role\":\"assistant\"}"))) {
@@ -767,13 +773,14 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
       SetError(state, status, response);
       return;
     }
-    entry->cancel_requested.store(false);
+    entry->cancel_requested.store(g_shutdown_signal != 0);
     CancellationContext cancellation{
         &entry->cancel_requested, &state.metrics.cancellations_observed,
         &state.metrics.client_disconnects, nullptr, &request};
     const auto generation_start = std::chrono::steady_clock::now();
     auto generated = entry->session.Generate(
-        parsed.value().generation, CheckCancellation, &cancellation);
+        parsed.value().generation, CheckCancellation, &cancellation,
+        {CheckGenerationCancellation, &cancellation});
     gem16::server::TestFaultPoint("generation_after");
     if (!generated.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
@@ -848,7 +855,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
             (void)FinishSse(sink);
             return true;
           }
-          provider->entry->cancel_requested.store(false);
+          provider->entry->cancel_requested.store(g_shutdown_signal != 0);
           SetActiveResponse(*provider->server, provider->entry,
                             provider->identity.id);
           if (!WriteSse(

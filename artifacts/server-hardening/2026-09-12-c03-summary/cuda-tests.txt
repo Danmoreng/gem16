@@ -1,0 +1,45 @@
+Test project C:/Development/gem16gb/build/Windows/blackwell-release
+      Start  1: gem16-server-version
+ 1/17 Test  #1: gem16-server-version ................   Passed    0.01 sec
+      Start  2: gem16-unit
+ 2/17 Test  #2: gem16-unit ..........................   Passed    1.42 sec
+      Start  3: gem16-responses-allocation
+ 3/17 Test  #3: gem16-responses-allocation ..........   Passed    0.01 sec
+      Start  4: gem16-agent-process-cleanup
+ 4/17 Test  #4: gem16-agent-process-cleanup .........   Passed    2.55 sec
+      Start  5: gem16-26b-m23-host-contract
+ 5/17 Test  #5: gem16-26b-m23-host-contract .........   Passed    0.22 sec
+      Start  6: gem16-trellis35-compiler-contract
+ 6/17 Test  #6: gem16-trellis35-compiler-contract ...   Passed    1.86 sec
+      Start  7: gem16-26b-vision-module-contract
+ 7/17 Test  #7: gem16-26b-vision-module-contract ....   Passed    0.18 sec
+      Start  8: gem16-cuda
+ 8/17 Test  #8: gem16-cuda ..........................   Passed   54.83 sec
+      Start  9: gem16-cuda-moe-reference
+ 9/17 Test  #9: gem16-cuda-moe-reference ............   Passed    0.13 sec
+      Start 10: gem16-cuda-trellis35
+10/17 Test #10: gem16-cuda-trellis35 ................   Passed    0.38 sec
+      Start 11: gem16-cuda-vision26b
+11/17 Test #11: gem16-cuda-vision26b ................   Passed    0.09 sec
+      Start 12: gem16-cuda-attention-reference
+12/17 Test #12: gem16-cuda-attention-reference ......   Passed    0.82 sec
+      Start 13: gem16-cuda-nvfp4-consumption
+13/17 Test #13: gem16-cuda-nvfp4-consumption ........***Skipped   0.01 sec
+      Start 14: gem16-26b-m21-host-contract
+14/17 Test #14: gem16-26b-m21-host-contract .........   Passed    2.12 sec
+      Start 15: gem16-26b-m17-engine-smoke
+15/17 Test #15: gem16-26b-m17-engine-smoke ..........***Skipped   0.08 sec
+      Start 16: gem16-26b-m22-product
+16/17 Test #16: gem16-26b-m22-product ...............***Skipped   0.10 sec
+      Start 17: gem16-12b-m22-product
+17/17 Test #17: gem16-12b-m22-product ...............***Skipped   0.10 sec
+
+100% tests passed, 0 tests failed out of 17
+
+Total Test time (real) =  64.92 sec
+
+The following tests did not run:
+	 13 - gem16-cuda-nvfp4-consumption (Skipped)
+	 15 - gem16-26b-m17-engine-smoke (Skipped)
+	 16 - gem16-26b-m22-product (Skipped)
+	 17 - gem16-12b-m22-product (Skipped)

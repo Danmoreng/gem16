@@ -48,7 +48,8 @@ class InferenceEngine {
       std::span<const std::uint32_t> token_ids,
       std::uint64_t start_position, std::span<float> host_logits = {},
       std::span<const AudioEmbeddingSegment> audio_segments = {},
-      std::span<const VisionEmbeddingSegment> vision_segments = {});
+      std::span<const VisionEmbeddingSegment> vision_segments = {},
+      GenerationCancellation cancellation = {});
   [[nodiscard]] Status GenerateAssistantDraftsDevice(
       std::uint32_t input_token, std::uint64_t processed_position,
       std::uint32_t draft_count);

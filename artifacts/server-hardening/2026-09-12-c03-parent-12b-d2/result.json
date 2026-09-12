@@ -1,0 +1,120 @@
+{
+  "command": [
+    "C:\\Development\\gem16gb\\build\\release-preparation\\2026-09-09\\windows-smoke\\bin\\gem16-server.exe",
+    "--model-name",
+    "gem16",
+    "--port",
+    "18086",
+    "--max-context",
+    "32768",
+    "--max-sessions",
+    "2",
+    "--max-queued-requests",
+    "2",
+    "--greedy",
+    "--log-format",
+    "json",
+    "--model",
+    "C:\\Users\\User\\.cache\\huggingface\\hub\\.gem16\\snapshots\\unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+    "--assistant-model",
+    "C:\\Users\\User\\.cache\\huggingface\\hub\\models--google--gemma-4-12B-it-assistant\\snapshots\\364bd03c9952e5b7da73665ee30c9eccfc408345",
+    "--mtp-draft-tokens",
+    "2"
+  ],
+  "cases": [
+    {
+      "case": "uncancelled",
+      "sample": 0,
+      "seconds": 1.8829405999999835,
+      "response": {
+        "id": "chatcmpl-gem16-d3d81c11ac8c998aebc2f0f9471d265f",
+        "object": "chat.completion",
+        "created": 1789198650,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 12026,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 12028
+        }
+      },
+      "prompt_us": 1756446.0
+    },
+    {
+      "case": "uncancelled",
+      "sample": 1,
+      "seconds": 1.8886900000002242,
+      "response": {
+        "id": "chatcmpl-gem16-114a6dc6cf9285862fa634cd94f84769",
+        "object": "chat.completion",
+        "created": 1789198652,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 12026,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 12028
+        }
+      },
+      "prompt_us": 1756331.0
+    },
+    {
+      "case": "uncancelled",
+      "sample": 2,
+      "seconds": 1.874639400000433,
+      "response": {
+        "id": "chatcmpl-gem16-aec3b22e523b7f5a036e2e20d330d61d",
+        "object": "chat.completion",
+        "created": 1789198654,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 12026,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 12028
+        }
+      },
+      "prompt_us": 1762431.0
+    }
+  ],
+  "scope": "32K capacity, pre-output cancellation; not everyday-context qualification",
+  "commit": "0b1a33ce428d5405a5df8d4b2676811d81e587c4",
+  "server_sha256": "b8d96d0af60fad97a05ff9c88e0a0f266808627d4cdc2e0485376af2e5ff0657",
+  "passed": true
+}

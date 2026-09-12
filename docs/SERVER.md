@@ -112,9 +112,14 @@ health, readiness, liveness and metrics bypass the generation queue.
 HTTP workers number `max_sessions + max_queued_requests + 4`, keeping execution
 capacity beyond the admitted/waiting inference handlers. The HTTP task queue is
 separately bounded. This is an inference-saturation reserve, not an unlimited
-slow-client availability guarantee. Non-streaming disconnects are checked during
-decode, and shutdown flags active sessions for cancellation. Long-prefill
-cancellation latency remains an open gate.
+slow-client availability guarantee. Streaming and nonstreaming disconnects are
+checked at existing prefill chunk boundaries and during decode; shutdown flags
+active sessions for cancellation. A cancelled partial prefill discards its session
+instead of reusing incomplete KV state. Checkpoints wait for the current GPU
+chunk; they cannot interrupt an individual running kernel. Bounded Windows
+ordinary/D2 probes passed on both public profiles; complete phase/deadline,
+media-preprocessing and Linux cancellation qualification remain open. See
+[Windows C03 evidence](evidence/windows-c03-prefill-2026-09-12.md).
 
 Both APIs reject an unserved model identity before media parsing or decoding.
 Media preparation runs inside admission, limiting concurrent decoders to the

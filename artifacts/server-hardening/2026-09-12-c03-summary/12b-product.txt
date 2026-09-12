@@ -1,0 +1,1 @@
+M22 protected 12B regression passed: output=[9503, 106], two slots

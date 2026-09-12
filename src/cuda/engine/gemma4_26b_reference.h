@@ -109,13 +109,15 @@ class Gemma4Moe26BReferenceEngine {
 
   [[nodiscard]] Status Reset();
   [[nodiscard]] Status ForwardToken(std::uint32_t token);
-  [[nodiscard]] Status PrefillTokens(std::span<const std::uint32_t> tokens);
+  [[nodiscard]] Status PrefillTokens(std::span<const std::uint32_t> tokens,
+                                    GenerationCancellation cancellation = {});
   // Experimental Vision v1 path. The segment offset is relative to `tokens`;
   // its generated 2816-wide rows replace the matching image placeholders
   // before the ordinary text prefill layers execute.
   [[nodiscard]] Status PrefillTokensWithVision(
       std::span<const std::uint32_t> tokens,
-      const Gemma4Moe26BVisionInputSegment& vision_segment);
+      const Gemma4Moe26BVisionInputSegment& vision_segment,
+      GenerationCancellation cancellation = {});
   [[nodiscard]] Result<Gemma4Moe26BVisionPhaseTimings>
   ResolveVisionPhaseTimings();
   [[nodiscard]] Result<Gemma4Moe26BReferencePrediction> Prediction();

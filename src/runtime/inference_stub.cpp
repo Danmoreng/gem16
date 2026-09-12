@@ -84,7 +84,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     const ReasoningTokenOptions&, GeneratedTokenCallback, void*,
     std::span<const AudioEmbeddingSegment>,
     std::span<const VisionEmbeddingSegment>,
-    std::span<const Gemma4Moe26BVisionInputSegment>) {
+    std::span<const Gemma4Moe26BVisionInputSegment>, GenerationCancellation) {
   return Status(StatusCode::kUnsupported,
                 "conversation sessions require a CUDA build compiled for SM120a");
 }

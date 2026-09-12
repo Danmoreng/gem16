@@ -560,7 +560,9 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     std::span<const AudioEmbeddingSegment> audio_segments,
     std::span<const VisionEmbeddingSegment> vision_segments,
     std::span<const Gemma4Moe26BVisionInputSegment>
-        moe26b_vision_segments) {
+        moe26b_vision_segments, GenerationCancellation cancellation) {
+  const Status cancelled = cancellation.Check();
+  if (!cancelled.ok()) return cancelled;
   if (impl_ == nullptr) {
     return Error(StatusCode::kInternal,
                  "conversation session was moved from");
@@ -799,7 +801,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
         auto relative = segment;
         relative.prompt_offset -= consumed;
         Status prefill = engine.PrefillTokensWithVision(
-            full_prompt_token_ids.subspan(consumed, end - consumed), relative);
+            full_prompt_token_ids.subspan(consumed, end - consumed), relative, cancellation);
         if (!prefill.ok()) return prefill;
         auto timings = engine.ResolveVisionPhaseTimings();
         if (!timings.ok()) return timings.status();
@@ -810,7 +812,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
         consumed = end;
       }
       if (consumed < full_prompt_token_ids.size()) {
-        Status prefill = engine.PrefillTokens(full_prompt_token_ids.subspan(consumed));
+        Status prefill = engine.PrefillTokens(full_prompt_token_ids.subspan(consumed), cancellation);
         if (!prefill.ok()) return prefill;
       }
       return impl_->runtime->impl_->moe26b_engine->SelectToken();
@@ -1105,7 +1107,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
 
   const auto prompt_start = std::chrono::steady_clock::now();
   auto prefilled = impl_->engine.PrefillAt(suffix, prefix_tokens, {},
-                                           audio_segments, vision_segments);
+                                           audio_segments, vision_segments, cancellation);
   if (!prefilled.ok()) {
     impl_->poisoned = true;
     return prefilled.status();

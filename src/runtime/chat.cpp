@@ -487,7 +487,10 @@ Result<ChatSession> ChatSession::Create(
 }
 
 Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest& request,
-                                                     GenerationEventCallback callback, void* callback_context) {
+                                                     GenerationEventCallback callback, void* callback_context,
+                                                     GenerationCancellation cancellation) {
+  const Status cancelled = cancellation.Check();
+  if (!cancelled.ok()) return cancelled;
   if (impl_ == nullptr) {
     return Status(StatusCode::kInternal, "chat session was moved from");
   }
@@ -625,7 +628,7 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   auto inference = impl_->session.Generate(
       prompt_ids.value(), max_generated_tokens, reasoning, callback == nullptr ? nullptr : ForwardTokenEvent,
       callback == nullptr ? nullptr : &bridge, audio_segments.value(),
-      vision_segments.value(), moe26b_vision_segments.value());
+      vision_segments.value(), moe26b_vision_segments.value(), cancellation);
   if (!inference.ok()) {
     impl_->poisoned = impl_->session.is_poisoned();
     return inference.status();

@@ -26,7 +26,7 @@ where practical; preserve model specialization and historical evidence.
 | C00 | Server-first docs, 220k Linux / 170k Windows, 200 MiB reserve | Implemented; Linux and Windows host/Studio checks passed |
 | C01 | Bounded schema evaluation and exact numbers | Implemented; host and sanitizer checks, including work limits |
 | C02 | Exception-safe session/Responses ownership | Completed and qualified on Windows: 280 real-GPU injected lifecycle/recovery cases; Linux release requalification remains separate |
-| C03 | Deadline/cancel admission, control capacity, shutdown | Bounded admission/control capacity and pool-wait cancellation/deadlines implemented; long-prefill cancellation open |
+| C03 | Deadline/cancel admission, control capacity, shutdown | Prefill checkpoints implemented; Windows ordinary/D2 disconnect, cancel, saturation and graceful restart probes passed; full phase/deadline and Linux qualification open |
 | C04 | HTTP preflight and bounded media processing | HTTP/media limits implemented and tested; peak-RSS stress and historical-image CPU reuse open |
 | C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Live Linux and Windows affinity/cache/manual compaction passed for both profiles; full fork/resume/automatic-compaction matrix open |
 | C06 | Responses replay, practical sampling/tool compatibility | SDK output replay and parameter validation passed; per-request sampling, reasoning replay and constrained tool choice open |
@@ -154,13 +154,24 @@ with reproducible logs and actual GPU slot recovery evidence.
 
 ### C03 — Long-prefill cancellation and full shutdown/recovery
 
-- [ ] Add safe cancellation checkpoints while a long prefill is running, including
+Windows checkpoint (2026-09-12): [prefill cancellation evidence](evidence/windows-c03-prefill-2026-09-12.md).
+The separate cancellation callback now reaches the existing 12B and 26B prefill
+chunk boundaries. Partial sessions are discarded; no prompt/chunk/precision
+fallback is used. Windows live coverage includes ordinary and fixed-D2 on both
+public profiles, streaming/nonstreaming disconnect, Responses cancel, bounded
+admission saturation and same-session contention, Ctrl+C and restart. The probes
+use 12,026-token text prompts at 32K capacity, not everyday-context qualification.
+Linux live checks, cancellation within CPU media preprocessing and the complete
+phase/deadline matrix remain open. One live deadline fixture ended generation
+too early to test expiry; its failed result is retained, not counted as a pass.
+
+- [x] Add safe cancellation checkpoints while a long prefill is running, including
   disconnect for nonstream requests. Inspect `src/runtime/chat.cpp`,
   `src/cuda/inference_session.cuh` and the specialized engine prefill paths under
   `src/cuda/engine/`, together with the server cancellation callbacks. Preserve
   ordinary/fixed-D2 semantics, cache consistency and allocation rules; do not
   simulate cancellation by silently shortening prompts or changing chunk semantics.
-- [ ] Define the state after partial prefill: safely reusable or explicitly
+- [x] Define the state after partial prefill: safely reusable or explicitly
   discarded/poisoned. Verify that the next request can acquire a working slot.
 - [ ] Test deadline/disconnect while queued, waiting for the same session, preparing
   media, prefilling and decoding. Include the 12B two-slot same-session contention
@@ -176,14 +187,13 @@ inference-saturation worker reserve are already implemented in `2096c39`.
 control routes remain reachable, and each phase has measured platform evidence.
 Host-only wait tests do not qualify GPU prefill abort latency.
 
-Source inspection for the next slice: `ChatSession::Generate` currently forwards
-only token events into the inference session, so the server cancellation callback
-cannot run during prefill. Thread a separate cancellation checkpoint through the
-existing 12B and specialized 26B prefill loops, preserving their chunk planning
-and image spans. The 26B loop already synchronizes before staging each chunk;
-the 12B path currently synchronizes after its loop. Qualify the synchronization
-and poisoned-session recovery behavior, rather than assuming equivalent latency.
-No C03 runtime change or long-prefill latency claim is included in the C02 slice.
+The 2026-09-12 implementation threads a separate cancellation callback through
+`ChatSession::Generate`, `ConversationSession::Generate` and both specialized
+prefill paths. The 26B checkpoint uses its existing synchronization; 12B adds
+chunk-boundary synchronization only when a callback is supplied. Image spans and
+chunk planning are unchanged. Continue with the remaining phase/deadline matrix
+and Linux checks; do not repeat the completed callback plumbing. The older C02
+slice remains separate historical evidence.
 
 ### Requested short comparison pilot
 

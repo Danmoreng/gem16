@@ -1,6 +1,9 @@
 Status Gemma4Moe26BReferenceEngine::PrefillTokensWithVision(
     std::span<const std::uint32_t> tokens,
-    const Gemma4Moe26BVisionInputSegment& vision_segment) {
+    const Gemma4Moe26BVisionInputSegment& vision_segment,
+    GenerationCancellation cancellation) {
+  const Status cancelled = cancellation.Check();
+  if (!cancelled.ok()) return cancelled;
   if (!implementation_ || !vision_module_loaded() ||
       implementation_->vision_prefill_active ||
       vision_segment.soft_token_count == 0U ||
@@ -30,7 +33,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokensWithVision(
   implementation_->vision_prefill_tokens = vision_segment.soft_token_count;
   {
     const NvtxRange range("gem16.vision.text_prefill");
-    status = PrefillTokens(tokens);
+    status = PrefillTokens(tokens, cancellation);
   }
   if (status.ok()) {
     const cudaError_t error = cudaEventRecord(
@@ -48,7 +51,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokensWithVision(
 }
 
 Status Gemma4Moe26BReferenceEngine::PrefillTokens(
-    std::span<const std::uint32_t> tokens) {
+    std::span<const std::uint32_t> tokens, GenerationCancellation cancellation) {
   if (!implementation_ || tokens.empty() ||
       implementation_->backend != Gemma4Moe26BBackend::kSm120Integrated ||
       implementation_->prefill_workspace.bytes() == 0U ||
@@ -123,6 +126,8 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
     if (error != cudaSuccess) {
       return CudaFailure("synchronize M17 prefill token staging", error);
     }
+    const Status cancelled = cancellation.Check();
+    if (!cancelled.ok()) return cancelled;
     std::copy_n(tokens.data() + consumed, static_cast<std::size_t>(chunk),
                 x.prefill_host_tokens);
     error = cudaMemcpyAsync(

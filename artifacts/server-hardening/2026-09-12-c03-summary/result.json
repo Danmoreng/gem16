@@ -1,0 +1,355 @@
+{
+  "commit": "0b1a33ce428d5405a5df8d4b2676811d81e587c4",
+  "dirty": true,
+  "server_sha256": "e85cbc5ae5b50265e762866d00788e9acb97e8462042e041f3717f50f0849717",
+  "profiles": [
+    {
+      "profile": "12b",
+      "draft": 0,
+      "output_and_usage_match_parent": true,
+      "parent_sha256": "b8d96d0af60fad97a05ff9c88e0a0f266808627d4cdc2e0485376af2e5ff0657",
+      "arena_matches_parent": {
+        "slot_bytes": "2069889024",
+        "configured_slot_bytes": "4139778048",
+        "session_limit": "2",
+        "safety_margin_bytes": "734003200"
+      },
+      "parent_prompt_us": [
+        1746922.0,
+        1749362.0,
+        1752399.0
+      ],
+      "candidate_prompt_us": [
+        1757357.0,
+        1761784.0,
+        1763913.0
+      ],
+      "cases": [
+        {
+          "case": "disconnect",
+          "route": "/v1/chat/completions",
+          "stream": false,
+          "recovery_seconds": 0.6605657000000065,
+          "health_seconds": 0.024166199999854143
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/chat/completions",
+          "stream": true,
+          "recovery_seconds": 0.6716527999997197,
+          "health_seconds": 0.023931800000354997
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/responses",
+          "stream": false,
+          "recovery_seconds": 0.6737441999994189,
+          "health_seconds": 0.02290019999963988
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/responses",
+          "stream": true,
+          "recovery_seconds": 0.6854319999993095,
+          "health_seconds": 0.022581999999601976
+        },
+        {
+          "case": "saturated_same_session_disconnects",
+          "control_seconds": 0.01590429999941989,
+          "recovery_seconds": 0.8737264000001232
+        },
+        {
+          "case": "explicit_cancel",
+          "control_seconds": 0.019742800000130956,
+          "recovery_seconds": 0.7118086999998923
+        },
+        {
+          "case": "windows_ctrl_c_during_prefill",
+          "seconds": 0.8546605999999883,
+          "exit_code": 0
+        },
+        {
+          "case": "restart_and_generate",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "profile": "12b",
+      "draft": 2,
+      "output_and_usage_match_parent": true,
+      "parent_sha256": "b8d96d0af60fad97a05ff9c88e0a0f266808627d4cdc2e0485376af2e5ff0657",
+      "arena_matches_parent": {
+        "slot_bytes": "2128974336",
+        "configured_slot_bytes": "4257948672",
+        "session_limit": "2",
+        "safety_margin_bytes": "734003200"
+      },
+      "parent_prompt_us": [
+        1756446.0,
+        1756331.0,
+        1762431.0
+      ],
+      "candidate_prompt_us": [
+        1771707.0,
+        1773373.0,
+        1777099.0
+      ],
+      "cases": [
+        {
+          "case": "disconnect",
+          "route": "/v1/chat/completions",
+          "stream": false,
+          "recovery_seconds": 0.675193500000205,
+          "health_seconds": 0.02141230000052019
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/chat/completions",
+          "stream": true,
+          "recovery_seconds": 0.6808800000007977,
+          "health_seconds": 0.02052240000011807
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/responses",
+          "stream": false,
+          "recovery_seconds": 0.6893083000004481,
+          "health_seconds": 0.019576900000174646
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/responses",
+          "stream": true,
+          "recovery_seconds": 0.68861410000045,
+          "health_seconds": 0.025022700000590703
+        },
+        {
+          "case": "saturated_same_session_disconnects",
+          "control_seconds": 0.017259500000363914,
+          "recovery_seconds": 0.8932450000002063
+        },
+        {
+          "case": "explicit_cancel",
+          "control_seconds": 0.0014045000007172348,
+          "recovery_seconds": 0.7162056000006487
+        },
+        {
+          "case": "windows_ctrl_c_during_prefill",
+          "seconds": 0.8656934000000547,
+          "exit_code": 0
+        },
+        {
+          "case": "restart_and_generate",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "profile": "26b",
+      "draft": 0,
+      "output_and_usage_match_parent": true,
+      "parent_sha256": "b8d96d0af60fad97a05ff9c88e0a0f266808627d4cdc2e0485376af2e5ff0657",
+      "arena_matches_parent": {
+        "slot_bytes": "896741536",
+        "configured_slot_bytes": "896741536",
+        "session_limit": "1",
+        "safety_margin_bytes": "734003200"
+      },
+      "parent_prompt_us": [
+        1872180.0,
+        1875829.0,
+        1876153.0
+      ],
+      "candidate_prompt_us": [
+        1882463.0,
+        1881705.0,
+        1881631.0
+      ],
+      "cases": [
+        {
+          "case": "disconnect",
+          "route": "/v1/chat/completions",
+          "stream": false,
+          "recovery_seconds": 0.12356610000006185,
+          "health_seconds": 0.025822599999628437
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/chat/completions",
+          "stream": true,
+          "recovery_seconds": 0.17275560000052792,
+          "health_seconds": 0.021963700000014796
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/responses",
+          "stream": false,
+          "recovery_seconds": 0.1719176000005973,
+          "health_seconds": 0.02500210000016523
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/responses",
+          "stream": true,
+          "recovery_seconds": 0.1867965000001277,
+          "health_seconds": 0.020320900000115216
+        },
+        {
+          "case": "saturated_same_session_disconnects",
+          "control_seconds": 0.01656419999926584,
+          "recovery_seconds": 0.12470740000026126
+        },
+        {
+          "case": "explicit_cancel",
+          "control_seconds": 0.0011085000005550683,
+          "recovery_seconds": 0.17600530000072467
+        },
+        {
+          "case": "windows_ctrl_c_during_prefill",
+          "seconds": 0.31997020000017073,
+          "exit_code": 0
+        },
+        {
+          "case": "restart_and_generate",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "profile": "26b",
+      "draft": 2,
+      "output_and_usage_match_parent": true,
+      "parent_sha256": "b8d96d0af60fad97a05ff9c88e0a0f266808627d4cdc2e0485376af2e5ff0657",
+      "arena_matches_parent": {
+        "slot_bytes": "903997088",
+        "configured_slot_bytes": "903997088",
+        "session_limit": "1",
+        "safety_margin_bytes": "734003200"
+      },
+      "parent_prompt_us": [
+        1878941.0,
+        1874202.0,
+        1877776.0
+      ],
+      "candidate_prompt_us": [
+        2020876.0,
+        1879277.0,
+        1880178.0
+      ],
+      "cases": [
+        {
+          "case": "disconnect",
+          "route": "/v1/chat/completions",
+          "stream": false,
+          "recovery_seconds": 0.2138799000003928,
+          "health_seconds": 0.0010318999993614852
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/chat/completions",
+          "stream": true,
+          "recovery_seconds": 0.19608849999985978,
+          "health_seconds": 0.0013207000001784763
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/responses",
+          "stream": false,
+          "recovery_seconds": 0.19249370000034105,
+          "health_seconds": 0.001196199999867531
+        },
+        {
+          "case": "disconnect",
+          "route": "/v1/responses",
+          "stream": true,
+          "recovery_seconds": 0.1858393000002252,
+          "health_seconds": 0.0009658999997554929
+        },
+        {
+          "case": "saturated_same_session_disconnects",
+          "control_seconds": 0.018636499999956868,
+          "recovery_seconds": 0.14105469999958586
+        },
+        {
+          "case": "explicit_cancel",
+          "control_seconds": 0.001131600000007893,
+          "recovery_seconds": 0.19015310000031604
+        },
+        {
+          "case": "windows_ctrl_c_during_prefill",
+          "seconds": 0.3700160999997024,
+          "exit_code": 0
+        },
+        {
+          "case": "restart_and_generate",
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Windows 32K capacity / 12026-token text fixture; no everyday-context or Linux qualification",
+    "Three uncached parent/candidate samples, no separate warmup; parent is published CI executable, not a same-toolchain local rebuild",
+    "Failed deadline fixture retained: blocker ended before 30-second admission expiry; no live timeout qualification",
+    "No CPU media-preprocessing cancellation qualification or new sanitizer qualification"
+  ],
+  "source_sha256": {
+    "include/gem16/chat.h": "af6ad0f4a65650dfc50e11b7c9ca41adfddc05013b8a9baf911bb1536ab0ac27",
+    "include/gem16/engine.h": "5700424f82e4ace7794cb56994517c9b9e559b85d376ac7c82fd6e5d836b19b0",
+    "src/cli/server_main.cpp": "88f1e2cafea48efd5e4a7a4c138bd38e273267f6ee65c923e064b54e12845fad",
+    "src/cuda/engine/detail/gemma4_26b_prefill.inc": "a5c3e0bc06e7cac71fada801267076c3a2d8ca40d1c76e7235c8e06ae77ae1a6",
+    "src/cuda/engine/gemma4_26b_reference.h": "3d5899ae1df9eba03a89de2187efb1ade41f600dd0bb4b4d4409fd65f62aaf7f",
+    "src/cuda/engine/inference_engine.cu": "0d01d89a5af0775abaa453f0a4d777067306fda496ddfcab66fe53acf2d6e31f",
+    "src/cuda/engine/inference_engine.h": "9ad0a9e974ab1c186c1178709faecfd374c734b094762d493aa2dc6c9061a568",
+    "src/cuda/engine/inference_engine_prefill_api.cuh": "7c039ca4e232e5851ff31ac6792a760eafe37efd7b1fd159ff7dac7a52a7f8c3",
+    "src/cuda/inference_session.cuh": "3afc16c0e8b1c3005a2b08de7a923dcd897c9735534ca89aa5f9858db1dd689e",
+    "src/runtime/chat.cpp": "8b5ebc8e4ffee89a17b7425c1c9f9d37fb456948afecc6c283bae007d8794b4d",
+    "src/runtime/inference_stub.cpp": "dfdcffee257f1a39302ee9964a22f4d0a40cec717d8b337e55d6d50d552a832f",
+    "src/server/http_streaming.cpp": "1ade0379b751919c47cc1ae39863a8e32d6d2bee6fc79115492944065754687e"
+  },
+  "probe_sha256": "af666db2c6da00f1ab93f5e6471fa2d64d43808be01a84d17f4c8b79b223ec86",
+  "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU, 596.49, 16303 MiB",
+  "retained_files": {
+    "artifacts\\server-hardening\\2026-09-12-c03-12b-d2\\result.json": "913282e77d166ca8bd3a61700039577589d32ae737c0822feb641a46697c174c",
+    "artifacts\\server-hardening\\2026-09-12-c03-12b-d2\\server.txt": "4424979cda46911fd508c15b66f36102648d7222a184b3beb4dee7ea23133b94",
+    "artifacts\\server-hardening\\2026-09-12-c03-12b-deadlines\\result.json": "28e7952c6f79305935bcca26b544bdef51bc6c8f9df469371971ba4c32d418a1",
+    "artifacts\\server-hardening\\2026-09-12-c03-12b-deadlines\\server.txt": "3e803508c618ea3039e1d4c5fe98542f8a9d29dd6a1a46ac2860156d138beccc",
+    "artifacts\\server-hardening\\2026-09-12-c03-12b-extended\\result.json": "683eae5b1d522a6ba2454445cd91082542ae0bf53475739f0a4fc78f7942d84e",
+    "artifacts\\server-hardening\\2026-09-12-c03-12b-extended\\server.txt": "be3d019ef044a318971312f3e6a640cf6abc7745b00ecc7c0e03a8c3cc9250f6",
+    "artifacts\\server-hardening\\2026-09-12-c03-12b-ordinary\\result.json": "a4a0719e8465e6d9758cf21e4ab6e3b41d654bbf19b0430b936145fd3025f2b9",
+    "artifacts\\server-hardening\\2026-09-12-c03-12b-ordinary\\server.txt": "610a3fe97f2bda888c1ee5ddba07d6f5dab3a772377d243918992b1d9ad9434e",
+    "artifacts\\server-hardening\\2026-09-12-c03-12b-product\\m22-12b-product.json": "0d3d05e828f5176e051dba6c4bad5926f23a3f0ba72fbedd2a66d702fd57373f",
+    "artifacts\\server-hardening\\2026-09-12-c03-26b-d2\\result.json": "fb6199f9c824c02f27487b0a8c27a906ce807200fc619c411609fc4394263dd9",
+    "artifacts\\server-hardening\\2026-09-12-c03-26b-d2\\server.txt": "c567081d87a2cb91ec395d584fae02d23aa16c9859f0e40658c8f3cdff828181",
+    "artifacts\\server-hardening\\2026-09-12-c03-26b-extended\\result.json": "c8dfb4fa38ac08baa60994d1da4e9c23e8eb1dfff2ce31e1a680b475630ec35f",
+    "artifacts\\server-hardening\\2026-09-12-c03-26b-extended\\server.txt": "db71d18e89d3e406715af166d9b0bb5dc1f49ffc1e447fc2dd98f0f9191ffdea",
+    "artifacts\\server-hardening\\2026-09-12-c03-26b-ordinary\\result.json": "b231321209cc980d7fe8d03c6a6cdc518750ec7f90378b049b7eddf21f70e3e7",
+    "artifacts\\server-hardening\\2026-09-12-c03-26b-ordinary\\server.txt": "cb5cafde7e40d1b2e0ba875495cca4ac0da1c9f09f3674f4ac57d49fdb3aaa93",
+    "artifacts\\server-hardening\\2026-09-12-c03-final-12b-d0\\result.json": "36887d8c6c8ea00fda367179276055c77301f1b5483b2157b0612e0d6eb96b3e",
+    "artifacts\\server-hardening\\2026-09-12-c03-final-12b-d0\\server.txt": "71b3b8c4c51f3ddb3043590d37eac7e1db93abcb56d12c2aad5c84dfffe1e0b6",
+    "artifacts\\server-hardening\\2026-09-12-c03-final-12b-d2\\result.json": "afa85fdc5be4290e84a69532b7e109b085319640fd485f63c611e81f73cbec83",
+    "artifacts\\server-hardening\\2026-09-12-c03-final-12b-d2\\server.txt": "71860b3f5a21a0a227bbb34a856f6099e22ab610e50ff0f3750fba811e9c50f5",
+    "artifacts\\server-hardening\\2026-09-12-c03-final-26b-d0\\result.json": "b4a198e6400b8642bd5432384808dce228bb9b6d3b8df92a9a6dbe0a6ca1f5da",
+    "artifacts\\server-hardening\\2026-09-12-c03-final-26b-d0\\server.txt": "1fd672359f61cf30a8d040ed88bd6fc90bf6e874dc4a22005772215aafb622cd",
+    "artifacts\\server-hardening\\2026-09-12-c03-final-26b-d2\\result.json": "be7aa649a13d8d0d5c81321b836725357fd3f548ed911f19b56b203907ad4b1d",
+    "artifacts\\server-hardening\\2026-09-12-c03-final-26b-d2\\server.txt": "f44b56e6f931a6bc41bbec9929244750357b2f995f24ef9503203df4b623981e",
+    "artifacts\\server-hardening\\2026-09-12-c03-parent-12b-d0\\result.json": "d89413c013c64a53c074483de358e55e06b2ac641bb9241545593409711bbb52",
+    "artifacts\\server-hardening\\2026-09-12-c03-parent-12b-d0\\server.txt": "b3e664c2822b6d024736970d3f567d99eb88bcb8c6265446d3df09eb0d37a463",
+    "artifacts\\server-hardening\\2026-09-12-c03-parent-12b-d2\\result.json": "14016a22e4ca42bef33fe6cc797f7846d770bdc0c86a153c836be929c59d8be3",
+    "artifacts\\server-hardening\\2026-09-12-c03-parent-12b-d2\\server.txt": "5a6d1d149fbe3ed5121837ea6694e9eb1458da9b7d8d79b99ddbfedcbd8fc4af",
+    "artifacts\\server-hardening\\2026-09-12-c03-parent-26b-d0\\result.json": "1f750090ab6cc7fd5bae21c5cd815668b0aa9dc9dfdca5afb236140a3ab90c47",
+    "artifacts\\server-hardening\\2026-09-12-c03-parent-26b-d0\\server.txt": "64db903a7dbfdcc4b6547aa4d86b4507f1d9db5c3b422d3a9838afa3363264d7",
+    "artifacts\\server-hardening\\2026-09-12-c03-parent-26b-d2\\result.json": "7ca4d32f5b2c1017f733a4f77a88a4f5f389735ca812b4c51e85b6203982d824",
+    "artifacts\\server-hardening\\2026-09-12-c03-parent-26b-d2\\server.txt": "afd0c28039ae89fc3feb896e0b02e35dd6fa559f00dd4e7368949d4fc80f3887"
+  },
+  "checks": {
+    "artifacts\\server-hardening\\2026-09-12-c03-summary\\12b-product.txt": "0502f4605fcedaae6090625bcf3f9234328ee9011aad03a7b83cb5664719ee40",
+    "artifacts\\server-hardening\\2026-09-12-c03-summary\\build.txt": "54132fb855c8be34667269105e36afe4225e50fc42b26caa1be241cea1a20458",
+    "artifacts\\server-hardening\\2026-09-12-c03-summary\\cuda-tests.txt": "6056a796268143be528ad059b432d523d1831a575ab85b0a60e58eaf9e5fc3d5",
+    "artifacts\\server-hardening\\2026-09-12-c03-summary\\final-build.txt": "a735f328b3c6733e1a96c877607e28bb657799cd986b58b22845e1fd1519e883",
+    "artifacts\\server-hardening\\2026-09-12-c03-summary\\final-host.txt": "3cfbf63ee0651d0130791cbb7f3f51081796b021cceaa8f03b60fbd900bfa4a6",
+    "artifacts\\server-hardening\\2026-09-12-c03-summary\\host.txt": "92febd639ae2ac57d82238810ed43d81dbce96e6c5383c8784c3a867385738e9",
+    "artifacts\\server-hardening\\2026-09-12-c03-summary\\sass.txt": "cb10daa4a3e43bb3b4607aaf04457166f91f774ea518b0253779b589bc29dc3f"
+  }
+}

@@ -234,6 +234,20 @@ gem16::Status FeedReasoningText(StreamingContext& context,
                       final);
 }
 
+template <typename Context>
+gem16::Status CheckStreamCancellation(void* opaque_context) {
+  auto* context = static_cast<Context*>(opaque_context);
+  if (context->cancel_requested != nullptr && context->cancel_requested->load()) {
+    if (context->cancellations_observed != nullptr) context->cancellations_observed->fetch_add(1U);
+    return gem16::Status(gem16::StatusCode::kCancelled, "generation was cancelled");
+  }
+  if (context->sink->is_writable && !context->sink->is_writable()) {
+    if (context->client_disconnects != nullptr) context->client_disconnects->fetch_add(1U);
+    return gem16::Status(gem16::StatusCode::kCancelled, "client disconnected during generation");
+  }
+  return gem16::Status::Ok();
+}
+
 gem16::Status StreamToken(void* opaque_context,
                           const gem16::GenerationEvent& event) {
   TestFaultPoint("generation");
@@ -247,21 +261,8 @@ gem16::Status StreamToken(void* opaque_context,
     return gem16::Status(gem16::StatusCode::kInternal,
                          "invalid OpenAI stream callback");
   }
-  if (context->cancel_requested != nullptr &&
-      context->cancel_requested->load()) {
-    if (context->cancellations_observed != nullptr) {
-      context->cancellations_observed->fetch_add(1U);
-    }
-    return gem16::Status(gem16::StatusCode::kCancelled,
-                         "generation was cancelled");
-  }
-  if (context->sink->is_writable && !context->sink->is_writable()) {
-    if (context->client_disconnects != nullptr) {
-      context->client_disconnects->fetch_add(1U);
-    }
-    return gem16::Status(gem16::StatusCode::kCancelled,
-                         "client disconnected during generation");
-  }
+  const auto cancelled = CheckStreamCancellation<StreamingContext>(opaque_context);
+  if (!cancelled.ok()) return cancelled;
   const gem16::ResponseTokenChannel channel =
       gem16::internal::ProjectResponseChannel(
           context->channels.Observe(event.token_id),
@@ -643,21 +644,8 @@ gem16::Status StreamResponseToken(void* opaque_context,
     return gem16::Status(gem16::StatusCode::kInternal,
                          "invalid Responses stream callback");
   }
-  if (context->cancel_requested != nullptr &&
-      context->cancel_requested->load()) {
-    if (context->cancellations_observed != nullptr) {
-      context->cancellations_observed->fetch_add(1U);
-    }
-    return gem16::Status(gem16::StatusCode::kCancelled,
-                         "generation was cancelled");
-  }
-  if (context->sink->is_writable && !context->sink->is_writable()) {
-    if (context->client_disconnects != nullptr) {
-      context->client_disconnects->fetch_add(1U);
-    }
-    return gem16::Status(gem16::StatusCode::kCancelled,
-                         "client disconnected during generation");
-  }
+  const auto cancelled = CheckStreamCancellation<ResponsesStreamingContext>(opaque_context);
+  if (!cancelled.ok()) return cancelled;
   const bool was_reasoning = context->channels.in_reasoning();
   const gem16::ResponseTokenChannel channel =
       gem16::internal::ProjectResponseChannel(
@@ -845,7 +833,8 @@ Result<ChatGenerationResponse> ChatCompletionStream::Generate(
   if (tool_result_continuation) {
     impl_->context.channels.StartReasoningFromPrompt();
   }
-  auto generated = session.Generate(request, StreamToken, &impl_->context);
+  auto generated = session.Generate(request, StreamToken, &impl_->context,
+                                    {CheckStreamCancellation<StreamingContext>, &impl_->context});
   if (generated.ok()) {
     const Status status = FeedVisibleText(impl_->context, {}, true);
     if (!status.ok()) generated = status;
@@ -917,7 +906,8 @@ Result<ChatGenerationResponse> ResponsesStream::Generate(
     impl_->context.channels.StartReasoningFromPrompt();
   }
   auto generated = session.Generate(request, StreamResponseToken,
-                                    &impl_->context);
+                                    &impl_->context,
+                                    {CheckStreamCancellation<ResponsesStreamingContext>, &impl_->context});
   if (generated.ok() &&
       (impl_->context.text_pending.size != 0U ||
        impl_->context.reasoning_pending.size != 0U ||

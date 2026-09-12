@@ -240,7 +240,8 @@ class ChatSession {
   [[nodiscard]] Result<ChatGenerationResponse> Generate(
       const ChatGenerationRequest& request,
       GenerationEventCallback callback = nullptr,
-      void* callback_context = nullptr);
+      void* callback_context = nullptr,
+      GenerationCancellation cancellation = {});
   // Adapter-level full-history reconciliation; callers serialize with generation.
   [[nodiscard]] Status ValidateContinuation(const ChatGenerationRequest& request) const;
   [[nodiscard]] Status Restart(std::shared_ptr<ModelRuntime> runtime,
