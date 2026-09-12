@@ -74,6 +74,21 @@ std::vector<std::uint8_t> TinyWav() {
 
 void RunOpenAiChatTests() {
   {
+    const auto callback = +[](void*, gem16::internal::PreparationPhase) {
+      return gem16::Status(gem16::StatusCode::kResourceExhausted, "expired preparation budget");
+    };
+    const gem16::server::OpenAiChatAdapterOptions options{8192U, false, 280U, "gem16", callback, nullptr};
+    const auto chat = gem16::server::ParseChatCompletionsRequest(
+        R"({"model":"gem16","messages":[{"role":"user","content":"hello"}]})", options);
+    const auto response = gem16::server::ParseResponsesRequest(
+        R"({"model":"gem16","input":"hello"})", options);
+    GEM16_CHECK(!chat.ok() && chat.status().code() == gem16::StatusCode::kResourceExhausted);
+    GEM16_CHECK(!response.ok() && response.status().code() == gem16::StatusCode::kResourceExhausted);
+    GEM16_CHECK(gem16::server::ParseResponsesRequest(
+        R"({"model":"gem16","input":"hello"})").ok());
+  }
+
+  {
     // Identity rejection must precede even invalid base64/media parsing.
     const gem16::server::OpenAiChatAdapterOptions options{8192U, false, 280U, "served"};
     const auto chat = gem16::server::ParseChatCompletionsRequest(

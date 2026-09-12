@@ -1,4 +1,5 @@
 #include "gem16/audio.h"
+#include "model/preparation_control.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -78,6 +79,23 @@ void RunAudioTests() {
   GEM16_CHECK(memory_audio.ok());
   if (memory_audio.ok()) {
     GEM16_CHECK(memory_audio.value().samples.size() == 4U);
+  }
+
+  for (int stop : {1, 2}) {
+    int count = stop;
+    {
+      gem16::internal::PreparationControl control(+[](void* opaque, gem16::internal::PreparationPhase phase) {
+        if (phase == gem16::internal::PreparationPhase::kAudioDecode && --*static_cast<int*>(opaque) == 0)
+          return gem16::Status(gem16::StatusCode::kCancelled, "test cancellation");
+        return gem16::Status::Ok();
+      }, &count);
+      auto cancelled = gem16::LoadAudioBytes(encoded, "cancelled WAV");
+      GEM16_CHECK(!cancelled.ok());
+      if (!cancelled.ok()) GEM16_CHECK(cancelled.status().code() == gem16::StatusCode::kCancelled);
+    }
+    auto recovered = gem16::LoadAudioBytes(encoded, "recovered WAV");
+    GEM16_CHECK(recovered.ok());
+    if (recovered.ok() && memory_audio.ok()) GEM16_CHECK(recovered.value().samples == memory_audio.value().samples);
   }
   std::error_code ignored;
   std::filesystem::remove(valid_path, ignored);

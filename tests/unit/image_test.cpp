@@ -1,5 +1,6 @@
 #include "gem16/image.h"
 #include "model/image_decode_budget.h"
+#include "model/preparation_control.h"
 
 #include <cmath>
 #include <cstdint>
@@ -113,6 +114,29 @@ void RunImageTests() {
   GEM16_CHECK(gem16::AutomaticVisionSoftTokenBudget(128U, 200U, 2U) ==
               1U);
   const auto path = WriteSolidBmp();
+  using Phase = gem16::internal::PreparationPhase;
+  using Control = gem16::internal::PreparationControl;
+  for (const auto phase : {Phase::kImageDecode, Phase::kImageResize, Phase::kImagePatchify}) {
+    struct Probe { Phase phase; int seen = 0; } probe{phase};
+    {
+      Control control(+[](void* context, Phase current) {
+        auto& p = *static_cast<Probe*>(context);
+        if (current == p.phase && ++p.seen == 2)
+          return gem16::Status(gem16::StatusCode::kCancelled, "test cancellation");
+        return gem16::Status::Ok();
+      }, &probe);
+      auto cancelled = gem16::LoadVisionImage(path, gem16::VisionImageOptions{70U, false});
+      GEM16_CHECK(!cancelled.ok());
+      if (!cancelled.ok()) GEM16_CHECK(cancelled.status().code() == gem16::StatusCode::kCancelled);
+      probe.seen = 0;
+      auto cancelled26 = gem16::LoadGemma4Moe26BVisionImage(path, gem16::Gemma4Moe26BVisionImageOptions{70U});
+      GEM16_CHECK(!cancelled26.ok());
+      if (!cancelled26.ok()) GEM16_CHECK(cancelled26.status().code() == gem16::StatusCode::kCancelled);
+    }
+    GEM16_CHECK(gem16::LoadVisionImage(path).ok());
+    GEM16_CHECK(gem16::LoadGemma4Moe26BVisionImage(path).ok());
+  }
+
   auto image = gem16::LoadVisionImage(path);
   GEM16_CHECK(image.ok());
   if (image.ok()) {

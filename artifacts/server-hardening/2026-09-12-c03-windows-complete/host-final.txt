@@ -1,0 +1,22 @@
+Test project C:/Development/gem16gb/build/Windows/host-debug
+    Start 1: gem16-server-version
+1/7 Test #1: gem16-server-version ................   Passed    0.01 sec
+    Start 2: gem16-unit
+2/7 Test #2: gem16-unit ..........................   Passed   20.68 sec
+    Start 3: gem16-responses-allocation
+3/7 Test #3: gem16-responses-allocation ..........***Skipped   0.01 sec
+    Start 4: gem16-agent-process-cleanup
+4/7 Test #4: gem16-agent-process-cleanup .........   Passed    2.59 sec
+    Start 5: gem16-26b-m23-host-contract
+5/7 Test #5: gem16-26b-m23-host-contract .........   Passed    0.24 sec
+    Start 6: gem16-trellis35-compiler-contract
+6/7 Test #6: gem16-trellis35-compiler-contract ...   Passed    1.94 sec
+    Start 7: gem16-26b-vision-module-contract
+7/7 Test #7: gem16-26b-vision-module-contract ....   Passed    0.20 sec
+
+100% tests passed, 0 tests failed out of 7
+
+Total Test time (real) =  25.68 sec
+
+The following tests did not run:
+	  3 - gem16-responses-allocation (Skipped)

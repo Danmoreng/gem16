@@ -1,0 +1,131 @@
+{
+  "base_commit": "ffb0a557660b7a6338dc9e0ec92e73679a6b6832",
+  "platform": "Windows x64, RTX 5080 Laptop GPU, driver 596.49, 16303 MiB",
+  "qualification": "C03 Windows complete; Linux deferred. No full release or everyday-context qualification.",
+  "phase_runs": [
+    {
+      "path": "artifacts/server-hardening/2026-09-12-c03-phases-final-12b-d0/result.json",
+      "cases": 42,
+      "control_max_seconds": 0.019225899999582907,
+      "server_sha256": "b35283dc7bec05aaec23f21cce2e7c54a89c31404a1073bd68cc270904b768fd"
+    },
+    {
+      "path": "artifacts/server-hardening/2026-09-12-c03-phases-final-12b-d2/result.json",
+      "cases": 42,
+      "control_max_seconds": 0.01719370000046183,
+      "server_sha256": "b35283dc7bec05aaec23f21cce2e7c54a89c31404a1073bd68cc270904b768fd"
+    },
+    {
+      "path": "artifacts/server-hardening/2026-09-12-c03-phases-final-26b-d0/result.json",
+      "cases": 37,
+      "control_max_seconds": 0.01600159999998141,
+      "server_sha256": "b35283dc7bec05aaec23f21cce2e7c54a89c31404a1073bd68cc270904b768fd"
+    },
+    {
+      "path": "artifacts/server-hardening/2026-09-12-c03-phases-final-26b-d2/result.json",
+      "cases": 37,
+      "control_max_seconds": 0.018753100000139966,
+      "server_sha256": "b35283dc7bec05aaec23f21cce2e7c54a89c31404a1073bd68cc270904b768fd"
+    }
+  ],
+  "production_runs": [
+    {
+      "path": "artifacts/server-hardening/2026-09-12-c03-production-final-12b-d0/result.json",
+      "cases": 16,
+      "control_max_seconds": 0.02531360000011773,
+      "server_sha256": "3c6967670e0043597b3b75dfabc5f0e503487ee326da3695001d80b1588b9af2"
+    },
+    {
+      "path": "artifacts/server-hardening/2026-09-12-c03-production-final-12b-d2/result.json",
+      "cases": 16,
+      "control_max_seconds": 0.023058300000229792,
+      "server_sha256": "3c6967670e0043597b3b75dfabc5f0e503487ee326da3695001d80b1588b9af2"
+    },
+    {
+      "path": "artifacts/server-hardening/2026-09-12-c03-production-final-26b-d0/result.json",
+      "cases": 16,
+      "control_max_seconds": 0.02600110000003042,
+      "server_sha256": "3c6967670e0043597b3b75dfabc5f0e503487ee326da3695001d80b1588b9af2"
+    },
+    {
+      "path": "artifacts/server-hardening/2026-09-12-c03-production-final-26b-d2/result.json",
+      "cases": 16,
+      "control_max_seconds": 0.02576890000000276,
+      "server_sha256": "3c6967670e0043597b3b75dfabc5f0e503487ee326da3695001d80b1588b9af2"
+    }
+  ],
+  "uncancelled_regression": [
+    {
+      "profile": "12b-d0",
+      "same_messages_and_usage": true,
+      "samples": 3
+    },
+    {
+      "profile": "12b-d2",
+      "same_messages_and_usage": true,
+      "samples": 3
+    },
+    {
+      "profile": "26b-d0",
+      "same_messages_and_usage": true,
+      "samples": 3
+    },
+    {
+      "profile": "26b-d2",
+      "same_messages_and_usage": true,
+      "samples": 3
+    }
+  ],
+  "working_tree_source_sha256": {
+    "src/cli/server_main.cpp": "2a22d415a256779d2e9b75e1b53534d2173c3fa252f1bd196cb5f5e140c5ff46",
+    "src/model/audio.cpp": "91f948b8f61e972a6a78972a5db97b726e4e3976aeac3f1d545d8a4616f3cf6b",
+    "src/model/image.cpp": "f5a72803fc28acff7b358d458b023288fbf6ece239e5a591c00507101536fd74",
+    "src/model/preparation_control.h": "741c3e2ba661d4e93c141a0e7a88608c34b0664a3d846f8178bcb950c3d8d2b5",
+    "src/server/http_streaming.cpp": "98aefb861c2192478eb526d60615cd519fe5050770b9ab72c16fb3e8e075c77a",
+    "src/server/openai_chat.cpp": "722373881f6b8254170bfde014bc6999773ade42ce4ad4778e470227db07dac2",
+    "src/server/openai_chat.h": "2a93fb69d47bf884972c0ce2be33135dc76e19e4d1611e2d2377f70fc07d10b6",
+    "src/server/session_pool.cpp": "0b342f6c5a57cd4898aad7e4e2bb724613ed8920a1e6cb0512db9c57941dcad0",
+    "src/server/test_fault.h": "77bfff6d5375dd702bc5dc46de4eddb3bd90a921fb4ca66cc0a81b5646478622",
+    "tests/unit/audio_test.cpp": "ced3911678b40070924659e7925032e8ea8b71c29a427423293b0241d61cfd2c",
+    "tests/unit/image_test.cpp": "206b4631ebbb7e9b1c96e7d2232ed161c2c9fe35f9d8fe6092cb9e86d8601996",
+    "tests/unit/openai_chat_test.cpp": "94a096a42de5bd4735d3a7c90201ed9b7118aec128e9d357686f744037b16674",
+    "tools/check_c03_phases.py": "e46ec23430ae208f5e9dea7cc3feb1afe3a46b13fdfb53a3f0c6af565f4f4985",
+    "tools/check_prefill_cancellation.py": "cd54b5a06bc6e759a535ef61d53f99982e9a27d3e39515163e544800cecd0ea8"
+  },
+  "checks": {
+    "host_debug": "6 passed, 1 intentional MSVC Debug allocation skip",
+    "cuda_ctest": "13 passed, 4 documented optional/unsupported skips",
+    "protected_12b": "passed exact tokens [9503, 106], two slots and audio/product checks",
+    "linux": "not run"
+  },
+  "evidence_sha256": {
+    "artifacts/server-hardening/2026-09-12-c03-phases-12b-d0/result.json": "9301749ae89e24bbae6da198424395c8735d29ade826b208695857915b69d83c",
+    "artifacts/server-hardening/2026-09-12-c03-phases-12b-d0/server.txt": "69d6805e7c2bfc3a9ab97f75278f78d78096450fa99565f9d5ac4b78c2afb12c",
+    "artifacts/server-hardening/2026-09-12-c03-phases-12b-d0-v2/result.json": "43340210efa8df7a4ebca7f60b716bdfeba79aa18de83e851df178641f9ea487",
+    "artifacts/server-hardening/2026-09-12-c03-phases-12b-d0-v2/server.txt": "d30780c51718d0c5d0b7a206c2f4098d36dbb14d79f38db9b4abd3d35b8134b6",
+    "artifacts/server-hardening/2026-09-12-c03-phases-12b-d0-v3/result.json": "fb1e8fb5e42a018e4eca38d9932082921a043f7a718725711be139236a1fdbc9",
+    "artifacts/server-hardening/2026-09-12-c03-phases-12b-d0-v3/server.txt": "cbb844a46e508a072ec4a530e2881ac64ec8064a20d320bd4e0da7cc1df5508d",
+    "artifacts/server-hardening/2026-09-12-c03-phases-final-12b-d0/result.json": "ef4b8155abb8cf98bcb6b7184da7f00227c1bd37423682c77d7776473c59cba4",
+    "artifacts/server-hardening/2026-09-12-c03-phases-final-12b-d0/server.txt": "9e4518f480fe931f9a9628286fe2caa65df1dfbcb03018aba080b35f868b8643",
+    "artifacts/server-hardening/2026-09-12-c03-phases-final-12b-d2/result.json": "6ba3ebbd68735ff6c6b6015fe98c0463cdf09f185f92f49da915f30056b676f8",
+    "artifacts/server-hardening/2026-09-12-c03-phases-final-12b-d2/server.txt": "bbee8719e4c62e471e510f353fe56a6f26c78921addfbe1780079b440502c09c",
+    "artifacts/server-hardening/2026-09-12-c03-phases-final-26b-d0/result.json": "c005aba33ee0f1f34f304bb6016cea954ea15efdd97483752f439497457df72e",
+    "artifacts/server-hardening/2026-09-12-c03-phases-final-26b-d0/server.txt": "1ef2f17ad9a46e182ff192dc5a2e18018c8689b5945aabd9c89910bd86499662",
+    "artifacts/server-hardening/2026-09-12-c03-phases-final-26b-d2/result.json": "16a89eb2c572ff4500a9ed95079b0a58363038b5dc8ec0da0002352307f8600a",
+    "artifacts/server-hardening/2026-09-12-c03-phases-final-26b-d2/server.txt": "3d8988d6abcae0644da54294a210662006eb47630c9f31348bd01893b48be2b7",
+    "artifacts/server-hardening/2026-09-12-c03-production-final-12b-d0/result.json": "3d5d5155065a9a5df43aeab807f4319a82724c6ccb6bed580a55b562c6efc368",
+    "artifacts/server-hardening/2026-09-12-c03-production-final-12b-d0/server.txt": "61276f42f7d8ead03775231c08a30aaaf02c4d676599ae169d48f297682c1f65",
+    "artifacts/server-hardening/2026-09-12-c03-production-final-12b-d2/result.json": "27ae98ad88996f660bf154628ec8d81801ff557b35f99c44632a1a9511a20f3e",
+    "artifacts/server-hardening/2026-09-12-c03-production-final-12b-d2/server.txt": "e1be3f5adbb0a4e2b7887641250af28693fcc47f1aa69de6eff64868056ca3b5",
+    "artifacts/server-hardening/2026-09-12-c03-production-final-26b-d0/result.json": "00d5134c1634a66c21cf12020c46f3f95de00c97f0798da106f8cf379d908fb7",
+    "artifacts/server-hardening/2026-09-12-c03-production-final-26b-d0/server.txt": "e02f0b861520d3ecdb64f27058325f7478d7f06dbe4ae3c74b86977e69757e26",
+    "artifacts/server-hardening/2026-09-12-c03-production-final-26b-d2/result.json": "1483a8a2312ebfceae59f158d8b14cf596181d304d512d610d84a2e1cbbd4739",
+    "artifacts/server-hardening/2026-09-12-c03-production-final-26b-d2/server.txt": "26ba4ac0defdfa55dd4f2bdc10c047a9c879d01ac141d5f45581884aa8d5fa75",
+    "artifacts/server-hardening/2026-09-12-c03-windows-complete/12b-product.txt": "0502f4605fcedaae6090625bcf3f9234328ee9011aad03a7b83cb5664719ee40",
+    "artifacts/server-hardening/2026-09-12-c03-windows-complete/build-final.txt": "5a58b9842347be2b3bfce894475953f2ee3496914375801fc82ed7ae1ce3d953",
+    "artifacts/server-hardening/2026-09-12-c03-windows-complete/cuda-tests.txt": "69058a90d131235ac1f655687e22f20431f921bbd01a6eb92404db69d96f091f",
+    "artifacts/server-hardening/2026-09-12-c03-windows-complete/host-final.txt": "5d568bd56209d90e8616253ea89018df956fff4635f6d2fab3e2b969730ea3ca",
+    "artifacts/server-hardening/2026-09-12-c03-windows-complete/host-initial-negative.txt": "139cd1c1f8a407eec7ef7df6b8a7a2a964f831902f3afc98f6e922ce4d3d5b3e",
+    "artifacts/server-hardening/2026-09-12-c03-windows-complete/12b-product/m22-12b-product.json": "a2c2a250e8e9c1894fe90073170522714a5c3bfc01e1ee8f8e8d68b7454190c0"
+  }
+}

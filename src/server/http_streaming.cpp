@@ -261,7 +261,9 @@ gem16::Status StreamToken(void* opaque_context,
     return gem16::Status(gem16::StatusCode::kInternal,
                          "invalid OpenAI stream callback");
   }
-  const auto cancelled = CheckStreamCancellation<StreamingContext>(opaque_context);
+  const auto cancelled = TestPause("generation", [&] {
+    return CheckStreamCancellation<StreamingContext>(opaque_context);
+  });
   if (!cancelled.ok()) return cancelled;
   const gem16::ResponseTokenChannel channel =
       gem16::internal::ProjectResponseChannel(
@@ -644,7 +646,9 @@ gem16::Status StreamResponseToken(void* opaque_context,
     return gem16::Status(gem16::StatusCode::kInternal,
                          "invalid Responses stream callback");
   }
-  const auto cancelled = CheckStreamCancellation<ResponsesStreamingContext>(opaque_context);
+  const auto cancelled = TestPause("generation", [&] {
+    return CheckStreamCancellation<ResponsesStreamingContext>(opaque_context);
+  });
   if (!cancelled.ok()) return cancelled;
   const bool was_reasoning = context->channels.in_reasoning();
   const gem16::ResponseTokenChannel channel =

@@ -611,6 +611,7 @@ std::string MetricsText(ServerState& state) {
   output.append(metric("gem16_session_releases_total", state.metrics.session_releases.load()));
 #if defined(GEM16_SERVER_TEST_FAULTS)
   output.append(metric("gem16_test_faults_observed", test_faults_observed.load()));
+  output.append(metric("gem16_test_pause_active", test_pause_active.load() ? 1 : 0));
 #endif
   output.append("# TYPE gem16_requests_total counter\n");
   output.append(metric("gem16_requests_total",

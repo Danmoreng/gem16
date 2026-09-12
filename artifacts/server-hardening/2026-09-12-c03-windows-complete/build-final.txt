@@ -1,0 +1,135 @@
+[1/48] Scanning C:\Development\gem16gb\src\server\session_pool.cpp for CXX dependencies
+[2/48] Scanning C:\Development\gem16gb\src\server\http_streaming.cpp for CXX dependencies
+[3/48] Generating CXX dyndep file CMakeFiles\gem16_server_support.dir\CXX.dd
+[4/44] Scanning C:\Development\gem16gb\src\cli\server_main.cpp for CXX dependencies
+[5/44] Scanning C:\Development\gem16gb\tests\unit\openai_chat_test.cpp for CXX dependencies
+[6/44] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\http_streaming.cpp.obj
+[7/44] Building CXX object CMakeFiles\gem16_server_support.dir\src\server\session_pool.cpp.obj
+[8/44] Generating CXX dyndep file CMakeFiles\gem16-server.dir\CXX.dd
+[9/44] Generating CXX dyndep file CMakeFiles\gem16-unit-tests.dir\CXX.dd
+[10/18] Linking CXX static library lib\gem16_server_support.lib
+[11/18] Building CXX object CMakeFiles\gem16-server.dir\src\cli\server_main.cpp.obj
+[12/18] Building CXX object CMakeFiles\gem16-unit-tests.dir\tests\unit\openai_chat_test.cpp.obj
+[13/18] Linking CXX executable CMakeFiles\gem16-server.dir\cmake_device_link.obj
+server_main.cpp.obj
+gem16_server_support.lib
+gem16_httplib.lib
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+bcrypt.lib
+ws2_32.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[14/18] Linking CXX executable CMakeFiles\gem16-unit-tests.dir\cmake_device_link.obj
+file_sha256_test.cpp.obj
+audio_test.cpp.obj
+chat_test.cpp.obj
+config_test.cpp.obj
+environment_test.cpp.obj
+fp8_test.cpp.obj
+fp8_batch_encoder_test.cpp.obj
+gemma4_26b_manifest_test.cpp.obj
+gemma4_26b_trellis35_test.cpp.obj
+image_test.cpp.obj
+json_test.cpp.obj
+gemma4_26b_moe_prefill_plan_test.cpp.obj
+layer_test.cpp.obj
+memory_plan_test.cpp.obj
+mtp_scheduler_test.cpp.obj
+nvfp4_test.cpp.obj
+nvfp4_batch_encoder_test.cpp.obj
+nvfp4_head_test.cpp.obj
+openai_chat_test.cpp.obj
+observability_test.cpp.obj
+request_queue_test.cpp.obj
+safetensors_test.cpp.obj
+sampling_test.cpp.obj
+sm120_layout_test.cpp.obj
+tokenizer_test.cpp.obj
+test_main.cpp.obj
+windows_utf8_test.cpp.obj
+gem16_core.lib
+gem16_server_support.lib
+gem16_httplib.lib
+gem16_fp8_compiler_support.lib
+gem16_nvfp4_compiler_support.lib
+cudart.lib
+bcrypt.lib
+ws2_32.lib
+gem16_json.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[15/18] Linking CXX executable bin\gem16-server.exe
+[16/18] Linking CXX executable bin\gem16-unit-tests.exe
+[17/18] Linking CXX executable CMakeFiles\gem16-responses-allocation-tests.dir\cmake_device_link.obj
+responses_allocation_test.cpp.obj
+gem16_server_support.lib
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+bcrypt.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[18/18] Linking CXX executable bin\gem16-responses-allocation-tests.exe
+[1/15] Scanning C:\Development\gem16gb\src\server\session_pool.cpp for CXX dependencies
+[2/15] Scanning C:\Development\gem16gb\src\server\http_streaming.cpp for CXX dependencies
+[3/15] Generating CXX dyndep file CMakeFiles\gem16_server_fault_support.dir\CXX.dd
+[4/11] Scanning C:\Development\gem16gb\src\cli\server_main.cpp for CXX dependencies
+[5/11] Building CXX object CMakeFiles\gem16_server_fault_support.dir\src\server\session_pool.cpp.obj
+[6/11] Generating CXX dyndep file CMakeFiles\gem16-server-fault-test.dir\CXX.dd
+[7/11] Building CXX object CMakeFiles\gem16_server_fault_support.dir\src\server\http_streaming.cpp.obj
+[8/11] Linking CXX static library lib\gem16_server_fault_support.lib
+[9/11] Building CXX object CMakeFiles\gem16-server-fault-test.dir\src\cli\server_main.cpp.obj
+[10/11] Linking CXX executable CMakeFiles\gem16-server-fault-test.dir\cmake_device_link.obj
+server_main.cpp.obj
+gem16_server_fault_support.lib
+gem16_httplib.lib
+gem16_core.lib
+gem16_json.lib
+cudart.lib
+bcrypt.lib
+ws2_32.lib
+cudadevrt.lib
+cudart.lib
+kernel32.lib
+user32.lib
+gdi32.lib
+winspool.lib
+shell32.lib
+ole32.lib
+oleaut32.lib
+uuid.lib
+comdlg32.lib
+advapi32.lib
+[11/11] Linking CXX executable bin\gem16-server-fault-test.exe

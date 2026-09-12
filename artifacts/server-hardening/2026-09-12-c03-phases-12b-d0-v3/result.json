@@ -1,0 +1,1189 @@
+{
+  "command": [
+    "C:\\Development\\gem16gb\\build\\Windows\\blackwell-release\\bin\\gem16-server-fault-test.exe",
+    "--model-name",
+    "gem16",
+    "--port",
+    "18087",
+    "--max-context",
+    "32768",
+    "--max-sessions",
+    "2",
+    "--max-queued-requests",
+    "2",
+    "--greedy",
+    "--log-format",
+    "json",
+    "--model",
+    "C:\\Users\\User\\.cache\\huggingface\\hub\\.gem16\\snapshots\\unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4"
+  ],
+  "cases": [
+    {
+      "case": "queue_and_same_session_deadline",
+      "waiters": [
+        {
+          "status": 503,
+          "body": "{\"error\":{\"message\":\"request admission deadline exceeded\",\"type\":\"resource_exhausted\",\"param\":null,\"code\":\"resident_capacity_exhausted\"}}",
+          "seconds": 30.010858499999813
+        },
+        {
+          "status": 503,
+          "body": "{\"error\":{\"message\":\"request admission deadline exceeded\",\"type\":\"resource_exhausted\",\"param\":null,\"code\":\"resident_capacity_exhausted\"}}",
+          "seconds": 30.01047699999981
+        },
+        {
+          "status": 503,
+          "body": "{\"error\":{\"message\":\"request admission deadline exceeded\",\"type\":\"resource_exhausted\",\"param\":null,\"code\":\"resident_capacity_exhausted\"}}",
+          "seconds": 30.010219199999483
+        }
+      ],
+      "control_seconds": 0.024142000000210828,
+      "recovery_seconds": 0.046939100000599865,
+      "next_response": {
+        "id": "chatcmpl-gem16-bec1010b0f7a8d1d65d5a9540d3c2e96",
+        "object": "chat.completion",
+        "created": 1789200715,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 18,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 20
+        }
+      }
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "request_prepare",
+      "route": "/v1/chat/completions",
+      "stream": false,
+      "seconds": 0.031868000000031316,
+      "control_seconds": 0.01592220000020461
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "request_prepare",
+      "route": "/v1/responses",
+      "stream": false,
+      "seconds": 0.016002600000319944,
+      "control_seconds": 0.015755999999782944
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "request_prepare",
+      "route": "/v1/chat/completions",
+      "stream": true,
+      "seconds": 0.016213699999752862,
+      "control_seconds": 0.015916199999992386
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "request_prepare",
+      "route": "/v1/responses",
+      "stream": true,
+      "seconds": 0.016415500000221073,
+      "control_seconds": 0.015589599999657366
+    },
+    {
+      "case": "media_recovery",
+      "stage": "request_prepare",
+      "response": {
+        "id": "chatcmpl-gem16-2e0877379efe2012cd99dba1cb6e5a96",
+        "object": "chat.completion",
+        "created": 1789200716,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "Rust"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 276,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 278
+        }
+      }
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "media_base64",
+      "route": "/v1/chat/completions",
+      "stream": false,
+      "seconds": 0.03047199999946315,
+      "control_seconds": 0.000798199999735516
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "media_base64",
+      "route": "/v1/responses",
+      "stream": false,
+      "seconds": 0.047028799999679904,
+      "control_seconds": 0.01450490000024729
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "media_base64",
+      "route": "/v1/chat/completions",
+      "stream": true,
+      "seconds": 0.02748559999963618,
+      "control_seconds": 0.015897499999482534
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "media_base64",
+      "route": "/v1/responses",
+      "stream": true,
+      "seconds": 0.046720400000594964,
+      "control_seconds": 0.01561889999993582
+    },
+    {
+      "case": "media_recovery",
+      "stage": "media_base64",
+      "response": {
+        "id": "chatcmpl-gem16-f748b5726d908d06563a3327e3297279",
+        "object": "chat.completion",
+        "created": 1789200716,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "Rust"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 276,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 278
+        }
+      }
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_decode",
+      "route": "/v1/chat/completions",
+      "stream": false,
+      "seconds": 0.04768179999973654,
+      "control_seconds": 0.015508299999964947
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_decode",
+      "route": "/v1/responses",
+      "stream": false,
+      "seconds": 0.044848499999716296,
+      "control_seconds": 0.000572900000406662
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_decode",
+      "route": "/v1/chat/completions",
+      "stream": true,
+      "seconds": 0.047354100000120525,
+      "control_seconds": 0.015805099999852246
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_decode",
+      "route": "/v1/responses",
+      "stream": true,
+      "seconds": 0.035010999999940395,
+      "control_seconds": 0.0004638999998860527
+    },
+    {
+      "case": "media_recovery",
+      "stage": "image_decode",
+      "response": {
+        "id": "chatcmpl-gem16-80ee7ad24b131f01fb34506385629416",
+        "object": "chat.completion",
+        "created": 1789200717,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "Rust"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 276,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 278
+        }
+      }
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_resize",
+      "route": "/v1/chat/completions",
+      "stream": false,
+      "seconds": 0.04815539999981411,
+      "control_seconds": 0.015856500000154483
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_resize",
+      "route": "/v1/responses",
+      "stream": false,
+      "seconds": 0.04649850000078004,
+      "control_seconds": 0.015714000000116357
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_resize",
+      "route": "/v1/chat/completions",
+      "stream": true,
+      "seconds": 0.027392799999688577,
+      "control_seconds": 0.019816099999843573
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_resize",
+      "route": "/v1/responses",
+      "stream": true,
+      "seconds": 0.04784480000034819,
+      "control_seconds": 0.015678000000661996
+    },
+    {
+      "case": "media_recovery",
+      "stage": "image_resize",
+      "response": {
+        "id": "chatcmpl-gem16-17531b0ae17d86ff425fbeedfcbaed63",
+        "object": "chat.completion",
+        "created": 1789200718,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "Rust"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 276,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 278
+        }
+      }
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_patchify",
+      "route": "/v1/chat/completions",
+      "stream": false,
+      "seconds": 0.0472408000005089,
+      "control_seconds": 0.01514580000002752
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_patchify",
+      "route": "/v1/responses",
+      "stream": false,
+      "seconds": 0.03169400000024325,
+      "control_seconds": 0.01546660000076372
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_patchify",
+      "route": "/v1/chat/completions",
+      "stream": true,
+      "seconds": 0.04775100000006205,
+      "control_seconds": 0.015373600000202714
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "image_patchify",
+      "route": "/v1/responses",
+      "stream": true,
+      "seconds": 0.03176580000035756,
+      "control_seconds": 0.0155414999999266
+    },
+    {
+      "case": "media_recovery",
+      "stage": "image_patchify",
+      "response": {
+        "id": "chatcmpl-gem16-b51d955fe94b5df34926ad4f160af58d",
+        "object": "chat.completion",
+        "created": 1789200719,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "Rust"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 276,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 278
+        }
+      }
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "audio_decode",
+      "route": "/v1/chat/completions",
+      "stream": false,
+      "seconds": 0.01616009999997914,
+      "control_seconds": 0.015013199999884819
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "audio_decode",
+      "route": "/v1/responses",
+      "stream": false,
+      "seconds": 0.047740199999680044,
+      "control_seconds": 0.016004199999770208
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "audio_decode",
+      "route": "/v1/chat/completions",
+      "stream": true,
+      "seconds": 0.0470034999998461,
+      "control_seconds": 0.01606400000036956
+    },
+    {
+      "case": "media_disconnect",
+      "stage": "audio_decode",
+      "route": "/v1/responses",
+      "stream": true,
+      "seconds": 0.03153429999929358,
+      "control_seconds": 0.015637599999536178
+    },
+    {
+      "case": "media_recovery",
+      "stage": "audio_decode",
+      "response": {
+        "id": "chatcmpl-gem16-c45611af379f46d087f4d1fe741dbec0",
+        "object": "chat.completion",
+        "created": 1789200719,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "The audio is a short, high-pitched, and slightly distorted electronic sound, similar to a \"beep\" or a \"blip.\" It has a sharp"
+            },
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 45,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 32,
+          "total_tokens": 77
+        }
+      }
+    },
+    {
+      "case": "media_history_recovery",
+      "before": {
+        "gem16_indexed_responses": 0.0,
+        "gem16_active_response_ids": 0.0,
+        "gem16_session_releases_total": 10.0,
+        "gem16_test_faults_observed": 25.0,
+        "gem16_test_pause_active": 0.0,
+        "gem16_requests_total": 37.0,
+        "gem16_requests_failed_total": 28.0,
+        "gem16_active_requests": 0.0,
+        "gem16_request_queue_active": 0.0,
+        "gem16_request_queue_depth": 0.0,
+        "gem16_request_queue_capacity": 2.0,
+        "gem16_request_queue_max_depth": 2.0,
+        "gem16_request_queue_high_watermark": 2.0,
+        "gem16_request_queue_admissions_total": 35.0,
+        "gem16_request_queue_waits_total": 0.0,
+        "gem16_request_queue_rejections_total": 2.0,
+        "gem16_request_queue_wait_microseconds_total": 0.0,
+        "gem16_resident_sessions": 2.0,
+        "gem16_pending_session_creations": 0.0,
+        "gem16_session_limit": 2.0,
+        "gem16_sessions_rebuilt_total": 0.0,
+        "gem16_sessions_created_total": 10.0,
+        "gem16_sessions_evicted_total": 7.0,
+        "gem16_cancellations_requested_total": 0.0,
+        "gem16_cancellations_observed_total": 0.0,
+        "gem16_client_disconnects_total": 1.0,
+        "gem16_input_tokens_total": 1737.0,
+        "gem16_cached_input_tokens_total": 0.0,
+        "gem16_cache_write_tokens_total": 1737.0,
+        "gem16_output_tokens_total": 48.0,
+        "gem16_generation_microseconds_total": 1984416.0,
+        "gem16_prompt_microseconds_total": 1165795.0,
+        "gem16_ttft_microseconds_total": 1165795.0,
+        "gem16_decode_microseconds_total": 805375.0,
+        "gem16_image_decode_microseconds_total": 0.0,
+        "gem16_image_resize_patchify_microseconds_total": 0.0,
+        "gem16_vision_upload_microseconds_total": 0.0,
+        "gem16_vision_tower_microseconds_total": 0.0,
+        "gem16_vision_pool_project_microseconds_total": 0.0,
+        "gem16_text_prefill_microseconds_total": 0.0,
+        "gem16_vision_requests_total": 6.0,
+        "gem16_vision_failures_total": 0.0,
+        "gem16_vision_d2_rejections_total": 0.0,
+        "gem16_vision_budget_70_total": 0.0,
+        "gem16_vision_budget_140_total": 0.0,
+        "gem16_vision_budget_280_total": 0.0,
+        "gem16_vision_artifact_validation_failures_total": 0.0,
+        "gem16_last_vision_soft_token_budget": 0.0,
+        "gem16_decode_measured_tokens_total": 39.0,
+        "gem16_mtp_proposed_tokens_total": 0.0,
+        "gem16_mtp_accepted_tokens_total": 0.0,
+        "gem16_mtp_rejected_tokens_total": 0.0,
+        "gem16_mtp_verification_groups_total": 0.0,
+        "gem16_mtp_d1_groups_total": 0.0,
+        "gem16_mtp_d2_groups_total": 0.0,
+        "gem16_mtp_d4_groups_total": 0.0,
+        "gem16_mtp_ordinary_fallback_tokens_total": 0.0,
+        "gem16_fallback_total": 0.0,
+        "gem16_resource_exhaustion_total": 3.0,
+        "gem16_unsupported_feature_total": 0.0,
+        "gem16_model_validation_failure_total": 0.0,
+        "gem16_token_loop_allocation_total": 0.0,
+        "gem16_model_weight_bytes": 9304895488.0,
+        "gem16_assistant_weight_bytes": 0.0,
+        "gem16_vision_weight_bytes": 0.0,
+        "gem16_vision_workspace_bytes": 0.0,
+        "gem16_execution_slot_planned_bytes": 2069889024.0,
+        "gem16_configured_execution_slot_bytes": 4139778048.0,
+        "gem16_resident_execution_slot_bytes": 4139778048.0,
+        "gem16_device_total_bytes": 17094475776.0,
+        "gem16_device_free_after_probe_bytes": 4423942144.0,
+        "gem16_device_safety_margin_bytes": 734003200.0,
+        "gem16_last_execution_slot_bytes": 2054785792.0,
+        "gem16_model_load_microseconds": 6557788.0,
+        "gem16_server_startup_microseconds": 7424788.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.010000\"}": 118.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.050000\"}": 127.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.100000\"}": 143.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.250000\"}": 143.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.500000\"}": 150.0,
+        "gem16_request_duration_seconds_bucket{le=\"1.000000\"}": 151.0,
+        "gem16_request_duration_seconds_bucket{le=\"2.500000\"}": 151.0,
+        "gem16_request_duration_seconds_bucket{le=\"5.000000\"}": 151.0,
+        "gem16_request_duration_seconds_bucket{le=\"10.000000\"}": 151.0,
+        "gem16_request_duration_seconds_bucket{le=\"30.000000\"}": 151.0,
+        "gem16_request_duration_seconds_bucket{le=\"60.000000\"}": 155.0,
+        "gem16_request_duration_seconds_bucket{le=\"+Inf\"}": 155.0,
+        "gem16_request_duration_seconds_sum": 124.34219,
+        "gem16_request_duration_seconds_count": 155.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.010000\"}": 35.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.050000\"}": 35.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.100000\"}": 35.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.250000\"}": 35.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.500000\"}": 35.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"1.000000\"}": 35.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"2.500000\"}": 35.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"5.000000\"}": 35.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"10.000000\"}": 35.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"30.000000\"}": 35.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"60.000000\"}": 35.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"+Inf\"}": 35.0,
+        "gem16_request_queue_wait_seconds_sum": 0.0,
+        "gem16_request_queue_wait_seconds_count": 35.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.010000\"}": 0.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.050000\"}": 0.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.100000\"}": 1.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.250000\"}": 8.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.500000\"}": 8.0,
+        "gem16_generation_duration_seconds_bucket{le=\"1.000000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"2.500000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"5.000000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"10.000000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"30.000000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"60.000000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"+Inf\"}": 9.0,
+        "gem16_generation_duration_seconds_sum": 1.984416,
+        "gem16_generation_duration_seconds_count": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.010000\"}": 0.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.050000\"}": 2.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.100000\"}": 2.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.250000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.500000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"1.000000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"2.500000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"5.000000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"10.000000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"30.000000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"60.000000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"+Inf\"}": 9.0,
+        "gem16_prompt_duration_seconds_sum": 1.165795,
+        "gem16_prompt_duration_seconds_count": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.010000\"}": 0.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.050000\"}": 8.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.100000\"}": 8.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.250000\"}": 8.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.500000\"}": 8.0,
+        "gem16_decode_duration_seconds_bucket{le=\"1.000000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"2.500000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"5.000000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"10.000000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"30.000000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"60.000000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"+Inf\"}": 9.0,
+        "gem16_decode_duration_seconds_sum": 0.805375,
+        "gem16_decode_duration_seconds_count": 9.0
+      },
+      "after_cancel": {
+        "gem16_indexed_responses": 0.0,
+        "gem16_active_response_ids": 0.0,
+        "gem16_session_releases_total": 10.0,
+        "gem16_test_faults_observed": 26.0,
+        "gem16_test_pause_active": 0.0,
+        "gem16_requests_total": 38.0,
+        "gem16_requests_failed_total": 29.0,
+        "gem16_active_requests": 0.0,
+        "gem16_request_queue_active": 0.0,
+        "gem16_request_queue_depth": 0.0,
+        "gem16_request_queue_capacity": 2.0,
+        "gem16_request_queue_max_depth": 2.0,
+        "gem16_request_queue_high_watermark": 2.0,
+        "gem16_request_queue_admissions_total": 36.0,
+        "gem16_request_queue_waits_total": 0.0,
+        "gem16_request_queue_rejections_total": 2.0,
+        "gem16_request_queue_wait_microseconds_total": 0.0,
+        "gem16_resident_sessions": 2.0,
+        "gem16_pending_session_creations": 0.0,
+        "gem16_session_limit": 2.0,
+        "gem16_sessions_rebuilt_total": 0.0,
+        "gem16_sessions_created_total": 10.0,
+        "gem16_sessions_evicted_total": 7.0,
+        "gem16_cancellations_requested_total": 0.0,
+        "gem16_cancellations_observed_total": 0.0,
+        "gem16_client_disconnects_total": 1.0,
+        "gem16_input_tokens_total": 1737.0,
+        "gem16_cached_input_tokens_total": 0.0,
+        "gem16_cache_write_tokens_total": 1737.0,
+        "gem16_output_tokens_total": 48.0,
+        "gem16_generation_microseconds_total": 1984416.0,
+        "gem16_prompt_microseconds_total": 1165795.0,
+        "gem16_ttft_microseconds_total": 1165795.0,
+        "gem16_decode_microseconds_total": 805375.0,
+        "gem16_image_decode_microseconds_total": 0.0,
+        "gem16_image_resize_patchify_microseconds_total": 0.0,
+        "gem16_vision_upload_microseconds_total": 0.0,
+        "gem16_vision_tower_microseconds_total": 0.0,
+        "gem16_vision_pool_project_microseconds_total": 0.0,
+        "gem16_text_prefill_microseconds_total": 0.0,
+        "gem16_vision_requests_total": 6.0,
+        "gem16_vision_failures_total": 0.0,
+        "gem16_vision_d2_rejections_total": 0.0,
+        "gem16_vision_budget_70_total": 0.0,
+        "gem16_vision_budget_140_total": 0.0,
+        "gem16_vision_budget_280_total": 0.0,
+        "gem16_vision_artifact_validation_failures_total": 0.0,
+        "gem16_last_vision_soft_token_budget": 0.0,
+        "gem16_decode_measured_tokens_total": 39.0,
+        "gem16_mtp_proposed_tokens_total": 0.0,
+        "gem16_mtp_accepted_tokens_total": 0.0,
+        "gem16_mtp_rejected_tokens_total": 0.0,
+        "gem16_mtp_verification_groups_total": 0.0,
+        "gem16_mtp_d1_groups_total": 0.0,
+        "gem16_mtp_d2_groups_total": 0.0,
+        "gem16_mtp_d4_groups_total": 0.0,
+        "gem16_mtp_ordinary_fallback_tokens_total": 0.0,
+        "gem16_fallback_total": 0.0,
+        "gem16_resource_exhaustion_total": 3.0,
+        "gem16_unsupported_feature_total": 0.0,
+        "gem16_model_validation_failure_total": 0.0,
+        "gem16_token_loop_allocation_total": 0.0,
+        "gem16_model_weight_bytes": 9304895488.0,
+        "gem16_assistant_weight_bytes": 0.0,
+        "gem16_vision_weight_bytes": 0.0,
+        "gem16_vision_workspace_bytes": 0.0,
+        "gem16_execution_slot_planned_bytes": 2069889024.0,
+        "gem16_configured_execution_slot_bytes": 4139778048.0,
+        "gem16_resident_execution_slot_bytes": 4139778048.0,
+        "gem16_device_total_bytes": 17094475776.0,
+        "gem16_device_free_after_probe_bytes": 4423942144.0,
+        "gem16_device_safety_margin_bytes": 734003200.0,
+        "gem16_last_execution_slot_bytes": 2054785792.0,
+        "gem16_model_load_microseconds": 6557788.0,
+        "gem16_server_startup_microseconds": 7424788.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.010000\"}": 124.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.050000\"}": 133.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.100000\"}": 150.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.250000\"}": 150.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.500000\"}": 157.0,
+        "gem16_request_duration_seconds_bucket{le=\"1.000000\"}": 158.0,
+        "gem16_request_duration_seconds_bucket{le=\"2.500000\"}": 158.0,
+        "gem16_request_duration_seconds_bucket{le=\"5.000000\"}": 158.0,
+        "gem16_request_duration_seconds_bucket{le=\"10.000000\"}": 158.0,
+        "gem16_request_duration_seconds_bucket{le=\"30.000000\"}": 158.0,
+        "gem16_request_duration_seconds_bucket{le=\"60.000000\"}": 162.0,
+        "gem16_request_duration_seconds_bucket{le=\"+Inf\"}": 162.0,
+        "gem16_request_duration_seconds_sum": 124.418348,
+        "gem16_request_duration_seconds_count": 162.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.010000\"}": 36.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.050000\"}": 36.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.100000\"}": 36.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.250000\"}": 36.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.500000\"}": 36.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"1.000000\"}": 36.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"2.500000\"}": 36.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"5.000000\"}": 36.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"10.000000\"}": 36.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"30.000000\"}": 36.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"60.000000\"}": 36.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"+Inf\"}": 36.0,
+        "gem16_request_queue_wait_seconds_sum": 0.0,
+        "gem16_request_queue_wait_seconds_count": 36.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.010000\"}": 0.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.050000\"}": 0.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.100000\"}": 1.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.250000\"}": 8.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.500000\"}": 8.0,
+        "gem16_generation_duration_seconds_bucket{le=\"1.000000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"2.500000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"5.000000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"10.000000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"30.000000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"60.000000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"+Inf\"}": 9.0,
+        "gem16_generation_duration_seconds_sum": 1.984416,
+        "gem16_generation_duration_seconds_count": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.010000\"}": 0.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.050000\"}": 2.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.100000\"}": 2.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.250000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.500000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"1.000000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"2.500000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"5.000000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"10.000000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"30.000000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"60.000000\"}": 9.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"+Inf\"}": 9.0,
+        "gem16_prompt_duration_seconds_sum": 1.165795,
+        "gem16_prompt_duration_seconds_count": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.010000\"}": 0.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.050000\"}": 8.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.100000\"}": 8.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.250000\"}": 8.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.500000\"}": 8.0,
+        "gem16_decode_duration_seconds_bucket{le=\"1.000000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"2.500000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"5.000000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"10.000000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"30.000000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"60.000000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"+Inf\"}": 9.0,
+        "gem16_decode_duration_seconds_sum": 0.805375,
+        "gem16_decode_duration_seconds_count": 9.0
+      },
+      "after": {
+        "gem16_indexed_responses": 0.0,
+        "gem16_active_response_ids": 0.0,
+        "gem16_session_releases_total": 11.0,
+        "gem16_test_faults_observed": 26.0,
+        "gem16_test_pause_active": 0.0,
+        "gem16_requests_total": 39.0,
+        "gem16_requests_failed_total": 29.0,
+        "gem16_active_requests": 0.0,
+        "gem16_request_queue_active": 0.0,
+        "gem16_request_queue_depth": 0.0,
+        "gem16_request_queue_capacity": 2.0,
+        "gem16_request_queue_max_depth": 2.0,
+        "gem16_request_queue_high_watermark": 2.0,
+        "gem16_request_queue_admissions_total": 37.0,
+        "gem16_request_queue_waits_total": 0.0,
+        "gem16_request_queue_rejections_total": 2.0,
+        "gem16_request_queue_wait_microseconds_total": 0.0,
+        "gem16_resident_sessions": 2.0,
+        "gem16_pending_session_creations": 0.0,
+        "gem16_session_limit": 2.0,
+        "gem16_sessions_rebuilt_total": 0.0,
+        "gem16_sessions_created_total": 10.0,
+        "gem16_sessions_evicted_total": 7.0,
+        "gem16_cancellations_requested_total": 0.0,
+        "gem16_cancellations_observed_total": 0.0,
+        "gem16_client_disconnects_total": 1.0,
+        "gem16_input_tokens_total": 2034.0,
+        "gem16_cached_input_tokens_total": 277.0,
+        "gem16_cache_write_tokens_total": 1757.0,
+        "gem16_output_tokens_total": 50.0,
+        "gem16_generation_microseconds_total": 2040641.0,
+        "gem16_prompt_microseconds_total": 1201037.0,
+        "gem16_ttft_microseconds_total": 1201037.0,
+        "gem16_decode_microseconds_total": 825109.0,
+        "gem16_image_decode_microseconds_total": 0.0,
+        "gem16_image_resize_patchify_microseconds_total": 0.0,
+        "gem16_vision_upload_microseconds_total": 0.0,
+        "gem16_vision_tower_microseconds_total": 0.0,
+        "gem16_vision_pool_project_microseconds_total": 0.0,
+        "gem16_text_prefill_microseconds_total": 0.0,
+        "gem16_vision_requests_total": 7.0,
+        "gem16_vision_failures_total": 0.0,
+        "gem16_vision_d2_rejections_total": 0.0,
+        "gem16_vision_budget_70_total": 0.0,
+        "gem16_vision_budget_140_total": 0.0,
+        "gem16_vision_budget_280_total": 0.0,
+        "gem16_vision_artifact_validation_failures_total": 0.0,
+        "gem16_last_vision_soft_token_budget": 0.0,
+        "gem16_decode_measured_tokens_total": 40.0,
+        "gem16_mtp_proposed_tokens_total": 0.0,
+        "gem16_mtp_accepted_tokens_total": 0.0,
+        "gem16_mtp_rejected_tokens_total": 0.0,
+        "gem16_mtp_verification_groups_total": 0.0,
+        "gem16_mtp_d1_groups_total": 0.0,
+        "gem16_mtp_d2_groups_total": 0.0,
+        "gem16_mtp_d4_groups_total": 0.0,
+        "gem16_mtp_ordinary_fallback_tokens_total": 0.0,
+        "gem16_fallback_total": 0.0,
+        "gem16_resource_exhaustion_total": 3.0,
+        "gem16_unsupported_feature_total": 0.0,
+        "gem16_model_validation_failure_total": 0.0,
+        "gem16_token_loop_allocation_total": 0.0,
+        "gem16_model_weight_bytes": 9304895488.0,
+        "gem16_assistant_weight_bytes": 0.0,
+        "gem16_vision_weight_bytes": 0.0,
+        "gem16_vision_workspace_bytes": 0.0,
+        "gem16_execution_slot_planned_bytes": 2069889024.0,
+        "gem16_configured_execution_slot_bytes": 4139778048.0,
+        "gem16_resident_execution_slot_bytes": 4139778048.0,
+        "gem16_device_total_bytes": 17094475776.0,
+        "gem16_device_free_after_probe_bytes": 4423942144.0,
+        "gem16_device_safety_margin_bytes": 734003200.0,
+        "gem16_last_execution_slot_bytes": 2054785792.0,
+        "gem16_model_load_microseconds": 6557788.0,
+        "gem16_server_startup_microseconds": 7424788.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.010000\"}": 125.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.050000\"}": 134.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.100000\"}": 152.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.250000\"}": 152.0,
+        "gem16_request_duration_seconds_bucket{le=\"0.500000\"}": 159.0,
+        "gem16_request_duration_seconds_bucket{le=\"1.000000\"}": 160.0,
+        "gem16_request_duration_seconds_bucket{le=\"2.500000\"}": 160.0,
+        "gem16_request_duration_seconds_bucket{le=\"5.000000\"}": 160.0,
+        "gem16_request_duration_seconds_bucket{le=\"10.000000\"}": 160.0,
+        "gem16_request_duration_seconds_bucket{le=\"30.000000\"}": 160.0,
+        "gem16_request_duration_seconds_bucket{le=\"60.000000\"}": 164.0,
+        "gem16_request_duration_seconds_bucket{le=\"+Inf\"}": 164.0,
+        "gem16_request_duration_seconds_sum": 124.516468,
+        "gem16_request_duration_seconds_count": 164.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.010000\"}": 37.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.050000\"}": 37.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.100000\"}": 37.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.250000\"}": 37.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"0.500000\"}": 37.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"1.000000\"}": 37.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"2.500000\"}": 37.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"5.000000\"}": 37.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"10.000000\"}": 37.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"30.000000\"}": 37.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"60.000000\"}": 37.0,
+        "gem16_request_queue_wait_seconds_bucket{le=\"+Inf\"}": 37.0,
+        "gem16_request_queue_wait_seconds_sum": 0.0,
+        "gem16_request_queue_wait_seconds_count": 37.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.010000\"}": 0.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.050000\"}": 0.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.100000\"}": 2.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.250000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"0.500000\"}": 9.0,
+        "gem16_generation_duration_seconds_bucket{le=\"1.000000\"}": 10.0,
+        "gem16_generation_duration_seconds_bucket{le=\"2.500000\"}": 10.0,
+        "gem16_generation_duration_seconds_bucket{le=\"5.000000\"}": 10.0,
+        "gem16_generation_duration_seconds_bucket{le=\"10.000000\"}": 10.0,
+        "gem16_generation_duration_seconds_bucket{le=\"30.000000\"}": 10.0,
+        "gem16_generation_duration_seconds_bucket{le=\"60.000000\"}": 10.0,
+        "gem16_generation_duration_seconds_bucket{le=\"+Inf\"}": 10.0,
+        "gem16_generation_duration_seconds_sum": 2.040641,
+        "gem16_generation_duration_seconds_count": 10.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.010000\"}": 0.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.050000\"}": 3.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.100000\"}": 3.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.250000\"}": 10.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"0.500000\"}": 10.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"1.000000\"}": 10.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"2.500000\"}": 10.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"5.000000\"}": 10.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"10.000000\"}": 10.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"30.000000\"}": 10.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"60.000000\"}": 10.0,
+        "gem16_prompt_duration_seconds_bucket{le=\"+Inf\"}": 10.0,
+        "gem16_prompt_duration_seconds_sum": 1.201037,
+        "gem16_prompt_duration_seconds_count": 10.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.010000\"}": 0.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.050000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.100000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.250000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"0.500000\"}": 9.0,
+        "gem16_decode_duration_seconds_bucket{le=\"1.000000\"}": 10.0,
+        "gem16_decode_duration_seconds_bucket{le=\"2.500000\"}": 10.0,
+        "gem16_decode_duration_seconds_bucket{le=\"5.000000\"}": 10.0,
+        "gem16_decode_duration_seconds_bucket{le=\"10.000000\"}": 10.0,
+        "gem16_decode_duration_seconds_bucket{le=\"30.000000\"}": 10.0,
+        "gem16_decode_duration_seconds_bucket{le=\"60.000000\"}": 10.0,
+        "gem16_decode_duration_seconds_bucket{le=\"+Inf\"}": 10.0,
+        "gem16_decode_duration_seconds_sum": 0.825109,
+        "gem16_decode_duration_seconds_count": 10.0
+      },
+      "response": {
+        "id": "chatcmpl-gem16-bc57b3e9b5948c42f5e3f37ba63eee34",
+        "object": "chat.completion",
+        "created": 1789200721,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 297,
+          "prompt_tokens_details": {
+            "cached_tokens": 277
+          },
+          "completion_tokens": 2,
+          "total_tokens": 299
+        }
+      }
+    },
+    {
+      "case": "media_deadline",
+      "status": 503,
+      "body": "{\"error\":{\"message\":\"request admission deadline exceeded\",\"type\":\"resource_exhausted\",\"param\":null,\"code\":\"resident_capacity_exhausted\"}}",
+      "seconds": 30.04886819999956,
+      "next_response": {
+        "id": "chatcmpl-gem16-764d2548decbb41a741fa0185a0f3171",
+        "object": "chat.completion",
+        "created": 1789200751,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "Rust"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 276,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 278
+        }
+      }
+    },
+    {
+      "case": "decode_disconnect",
+      "route": "/v1/chat/completions",
+      "stream": false,
+      "seconds": 0.02009520000046905,
+      "next_response": {
+        "id": "chatcmpl-gem16-dea6523daca889d1c117901aa75b97b9",
+        "object": "chat.completion",
+        "created": 1789200751,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 18,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 20
+        }
+      }
+    },
+    {
+      "case": "decode_disconnect",
+      "route": "/v1/responses",
+      "stream": false,
+      "seconds": 0.02698199999940698,
+      "next_response": {
+        "id": "chatcmpl-gem16-58f945f37ae53bd0fa04e8e0fd7b8042",
+        "object": "chat.completion",
+        "created": 1789200752,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 18,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 20
+        }
+      }
+    },
+    {
+      "case": "decode_disconnect",
+      "route": "/v1/chat/completions",
+      "stream": true,
+      "seconds": 0.019370099999832746,
+      "next_response": {
+        "id": "chatcmpl-gem16-01161ed9dd8969344d830c61c07a2af7",
+        "object": "chat.completion",
+        "created": 1789200752,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 18,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 20
+        }
+      }
+    },
+    {
+      "case": "decode_disconnect",
+      "route": "/v1/responses",
+      "stream": true,
+      "seconds": 0.015182000000095286,
+      "next_response": {
+        "id": "chatcmpl-gem16-de88d4c414022df82ec0ef4c2de08397",
+        "object": "chat.completion",
+        "created": 1789200752,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 18,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 20
+        }
+      }
+    },
+    {
+      "case": "decode_explicit_cancel",
+      "seconds": 0.032849199999873235,
+      "control_seconds": 0.01616900000044552,
+      "events": [
+        {
+          "type": "response.created",
+          "response": {
+            "id": "resp_gem16_e2c3b307afe7311fcfba5956c3d03c9e",
+            "object": "response",
+            "created_at": 1789200752,
+            "status": "in_progress",
+            "completed_at": null,
+            "error": null,
+            "incomplete_details": null,
+            "instructions": null,
+            "max_output_tokens": 32,
+            "model": "gem16",
+            "output": [],
+            "parallel_tool_calls": true,
+            "previous_response_id": null,
+            "reasoning": null,
+            "store": true,
+            "temperature": null,
+            "text": {
+              "format": {
+                "type": "text"
+              }
+            },
+            "tool_choice": "auto",
+            "tools": [],
+            "top_p": null,
+            "truncation": "disabled",
+            "usage": null,
+            "metadata": {}
+          },
+          "sequence_number": 0
+        },
+        {
+          "type": "error",
+          "code": null,
+          "message": "generation was cancelled",
+          "param": null,
+          "sequence_number": 1
+        }
+      ],
+      "next_response": {
+        "id": "chatcmpl-gem16-5d67dba64eaa810aeb2538ebad0d9bfd",
+        "object": "chat.completion",
+        "created": 1789200752,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 18,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 20
+        }
+      }
+    },
+    {
+      "case": "graceful_stop",
+      "stage": "image_resize",
+      "seconds": 0.24624450000010256,
+      "exit_code": 0
+    },
+    {
+      "case": "restart",
+      "stage": "image_resize",
+      "response": {
+        "id": "chatcmpl-gem16-4b0223374f46aa76cd303ed7b03a829b",
+        "object": "chat.completion",
+        "created": 1789200759,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 18,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 20
+        }
+      }
+    },
+    {
+      "case": "graceful_stop",
+      "stage": "generation",
+      "seconds": 0.25629449999996723,
+      "exit_code": 0
+    },
+    {
+      "case": "restart",
+      "stage": "generation",
+      "response": {
+        "id": "chatcmpl-gem16-8489451dd98ed4d1f2cf6f5bb8f4be48",
+        "object": "chat.completion",
+        "created": 1789200765,
+        "model": "gem16",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ready"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 18,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 2,
+          "total_tokens": 20
+        }
+      }
+    }
+  ],
+  "commit": "ffb0a557660b7a6338dc9e0ec92e73679a6b6832",
+  "server_sha256": "b6d9471b275ee4bb0ae09ec0a666fa440e2ec403d64a443fa41a8104f61eacb0",
+  "scope": "Real model; explicit test-only 35s holds prove phase arrival. Latency excludes hold before cancellation. No generation wall-time deadline is imposed.",
+  "passed": true
+}

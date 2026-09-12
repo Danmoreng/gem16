@@ -1,5 +1,6 @@
 #include "gem16/image.h"
 #include "model/image_decode_budget.h"
+#include "model/preparation_control.h"
 
 #include <algorithm>
 #include <chrono>
@@ -55,6 +56,8 @@ ImageSourceIdentity SourceIdentity(std::span<const std::uint8_t> encoded) {
 
 Result<RgbImage> DecodeImage(std::span<const std::uint8_t> encoded,
                              std::string_view source_name) {
+  const auto cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kImageDecode);
+  if (!cancelled.ok()) return cancelled;
   if (encoded.empty() || encoded.size() > kMaximumEncodedBytes ||
       encoded.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
     return Error(StatusCode::kUnsupported,
@@ -82,6 +85,8 @@ Result<RgbImage> DecodeImage(std::span<const std::uint8_t> encoded,
       stbi_load_from_memory(encoded.data(), encoded_size, &width, &height,
                             &channels, 3),
       &stbi_image_free);
+  const auto decoded_cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kImageDecode);
+  if (!decoded_cancelled.ok()) return decoded_cancelled;
   if (decoded == nullptr) {
     const char* reason = stbi_failure_reason();
     return Error(StatusCode::kDataLoss,
@@ -174,7 +179,7 @@ std::vector<FilterEntry> Filters(std::uint32_t source,
   return result;
 }
 
-std::vector<std::uint8_t> Resize(const RgbImage& source,
+Result<std::vector<std::uint8_t>> Resize(const RgbImage& source,
                                  std::uint32_t target_width,
                                  std::uint32_t target_height) {
   if (source.width == target_width && source.height == target_height) {
@@ -185,6 +190,10 @@ std::vector<std::uint8_t> Resize(const RgbImage& source,
   std::vector<float> intermediate(
       static_cast<std::size_t>(source.height) * target_width * 3U);
   for (std::uint32_t y = 0U; y < source.height; ++y) {
+    if (y % 16U == 0U) {
+      const auto cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kImageResize);
+      if (!cancelled.ok()) return cancelled;
+    }
     for (std::uint32_t x = 0U; x < target_width; ++x) {
       for (std::uint32_t channel = 0U; channel < 3U; ++channel) {
         float value = 0.0F;
@@ -204,6 +213,10 @@ std::vector<std::uint8_t> Resize(const RgbImage& source,
   std::vector<std::uint8_t> output(
       static_cast<std::size_t>(target_height) * target_width * 3U);
   for (std::uint32_t y = 0U; y < target_height; ++y) {
+    if (y % 16U == 0U) {
+      const auto cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kImageResize);
+      if (!cancelled.ok()) return cancelled;
+    }
     for (std::uint32_t x = 0U; x < target_width; ++x) {
       for (std::uint32_t channel = 0U; channel < 3U; ++channel) {
         float value = 0.0F;
@@ -271,6 +284,7 @@ Result<VisionImage> LoadVisionImageBytes(
           static_cast<std::uint64_t>(target_width / 16U) * (target_height / 16U) * 8U))
     return Error(StatusCode::kResourceExhausted, "request prepared image memory budget exceeded");
   auto resized = Resize(decoded.value(), target_width, target_height);
+  if (!resized.ok()) return resized.status();
   VisionImage result;
   result.patch_count = patch_count;
   result.source_width = decoded.value().width;
@@ -283,6 +297,8 @@ Result<VisionImage> LoadVisionImageBytes(
   result.positions.resize(static_cast<std::size_t>(patch_count) * 2U);
   std::size_t destination = 0U;
   for (std::uint32_t patch_y = 0U; patch_y < grid_height; ++patch_y) {
+    const auto cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kImagePatchify);
+    if (!cancelled.ok()) return cancelled;
     for (std::uint32_t patch_x = 0U; patch_x < grid_width; ++patch_x) {
       const std::uint32_t patch = patch_y * grid_width + patch_x;
       result.positions[patch * 2U] = static_cast<std::int32_t>(patch_x);
@@ -296,7 +312,7 @@ Result<VisionImage> LoadVisionImageBytes(
               3U;
           for (std::uint32_t channel = 0U; channel < 3U; ++channel) {
             result.patches[destination++] =
-                static_cast<float>(resized[source + channel]) / 255.0F;
+                static_cast<float>(resized.value()[source + channel]) / 255.0F;
           }
         }
       }
@@ -381,6 +397,7 @@ Result<Gemma4Moe26BVisionImage> LoadGemma4Moe26BVisionImageBytes(
           static_cast<std::uint64_t>(target_width / 16U) * (target_height / 16U) * 8U))
     return Error(StatusCode::kResourceExhausted, "request prepared image memory budget exceeded");
   auto resized = Resize(decoded.value(), target_width, target_height);
+  if (!resized.ok()) return resized.status();
   const auto resize_end = std::chrono::steady_clock::now();
   if (options.timings != nullptr) {
     options.timings->resize_milliseconds =
@@ -400,6 +417,8 @@ Result<Gemma4Moe26BVisionImage> LoadGemma4Moe26BVisionImageBytes(
   result.positions.resize(static_cast<std::size_t>(raw_patch_count) * 2U);
   std::size_t destination = 0U;
   for (std::uint32_t patch_y = 0U; patch_y < raw_grid_height; ++patch_y) {
+    const auto cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kImagePatchify);
+    if (!cancelled.ok()) return cancelled;
     for (std::uint32_t patch_x = 0U; patch_x < raw_grid_width; ++patch_x) {
       const std::uint32_t patch = patch_y * raw_grid_width + patch_x;
       result.positions[patch * 2U] = static_cast<std::int32_t>(patch_x);
@@ -413,7 +432,7 @@ Result<Gemma4Moe26BVisionImage> LoadGemma4Moe26BVisionImageBytes(
               3U;
           for (std::uint32_t channel = 0U; channel < 3U; ++channel) {
             result.patches[destination++] =
-                static_cast<float>(resized[source + channel]) / 255.0F;
+                static_cast<float>(resized.value()[source + channel]) / 255.0F;
           }
         }
       }

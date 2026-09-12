@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "gem16/chat.h"
+#include "model/preparation_control.h"
 
 namespace gem16::server {
 
@@ -30,6 +31,8 @@ struct OpenAiChatAdapterOptions {
   std::uint32_t vision_max_soft_token_budget = 280U;
   // Empty for offline adapter callers; HTTP supplies the served identity.
   std::string_view served_model = {};
+  internal::PreparationControl::Callback preparation_callback = nullptr;
+  void* preparation_context = nullptr;
 };
 
 struct OpenAiResponsesRequest {

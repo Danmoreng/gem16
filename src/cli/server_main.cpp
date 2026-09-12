@@ -488,7 +488,21 @@ gem16::Status CheckCancellation(void* opaque_context,
     return gem16::Status(gem16::StatusCode::kInternal,
                          "invalid cancellation callback");
   }
-  return CheckGenerationCancellation(opaque_context);
+  return gem16::server::TestPause("generation", [&] {
+    return CheckGenerationCancellation(opaque_context);
+  });
+}
+
+struct PreparationContext {
+  ServerState& state;
+  const gem16::server::SessionWaitOptions& wait;
+};
+
+gem16::Status CheckPreparation(void* opaque, gem16::internal::PreparationPhase phase) {
+  auto& context = *static_cast<PreparationContext*>(opaque);
+  return gem16::server::TestPause(gem16::internal::PreparationPhaseName(phase), [&] {
+    return context.wait.Check(context.state.request_queue);
+  });
 }
 
 void HandleCompletion(ServerState& state, const httplib::Request& request,
@@ -506,10 +520,12 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     return;
   }
   RequestAdmission admission = std::move(admission_result).value();
+  PreparationContext preparation{state, wait};
   auto parsed = gem16::server::ParseChatCompletionsRequest(
       request.body,
       {state.max_context, state.runtime->vision_module_loaded(),
-       state.runtime->vision_max_soft_token_budget(), state.model_name});
+       state.runtime->vision_max_soft_token_budget(), state.model_name,
+       CheckPreparation, &preparation});
   if (!parsed.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, parsed.status(), response);
@@ -721,10 +737,12 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     return;
   }
   RequestAdmission admission = std::move(admission_result).value();
+  PreparationContext preparation{state, wait};
   auto parsed = gem16::server::ParseResponsesRequest(
       request.body,
       {state.max_context, state.runtime->vision_module_loaded(),
-       state.runtime->vision_max_soft_token_budget(), state.model_name});
+       state.runtime->vision_max_soft_token_budget(), state.model_name,
+       CheckPreparation, &preparation});
   if (!parsed.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, parsed.status(), response);

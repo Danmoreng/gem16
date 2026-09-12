@@ -81,6 +81,10 @@ Result<std::vector<std::uint8_t>> DecodeBase64(std::string_view encoded) {
   std::vector<std::uint8_t> decoded;
   decoded.reserve(encoded.size() / 4U * 3U);
   for (std::size_t index = 0U; index < encoded.size(); index += 4U) {
+    if (index % 16384U == 0U) {
+      const auto cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kBase64);
+      if (!cancelled.ok()) return cancelled;
+    }
     const bool last = index + 4U == encoded.size();
     const bool pad2 = encoded[index + 2U] == '=';
     const bool pad3 = encoded[index + 3U] == '=';
@@ -682,12 +686,17 @@ std::string ResponsesToolsJson(
 Result<OpenAiChatRequest> ParseChatCompletionsRequest(
     std::string_view body, const OpenAiChatAdapterOptions& options) {
   internal::ImageDecodeBudget request_decode_budget;
+  internal::PreparationControl preparation(options.preparation_callback, options.preparation_context);
+  const auto cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kRequest);
+  if (!cancelled.ok()) return cancelled;
   if (body.size() > 16U * 1024U * 1024U) {
     return Invalid("request body exceeds 16 MiB");
   }
   auto root = json::Parse(body, json::ParseLimits{64U, 1'000'000U,
                                                   16U * 1024U * 1024U});
   if (!root.ok()) return root.status();
+  const auto parsed_cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kRequest);
+  if (!parsed_cancelled.ok()) return parsed_cancelled;
   if (!root.value().is_object()) return Invalid("request body must be an object");
   const auto& object = root.value().as_object();
   const Status request_fields = RejectUnknownFields(
@@ -822,6 +831,8 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
   const std::uint32_t image_budget = AutomaticVisionSoftTokenBudget(
       options.context_tokens, fixed_reserve, images.size());
   for (LocatedImage& located : images) {
+    const auto cancelled_image = internal::PreparationControl::Check(internal::PreparationPhase::kRequest);
+    if (!cancelled_image.ok()) return cancelled_image;
     if (options.gemma4_moe26b_vision) {
       if (image_budget < 70U) {
         return Invalid(
@@ -857,18 +868,25 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
         GenerationContentPart::Image(std::move(image).value());
   }
   NormalizeAdjacentUserMessages(request.generation.messages);
+  const auto prepared_cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kRequest);
+  if (!prepared_cancelled.ok()) return prepared_cancelled;
   return request;
 }
 
 Result<OpenAiResponsesRequest> ParseResponsesRequest(
     std::string_view body, const OpenAiChatAdapterOptions& options) {
   internal::ImageDecodeBudget request_decode_budget;
+  internal::PreparationControl preparation(options.preparation_callback, options.preparation_context);
+  const auto cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kRequest);
+  if (!cancelled.ok()) return cancelled;
   if (body.size() > 16U * 1024U * 1024U) {
     return Invalid("request body exceeds 16 MiB");
   }
   auto root = json::Parse(body, json::ParseLimits{64U, 1'000'000U,
                                                   16U * 1024U * 1024U});
   if (!root.ok()) return root.status();
+  const auto parsed_cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kRequest);
+  if (!parsed_cancelled.ok()) return parsed_cancelled;
   if (!root.value().is_object()) return Invalid("request body must be an object");
   const auto& object = root.value().as_object();
   const Status request_fields = RejectUnknownFields(
@@ -1102,6 +1120,8 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
   const std::uint32_t image_budget = AutomaticVisionSoftTokenBudget(
       options.context_tokens, fixed_reserve, images.size());
   for (LocatedImage& located : images) {
+    const auto cancelled_image = internal::PreparationControl::Check(internal::PreparationPhase::kRequest);
+    if (!cancelled_image.ok()) return cancelled_image;
     if (options.gemma4_moe26b_vision) {
       if (image_budget < 70U) {
         return Invalid(
@@ -1137,6 +1157,8 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
         GenerationContentPart::Image(std::move(image).value());
   }
   NormalizeAdjacentUserMessages(request.generation.messages);
+  const auto prepared_cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kRequest);
+  if (!prepared_cancelled.ok()) return prepared_cancelled;
   return request;
 }
 

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Bounded live pre-output cancellation/recovery probe; no release qualification claim."""
 import argparse
+import base64
+import struct
+import zlib
 import concurrent.futures
 import hashlib
 import http.client
@@ -27,6 +30,7 @@ def main():
     parser.add_argument('--port', type=int, default=18086)
     parser.add_argument('--baseline-only', action='store_true')
     parser.add_argument('--extended', action='store_true')
+    parser.add_argument('--media', action='store_true', help='Also disconnect during natural bounded PNG preparation; no test holds')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     with socket.socket() as check:
@@ -43,7 +47,7 @@ def main():
         assistant = locked_snapshot_path(ROOT / 'models/gemma4-26b-gem16-assistant.lock.json')
     if args.draft:
         command += ['--assistant-model', str(assistant), '--mtp-draft-tokens', str(args.draft)]
-    report = {'command': command, 'cases': [], 'scope': '32K capacity, pre-output cancellation; not everyday-context qualification',
+    report = {'command': command, 'cases': [], 'scope': '32K capacity, pre-output and optional natural media cancellation; not everyday-context qualification',
               'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
               'server_sha256': hashlib.file_digest(args.server.open('rb'), 'sha256').hexdigest()}
 
@@ -137,6 +141,63 @@ def main():
                                                 'recovery_seconds': elapsed, 'health_seconds': health_seconds,
                                                 'before': before, 'after': after, 'next_response': recovery})
                         print(route, streaming, elapsed, flush=True)
+                if args.media:
+                    assert 'gem16_test_pause_active' not in metrics()
+                    begin = time.monotonic()
+                    status, response = request('/v1/chat/completions', {**short, 'messages': [
+                        {'role': 'user', 'content': 'Count from 1 to 1000, comma separated.'}]},
+                        {'X-Gem16-Test-Fault': 'generation:wait'})
+                    elapsed = time.monotonic()-begin
+                    assert status == 200 and elapsed < 5, (status, response, elapsed)
+                    report['cases'].append({'case': 'production_ignores_pause_header', 'seconds': elapsed, 'response': response})
+                    # 32M decoded pixels, below the cumulative request ceiling.
+                    # Compress row by row so the harness does not retain 96 MB.
+                    compressor = zlib.compressobj()
+                    row = b'\0' + bytes([64, 128, 255]) * 8000
+                    compressed = b''.join(compressor.compress(row) for _ in range(4000)) + compressor.flush()
+                    def png_chunk(kind, data):
+                        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
+                    png = (b'\x89PNG\r\n\x1a\n' + png_chunk(b'IHDR', struct.pack('>IIBBBBB', 8000, 4000, 8, 2, 0, 0, 0))
+                           + png_chunk(b'IDAT', compressed) + png_chunk(b'IEND', b''))
+                    url = 'data:image/png;base64,' + base64.b64encode(png).decode()
+                    for route in ['/v1/chat/completions', '/v1/responses']:
+                        for streaming in [False, True]:
+                            if route.endswith('responses'):
+                                payload = {'model': 'gem16', 'input': [{'role': 'user', 'content': [
+                                    {'type': 'input_image', 'image_url': url}, {'type': 'input_text', 'text': 'Name the color.'}]}],
+                                    'max_output_tokens': 32, 'reasoning': {'effort': 'none'}, 'stream': streaming}
+                            else:
+                                payload = {**short, 'messages': [{'role': 'user', 'content': [
+                                    {'type': 'image_url', 'image_url': {'url': url}}, {'type': 'text', 'text': 'Name the color.'}]}], 'stream': streaming}
+                            raw = json.dumps(payload).encode()
+                            before = metrics()
+                            sock = socket.create_connection(('127.0.0.1', args.port), timeout=10)
+                            sock.sendall((f'POST {route} HTTP/1.1\r\nHost: 127.0.0.1:{args.port}\r\nContent-Type: application/json\r\nContent-Length: {len(raw)}\r\n\r\n').encode()+raw)
+                            deadline = time.monotonic()+10
+                            while True:
+                                preparing = metrics()
+                                if preparing['gem16_request_queue_active'] == 1:
+                                    break
+                                if time.monotonic()>deadline: raise AssertionError('did not observe media admission')
+                                time.sleep(.005)
+                            time.sleep(.02)
+                            assert metrics()['gem16_active_requests'] == 0, 'fixture reached GPU before disconnect'
+                            begin = time.monotonic(); assert request('/health')[0] == 200
+                            control_seconds = time.monotonic()-begin
+                            begin = time.monotonic(); sock.shutdown(socket.SHUT_RDWR); sock.close()
+                            while True:
+                                after = metrics()
+                                if after['gem16_request_queue_active'] == 0: break
+                                if time.monotonic()-begin>10: raise AssertionError('media cancellation did not release admission')
+                                time.sleep(.005)
+                            elapsed = time.monotonic()-begin
+                            assert after['gem16_sessions_created_total'] == before['gem16_sessions_created_total']
+                            assert after['gem16_input_tokens_total'] == before['gem16_input_tokens_total']
+                            assert request('/v1/chat/completions', short)[0] == 200
+                            report['cases'].append({'case': 'natural_media_disconnect', 'route': route, 'stream': streaming,
+                                'pixels': 32000000, 'png_sha256': hashlib.sha256(png).hexdigest(), 'encoded_bytes': len(png),
+                                'recovery_seconds': elapsed, 'control_seconds': control_seconds, 'before': before, 'after': after})
+                            print('natural media', route, streaming, elapsed, flush=True)
                 if args.extended:
                     # Occupy admission with one active session and a same-session
                     # waiter (12B has two slots), then fill the bounded FIFO.

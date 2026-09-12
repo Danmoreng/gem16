@@ -26,7 +26,7 @@ where practical; preserve model specialization and historical evidence.
 | C00 | Server-first docs, 220k Linux / 170k Windows, 200 MiB reserve | Implemented; Linux and Windows host/Studio checks passed |
 | C01 | Bounded schema evaluation and exact numbers | Implemented; host and sanitizer checks, including work limits |
 | C02 | Exception-safe session/Responses ownership | Completed and qualified on Windows: 280 real-GPU injected lifecycle/recovery cases; Linux release requalification remains separate |
-| C03 | Deadline/cancel admission, control capacity, shutdown | Prefill checkpoints implemented; Windows ordinary/D2 disconnect, cancel, saturation and graceful restart probes passed; full phase/deadline and Linux qualification open |
+| C03 | Deadline/cancel admission, control capacity, shutdown | Windows phase/deadline, media/history, ordinary/D2 cancellation and graceful restart qualification complete; Linux repeat open |
 | C04 | HTTP preflight and bounded media processing | HTTP/media limits implemented and tested; peak-RSS stress and historical-image CPU reuse open |
 | C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Live Linux and Windows affinity/cache/manual compaction passed for both profiles; full fork/resume/automatic-compaction matrix open |
 | C06 | Responses replay, practical sampling/tool compatibility | SDK output replay and parameter validation passed; per-request sampling, reasoning replay and constrained tool choice open |
@@ -161,9 +161,11 @@ fallback is used. Windows live coverage includes ordinary and fixed-D2 on both
 public profiles, streaming/nonstreaming disconnect, Responses cancel, bounded
 admission saturation and same-session contention, Ctrl+C and restart. The probes
 use 12,026-token text prompts at 32K capacity, not everyday-context qualification.
-Linux live checks, cancellation within CPU media preprocessing and the complete
-phase/deadline matrix remain open. One live deadline fixture ended generation
-too early to test expiry; its failed result is retained, not counted as a pass.
+Windows follow-up: [complete C03 phase evidence](evidence/windows-c03-complete-2026-09-12.md)
+adds CPU media checkpoints, deterministic deadline/decode tests, natural large-image
+disconnect, history preservation and shutdown/restart. The earlier failed deadline
+fixture remains retained; its replacement reaches the actual 30-second deadline.
+Only the Linux repetition remains open for C03; broader context/release gates are separate.
 
 - [x] Add safe cancellation checkpoints while a long prefill is running, including
   disconnect for nonstream requests. Inspect `src/runtime/chat.cpp`,
@@ -173,13 +175,16 @@ too early to test expiry; its failed result is retained, not counted as a pass.
   simulate cancellation by silently shortening prompts or changing chunk semantics.
 - [x] Define the state after partial prefill: safely reusable or explicitly
   discarded/poisoned. Verify that the next request can acquire a working slot.
-- [ ] Test deadline/disconnect while queued, waiting for the same session, preparing
+- [x] On Windows, test deadline/disconnect while queued, waiting for the same session, preparing
   media, prefilling and decoding. Include the 12B two-slot same-session contention
   case; the existing one-slot GPU matrix does not exercise that pool wait.
-- [ ] Measure real cancellation latency and control-route latency under saturation.
-  Use an explicit control target such as one second, record raw samples, and avoid
-  treating that target as an existing guarantee. Exercise Linux SIGINT/SIGTERM and
-  the supported Windows graceful stop path, then restart and generate again.
+- [x] Measure Windows cancellation latency and control-route latency under saturation.
+  Use an explicit one-second control target and retain raw samples, without treating
+  it as a universal guarantee. Exercise Windows Ctrl+C during media, prefill and
+  decode, with queued/session waiters; restart and generate again.
+- [ ] Repeat the applicable phase/deadline matrix on Linux, including SIGINT and
+  SIGTERM, ordinary/fixed-D2 and both public profiles. Owner deferred this platform
+  repetition; it is not marked passed by Windows evidence.
 
 The FIFO, pool wait deadline propagation, 25 ms disconnect/draining polls and
 inference-saturation worker reserve are already implemented in `2096c39`.
@@ -191,8 +196,8 @@ The 2026-09-12 implementation threads a separate cancellation callback through
 `ChatSession::Generate`, `ConversationSession::Generate` and both specialized
 prefill paths. The 26B checkpoint uses its existing synchronization; 12B adds
 chunk-boundary synchronization only when a callback is supplied. Image spans and
-chunk planning are unchanged. Continue with the remaining phase/deadline matrix
-and Linux checks; do not repeat the completed callback plumbing. The older C02
+chunk planning are unchanged. The Windows phase/deadline matrix is complete;
+continue with Linux checks without repeating the completed callback plumbing. The older C02
 slice remains separate historical evidence.
 
 ### Requested short comparison pilot

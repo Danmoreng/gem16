@@ -116,10 +116,16 @@ slow-client availability guarantee. Streaming and nonstreaming disconnects are
 checked at existing prefill chunk boundaries and during decode; shutdown flags
 active sessions for cancellation. A cancelled partial prefill discards its session
 instead of reusing incomplete KV state. Checkpoints wait for the current GPU
-chunk; they cannot interrupt an individual running kernel. Bounded Windows
-ordinary/D2 probes passed on both public profiles; complete phase/deadline,
-media-preprocessing and Linux cancellation qualification remain open. See
-[Windows C03 evidence](evidence/windows-c03-prefill-2026-09-12.md).
+chunk; they cannot interrupt an individual running kernel. CPU request preparation
+also observes disconnect, draining and the original admission deadline: before/after
+JSON parsing, during base64 decoding, around image/audio decoding, and within image
+resize/patch loops. Codec calls themselves remain bounded, nonpreemptible operations;
+cancellation is cooperative, not a hard real-time guarantee. Failed preparation
+releases admission before acquiring or changing a resident GPU session. No 30-second
+whole-generation execution limit is introduced.
+Windows ordinary/D2 phase/deadline, media/history, saturation and graceful-restart
+checks passed on both public profiles. Linux repetition remains open. See
+[Windows C03 completion evidence](evidence/windows-c03-complete-2026-09-12.md).
 
 Both APIs reject an unserved model identity before media parsing or decoding.
 Media preparation runs inside admission, limiting concurrent decoders to the

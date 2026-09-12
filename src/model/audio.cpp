@@ -1,4 +1,5 @@
 #include "gem16/audio.h"
+#include "model/preparation_control.h"
 
 #include <algorithm>
 #include <cmath>
@@ -62,10 +63,14 @@ Result<AudioWaveform> LoadAudioBytes(std::span<const std::uint8_t> encoded,
   // duration.
   AudioWaveform waveform;
   waveform.samples.resize(kMaximumSamples + 1U);
+  const auto cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kAudioDecode);
+  if (!cancelled.ok()) return cancelled;
   ma_uint64 frames_read = 0U;
   const ma_result read = ma_decoder_read_pcm_frames(
       &decoder, waveform.samples.data(),
       static_cast<ma_uint64>(waveform.samples.size()), &frames_read);
+  const auto decoded_cancelled = internal::PreparationControl::Check(internal::PreparationPhase::kAudioDecode);
+  if (!decoded_cancelled.ok()) return decoded_cancelled;
   if ((read != MA_SUCCESS && read != MA_AT_END) || frames_read == 0U) {
     return Invalid(source_name, "decoder produced no complete samples");
   }
