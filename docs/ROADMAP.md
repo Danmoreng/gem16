@@ -27,7 +27,7 @@ where practical; preserve model specialization and historical evidence.
 | C01 | Bounded schema evaluation and exact numbers | Implemented; host and sanitizer checks, including work limits |
 | C02 | Exception-safe session/Responses ownership | Completed and qualified on Windows: 280 real-GPU injected lifecycle/recovery cases; Linux release requalification remains separate |
 | C03 | Deadline/cancel admission, control capacity, shutdown | Windows phase/deadline, media/history, ordinary/D2 cancellation and graceful restart qualification complete; Linux repeat open |
-| C04 | HTTP preflight and bounded media processing | HTTP/media limits implemented and tested; peak-RSS stress and historical-image CPU reuse open |
+| C04 | Bounded single-user media check | Bounded Windows check complete (8 requests); server/cache checks passed, 26B colors passed, 12B small-image recall finding open; parallel stress/CPU cache deferred |
 | C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Live Linux and Windows affinity/cache/manual compaction passed for both profiles; full fork/resume/automatic-compaction matrix open |
 | C06 | Responses replay, practical sampling/tool compatibility | SDK output replay and parameter validation passed; per-request sampling, reasoning replay and constrained tool choice open |
 | C07 | Fresh headless packages, provenance, fail-closed publish | Fresh headless packages/manifests and gate verifier implemented; same-machine smoke passed, clean-machine qualification open |
@@ -209,27 +209,56 @@ reference requirements. This is additional diagnostic work, not a reopening of
 the closed tuning campaigns or the waived extended QUAL01 campaign. No new
 cross-engine result is claimed yet.
 
-### C04 — Media work, cancellation and peak host memory
+### C04 — Short single-user media check
 
-- [ ] Measure peak RSS for large compressed images, many images, parallel requests,
-  invalid dimensions and interrupted preprocessing, including both public profiles.
-  Verify limits apply before excessive allocation and memory is released on errors.
-- [ ] Check aggregate process memory against admitted concurrency, not only one
-  request. Account for decoded pixels, prepared patches, temporary codec memory,
-  JSON/base64 storage and audio where applicable; fix any uncovered growth.
-- [ ] Avoid repeatedly decoding unchanged historical images where practical.
-  Bound any CPU cache and key it by image identity, preprocessing version and
-  effective budget; preserve ordered multi-image history and exact normalization.
-  GPU KV reuse already exists and does not prove CPU reuse.
+Owner scope update (2026-09-12): see
+[active decision](ACTIVE_DECISIONS.md#owner-update-single-user-c04-scope-and-client-priority-2026-09-12).
+Normal use is one user and one active conversation. C05/C06 have priority over
+additional media stress campaigns or CPU-cache optimization.
+
+Windows results: [bounded C04 evidence](evidence/windows-c04-single-user-2026-09-12.md).
+The eight-request scope finished in 75.7 seconds including startup and fixture
+continuation. Memory/API/cache checks passed; the 12B semantic failures remain open.
+
+- [x] On Windows, run sequential 1-, 2- and 4-image requests, plus one same-session image-history
+  continuation, for each public profile: **eight generation requests total, ten
+  minutes wall time maximum**, one qualified decode mode per profile. Keep one
+  active session; do not add a two-slot/parallel/D2 Cartesian matrix. Use local
+  fixtures and models. Stop at the cap and record unfinished cases without marking
+  them passed. These sample counts do not impose a product image-count limit.
+- [x] On Windows, record peak process working set and verify successful HTTP
+  responses and resident-prefix reuse during those same requests. Reuse
+  existing malformed-input/size-limit host tests and C03 media-abort/recovery
+  evidence; do not repeat the complete cancellation matrix. Investigate actual
+  failures narrowly, without extending the probe into a stress campaign.
+- [ ] Resolve the bounded probe's 12B small-image color/history finding: three of
+  four semantic checks failed (one image and four-image recall/continuation); 26B
+  passed all four. Eight HTTP requests and both cache continuations succeeded.
+  Do not silently change preprocessing or launch more GPU tests beyond the agreed
+  cap. Keep this focused finding visible alongside C05/C06; no broad C04 campaign.
+- [ ] Repeat only the same bounded applicable check on Linux when that platform
+  is available; Windows results do not establish Linux memory behavior.
+- Deferred: broad parallel-media/aggregate-concurrency RSS qualification is no
+  longer a C04 requirement for the initial single-user baseline. Existing bounded
+  admission and allocation safeguards remain intact.
+- Deferred: caching unchanged historical images on the CPU. GPU KV reuse already
+  exists; add a bounded CPU cache only if observed client latency justifies it,
+  preserving image identity, normalization, preprocessing version and budget.
 
 Start at `src/server/openai_chat.cpp`, `src/model/image.cpp` and
-`src/model/image_decode_budget.h`. Host/Origin/MIME checks, 32 million cumulative
-image pixels, 256 MiB accounted prepared/resize bytes, bounded decoder concurrency
-and early model identity rejection (`e539f08`) already exist.
-**Done when:** malicious/parallel media work stays within measured bounds, abort
-recovers, and valid multi-image replays retain the same behavior.
+`src/model/image_decode_budget.h` only if a concrete failure requires a fix.
+Host/Origin/MIME checks, cumulative image-pixel limits, accounted prepared/resize
+bytes and early model identity rejection already exist. C03 adds tested CPU media
+cancellation and history recovery, including natural 32-million-pixel PNG probes.
+**Done when:** this bounded single-session image/replay check has recorded outcomes
+and no unresolved correctness/safety failure. Missing measurements stay explicit;
+optional stress/cache work does not block C05/C06. Other release gates are unchanged.
 
 ### C05/C06 — Finish the actual client contract
+
+**Next priority after the bounded C04 check (owner direction 2026-09-12).** Start
+with new/fork/resume and compaction continuity, then practical replay/tool behavior.
+Do not delay this work for the deferred C04 stress or CPU-cache optimization.
 
 - [ ] Exercise unmodified Pi 0.85.0 new session, fork, resume, manual and automatic
   compaction on both platforms. Check retained facts, session separation, cache

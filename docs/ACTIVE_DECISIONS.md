@@ -101,6 +101,32 @@ per-image budgets, model locks and fixed-D2 semantics remain unchanged. Historic
 single-image qualification evidence is not reclassified as multi-image evidence;
 new multi-image evidence and platform limitations must be reported separately.
 
+### Owner update: single-user C04 scope and client priority (2026-09-12)
+
+The owner reconfirms one local user and normally one active conversation, including
+12B. Existing qualified two-slot support and queue/cancellation safeguards remain;
+this decision does not change runtime defaults, capacity or supported behavior.
+
+This supersedes ROADMAP C04's future requirement for a broad parallel-media and
+aggregate-concurrency RSS campaign in the initial single-user baseline. Keep the
+existing input validation, pixel/byte limits and bounded allocation rules. A single
+request can still contain oversized or multiple images, so retain a small sequential
+multi-image/replay check with process-memory observation. Reuse accepted C03
+interruption and recovery evidence rather than repeating its full matrix.
+
+Bound the remaining C04 probe to eight generation requests total across the two
+public profiles (1/2/4-image requests and one same-session continuation per profile),
+one qualified decode mode per profile and ten minutes wall time. Stop at the cap
+and report any unfinished case; these are test limits, not product image limits.
+No new model downloads, parallel-load campaign or extended stress runs are needed.
+Historical-image CPU caching is a deferred optimization, revisited only if the
+bounded probe or practical client use exposes a material problem.
+
+C05/C06 client session continuity, compaction, replay and tool behavior take priority
+after this bounded check; deferred C04 optimization/stress work must not block them.
+This is not a waiver of malformed-input safety, equal-platform applicable checks,
+everyday-context stability or the other release gates. Existing evidence is retained.
+
 ## Current model facts
 
 | Profile | Public selection | Input | Context policy / retained capacity | Slots |

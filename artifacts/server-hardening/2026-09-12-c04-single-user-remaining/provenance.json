@@ -1,0 +1,23 @@
+{
+  "source_commit": "3d3daf65f3b5a92e4f5f6d2e5a229fc33875d2f9",
+  "binary_sha256": "3c6967670e0043597b3b75dfabc5f0e503487ee326da3695001d80b1588b9af2",
+  "total_requests": 8,
+  "elapsed_seconds": 75.71203191539644,
+  "scope_completed": true,
+  "all_semantic_checks_passed": false,
+  "source_files": {
+    "tools/check_c04_single_user.py": "de66ce2e8a3fa4e2ae33109af32609cf8f0d4cef2392defa6f57cb495a774bba",
+    "tools/check_multi_image_conversation.py": "619527e5d99fad2a12f5524ba5537afa9eb5586d1a562154f1c2eefd8e424a05",
+    "src/model/image.cpp": "f5a72803fc28acff7b358d458b023288fbf6ece239e5a591c00507101536fd74"
+  },
+  "evidence": {
+    "artifacts/server-hardening/2026-09-12-c04-single-user/12b-memory.json": "fa4463c699039913fd5f34b111f08dec9f98c0413b8649e56b3e414992b027f5",
+    "artifacts/server-hardening/2026-09-12-c04-single-user/12b-server.txt": "c8fa43ebce30715b52ea25e193351d11b5841c1ca33fa16def0227e52bb796f8",
+    "artifacts/server-hardening/2026-09-12-c04-single-user/result.json": "5b778d8c348847a75e2d7d58ffee9e8affd015811668c27b3841090e4d4e38b7",
+    "artifacts/server-hardening/2026-09-12-c04-single-user-remaining/12b-memory.json": "d90126660ed7638ab0fecbd5d8561ab671beb40843fdc71a3bc52a4d492c3546",
+    "artifacts/server-hardening/2026-09-12-c04-single-user-remaining/12b-server.txt": "6216c076b88ac07f1470938713fa7878f6d79b1e661eeedcc1bdb6b146295fc5",
+    "artifacts/server-hardening/2026-09-12-c04-single-user-remaining/26b-memory.json": "da4c8eb93f5fbc63eec0f27b9fa0aa9d6257520b9c8c7e4aaed00b740625d3e6",
+    "artifacts/server-hardening/2026-09-12-c04-single-user-remaining/26b-server.txt": "810566830f1a7a38b36efe7b05beb47578aac09e2beb75ceb4df52a851795d68",
+    "artifacts/server-hardening/2026-09-12-c04-single-user-remaining/result.json": "58c067a99d9582f825c44137cca9b366e000e6b5001d8f0ae3a551fcbc284724"
+  }
+}
