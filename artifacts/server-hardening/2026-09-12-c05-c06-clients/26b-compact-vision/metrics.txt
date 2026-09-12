@@ -1,0 +1,174 @@
+gem16_indexed_responses 0
+gem16_active_response_ids 0
+gem16_session_releases_total 91
+# TYPE gem16_requests_total counter
+gem16_requests_total 96
+# TYPE gem16_requests_failed_total counter
+gem16_requests_failed_total 16
+# TYPE gem16_active_requests gauge
+gem16_active_requests 0
+# TYPE gem16_request_queue_active gauge
+gem16_request_queue_active 0
+# TYPE gem16_request_queue_depth gauge
+gem16_request_queue_depth 0
+gem16_request_queue_capacity 1
+gem16_request_queue_max_depth 2
+gem16_request_queue_high_watermark 0
+gem16_request_queue_admissions_total 96
+gem16_request_queue_waits_total 0
+gem16_request_queue_rejections_total 0
+gem16_request_queue_wait_microseconds_total 0
+# TYPE gem16_resident_sessions gauge
+gem16_resident_sessions 1
+# TYPE gem16_pending_session_creations gauge
+gem16_pending_session_creations 0
+gem16_session_limit 1
+gem16_sessions_rebuilt_total 0
+gem16_sessions_created_total 62
+gem16_sessions_evicted_total 59
+gem16_cancellations_requested_total 1
+gem16_cancellations_observed_total 1
+gem16_client_disconnects_total 1
+gem16_input_tokens_total 45793
+gem16_cached_input_tokens_total 14185
+gem16_cache_write_tokens_total 31608
+gem16_output_tokens_total 1552
+gem16_generation_microseconds_total 13615355
+gem16_prompt_microseconds_total 7126093
+gem16_ttft_microseconds_total 7126093
+gem16_decode_microseconds_total 6443413
+# TYPE gem16_image_decode_microseconds_total counter
+gem16_image_decode_microseconds_total 0
+# TYPE gem16_image_resize_patchify_microseconds_total counter
+gem16_image_resize_patchify_microseconds_total 0
+# TYPE gem16_vision_upload_microseconds_total counter
+gem16_vision_upload_microseconds_total 0
+# TYPE gem16_vision_tower_microseconds_total counter
+gem16_vision_tower_microseconds_total 0
+# TYPE gem16_vision_pool_project_microseconds_total counter
+gem16_vision_pool_project_microseconds_total 0
+# TYPE gem16_text_prefill_microseconds_total counter
+gem16_text_prefill_microseconds_total 0
+# TYPE gem16_vision_requests_total counter
+gem16_vision_requests_total 0
+# TYPE gem16_vision_failures_total counter
+gem16_vision_failures_total 0
+# TYPE gem16_vision_d2_rejections_total counter
+gem16_vision_d2_rejections_total 0
+# TYPE gem16_vision_budget_70_total counter
+gem16_vision_budget_70_total 0
+# TYPE gem16_vision_budget_140_total counter
+gem16_vision_budget_140_total 0
+# TYPE gem16_vision_budget_280_total counter
+gem16_vision_budget_280_total 0
+# TYPE gem16_vision_artifact_validation_failures_total counter
+gem16_vision_artifact_validation_failures_total 0
+# TYPE gem16_last_vision_soft_token_budget gauge
+gem16_last_vision_soft_token_budget 0
+gem16_decode_measured_tokens_total 1472
+gem16_mtp_proposed_tokens_total 1066
+gem16_mtp_accepted_tokens_total 890
+gem16_mtp_rejected_tokens_total 176
+gem16_mtp_verification_groups_total 533
+gem16_mtp_d1_groups_total 0
+gem16_mtp_d2_groups_total 533
+gem16_mtp_d4_groups_total 0
+gem16_mtp_ordinary_fallback_tokens_total 49
+# TYPE gem16_fallback_total counter
+gem16_fallback_total 0
+# TYPE gem16_resource_exhaustion_total counter
+gem16_resource_exhaustion_total 0
+# TYPE gem16_unsupported_feature_total counter
+gem16_unsupported_feature_total 4
+# TYPE gem16_model_validation_failure_total counter
+gem16_model_validation_failure_total 1
+# TYPE gem16_token_loop_allocation_total counter
+gem16_token_loop_allocation_total 0
+gem16_model_weight_bytes 12204692480
+gem16_assistant_weight_bytes 258313728
+gem16_vision_weight_bytes 597313024
+gem16_vision_workspace_bytes 120356480
+gem16_execution_slot_planned_bytes 731694752
+gem16_configured_execution_slot_bytes 731694752
+gem16_resident_execution_slot_bytes 731694752
+gem16_device_total_bytes 17094475776
+gem16_device_free_after_probe_bytes 1982857216
+gem16_device_safety_margin_bytes 734003200
+gem16_last_execution_slot_bytes 737177520
+gem16_model_load_microseconds 11738015
+gem16_server_startup_microseconds 12564824
+# TYPE gem16_request_duration_seconds histogram
+gem16_request_duration_seconds_bucket{le="0.010000"} 39
+gem16_request_duration_seconds_bucket{le="0.050000"} 71
+gem16_request_duration_seconds_bucket{le="0.100000"} 73
+gem16_request_duration_seconds_bucket{le="0.250000"} 100
+gem16_request_duration_seconds_bucket{le="0.500000"} 105
+gem16_request_duration_seconds_bucket{le="1.000000"} 105
+gem16_request_duration_seconds_bucket{le="2.500000"} 105
+gem16_request_duration_seconds_bucket{le="5.000000"} 105
+gem16_request_duration_seconds_bucket{le="10.000000"} 105
+gem16_request_duration_seconds_bucket{le="30.000000"} 105
+gem16_request_duration_seconds_bucket{le="60.000000"} 105
+gem16_request_duration_seconds_bucket{le="+Inf"} 105
+gem16_request_duration_seconds_sum 6.888166
+gem16_request_duration_seconds_count 105
+# TYPE gem16_request_queue_wait_seconds histogram
+gem16_request_queue_wait_seconds_bucket{le="0.010000"} 96
+gem16_request_queue_wait_seconds_bucket{le="0.050000"} 96
+gem16_request_queue_wait_seconds_bucket{le="0.100000"} 96
+gem16_request_queue_wait_seconds_bucket{le="0.250000"} 96
+gem16_request_queue_wait_seconds_bucket{le="0.500000"} 96
+gem16_request_queue_wait_seconds_bucket{le="1.000000"} 96
+gem16_request_queue_wait_seconds_bucket{le="2.500000"} 96
+gem16_request_queue_wait_seconds_bucket{le="5.000000"} 96
+gem16_request_queue_wait_seconds_bucket{le="10.000000"} 96
+gem16_request_queue_wait_seconds_bucket{le="30.000000"} 96
+gem16_request_queue_wait_seconds_bucket{le="60.000000"} 96
+gem16_request_queue_wait_seconds_bucket{le="+Inf"} 96
+gem16_request_queue_wait_seconds_sum 0.000000
+gem16_request_queue_wait_seconds_count 96
+# TYPE gem16_generation_duration_seconds histogram
+gem16_generation_duration_seconds_bucket{le="0.010000"} 0
+gem16_generation_duration_seconds_bucket{le="0.050000"} 10
+gem16_generation_duration_seconds_bucket{le="0.100000"} 19
+gem16_generation_duration_seconds_bucket{le="0.250000"} 68
+gem16_generation_duration_seconds_bucket{le="0.500000"} 80
+gem16_generation_duration_seconds_bucket{le="1.000000"} 80
+gem16_generation_duration_seconds_bucket{le="2.500000"} 80
+gem16_generation_duration_seconds_bucket{le="5.000000"} 80
+gem16_generation_duration_seconds_bucket{le="10.000000"} 80
+gem16_generation_duration_seconds_bucket{le="30.000000"} 80
+gem16_generation_duration_seconds_bucket{le="60.000000"} 80
+gem16_generation_duration_seconds_bucket{le="+Inf"} 80
+gem16_generation_duration_seconds_sum 13.615355
+gem16_generation_duration_seconds_count 80
+# TYPE gem16_prompt_duration_seconds histogram
+gem16_prompt_duration_seconds_bucket{le="0.010000"} 0
+gem16_prompt_duration_seconds_bucket{le="0.050000"} 13
+gem16_prompt_duration_seconds_bucket{le="0.100000"} 46
+gem16_prompt_duration_seconds_bucket{le="0.250000"} 80
+gem16_prompt_duration_seconds_bucket{le="0.500000"} 80
+gem16_prompt_duration_seconds_bucket{le="1.000000"} 80
+gem16_prompt_duration_seconds_bucket{le="2.500000"} 80
+gem16_prompt_duration_seconds_bucket{le="5.000000"} 80
+gem16_prompt_duration_seconds_bucket{le="10.000000"} 80
+gem16_prompt_duration_seconds_bucket{le="30.000000"} 80
+gem16_prompt_duration_seconds_bucket{le="60.000000"} 80
+gem16_prompt_duration_seconds_bucket{le="+Inf"} 80
+gem16_prompt_duration_seconds_sum 7.126093
+gem16_prompt_duration_seconds_count 80
+# TYPE gem16_decode_duration_seconds histogram
+gem16_decode_duration_seconds_bucket{le="0.010000"} 8
+gem16_decode_duration_seconds_bucket{le="0.050000"} 29
+gem16_decode_duration_seconds_bucket{le="0.100000"} 54
+gem16_decode_duration_seconds_bucket{le="0.250000"} 79
+gem16_decode_duration_seconds_bucket{le="0.500000"} 80
+gem16_decode_duration_seconds_bucket{le="1.000000"} 80
+gem16_decode_duration_seconds_bucket{le="2.500000"} 80
+gem16_decode_duration_seconds_bucket{le="5.000000"} 80
+gem16_decode_duration_seconds_bucket{le="10.000000"} 80
+gem16_decode_duration_seconds_bucket{le="30.000000"} 80
+gem16_decode_duration_seconds_bucket{le="60.000000"} 80
+gem16_decode_duration_seconds_bucket{le="+Inf"} 80
+gem16_decode_duration_seconds_sum 6.443413
+gem16_decode_duration_seconds_count 80

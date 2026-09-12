@@ -5,20 +5,25 @@ The [contract](OPENAI_AGENT_CORE_V1.md) retains the two-platform release gate.
 The [retained Linux run](../artifacts/agent-core/2026-09-04-linux-verified/result.json)
 records commands, source and binary hashes, locks, hardware, health, sampling and raw outputs.
 
+Windows C05/C06 follow-up (2026-09-12):
+[SDK, Pi lifecycle and boundary evidence](evidence/windows-c05-c06-2026-09-12.md).
+Both public profiles passed the pinned SDK and actual Pi tool workflows. This
+adds Windows evidence without relabelling earlier failures or Linux history.
+
 ## Matrix
 
 | Check | Linux 12B Unified | Linux 26B Compact Vision | Windows live GPU |
 |---|---|---|---|
-| Python 2.50.0: Chat, streamed and non-streamed tool loops | Passed | Passed | Pending |
-| Python 2.50.0: Responses, streamed and non-streamed tool loops | Passed | Passed | Pending |
-| TypeScript / openai-node 7.10.0: equivalent Chat and Responses cases | Passed | Passed | Pending |
-| Sequential calls, strict schemas, Unicode and long tool results | Passed | Passed | Pending |
-| Two-call full-history fixture, both APIs and transports | Passed | Passed | Pending |
-| Output limits, stale Responses IDs, unsupported options | Passed | Passed | Pending |
-| Malformed JSON, context overflow, cancellation/disconnect and recovery (Python) | Passed | Passed | Pending |
-| Unmodified Pi 0.85.0: read, edit, run check, final answer | Passed | Passed | Pending |
+| Python 2.50.0: Chat, streamed and non-streamed tool loops | Passed | Passed | Passed, both profiles (2026-09-12) |
+| Python 2.50.0: Responses, streamed and non-streamed tool loops | Passed | Passed | Passed, both profiles (2026-09-12) |
+| TypeScript / openai-node 7.10.0: equivalent Chat and Responses cases | Passed | Passed | Passed, both profiles (2026-09-12) |
+| Sequential calls, strict schemas, Unicode and long tool results | Passed | Passed | Passed, both profiles (2026-09-12) |
+| Two-call full-history fixture, both APIs and transports | Passed | Passed | Passed, both profiles (2026-09-12) |
+| Output limits, stale Responses IDs, unsupported options | Passed | Passed | Passed, both profiles (2026-09-12) |
+| Malformed JSON, context overflow, cancellation/disconnect and recovery (Python) | Passed | Passed | Passed, both profiles (2026-09-12) |
+| Unmodified Pi 0.85.0: read, edit, run check, final answer | Passed | Passed | Passed, both profiles (2026-09-12) |
 
-The independent-lookup prompt produced grouped calls on 12B and sequential calls
+In the retained Linux run, the independent-lookup prompt produced grouped calls on 12B and sequential calls
 on Compact Vision. `parallel_tool_calls=true` permits grouping; it does not force
 a model to choose it. The separate full-history fixture verifies two pending call
 IDs and both results. It is protocol evidence, not a claim that 26B generated
@@ -27,8 +32,9 @@ parallel calls in this run.
 Tests use one slot, 16,384 context, the pinned fixed-D2 Assistant, checkpoint
 sampling defaults and `reasoning_effort=none`. These are compatibility tests,
 not throughput or broad coding-quality benchmarks. Image/audio quality, two-slot
-concurrency, queue saturation, process-restart recovery and Windows live execution
-are not qualified by this matrix. Existing evidence for those boundaries remains separate.
+concurrency, queue saturation and full product process-restart recovery
+are not qualified by this SDK matrix. The separate Windows Pi lifecycle probe
+covers manual/automatic compaction, branching and persisted-session resume. Existing evidence for those boundaries remains separate.
 
 ## Reproduce
 

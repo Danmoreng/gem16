@@ -28,8 +28,8 @@ where practical; preserve model specialization and historical evidence.
 | C02 | Exception-safe session/Responses ownership | Completed and qualified on Windows: 280 real-GPU injected lifecycle/recovery cases; Linux release requalification remains separate |
 | C03 | Deadline/cancel admission, control capacity, shutdown | Windows phase/deadline, media/history, ordinary/D2 cancellation and graceful restart qualification complete; Linux repeat open |
 | C04 | Bounded single-user media check | Bounded Windows check complete (8 requests); server/cache checks passed, 26B colors passed, 12B small-image recall finding open; parallel stress/CPU cache deferred |
-| C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Live Linux and Windows affinity/cache/manual compaction passed for both profiles; full fork/resume/automatic-compaction matrix open |
-| C06 | Responses replay, practical sampling/tool compatibility | SDK output replay and parameter validation passed; per-request sampling, reasoning replay and constrained tool choice open |
+| C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Windows Pi new/fork/resume (including cold start), manual/automatic compaction passed for both profiles; extended Linux repeat open |
+| C06 | Responses replay, practical sampling/tool compatibility | Windows SDK replay, tool-error/Unicode and limit checks passed; reasoning replay, per-request sampling and constrained tool choice remain unsupported |
 | C07 | Fresh headless packages, provenance, fail-closed publish | Fresh headless packages/manifests and gate verifier implemented; same-machine smoke passed, clean-machine qualification open |
 | C08 | Candidate GPU/SDK/agent/quality and two-platform evidence | Bounded Linux and Windows SDK/Pi/multi-image matrices passed; internal NVFP4 Linux smokes retained; full release qualification open |
 | C09 | Documentation consistency and release freeze | Requires C01–C08; publication needs explicit authorization |
@@ -260,21 +260,31 @@ optional stress/cache work does not block C05/C06. Other release gates are uncha
 with new/fork/resume and compaction continuity, then practical replay/tool behavior.
 Do not delay this work for the deferred C04 stress or CPU-cache optimization.
 
-- [ ] Exercise unmodified Pi 0.85.0 new session, fork, resume, manual and automatic
-  compaction on both platforms. Check retained facts, session separation, cache
+[Windows C05/C06 evidence (2026-09-12)](evidence/windows-c05-c06-2026-09-12.md):
+52 Python SDK cases, 36 TypeScript cases and 40 additional boundary/recovery
+cases passed, plus real Pi editing and lifecycle checks on both public profiles.
+Actual generated Responses reasoning replay is rejected; the thinking-off Pi
+qualification and other advertised limitations remain unchanged. Required/named
+tool enforcement is not implemented by its rejection tests.
+
+- [x] Exercise unmodified Pi 0.85.0 new session, fork, resume, manual and automatic
+  compaction on Windows, including a fresh Pi/server process loading saved history. Check retained facts, session separation, cache
   hits and intentional history/tool resets. Extend `tools/check_pi_compaction.py`
   and `tools/validate_external_agent.py` rather than forking the agent.
+- [ ] Repeat the extended Pi lifecycle matrix on Linux; prior manual-compaction
+  evidence does not establish the new fork/cold-resume/automatic cases.
 - [ ] Qualify reasoning replay end to end if practical. Until then, keep the
   delivered Pi configuration on the qualified thinking-off path and make other
   levels explicitly unavailable there; do not silently drop reasoning history.
-- [ ] Assess real client needs for per-request sampling against resident sampler,
-  RNG and fixed-D2 behavior. Implement practical compatibility with regression
-  evidence; retain explicit rejection for substantial unsupported semantics.
-- [ ] Assess required/named tool choice and `parallel_tool_calls=false`. They
+- [x] Assess the pinned clients on Windows: tested SDK/Pi workflows run without
+  per-request sampling; explicit temperature/top_p/seed requests still fail visibly.
+- [ ] Implement practical per-request sampling compatibility with resident sampler,
+  RNG and fixed-D2 regression evidence; do not silently ignore supplied values.
+- [x] Assess required/named tool choice and `parallel_tool_calls=false` on Windows. They
   currently fail early because correct enforcement needs more runtime support.
   Do not replace that with parse-only acceptance or claim constrained decoding.
-- [ ] Cover multi-round tools, Unicode/long results, bad tool IDs, tool errors,
-  output limits and terminal SSE events on both APIs/transports. Distinguish real
+- [x] Cover multi-round tools, Unicode/long results, bad tool IDs, tool errors,
+  output limits and terminal SSE events on both APIs/transports on Windows. Distinguish real
   generated parallel calls from replay fixtures. Align tests and capability docs.
 
 Direct SDK output-object replay, matching max-token aliases and Pi native session

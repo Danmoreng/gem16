@@ -40,7 +40,15 @@ def main() -> int:
         help="New directory; never overwrites prior evidence",
     )
     p.add_argument("--port", type=int, default=18081)
+    p.add_argument("--client-only", action="store_true", help="C05/C06 SDK and Pi checks only; no media or hardening repeat")
+    p.add_argument("--lifecycle", action="store_true", help="Client-only matrix plus extended real Pi RPC lifecycle")
+    p.add_argument("--only", nargs="+", choices=["python", "typescript", "external-agent", "pi-lifecycle", "client-boundaries", "pi-cold-resume"])
+    p.add_argument("--pi-models-file", type=Path)
+    p.add_argument("--cold-resume-root", type=Path)
+    p.add_argument("--profiles", nargs="+", choices=["12b-unified", "26b-compact-vision"], default=["12b-unified", "26b-compact-vision"])
     args = p.parse_args()
+    if args.lifecycle:
+        args.client_only = True
     args.output_dir = args.output_dir.resolve()
     args.output_dir.mkdir(parents=True, exist_ok=False)
     server = args.server.resolve()
@@ -106,7 +114,7 @@ def main() -> int:
             ],
             text=True,
         ).strip()
-    for profile in ["12b-unified", "26b-compact-vision"]:
+    for profile in args.profiles:
         out = args.output_dir / profile
         out.mkdir()
         command = [
@@ -240,6 +248,27 @@ def main() -> int:
                         + (["--compact"] if profile == "26b-compact-vision" else []),
                     ),
                 ]
+                if args.client_only:
+                    checks = checks[:3]
+                if args.lifecycle:
+                    checks.append(("pi-lifecycle", [sys.executable,
+                        str(ROOT / "tools/check_pi_compaction.py"), "--base-url", base,
+                        "--models-file", str(args.pi_models_file.resolve() if args.pi_models_file else out / "pi/models.json"),
+                        "--output-dir", str(out / "pi-lifecycle"), "--extended"]))
+                if args.only and "client-boundaries" in args.only:
+                    checks.append(("client-boundaries", [sys.executable, str(ROOT / "tools/check_client_boundaries.py"), "--base-url", base + "/v1"]))
+                if args.only and "pi-cold-resume" in args.only:
+                    assert args.cold_resume_root and args.pi_models_file
+                    prior = args.cold_resume_root / profile / "pi-lifecycle"
+                    parent = json.loads((prior / "result.json").read_text(encoding="utf-8"))["parent_state"]
+                    saved = list((prior / "sessions").rglob(Path(parent["sessionFile"]).name))
+                    assert len(saved) == 1
+                    checks.append(("pi-cold-resume", [sys.executable, str(ROOT / "tools/check_pi_compaction.py"),
+                        "--base-url", base, "--models-file", str(args.pi_models_file.resolve()),
+                        "--output-dir", str(out / "pi-cold-resume"), "--resume-session", str(saved[0].resolve())]))
+                if args.only:
+                    checks = [check for check in checks if check[0] in args.only]
+                    assert len(checks) == len(set(args.only)), "requested check is not enabled"
                 for name, cmd in checks:
                     print(f"{profile}: {name}", flush=True)
                     with (
@@ -269,7 +298,7 @@ def main() -> int:
         row["status"] = (
             "passed"
             if "error" not in row
-            and len(row["checks"]) == 5
+            and len(row["checks"]) == (len(set(args.only)) if args.only else 4 if args.lifecycle else 3 if args.client_only else 5)
             and all(c["exit_code"] == 0 for c in row["checks"])
             else "failed"
         )

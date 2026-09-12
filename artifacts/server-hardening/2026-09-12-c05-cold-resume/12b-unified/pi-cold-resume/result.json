@@ -1,0 +1,65 @@
+{
+  "command": [
+    "node",
+    "C:\\Development\\gem16gb\\tools\\pi-agent\\node_modules\\@earendil-works\\pi-coding-agent\\dist\\cli.js",
+    "--provider",
+    "gem16",
+    "--model",
+    "gem16",
+    "--thinking",
+    "off",
+    "--mode",
+    "rpc",
+    "--no-extensions",
+    "--no-skills",
+    "--no-prompt-templates",
+    "--no-themes",
+    "--no-context-files",
+    "--session",
+    "C:\\Users\\User\\AppData\\Local\\Temp\\gem16-pi-compact-jbk_ah2s\\resume.jsonl"
+  ],
+  "status": "failed",
+  "client_config": {
+    "providers": {
+      "gem16": {
+        "baseUrl": "http://127.0.0.1:18081/v1",
+        "api": "openai-completions",
+        "apiKey": "gem16-local-validation",
+        "compat": {
+          "supportsStore": false,
+          "supportsDeveloperRole": true,
+          "supportsReasoningEffort": true,
+          "supportsUsageInStreaming": true,
+          "supportsStrictMode": false,
+          "supportsLongCacheRetention": false,
+          "sendSessionAffinityHeaders": true,
+          "sessionAffinityFormat": "openai"
+        },
+        "models": [
+          {
+            "id": "gem16",
+            "name": "gem16 local",
+            "reasoning": true,
+            "thinkingLevelMap": {
+              "off": "none"
+            },
+            "input": [
+              "text"
+            ],
+            "contextWindow": 16384,
+            "maxTokens": 2048,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "compaction_reserve_tokens": 1024,
+  "cold_resume_source": "C:\\Development\\gem16gb\\artifacts\\server-hardening\\2026-09-12-c05-c06-final\\12b-unified\\pi-lifecycle\\sessions\\--C--Users-User-AppData-Local-Temp-gem16-pi-compact-ef7w3w_u--\\2026-09-12T08-53-20-655Z_01a094d2-3a8e-77ec-9ff4-27f0ec34e61f.jsonl",
+  "error": "Empty()"
+}

@@ -1,0 +1,3 @@
+Stored session working directory does not exist: C:\Users\User\AppData\Local\Temp\gem16-pi-compact-ef7w3w_u
+Session file: C:\Users\User\AppData\Local\Temp\gem16-pi-compact-jbk_ah2s\resume.jsonl
+Current working directory: C:\Users\User\AppData\Local\Temp\gem16-pi-compact-jbk_ah2s

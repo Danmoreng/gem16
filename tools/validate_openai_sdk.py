@@ -321,6 +321,7 @@ def output_roundtrip(client, model, stream):
 
 
 def main() -> int:
+    sys.stdout.reconfigure(encoding="utf-8")  # Redirected Windows Unicode evidence.
     p = argparse.ArgumentParser()
     p.add_argument("--base-url", default="http://127.0.0.1:8080/v1")
     p.add_argument("--model", default="gem16")
