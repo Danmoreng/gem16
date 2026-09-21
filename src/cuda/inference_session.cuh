@@ -1472,6 +1472,23 @@ std::uint64_t ConversationSession::cached_token_count() const {
   return impl_ == nullptr ? 0U : impl_->cached_token_ids.size();
 }
 
+Status ConversationSession::Reset() {
+  if (impl_ == nullptr) {
+    return Error(StatusCode::kInternal,
+                 "conversation session was moved from");
+  }
+  const bool moe26b = impl_->runtime != nullptr &&
+      impl_->runtime->impl_->variant ==
+          internal::ModelVariant::kGemma4Moe26BA4B;
+  Status status = moe26b
+                      ? impl_->runtime->impl_->moe26b_engine->Reset()
+                      : impl_->engine.ResetCache();
+  if (!status.ok()) return status;
+  impl_->cached_token_ids.clear();
+  impl_->poisoned = false;
+  return Status::Ok();
+}
+
 std::uint64_t ConversationSession::reserved_device_bytes() const {
   if (impl_ == nullptr) return 0U;
   if (impl_->moe26b_slot_lease && impl_->runtime != nullptr &&

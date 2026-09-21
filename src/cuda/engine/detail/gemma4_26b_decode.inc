@@ -33,6 +33,27 @@ Status Gemma4Moe26BReferenceEngine::Reset() {
       return CudaFailure("clear M25 verifier workspace", error);
     }
   }
+  if (implementation_->suppressed_token_count != 0U) {
+    error = cudaMemcpyAsync(
+        implementation_->suppressed_token_ids,
+        implementation_->configured_suppressed_token_ids.data(),
+        implementation_->suppressed_token_count * sizeof(std::uint32_t),
+        cudaMemcpyHostToDevice, implementation_->stream);
+    if (error != cudaSuccess) {
+      return CudaFailure("restore M22 suppressed token IDs", error);
+    }
+  }
+  if (implementation_->mtp_stop_token_count != 0U) {
+    error = cudaMemcpyAsync(
+        implementation_->mtp_verifier.As<std::uint32_t>(
+            implementation_->mtp_stop_tokens_offset),
+        implementation_->configured_mtp_stop_token_ids.data(),
+        implementation_->mtp_stop_token_count * sizeof(std::uint32_t),
+        cudaMemcpyHostToDevice, implementation_->stream);
+    if (error != cudaSuccess) {
+      return CudaFailure("restore M25 stop-token IDs", error);
+    }
+  }
   error = cudaStreamSynchronize(implementation_->stream);
   if (error != cudaSuccess) return CudaFailure("synchronize M13 reset", error);
   implementation_->position = 0U;

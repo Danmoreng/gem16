@@ -64,8 +64,11 @@ with tempfile.TemporaryDirectory(prefix="gem16-pi-compact-") as temp:
         if not original_cwd.exists():
             original_cwd.mkdir()
             restored_cwd = original_cwd
-        shutil.copy2(args.resume_session, p / "resume.jsonl")
-        cmd += ["--session", str(p / "resume.jsonl")]
+        retained = p / "retained-session"
+        retained.mkdir()
+        resume_copy = retained / "resume.jsonl"
+        shutil.copy2(args.resume_session, resume_copy)
+        cmd += ["--session", str(resume_copy)]
     events = queue.Queue()
     transcript = []
     with (out / "stderr.txt").open("w") as err:

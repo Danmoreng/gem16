@@ -333,6 +333,7 @@ class ConversationSession {
       std::span<const Gemma4Moe26BVisionInputSegment>
           moe26b_vision_segments = {},
       GenerationCancellation cancellation = {});
+  [[nodiscard]] Status Reset();
   [[nodiscard]] std::uint64_t cached_token_count() const;
   [[nodiscard]] std::uint64_t reserved_device_bytes() const;
   [[nodiscard]] bool is_poisoned() const;

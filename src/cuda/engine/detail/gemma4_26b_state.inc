@@ -130,6 +130,10 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::uint64_t sampling_step = 0U;
   std::uint64_t vision_encode_calls = 0U;
   std::uint32_t suppressed_token_count = 0U;
+  std::array<std::uint32_t, kMaximumSuppressedTokens>
+      configured_suppressed_token_ids{};
+  std::array<std::uint32_t, kMaximumSuppressedTokens>
+      configured_mtp_stop_token_ids{};
   std::array<float*, kLayers> layer_captures{};
   std::array<float*, kLayers> router_probability_captures{};
   std::array<std::uint32_t*, kLayers> router_id_captures{};

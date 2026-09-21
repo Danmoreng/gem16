@@ -1,0 +1,299 @@
+{
+  "sdk": "2.54.0",
+  "cases": [
+    {
+      "case": "chat/completions/temperature",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "Chat Completions request field 'temperature' is not supported",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "chat/completions/top_p",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "Chat Completions request field 'top_p' is not supported",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "chat/completions/seed",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "Chat Completions request field 'seed' is not supported",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "chat/completions/required",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "required/named tool choice needs constrained generation, which is not yet implemented",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "chat/completions/named",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "required/named tool choice needs constrained generation, which is not yet implemented",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "chat/completions/parallel_false",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "parallel_tool_calls=false needs constrained generation, which is not yet implemented",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "chat/completions/orphan_tool_id",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "tool results must immediately follow an assistant tool call",
+          "type": "invalid_request_error",
+          "param": null,
+          "code": null
+        }
+      }
+    },
+    {
+      "case": "responses/temperature",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "Responses request field 'temperature' is not supported",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "responses/top_p",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "Responses request field 'top_p' is not supported",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "responses/seed",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "Responses request field 'seed' is not supported",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "responses/required",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "required/named tool choice needs constrained generation, which is not yet implemented",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "responses/named",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "required/named tool choice needs constrained generation, which is not yet implemented",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "responses/parallel_false",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "parallel_tool_calls=false needs constrained generation, which is not yet implemented",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "responses/orphan_tool_id",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "tool results must immediately follow an assistant tool call",
+          "type": "invalid_request_error",
+          "param": null,
+          "code": null
+        }
+      }
+    },
+    {
+      "case": "chat/reasoning_content_rejected",
+      "passed": true,
+      "detail": {
+        "error": {
+          "message": "assistant message field 'reasoning_content' is not supported",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "case": "responses/actual_reasoning_replay_rejected",
+      "passed": true,
+      "detail": {
+        "generated_response": {
+          "id": "resp_gem16_baed761c470b47f5ce3bba5e38890db3",
+          "created_at": 1790011762.0,
+          "error": null,
+          "incomplete_details": {
+            "reason": "max_output_tokens"
+          },
+          "instructions": null,
+          "metadata": {},
+          "model": "gem16",
+          "object": "response",
+          "output": [
+            {
+              "id": "rs_resp_gem16_baed761c470b47f5ce3bba5e38890db3",
+              "summary": [],
+              "type": "reasoning",
+              "content": [
+                {
+                  "text": "\nThe user is asking for the result of $17 \\times 19$.\n\n    *   Method 1: Direct multiplication ($17 \\times 19$).\n    *   Method 2: Using the difference of squares formula.\n        *   The average of 17 and 19 is 18.\n        *   So, $17 = 18 - 1$ and $19 = 18 + 1$.\n        *   $(18 - 1)(18 + 1) = 18^2 - 1^2",
+                  "type": "reasoning_text"
+                }
+              ],
+              "encrypted_content": null,
+              "status": "completed"
+            },
+            {
+              "id": "msg_resp_gem16_baed761c470b47f5ce3bba5e38890db3",
+              "content": [
+                {
+                  "annotations": [],
+                  "text": "17 times 19 is **323**.",
+                  "type": "output_text",
+                  "logprobs": null
+                }
+              ],
+              "role": "assistant",
+              "status": "completed",
+              "type": "message",
+              "phase": null
+            }
+          ],
+          "parallel_tool_calls": true,
+          "temperature": null,
+          "tool_choice": "auto",
+          "tools": [],
+          "top_p": null,
+          "background": null,
+          "completed_at": null,
+          "conversation": null,
+          "max_output_tokens": 256,
+          "max_tool_calls": null,
+          "moderation": null,
+          "previous_response_id": null,
+          "prompt": null,
+          "prompt_cache_key": null,
+          "prompt_cache_options": null,
+          "prompt_cache_retention": null,
+          "reasoning": null,
+          "safety_identifier": null,
+          "service_tier": null,
+          "status": "incomplete",
+          "text": {
+            "format": {
+              "type": "text"
+            },
+            "verbosity": null
+          },
+          "top_logprobs": null,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 30,
+            "input_tokens_details": {
+              "cache_write_tokens": 30,
+              "cached_tokens": 0
+            },
+            "output_tokens": 256,
+            "output_tokens_details": {
+              "reasoning_tokens": 128
+            },
+            "total_tokens": 286
+          },
+          "user": null,
+          "store": true
+        },
+        "replay_status": 400,
+        "error": "Error code: 400 - {'error': {'message': 'Responses input item type is unsupported', 'type': 'unsupported_feature', 'param': None, 'code': 'unsupported_feature'}}",
+        "qualified": false
+      }
+    },
+    {
+      "case": "chat/error-long-unicode/False",
+      "passed": false,
+      "error": "BadRequestError(\"Error code: 400 - {'error': {'message': 'model response ends inside a Gemma tool call marker', 'type': 'invalid_request_error', 'param': None, 'code': None}}\")"
+    },
+    {
+      "case": "chat/error-long-unicode/True",
+      "passed": false,
+      "error": "APIError('model response ends inside a Gemma tool call marker')"
+    },
+    {
+      "case": "responses/error-long-unicode/False",
+      "passed": false,
+      "error": "BadRequestError(\"Error code: 400 - {'error': {'message': 'model response ends inside a Gemma tool call marker', 'type': 'invalid_request_error', 'param': None, 'code': None}}\")"
+    },
+    {
+      "case": "responses/error-long-unicode/True",
+      "passed": false,
+      "error": "RuntimeError(\"Didn't receive a `response.completed` event.\")"
+    }
+  ],
+  "passed": false
+}

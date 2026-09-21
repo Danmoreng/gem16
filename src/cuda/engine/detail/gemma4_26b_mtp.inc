@@ -48,6 +48,10 @@ Status Gemma4Moe26BReferenceEngine::ConfigureTokenSelection(
   x.sampling_step = 0U;
   x.suppressed_token_count =
       static_cast<std::uint32_t>(suppressed_token_ids.size());
+  std::fill(x.configured_suppressed_token_ids.begin(),
+            x.configured_suppressed_token_ids.end(), 0U);
+  std::copy(suppressed_token_ids.begin(), suppressed_token_ids.end(),
+            x.configured_suppressed_token_ids.begin());
   return Status::Ok();
 }
 
@@ -404,6 +408,10 @@ Status Gemma4Moe26BReferenceEngine::ConfigureMtpStopTokens(
   }
   x.mtp_stop_token_count =
       static_cast<std::uint32_t>(stop_token_ids.size());
+  std::fill(x.configured_mtp_stop_token_ids.begin(),
+            x.configured_mtp_stop_token_ids.end(), 0U);
+  std::copy(stop_token_ids.begin(), stop_token_ids.end(),
+            x.configured_mtp_stop_token_ids.begin());
   return Status::Ok();
 }
 

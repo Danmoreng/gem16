@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""C03 deterministic Windows phase/deadline probe on real models, test-only holds."""
+"""C03 deterministic phase/deadline probe on real models, test-only holds."""
 import argparse, base64, concurrent.futures, hashlib, http.client, io, json
 from pathlib import Path
-import socket, struct, subprocess, sys, time, uuid, wave
+import signal, socket, struct, subprocess, sys, time, uuid, wave
 from hf_cache import default_target_model, default_assistant_model, locked_snapshot_path
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -57,7 +57,10 @@ def main():
             if predicate(m): return m
             time.sleep(.01)
         raise AssertionError(f'condition not reached: {m}')
-    def idle(): return wait(lambda m:m['gem16_request_queue_active']==0 and m['gem16_request_queue_depth']==0)
+    def idle():
+        return wait(lambda m:m['gem16_request_queue_active']==0
+                    and m['gem16_request_queue_depth']==0
+                    and m['gem16_active_requests']==0)
     def raw(body, stage=None, affinity=None, route='/v1/chat/completions'):
         if stage == 'generation':
             body = {**body}
@@ -81,8 +84,11 @@ def main():
     def record(name, **details):
         report['cases'].append({'case':name,**details}); print(name,flush=True)
         (a.output/'result.json').write_text(json.dumps(report,indent=2)+'\n')
-    startup=subprocess.STARTUPINFO(); startup.dwFlags|=subprocess.STARTF_USESHOWWINDOW; startup.wShowWindow=0
-    launch={'creationflags':subprocess.CREATE_NEW_CONSOLE,'startupinfo':startup}
+    if sys.platform == 'win32':
+        startup=subprocess.STARTUPINFO(); startup.dwFlags|=subprocess.STARTF_USESHOWWINDOW; startup.wShowWindow=0
+        launch={'creationflags':subprocess.CREATE_NEW_CONSOLE,'startupinfo':startup}
+    else:
+        launch={'start_new_session':True}
     log=(a.output/'server.txt').open('w',encoding='utf-8')
     process=None
     def start():
@@ -95,7 +101,13 @@ def main():
             except OSError: pass
             time.sleep(.2)
         raise TimeoutError('startup')
-    def stop():
+    def stop(stage):
+        begin=time.monotonic()
+        if sys.platform != 'win32':
+            shutdown_signal = signal.SIGINT if stage == 'image_resize' else signal.SIGTERM
+            process.send_signal(shutdown_signal)
+            code=process.wait(timeout=20); assert code==0,code
+            return time.monotonic()-begin, shutdown_signal.name
         helper="""import ctypes,sys,time
 k=ctypes.WinDLL('kernel32',use_last_error=True)
 k.FreeConsole()
@@ -105,9 +117,9 @@ assert k.GenerateConsoleCtrlEvent(0,0)
 time.sleep(.2)
 k.FreeConsole()
 """
-        begin=time.monotonic(); subprocess.run([sys.executable,'-c',helper,str(process.pid)],check=True)
+        subprocess.run([sys.executable,'-c',helper,str(process.pid)],check=True)
         code=process.wait(timeout=20); assert code==0,code
-        return time.monotonic()-begin
+        return time.monotonic()-begin, 'CTRL_C_EVENT'
     try:
         process=start()
         recovery()
@@ -194,9 +206,9 @@ k.FreeConsole()
             affinity=uuid.uuid4().hex; c=raw(payload,stage,affinity)
             waiting=[raw(short,affinity=affinity) for _ in range(3 if a.profile=='12b' else 2)] if stage=='generation' else []
             if waiting: wait(lambda m:m['gem16_request_queue_depth']==2)
-            elapsed=stop()
+            elapsed, shutdown_signal=stop(stage)
             for sock in [c,*waiting]: close(sock)
-            record('graceful_stop',stage=stage,seconds=elapsed,exit_code=0)
+            record('graceful_stop',stage=stage,signal=shutdown_signal,seconds=elapsed,exit_code=0)
             process=start(); record('restart',stage=stage,response=recovery())
         report['passed']=True
     except BaseException as error:

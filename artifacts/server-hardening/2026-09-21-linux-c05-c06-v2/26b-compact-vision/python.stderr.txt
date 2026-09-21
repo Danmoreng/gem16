@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/sebastian/Development/gem16gb/tools/validate_openai_sdk.py", line 542, in <module>
+    sys.exit(main())
+  File "/home/sebastian/Development/gem16gb/tools/validate_openai_sdk.py", line 329, in main
+    assert openai.__version__ == "2.50.0", openai.__version__
+AssertionError: 2.54.0

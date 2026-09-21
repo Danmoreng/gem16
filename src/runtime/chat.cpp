@@ -784,6 +784,21 @@ Status ChatSession::Restart(std::shared_ptr<ModelRuntime> runtime,
   return Status::Ok();
 }
 
+Status ChatSession::Reset() {
+  if (impl_ == nullptr) {
+    return Status(StatusCode::kInternal, "chat session was moved from");
+  }
+  Status status = impl_->session.Reset();
+  if (!status.ok()) return status;
+  impl_->committed_messages.clear();
+  impl_->committed_tools.clear();
+  impl_->committed_tool_choice = {};
+  impl_->cached_prefix_token_ids.clear();
+  impl_->pending_assistant_token_id.reset();
+  impl_->poisoned = false;
+  return Status::Ok();
+}
+
 std::uint64_t ChatSession::cached_token_count() const {
   return impl_ == nullptr ? 0U : impl_->session.cached_token_count();
 }

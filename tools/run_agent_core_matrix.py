@@ -21,7 +21,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def digest(path: Path) -> str:
     with path.open("rb") as source:
-        return hashlib.file_digest(source, "sha256").hexdigest()
+        if hasattr(hashlib, "file_digest"):
+            return hashlib.file_digest(source, "sha256").hexdigest()
+        hasher = hashlib.sha256()
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            hasher.update(chunk)
+        return hasher.hexdigest()
 
 
 def fetch(url: str):

@@ -37,6 +37,7 @@ struct SessionEntry {
   std::mutex inference_mutex;
   ResponsesChain responses_chain;
   std::atomic<std::uint32_t> active_requests{0U};
+  std::atomic<bool> retired{false};
   std::atomic<bool> cancel_requested{false};
   std::atomic<std::uint64_t> last_used{0U};
   std::string active_response_id;

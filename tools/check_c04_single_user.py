@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Windows C04: eight sequential image requests, global ten-minute deadline."""
+"""C04: eight sequential image requests, global ten-minute deadline."""
 import argparse
 import ctypes
-from ctypes import wintypes
 import hashlib
 import http.client
 import json
@@ -10,6 +9,7 @@ from pathlib import Path
 import re
 import socket
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -19,12 +19,15 @@ from hf_cache import default_target_model, locked_snapshot_path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-class ProcessMemory(ctypes.Structure):
-    _fields_ = [('cb', wintypes.DWORD), ('PageFaultCount', wintypes.DWORD)] + [
-        (name, ctypes.c_size_t) for name in (
-            'PeakWorkingSetSize', 'WorkingSetSize', 'QuotaPeakPagedPoolUsage',
-            'QuotaPagedPoolUsage', 'QuotaPeakNonPagedPoolUsage', 'QuotaNonPagedPoolUsage',
-            'PagefileUsage', 'PeakPagefileUsage', 'PrivateUsage')]
+if sys.platform == 'win32':
+    from ctypes import wintypes
+
+    class ProcessMemory(ctypes.Structure):
+        _fields_ = [('cb', wintypes.DWORD), ('PageFaultCount', wintypes.DWORD)] + [
+            (name, ctypes.c_size_t) for name in (
+                'PeakWorkingSetSize', 'WorkingSetSize', 'QuotaPeakPagedPoolUsage',
+                'QuotaPagedPoolUsage', 'QuotaPeakNonPagedPoolUsage', 'QuotaNonPagedPoolUsage',
+                'PagefileUsage', 'PeakPagefileUsage', 'PrivateUsage')]
 
 
 def main():
@@ -47,15 +50,42 @@ def main():
         origin = args.resume_result.stat().st_mtime - previous['elapsed_seconds']
         elapsed_before = time.time()-origin
     deadline = started + 600 - elapsed_before
+    windows = sys.platform == 'win32'
     report = {'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
               'server_sha256': hashlib.sha256(args.server.read_bytes()).hexdigest(),
-              'scope': 'Windows, one slot, ordinary decode, eight requests maximum, 600 seconds including model startup',
-              'memory_method': 'GetProcessMemoryInfo every 10ms: sampled working set and private commit; OS lifetime PeakWorkingSetSize includes startup',
+              'scope': f'{sys.platform}, one slot, ordinary decode, eight requests maximum, 600 seconds including model startup',
+              'memory_method': ('GetProcessMemoryInfo every 10ms: sampled working set and private commit; OS lifetime PeakWorkingSetSize includes startup'
+                                if windows else '/proc status and smaps_rollup every 10ms: sampled RSS, private RSS and VmHWM include startup'),
               'profiles': [], 'request_count': previous['request_count'] if previous else 0,
               'elapsed_before_resume_seconds': elapsed_before, 'prior_result': str(args.resume_result) if previous else None}
-    query = ctypes.WinDLL('psapi', use_last_error=True).GetProcessMemoryInfo
-    query.argtypes = [wintypes.HANDLE, ctypes.POINTER(ProcessMemory), wintypes.DWORD]
-    query.restype = wintypes.BOOL
+    if windows:
+        query = ctypes.WinDLL('psapi', use_last_error=True).GetProcessMemoryInfo
+        query.argtypes = [wintypes.HANDLE, ctypes.POINTER(ProcessMemory), wintypes.DWORD]
+        query.restype = wintypes.BOOL
+
+    def query_memory(process):
+        if windows:
+            memory = ProcessMemory()
+            memory.cb = ctypes.sizeof(memory)
+            if not query(wintypes.HANDLE(int(process._handle)), ctypes.byref(memory), memory.cb):
+                return None
+            return {'working_set': memory.WorkingSetSize,
+                    'private_commit': memory.PrivateUsage,
+                    'lifetime_peak_working_set': memory.PeakWorkingSetSize}
+        try:
+            status = {}
+            for line in Path(f'/proc/{process.pid}/status').read_text().splitlines():
+                if line.startswith(('VmRSS:', 'VmHWM:')):
+                    key, value, _ = line.split()
+                    status[key[:-1]] = int(value) * 1024
+            private_rss = 0
+            for line in Path(f'/proc/{process.pid}/smaps_rollup').read_text().splitlines():
+                if line.startswith(('Private_Clean:', 'Private_Dirty:')):
+                    private_rss += int(line.split()[1]) * 1024
+            return {'working_set': status['VmRSS'], 'private_commit': private_rss,
+                    'lifetime_peak_working_set': status['VmHWM']}
+        except (FileNotFoundError, KeyError, PermissionError, ProcessLookupError, ValueError):
+            return None
     colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)]
     names = ['red', 'green', 'blue', 'yellow']
     images = [image_part(color) for color in colors]
@@ -99,20 +129,17 @@ def main():
             phase = 'startup'
             stopping = threading.Event()
             with (args.output/f'{profile}-server.txt').open('w', encoding='utf-8') as log:
-                process = subprocess.Popen(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
-                                           creationflags=subprocess.CREATE_NO_WINDOW)
+                launch = {'creationflags': subprocess.CREATE_NO_WINDOW} if windows else {'start_new_session': True}
+                process = subprocess.Popen(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, **launch)
                 def sample():
                     while not stopping.is_set():
                         if time.monotonic() >= deadline:
                             process.terminate()
                             return
-                        memory = ProcessMemory()
-                        memory.cb = ctypes.sizeof(memory)
-                        if query(wintypes.HANDLE(int(process._handle)), ctypes.byref(memory), memory.cb):
+                        memory = query_memory(process)
+                        if memory:
                             samples.append({'seconds': time.monotonic()-started, 'phase': phase,
-                                            'working_set': memory.WorkingSetSize,
-                                            'private_commit': memory.PrivateUsage,
-                                            'lifetime_peak_working_set': memory.PeakWorkingSetSize})
+                                            **memory})
                         stopping.wait(.01)
                 sampler = threading.Thread(target=sample, daemon=True)
                 sampler.start()

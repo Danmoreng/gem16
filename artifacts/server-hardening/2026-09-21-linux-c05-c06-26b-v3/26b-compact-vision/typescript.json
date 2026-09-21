@@ -1,0 +1,210 @@
+{
+  "sdk": "openai-node",
+  "version": "7.10.0",
+  "platform": "linux",
+  "status": "passed",
+  "cases": [
+    {
+      "name": "chat-tools-false",
+      "status": "passed",
+      "detail": {
+        "turns": 3,
+        "parallel_calls_observed": false,
+        "keys": [
+          "alpha",
+          "beta"
+        ],
+        "answer": "The exact markers are:\n- **alpha**: München-α-731\n- **beta**: 東京-β-942"
+      }
+    },
+    {
+      "name": "chat-sequential-tools-false",
+      "status": "passed",
+      "detail": {
+        "turns": 3,
+        "parallel_calls_observed": false,
+        "keys": [
+          "alpha",
+          "beta"
+        ],
+        "answer": "The exact markers are:\n- Alpha: München-α-731\n- Beta: 東京-β-942"
+      }
+    },
+    {
+      "name": "chat-parallel-history-false",
+      "status": "passed",
+      "detail": {
+        "fixture_call_ids": [
+          "call_alpha",
+          "call_beta"
+        ],
+        "answer": "The exact markers are:\n* **alpha**: München-α-731\n* **beta**: 東京-β-942"
+      }
+    },
+    {
+      "name": "chat-output-limit-false",
+      "status": "passed",
+      "detail": {
+        "expected": "length"
+      }
+    },
+    {
+      "name": "chat-tools-true",
+      "status": "passed",
+      "detail": {
+        "turns": 3,
+        "parallel_calls_observed": false,
+        "keys": [
+          "alpha",
+          "beta"
+        ],
+        "answer": "The exact markers are:\n- **alpha**: München-α-731\n- **beta**: 東京-β-942"
+      }
+    },
+    {
+      "name": "chat-sequential-tools-true",
+      "status": "passed",
+      "detail": {
+        "turns": 3,
+        "parallel_calls_observed": false,
+        "keys": [
+          "alpha",
+          "beta"
+        ],
+        "answer": "The exact markers are:\n- Alpha: München-α-731\n- Beta: 東京-β-942"
+      }
+    },
+    {
+      "name": "chat-parallel-history-true",
+      "status": "passed",
+      "detail": {
+        "fixture_call_ids": [
+          "call_alpha",
+          "call_beta"
+        ],
+        "answer": "The exact markers are:\n* **alpha**: München-α-731\n* **beta**: 東京-β-942"
+      }
+    },
+    {
+      "name": "chat-output-limit-true",
+      "status": "passed",
+      "detail": {
+        "expected": "length"
+      }
+    },
+    {
+      "name": "responses-tools-false",
+      "status": "passed",
+      "detail": {
+        "turns": 3,
+        "parallel_calls_observed": false,
+        "keys": [
+          "alpha",
+          "beta"
+        ],
+        "answer": "The exact markers are:\n- **alpha**: München-α-731\n- **beta**: 東京-β-942"
+      }
+    },
+    {
+      "name": "responses-sequential-tools-false",
+      "status": "passed",
+      "detail": {
+        "turns": 3,
+        "parallel_calls_observed": false,
+        "keys": [
+          "alpha",
+          "beta"
+        ],
+        "answer": "The exact markers are München-α-731 and 東京-β-942."
+      }
+    },
+    {
+      "name": "responses-parallel-history-false",
+      "status": "passed",
+      "detail": {
+        "fixture_call_ids": [
+          "call_alpha",
+          "call_beta"
+        ],
+        "answer": "The exact markers are:\n* **alpha**: München-α-731\n* **beta**: 東京-β-942"
+      }
+    },
+    {
+      "name": "responses-output-limit-false",
+      "status": "passed",
+      "detail": {
+        "expected": "response.incomplete"
+      }
+    },
+    {
+      "name": "responses-tools-true",
+      "status": "passed",
+      "detail": {
+        "turns": 3,
+        "parallel_calls_observed": false,
+        "keys": [
+          "alpha",
+          "beta"
+        ],
+        "answer": "The exact markers are:\n- **alpha**: München-α-731\n- **beta**: 東京-β-942"
+      }
+    },
+    {
+      "name": "responses-sequential-tools-true",
+      "status": "passed",
+      "detail": {
+        "turns": 3,
+        "parallel_calls_observed": false,
+        "keys": [
+          "alpha",
+          "beta"
+        ],
+        "answer": "The exact markers are München-α-731 and 東京-β-942."
+      }
+    },
+    {
+      "name": "responses-parallel-history-true",
+      "status": "passed",
+      "detail": {
+        "fixture_call_ids": [
+          "call_alpha",
+          "call_beta"
+        ],
+        "answer": "The exact markers are:\n* **alpha**: München-α-731\n* **beta**: 東京-β-942"
+      }
+    },
+    {
+      "name": "responses-output-limit-true",
+      "status": "passed",
+      "detail": {
+        "expected": "response.incomplete"
+      }
+    },
+    {
+      "name": "chat-unsupported",
+      "status": "passed",
+      "detail": {
+        "http_status": 400,
+        "error": {
+          "message": "Chat Completions request field 'temperature' is not supported",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "name": "responses-unsupported",
+      "status": "passed",
+      "detail": {
+        "http_status": 400,
+        "error": {
+          "message": "the resident Responses chain currently requires store=true",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    }
+  ]
+}

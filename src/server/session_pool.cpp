@@ -79,6 +79,14 @@ void AppendLatencyHistogram(
       .append("\n");
 }
 
+bool CanEvictSession(const std::shared_ptr<SessionEntry>& entry) {
+  // A completed streaming handler can release its SessionLease before the
+  // provider drops its final shared_ptr. Evicting in that narrow window removes
+  // the map owner without releasing the CUDA slot, so constructing its
+  // replacement can temporarily require one slot too many.
+  return entry->active_requests.load() == 0U && entry.use_count() == 1U;
+}
+
 }  // namespace
 
 Result<OpenAiResponseIdentity> MakeChatIdentity(const ServerState& state) {
@@ -96,10 +104,8 @@ Result<OpenAiResponseIdentity> MakeResponsesIdentity(
                                 UnixSecondsNow(), std::nullopt};
 }
 
-void EraseSessionLocked(ServerState& state, const std::string& id) {
-  const auto found = state.sessions.find(id);
-  if (found == state.sessions.end()) return;
-  const std::shared_ptr<SessionEntry> entry = found->second;
+void UnindexSessionLocked(ServerState& state,
+                          const std::shared_ptr<SessionEntry>& entry) {
   for (auto iterator = state.response_index.begin();
        iterator != state.response_index.end();) {
     const std::shared_ptr<SessionEntry> indexed = iterator->second.lock();
@@ -109,23 +115,46 @@ void EraseSessionLocked(ServerState& state, const std::string& id) {
       ++iterator;
     }
   }
+}
+
+void EraseSessionLocked(ServerState& state, const std::string& id) {
+  const auto found = state.sessions.find(id);
+  if (found == state.sessions.end()) return;
+  const std::shared_ptr<SessionEntry> entry = found->second;
+  UnindexSessionLocked(state, entry);
   state.sessions.erase(found);
 }
 
 gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
     ServerState& state, std::string id) {
+  std::shared_ptr<SessionEntry> recycled;
   {
     std::lock_guard pool_lock(state.pool_mutex);
-    if (state.sessions.contains(id) || state.pending_sessions.contains(id)) {
+    const auto same_id = state.sessions.find(id);
+    if (same_id != state.sessions.end()) {
+      if (!same_id->second->retired.load() ||
+          !CanEvictSession(same_id->second)) {
+        return gem16::Status(
+            same_id->second->retired.load()
+                ? gem16::StatusCode::kResourceExhausted
+                : gem16::StatusCode::kInvalidArgument,
+            "session ID is already resident or being retired");
+      }
+      recycled = same_id->second;
+      EraseSessionLocked(state, id);
+      state.metrics.sessions_evicted.fetch_add(1U);
+    }
+    if (state.pending_sessions.contains(id)) {
       return gem16::Status(gem16::StatusCode::kInvalidArgument,
                            "session ID is already resident or being created");
     }
-    if (state.sessions.size() + state.pending_sessions.size() >=
+    if (recycled == nullptr &&
+        state.sessions.size() + state.pending_sessions.size() >=
         state.max_sessions) {
       auto victim = state.sessions.end();
       for (auto iterator = state.sessions.begin();
            iterator != state.sessions.end(); ++iterator) {
-        if (iterator->second->active_requests.load() != 0U) continue;
+        if (!CanEvictSession(iterator->second)) continue;
         if (victim == state.sessions.end() ||
             iterator->second->last_used.load() <
                 victim->second->last_used.load()) {
@@ -138,6 +167,7 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
             "all resident execution slots are active or being created");
       }
       const std::string victim_id = victim->first;
+      recycled = victim->second;
       EraseSessionLocked(state, victim_id);
       state.metrics.sessions_evicted.fetch_add(1U);
     }
@@ -161,11 +191,24 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
   // CUDA arenas and graphs may take a material amount of time to construct.
   // The reservation above keeps the pool bounded while allowing unrelated
   // acquire, cancellation, health, and metrics operations to proceed.
-  auto session = gem16::ChatSession::Create(
-      state.runtime, state.session_options, state.processor);
-  if (!session.ok()) return session.status();
-  auto entry = std::make_shared<SessionEntry>(
-      id, std::move(session).value());
+  std::shared_ptr<SessionEntry> entry;
+  if (recycled != nullptr) {
+    Status reset = recycled->session.Reset();
+    if (!reset.ok()) return reset;
+    recycled->id = id;
+    recycled->responses_chain = {};
+    recycled->retired.store(false);
+    recycled->cancel_requested.store(false);
+    recycled->active_response_id.clear();
+    entry = std::move(recycled);
+  } else {
+    recycled.reset();
+    auto session = gem16::ChatSession::Create(
+        state.runtime, state.session_options, state.processor);
+    if (!session.ok()) return session.status();
+    entry = std::make_shared<SessionEntry>(
+        id, std::move(session).value());
+  }
   TestFaultPoint("before_publication");
   struct Publication {
     ServerState& state;
@@ -219,7 +262,7 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSessionQueued(
       }
       return std::any_of(state.sessions.begin(), state.sessions.end(),
                          [](const auto& item) {
-                           return item.second->active_requests.load() == 0U;
+                           return CanEvictSession(item.second);
                          });
     });
     if (!wait_status.ok()) return wait_status;
@@ -234,6 +277,29 @@ gem16::Result<std::shared_ptr<SessionEntry>> AcquireNamedSession(
     std::unique_lock pool_lock(state.pool_mutex);
     const auto found = state.sessions.find(id);
     if (found != state.sessions.end()) {
+      if (found->second->retired.load()) {
+        if (!CanEvictSession(found->second)) {
+          const gem16::Status wait_status = wait.Wait(
+              state.pool_changed, pool_lock, state.request_queue,
+              [&] {
+                const auto current = state.sessions.find(id);
+                return current == state.sessions.end() ||
+                       !current->second->retired.load() ||
+                       CanEvictSession(current->second);
+              });
+          if (!wait_status.ok()) return wait_status;
+        }
+        pool_lock.unlock();
+        auto recreated = CreateSession(state, id);
+        if (recreated.ok()) return recreated;
+        if (recreated.status().code() ==
+                gem16::StatusCode::kResourceExhausted ||
+            recreated.status().code() ==
+                gem16::StatusCode::kInvalidArgument) {
+          continue;
+        }
+        return recreated.status();
+      }
       if (found->second->active_requests.load() != 0U) {
         const std::shared_ptr<SessionEntry> busy_entry = found->second;
         const gem16::Status wait_status = wait.Wait(
@@ -277,7 +343,7 @@ gem16::Result<std::shared_ptr<SessionEntry>> AcquireNamedSession(
       }
       return std::any_of(state.sessions.begin(), state.sessions.end(),
                          [](const auto& item) {
-                           return item.second->active_requests.load() == 0U;
+                           return CanEvictSession(item.second);
                          });
     });
     if (!wait_status.ok()) return wait_status;
@@ -330,8 +396,10 @@ void DiscardSession(ServerState& state,
                     const std::shared_ptr<SessionEntry>& entry) {
   {
     std::lock_guard pool_lock(state.pool_mutex);
-    EraseSessionLocked(state, entry->id);
+    entry->retired.store(true);
+    UnindexSessionLocked(state, entry);
   }
+  state.pool_changed.notify_all();
 }
 
 SessionLease::SessionLease(ServerState& state,

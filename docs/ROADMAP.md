@@ -26,15 +26,16 @@ where practical; preserve model specialization and historical evidence.
 | C00 | Server-first docs, 220k Linux / 170k Windows, 200 MiB reserve | Implemented; Linux and Windows host/Studio checks passed |
 | C01 | Bounded schema evaluation and exact numbers | Implemented; host and sanitizer checks, including work limits |
 | C02 | Exception-safe session/Responses ownership | Completed and qualified on Windows: 280 real-GPU injected lifecycle/recovery cases; Linux release requalification remains separate |
-| C03 | Deadline/cancel admission, control capacity, shutdown | Windows phase/deadline, media/history, ordinary/D2 cancellation and graceful restart qualification complete; Linux repeat open |
-| C04 | Bounded single-user media check | Bounded Windows check complete (8 requests); server/cache checks passed, 26B colors passed, 12B small-image recall finding open; parallel stress/CPU cache deferred |
-| C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Windows Pi new/fork/resume (including cold start), manual/automatic compaction passed for both profiles; extended Linux repeat open |
-| C06 | Responses replay, practical sampling/tool compatibility | Windows SDK replay, tool-error/Unicode and limit checks passed; reasoning replay, per-request sampling and constrained tool choice remain unsupported |
+| C03 | Deadline/cancel admission, control capacity, shutdown | Windows and Linux phase/deadline, media/history, ordinary/D2 cancellation and graceful restart qualification complete |
+| C04 | Bounded single-user media check | Windows and Linux eight-request checks complete; server/cache checks and 26B colors passed, 12B small-image recall finding open; parallel stress/CPU cache deferred |
+| C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Windows and Linux Pi new/fork/resume (including cold start), manual/automatic compaction passed for both profiles |
+| C06 | Responses replay, practical sampling/tool compatibility | Windows and Linux SDK replay, tool-error/Unicode and limit checks passed; reasoning replay, per-request sampling and constrained tool choice remain unsupported |
 | C07 | Fresh headless packages, provenance, fail-closed publish | Fresh headless packages/manifests and gate verifier implemented; same-machine smoke passed, clean-machine qualification open |
 | C08 | Candidate GPU/SDK/agent/quality and two-platform evidence | Bounded Linux and Windows SDK/Pi/multi-image matrices passed; internal NVFP4 Linux smokes retained; full release qualification open |
 | C09 | Documentation consistency and release freeze | Requires C01–C08; publication needs explicit authorization |
 
-Implementation and bounded evidence: [server hardening checkpoint](evidence/server-hardening-2026-09-05.md).
+Implementation and bounded evidence: [server hardening checkpoint](evidence/server-hardening-2026-09-05.md)
+and [Linux C03-C06 minimum qualification](evidence/linux-c03-c06-2026-09-21.md).
 
 Windows baseline on candidate `491f5f5` is now recorded in
 [Windows server-first evidence](evidence/windows-server-baseline-2026-09-05.md):
@@ -165,7 +166,7 @@ Windows follow-up: [complete C03 phase evidence](evidence/windows-c03-complete-2
 adds CPU media checkpoints, deterministic deadline/decode tests, natural large-image
 disconnect, history preservation and shutdown/restart. The earlier failed deadline
 fixture remains retained; its replacement reaches the actual 30-second deadline.
-Only the Linux repetition remains open for C03; broader context/release gates are separate.
+The bounded Linux repetition is complete; broader context/release gates are separate.
 
 - [x] Add safe cancellation checkpoints while a long prefill is running, including
   disconnect for nonstream requests. Inspect `src/runtime/chat.cpp`,
@@ -182,7 +183,7 @@ Only the Linux repetition remains open for C03; broader context/release gates ar
   Use an explicit one-second control target and retain raw samples, without treating
   it as a universal guarantee. Exercise Windows Ctrl+C during media, prefill and
   decode, with queued/session waiters; restart and generate again.
-- [ ] Repeat the applicable phase/deadline matrix on Linux, including SIGINT and
+- [x] Repeat the applicable phase/deadline matrix on Linux, including SIGINT and
   SIGTERM, ordinary/fixed-D2 and both public profiles. Owner deferred this platform
   repetition; it is not marked passed by Windows evidence.
 
@@ -219,6 +220,8 @@ additional media stress campaigns or CPU-cache optimization.
 Windows results: [bounded C04 evidence](evidence/windows-c04-single-user-2026-09-12.md).
 The eight-request scope finished in 75.7 seconds including startup and fixture
 continuation. Memory/API/cache checks passed; the 12B semantic failures remain open.
+The [bounded Linux repetition](evidence/linux-c03-c06-2026-09-21.md) completed the
+same eight requests in 16.27 seconds with the same open 12B semantic finding.
 
 - [x] On Windows, run sequential 1-, 2- and 4-image requests, plus one same-session image-history
   continuation, for each public profile: **eight generation requests total, ten
@@ -236,7 +239,7 @@ continuation. Memory/API/cache checks passed; the 12B semantic failures remain o
   passed all four. Eight HTTP requests and both cache continuations succeeded.
   Do not silently change preprocessing or launch more GPU tests beyond the agreed
   cap. Keep this focused finding visible alongside C05/C06; no broad C04 campaign.
-- [ ] Repeat only the same bounded applicable check on Linux when that platform
+- [x] Repeat only the same bounded applicable check on Linux when that platform
   is available; Windows results do not establish Linux memory behavior.
 - Deferred: broad parallel-media/aggregate-concurrency RSS qualification is no
   longer a C04 requirement for the initial single-user baseline. Existing bounded
@@ -266,12 +269,14 @@ cases passed, plus real Pi editing and lifecycle checks on both public profiles.
 Actual generated Responses reasoning replay is rejected; the thinking-off Pi
 qualification and other advertised limitations remain unchanged. Required/named
 tool enforcement is not implemented by its rejection tests.
+The [Linux C03-C06 evidence](evidence/linux-c03-c06-2026-09-21.md) records the
+matching pinned SDK, Pi lifecycle and cold-resume repetition for both profiles.
 
 - [x] Exercise unmodified Pi 0.85.0 new session, fork, resume, manual and automatic
   compaction on Windows, including a fresh Pi/server process loading saved history. Check retained facts, session separation, cache
   hits and intentional history/tool resets. Extend `tools/check_pi_compaction.py`
   and `tools/validate_external_agent.py` rather than forking the agent.
-- [ ] Repeat the extended Pi lifecycle matrix on Linux; prior manual-compaction
+- [x] Repeat the extended Pi lifecycle matrix on Linux; prior manual-compaction
   evidence does not establish the new fork/cold-resume/automatic cases.
 - [ ] Qualify reasoning replay end to end if practical. Until then, keep the
   delivered Pi configuration on the qualified thinking-off path and make other

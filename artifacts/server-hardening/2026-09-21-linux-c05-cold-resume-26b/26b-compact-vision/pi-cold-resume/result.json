@@ -1,0 +1,155 @@
+{
+  "command": [
+    "node",
+    "/home/sebastian/Development/gem16gb/tools/pi-agent/node_modules/@earendil-works/pi-coding-agent/dist/cli.js",
+    "--provider",
+    "gem16",
+    "--model",
+    "gem16",
+    "--thinking",
+    "off",
+    "--mode",
+    "rpc",
+    "--no-extensions",
+    "--no-skills",
+    "--no-prompt-templates",
+    "--no-themes",
+    "--no-context-files",
+    "--session",
+    "/tmp/gem16-pi-compact-19n94w6x/retained-session/resume.jsonl"
+  ],
+  "status": "passed",
+  "client_config": {
+    "providers": {
+      "gem16": {
+        "baseUrl": "http://127.0.0.1:18094/v1",
+        "api": "openai-completions",
+        "apiKey": "gem16-local-validation",
+        "compat": {
+          "supportsStore": false,
+          "supportsDeveloperRole": true,
+          "supportsReasoningEffort": true,
+          "supportsUsageInStreaming": true,
+          "supportsStrictMode": false,
+          "supportsLongCacheRetention": false,
+          "sendSessionAffinityHeaders": true,
+          "sessionAffinityFormat": "openai"
+        },
+        "models": [
+          {
+            "id": "gem16",
+            "name": "gem16 local",
+            "reasoning": true,
+            "thinkingLevelMap": {
+              "off": "none"
+            },
+            "input": [
+              "text"
+            ],
+            "contextWindow": 16384,
+            "maxTokens": 2048,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "compaction_reserve_tokens": 1024,
+  "cold_resume_source": "/home/sebastian/Development/gem16gb/artifacts/server-hardening/2026-09-21-linux-c05-c06-26b-v3/26b-compact-vision/pi-lifecycle/sessions/--tmp-gem16-pi-compact-cbtd5rh7--/2026-09-21T17-36-52-573Z_01a0c50a-c55d-759b-96aa-fc08577bcd20.jsonl",
+  "cold_resume_state": {
+    "model": {
+      "id": "gem16",
+      "name": "gem16 local",
+      "api": "openai-completions",
+      "provider": "gem16",
+      "baseUrl": "http://127.0.0.1:18094/v1",
+      "reasoning": true,
+      "thinkingLevelMap": {
+        "off": "none"
+      },
+      "input": [
+        "text"
+      ],
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "contextWindow": 16384,
+      "maxTokens": 2048,
+      "compat": {
+        "supportsStore": false,
+        "supportsDeveloperRole": true,
+        "supportsReasoningEffort": true,
+        "supportsUsageInStreaming": true,
+        "supportsStrictMode": false,
+        "supportsLongCacheRetention": false,
+        "sendSessionAffinityHeaders": true,
+        "sessionAffinityFormat": "openai"
+      }
+    },
+    "thinkingLevel": "off",
+    "isStreaming": false,
+    "isCompacting": false,
+    "steeringMode": "one-at-a-time",
+    "followUpMode": "one-at-a-time",
+    "sessionFile": "/tmp/gem16-pi-compact-19n94w6x/retained-session/resume.jsonl",
+    "sessionId": "01a0c50a-c55d-759b-96aa-fc08577bcd20",
+    "autoCompactionEnabled": false,
+    "messageCount": 7,
+    "pendingMessageCount": 0
+  },
+  "cold_resume_answer": {
+    "type": "agent_end",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What was our codeword? Reply with that word only."
+          }
+        ],
+        "timestamp": 1790012495048
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "ORCHID"
+          }
+        ],
+        "api": "openai-completions",
+        "provider": "gem16",
+        "model": "gem16",
+        "usage": {
+          "input": 2617,
+          "output": 4,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 2621,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        "stopReason": "stop",
+        "timestamp": 1790012495065,
+        "responseId": "chatcmpl-gem16-97f4ca41b90fbada81a806f5b9143108",
+        "rawStopReason": "stop"
+      }
+    ],
+    "willRetry": false
+  }
+}

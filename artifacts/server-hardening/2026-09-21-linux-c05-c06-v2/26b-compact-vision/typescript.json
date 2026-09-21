@@ -1,0 +1,122 @@
+{
+  "sdk": "openai-node",
+  "version": "7.10.0",
+  "platform": "linux",
+  "status": "failed",
+  "cases": [
+    {
+      "name": "chat-tools-false",
+      "status": "failed",
+      "error": "Error: 400 model response ends inside a Gemma tool call marker"
+    },
+    {
+      "name": "chat-sequential-tools-false",
+      "status": "failed",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'length' !== 'stop'\n"
+    },
+    {
+      "name": "chat-parallel-history-false",
+      "status": "failed",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'length' !== 'stop'\n"
+    },
+    {
+      "name": "chat-output-limit-false",
+      "status": "passed",
+      "detail": {
+        "expected": "length"
+      }
+    },
+    {
+      "name": "chat-tools-true",
+      "status": "failed",
+      "error": "Error: generation prompt requires a final user message"
+    },
+    {
+      "name": "chat-sequential-tools-true",
+      "status": "failed",
+      "error": "Error: generation prompt requires a final user message"
+    },
+    {
+      "name": "chat-parallel-history-true",
+      "status": "failed",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'length' !== 'stop'\n"
+    },
+    {
+      "name": "chat-output-limit-true",
+      "status": "passed",
+      "detail": {
+        "expected": "length"
+      }
+    },
+    {
+      "name": "responses-tools-false",
+      "status": "failed",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'incomplete'\n- 'completed'\n"
+    },
+    {
+      "name": "responses-sequential-tools-false",
+      "status": "failed",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'incomplete'\n- 'completed'\n"
+    },
+    {
+      "name": "responses-parallel-history-false",
+      "status": "failed",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'incomplete'\n- 'completed'\n"
+    },
+    {
+      "name": "responses-output-limit-false",
+      "status": "passed",
+      "detail": {
+        "expected": "response.incomplete"
+      }
+    },
+    {
+      "name": "responses-tools-true",
+      "status": "failed",
+      "error": "Error: missing output at index 0"
+    },
+    {
+      "name": "responses-sequential-tools-true",
+      "status": "failed",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'The exact markers are:\\n' +\n+   '*   alpha: München-α-731\\n' +\n+   '*   beta: 東京-β-942\\n' +\n+   'thought\\n' +\n+   'The exact markers are:\\n' +\n+   '\\n' +\n+   '*   **alpha**: München-α-731\\n' +\n+   '*   **beta**: 東京-β-942|观察者 (Observer): | München-α-731 (alpha) | 東京-β-942 (beta) |\\n' +\n+   '|---|---|---||**alpha**| München-α-731 | |**beta**| | 東京-β-942 ||**alpha**| München-α-731 | |**beta**| | 東京-β-942 ||**alpha**| München-α-731 | |**beta**| | 東京-β-942 ||**alpha**| München-α-731 | |**beta**| | 東京-β-942 ||**alpha**| München-α-731 | |**beta**| | 東京-β-942 ||**alpha**| München-α-731'\n- 'The exact markers are:\\n*   alpha: München-α-731\\n*   beta: 東京-β-942'\n"
+    },
+    {
+      "name": "responses-parallel-history-true",
+      "status": "failed",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'The exact markers are:\\n' +\n+   '* **alpha**: München-α-731\\n' +\n+   '* **beta**: 東京-β-942lower-case-text-only\\n' +\n+   'thought\\n' +\n+   'The exact markers are:\\n' +\n+   '* alpha: München-α-731\\n' +\n+   '* beta: 東京-β-942\\n' +\n+   'thought\\n' +\n+   'The exact markers are:\\n' +\n+   '* alpha: München-α-731\\n' +\n+   '* beta: 東京-β-942The exact markers are:\\n' +\n+   '* alpha: München-α-731\\n' +\n+   '* beta: 東京-β-942The exact markers are:\\n' +\n+   '* alpha: München-α-731\\n' +\n+   '* beta: 東京-β-942The exact markers are:\\n' +\n+   '* alpha: München-α-731\\n' +\n+   '* beta: 東京-β-9421The exact markers are:\\n' +\n+   '* alpha: München-α-731\\n' +\n+   '* beta: 東京-β-9421The exact markers are:\\n' +\n+   '* alpha:'\n- 'The exact markers are:\\n* **alpha**: München-α-731\\n* **beta**: 東京-β-942'\n"
+    },
+    {
+      "name": "responses-output-limit-true",
+      "status": "passed",
+      "detail": {
+        "expected": "response.incomplete"
+      }
+    },
+    {
+      "name": "chat-unsupported",
+      "status": "passed",
+      "detail": {
+        "http_status": 400,
+        "error": {
+          "message": "Chat Completions request field 'temperature' is not supported",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    },
+    {
+      "name": "responses-unsupported",
+      "status": "passed",
+      "detail": {
+        "http_status": 400,
+        "error": {
+          "message": "the resident Responses chain currently requires store=true",
+          "type": "unsupported_feature",
+          "param": null,
+          "code": "unsupported_feature"
+        }
+      }
+    }
+  ]
+}
