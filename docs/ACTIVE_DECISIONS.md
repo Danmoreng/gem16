@@ -1,6 +1,6 @@
 # Active decisions
 
-**Updated:** 2026-09-04 · **Track:** productization · **Status:** bounded P20 accepted; release gates open
+**Updated:** 2026-09-21 · **Track:** productization · **Status:** v0.2.0 stable publication authorized
 
 Permanent rules in [AGENTS.md](../AGENTS.md) remain binding. Read the
 [product contract](PRODUCT_CONTRACT.md) and the narrow task contract next.
@@ -183,6 +183,23 @@ explicit and pass actual admission with Vision, Assistant and the desktop active
 No weight offload, precision change or automatic context fallback is authorized.
 
 ## Open product gates
+
+### Owner update: stable v0.2.0 publication (2026-09-21)
+
+The owner authorizes publication of `v0.2.0` as a normal stable GitHub release,
+not a prerelease and not a prototype, and explicitly directs that C07 and C08
+not block this release. For `v0.2.0` only, this supersedes standing decisions 1
+and 10, the two-platform candidate requirements in the product contract, and
+ROADMAP C09's dependency on completed C07/C08 evidence. It does not reclassify
+the omitted clean-machine, exact-candidate Windows GPU, provenance, everyday-
+context or full release-manifest checks as passed.
+
+The owner accepts post-publication Windows GPU verification and directs that a
+material Windows defect be corrected in `v0.2.1`. Exact-tag Linux and Windows
+build/archive integrity checks remain required before attaching binaries. Release
+notes must identify the evidence actually run and the known 12B small-image and
+Agent Core limitations. No precision, model, context, fallback or runtime rule is
+changed by this publication decision.
 
 ### Owner update: Windows and Linux development preview (2026-09-09)
 

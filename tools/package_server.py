@@ -49,9 +49,17 @@ def package(binary, output, platform_name):
         ]:
             relative = f"models/{lock}.lock.json"
             files[relative] = ROOT / relative
+        release_note = ROOT / "docs" / "releases" / f"v{version}.md"
+        if release_note.is_file():
+            files[f"docs/releases/v{version}.md"] = release_note
+        archive_status = (
+            "development candidate (not release-qualified)"
+            if version.endswith("-dev")
+            else "stable release archive"
+        )
         readme = stage / "README.txt"
         readme.write_text(
-            "GEM16 headless development candidate (not release-qualified).\n"
+            f"GEM16 headless {archive_status}.\n"
             "Requires a supported Blackwell SM120/SM120a GPU and NVIDIA driver.\n"
             "No Studio or remote inference account is required; model weights download separately.\n"
             "Python 3.11+ is needed only for the included model acquisition tools.\n"
@@ -60,7 +68,7 @@ def package(binary, output, platform_name):
             "(Windows: bin/gem16-server.exe). The recommended public Compact Vision\n"
             "context is 220000 on Linux / 170000 on Windows, subject to admission.\n"
             "Links to source/tests/evidence in the guides refer to the repository.\n"
-            "System library/clean-machine qualification remains an open release gate.\n"
+            "Tested scope and open qualification items are documented in the release notes.\n"
         )
         # Server embeds image/audio decoders and uses cpp-httplib.
         for dependency, filename in [
@@ -86,7 +94,12 @@ def package(binary, output, platform_name):
             ),
             "platform": platform_name,
             "backend": "Blackwell SM120/SM120a",
-            "qualification": "unqualified candidate; release gates required",
+            "qualification": (
+                "development candidate; release gates required"
+                if version.endswith("-dev")
+                else "stable release archive; tested scope and open qualification "
+                "items are documented in the release notes"
+            ),
             "files": {
                 relative: sha256(stage / relative)
                 for relative in sorted([*files, "README.txt"])

@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/Danmoreng/gem16/actions/workflows/ci.yml"><img src="https://github.com/Danmoreng/gem16/actions/workflows/ci.yml/badge.svg" alt="Linux and Windows CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2ea44f" alt="Apache 2.0 license"></a>
-  <img src="https://img.shields.io/badge/status-development%20preview-e3b341" alt="Development preview">
+  <img src="https://img.shields.io/badge/release-v0.2.0-2ea44f" alt="Release v0.2.0">
 </p>
 
 
@@ -27,8 +27,9 @@ offline-compiled, immutable GEM16 components. The former public text-only 26B NV
 qualified internally for regression and rollback, but is not shown as a normal Studio choice.
 
 > [!IMPORTANT]
-> gem16 is a development preview, not a release-qualified general-purpose runtime. The optimized CUDA backend
-> currently targets Blackwell SM120/SM120a, and the supported model revisions are pinned deliberately.
+> gem16 0.2.0 is the current stable release for the supported local single-user configuration. The optimized CUDA
+> backend targets Blackwell SM120/SM120a, and the supported model revisions are pinned deliberately. See the
+> [v0.2.0 release notes](docs/releases/v0.2.0.md) for the tested scope and known limitations.
 
 ## Product profiles
 

@@ -30,9 +30,9 @@ where practical; preserve model specialization and historical evidence.
 | C04 | Bounded single-user media check | Windows and Linux eight-request checks complete; server/cache checks and 26B colors passed, 12B small-image recall finding open; parallel stress/CPU cache deferred |
 | C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Windows and Linux Pi new/fork/resume (including cold start), manual/automatic compaction passed for both profiles |
 | C06 | Responses replay, practical sampling/tool compatibility | Windows and Linux SDK replay, tool-error/Unicode and limit checks passed; reasoning replay, per-request sampling and constrained tool choice remain unsupported |
-| C07 | Fresh headless packages, provenance, fail-closed publish | Fresh headless packages/manifests and gate verifier implemented; same-machine smoke passed, clean-machine qualification open |
-| C08 | Candidate GPU/SDK/agent/quality and two-platform evidence | Bounded Linux and Windows SDK/Pi/multi-image matrices passed; internal NVFP4 Linux smokes retained; full release qualification open |
-| C09 | Documentation consistency and release freeze | Requires C01–C08; publication needs explicit authorization |
+| C07 | Fresh headless packages, provenance, fail-closed publish | Open for full qualification; explicitly waived by owner for stable v0.2.0 only |
+| C08 | Candidate GPU/SDK/agent/quality and two-platform evidence | Open for full qualification; explicitly waived by owner for stable v0.2.0 only |
+| C09 | Documentation consistency and release freeze | v0.2.0 publication explicitly authorized with C07/C08 open; later full qualification remains separate |
 
 Implementation and bounded evidence: [server hardening checkpoint](evidence/server-hardening-2026-09-05.md)
 and [Linux C03-C06 minimum qualification](evidence/linux-c03-c06-2026-09-21.md).
@@ -300,6 +300,10 @@ clients, and remaining complex limitations are explicit before costly execution.
 
 ### C07 — Finish package provenance and first-run integrity
 
+The owner explicitly waived completion of this gate for the stable `v0.2.0`
+publication on 2026-09-21. The unchecked items remain open and are not recorded
+as passed.
+
 - [ ] Complete actual compiler/CUDA/backend and dependency provenance and notices;
   a toolchain-lock hash alone does not prove which toolchain built a binary.
 - [ ] Build fresh headless and optional Studio candidates for both platforms.
@@ -322,6 +326,10 @@ release merely because a tag exists. **Done when:** platform packages have verif
 provenance and clean-machine evidence; an old same-machine package smoke is insufficient.
 
 ### C08/C09 — Candidate qualification and documentation finish
+
+The owner explicitly waived completion of C08 for the stable `v0.2.0`
+publication on 2026-09-21 and authorized C09 publication despite the remaining
+items. The unchecked qualification work remains open for a later release.
 
 - [ ] Record exact candidate/source hashes, GPU/driver/toolchain, model locks,
   context, KV, sampling, D2 and image budgets before each run. A later relevant
