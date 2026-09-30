@@ -1,0 +1,3192 @@
+{
+  "platform": "Linux-7.2.2-arch1-1-x86_64-with-glibc2.44",
+  "python": "3.14.7 (main, Aug 10 2026, 07:46:56) [GCC 16.1.1 20260728]",
+  "source_revision": "0e61daa1eb719692b780a182b71db98f53cccb9f",
+  "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "runner_sha256": "608e2d44368e18b5f0f5e00c962a14f8af251817aaad5da721e25c7e82ffb157",
+  "binary_sha256": "03dae732becee5104f5c344ccf544037cec0c6fae3c3085430a15b2b64212371",
+  "locks": {
+    "gemma4-26b-unsloth-nvfp4.lock.json": "6635b15f4f974dec22821c7a9efd4d2404ba4ce9afb1424ca2f3529d20db7941",
+    "gemma4-26b-trellis35-target.lock.json": "a356f7bf06e8aa9fdd999d9e57702edc29de8c53d9b2af9946e14d71268b1e17",
+    "gemma4-26b-qat-q4_0.lock.json": "0893ac0a4db32f0c5549bc17b92f3951ab4da1a6180b188094190a4bbfc88784",
+    "gemma4-12b-nvfp4.lock.json": "d76e63f3366a0fb45957a78e3560e0a5865aac2cb542a609ba6a20ea9140eebe",
+    "gemma4-26b-gem16-target.lock.json": "bb88227ce0755787b86404ba1e61952f903fb3631b1563c4a5fef40df8dfa064",
+    "gemma4-26b-vision-fp8.lock.json": "7055c830be39133f7cfeb8734ffa967594eff4882fbbe1723de91d669c880a99",
+    "gemma4-26b-qat-q4_0-assistant.lock.json": "83e509316eab22749fade9c0968333b0a29f0daf99832314b333702bf45bdda5",
+    "gemma4-26b-qat-bf16.lock.json": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "gemma4-26b-gem16-assistant.lock.json": "c5df256e661a36eb91215f7a0dfd540429760ce8401ceb9725d5ea420f8b4e8e",
+    "gemma4-26b-reference-sources.lock.json": "577528f96ac1e64d5e258a9a50eaa60f4cb48bf0294b8c6db96bace1f921ab6e",
+    "gemma4-12b-mtp-assistant.lock.json": "7d36ff6d1ab0b7362808d85012aa187468516e367dc52cbf0cc23cca9a10e649",
+    "gemma4-26b-base-bf16.lock.json": "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620"
+  },
+  "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU, 610.57.04, 16303 MiB",
+  "scope": "1 warmups + 1 measured sequential HTTP nonstream requests, 96 output tokens; HTTP end-to-end timing",
+  "runs": [
+    {
+      "profile": "nvfp4-ordinary",
+      "command": [
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-server",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/nvfp4-penalty-check-8qqk8u1s",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "50553",
+        "--model-name",
+        "gem16",
+        "--max-context",
+        "4096",
+        "--max-sessions",
+        "1",
+        "--seed",
+        "42"
+      ],
+      "samples": [
+        {
+          "warmup": true,
+          "seconds": 0.5869200839999849,
+          "response": {
+            "id": "chatcmpl-gem16-38c7f76ce091c99eed891864abc6a855",
+            "object": "chat.completion",
+            "created": 1790801615,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex, multi-stage journey that begins not in the clouds, but on the ground. To understand how a raindrop reaches the earth, one must look at the continuous cycle of water as it moves through the atmosphere, shifting forms through the application of energy and the influence of physical laws.\n\nThe journey begins with evaporation. As the sun warms the surface of the Earth\u2014warming oceans, lakes, rivers, and even the damp soil of a"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "800",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_d73b1eb75102991fb4425bb62d83b0b5",
+            "X-Request-Id": "req_gem16_88f162fd94d7262e64cae38498b1b146"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5858657049999465,
+          "response": {
+            "id": "chatcmpl-gem16-c1c6a0ca3141006757ea20b2345271d7",
+            "object": "chat.completion",
+            "created": 1790801615,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex, multi-stage journey that begins not in the clouds, but on the ground. To understand how a raindrop reaches the earth, one must look at the continuous cycle of water as it moves through the atmosphere, shifting forms through the application of energy and the influence of physical laws.\n\nThe journey begins with evaporation. As the sun warms the surface of the Earth\u2014warming oceans, lakes, rivers, and even the damp soil of a"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "800",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_b7c004d96278a96dd412d34ed1f2b8ee",
+            "X-Request-Id": "req_gem16_cfba4d2840ac1b05863757a9a68e1fee"
+          }
+        }
+      ],
+      "gpu_observations": [
+        {
+          "monotonic": 568.38909529,
+          "memory_power_clock_temperature": "14, 21.53, 210, 46"
+        },
+        {
+          "monotonic": 568.604384486,
+          "memory_power_clock_temperature": "14, 20.70, 990, 46"
+        },
+        {
+          "monotonic": 568.820987678,
+          "memory_power_clock_temperature": "14, 20.71, 1492, 46"
+        },
+        {
+          "monotonic": 569.035197078,
+          "memory_power_clock_temperature": "216, 21.50, 1492, 46"
+        },
+        {
+          "monotonic": 569.250816705,
+          "memory_power_clock_temperature": "14232, 21.64, 1522, 46"
+        },
+        {
+          "monotonic": 569.472497735,
+          "memory_power_clock_temperature": "14232, 22.38, 1492, 46"
+        },
+        {
+          "monotonic": 569.691438353,
+          "memory_power_clock_temperature": "14232, 23.63, 1492, 46"
+        },
+        {
+          "monotonic": 569.913278661,
+          "memory_power_clock_temperature": "14232, 25.31, 1492, 46"
+        },
+        {
+          "monotonic": 570.131087586,
+          "memory_power_clock_temperature": "14232, 26.85, 1492, 46"
+        },
+        {
+          "monotonic": 570.347871537,
+          "memory_power_clock_temperature": "14528, 28.92, 1492, 46"
+        },
+        {
+          "monotonic": 570.568468813,
+          "memory_power_clock_temperature": "14528, 41.40, 1822, 50"
+        },
+        {
+          "monotonic": 570.787911303,
+          "memory_power_clock_temperature": "14528, 61.49, 2707, 52"
+        },
+        {
+          "monotonic": 571.004931407,
+          "memory_power_clock_temperature": "14528, 98.07, 2707, 53"
+        },
+        {
+          "monotonic": 571.223524663,
+          "memory_power_clock_temperature": "14528, 112.67, 2707, 54"
+        },
+        {
+          "monotonic": 571.44359475,
+          "memory_power_clock_temperature": "14528, 132.61, 2707, 54"
+        },
+        {
+          "monotonic": 571.667241889,
+          "memory_power_clock_temperature": "14528, 141.87, 2707, 55"
+        },
+        {
+          "monotonic": 571.887434436,
+          "memory_power_clock_temperature": "14528, 143.01, 2707, 55"
+        },
+        {
+          "monotonic": 572.106283702,
+          "memory_power_clock_temperature": "14528, 142.62, 2715, 55"
+        },
+        {
+          "monotonic": 572.324742145,
+          "memory_power_clock_temperature": "14528, 140.62, 2700, 54"
+        },
+        {
+          "monotonic": 572.543853023,
+          "memory_power_clock_temperature": "14528, 138.32, 2632, 54"
+        },
+        {
+          "monotonic": 572.767820763,
+          "memory_power_clock_temperature": "14528, 136.01, 2625, 55"
+        },
+        {
+          "monotonic": 572.989283854,
+          "memory_power_clock_temperature": "14528, 133.27, 2520, 54"
+        },
+        {
+          "monotonic": 573.207154204,
+          "memory_power_clock_temperature": "14528, 130.67, 2520, 55"
+        },
+        {
+          "monotonic": 573.424907003,
+          "memory_power_clock_temperature": "14528, 130.65, 2565, 55"
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": true,
+        "base_max_context": 98304,
+        "mtp_max_context": null,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-nvfp4",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "sm120-text-hybrid-v1",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "sm120-text-hybrid-v1",
+        "head_format": "nvfp4",
+        "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "f433358b8e2c1250b95801fc898faee4fcedcbe5",
+        "resident_weight_bytes": 14696668160,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 0,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 155962400,
+        "execution_slot_bytes": 302763040,
+        "admission_free_bytes": 1418526720,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 684523520,
+        "text_only": true,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": false,
+          "mtp": false,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "turns": [
+        {
+          "frequency": 0.5,
+          "presence": 0,
+          "response": {
+            "id": "chatcmpl-gem16-8941ee23c0f644d0ae90d20438a088e5",
+            "object": "chat.completion",
+            "created": 1790801616,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain plain pain gain main vein lane cane pane crane dane mane lane slain plain plane slain slain slain slain slain slain slain"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 24,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 46,
+              "total_tokens": 70
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "561",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "penalty-continuation",
+            "X-Request-Id": "req_gem16_45663bd53b2bafbfb911d04c6f6034b8"
+          },
+          "seconds": 0.27985696799999005
+        },
+        {
+          "frequency": 0.5,
+          "presence": 0,
+          "response": {
+            "id": "chatcmpl-gem16-87b23b17df270869fbb04565bcb30444",
+            "object": "chat.completion",
+            "created": 1790801616,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain train drain brain chain grain plain strain drain train grain strain train grain train drain brain train grain strain drain grain strain drain grain train"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 91,
+              "prompt_tokens_details": {
+                "cached_tokens": 69
+              },
+              "completion_tokens": 42,
+              "total_tokens": 133
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "560",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "penalty-continuation",
+            "X-Request-Id": "req_gem16_b8476ac86be480d0c5b30533261391e1"
+          },
+          "seconds": 0.2753164990000414
+        },
+        {
+          "frequency": 0,
+          "presence": -0.5,
+          "response": {
+            "id": "chatcmpl-gem16-f6a0cbe6ba763f6f0ea4b78fcb35edb9",
+            "object": "chat.completion",
+            "created": 1790801617,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 154,
+              "prompt_tokens_details": {
+                "cached_tokens": 132
+              },
+              "completion_tokens": 42,
+              "total_tokens": 196
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "533",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "penalty-continuation",
+            "X-Request-Id": "req_gem16_edc1b825fc405d596b49f0f7d77e3af7"
+          },
+          "seconds": 0.282362318999958
+        },
+        {
+          "frequency": 0,
+          "presence": 0,
+          "response": {
+            "id": "chatcmpl-gem16-fff70885e9dcc8ff5f8433befdf01bbb",
+            "object": "chat.completion",
+            "created": 1790801617,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 217,
+              "prompt_tokens_details": {
+                "cached_tokens": 195
+              },
+              "completion_tokens": 42,
+              "total_tokens": 259
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "533",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "penalty-continuation",
+            "X-Request-Id": "req_gem16_6b04e76724242d2344f5091980d0fd21"
+          },
+          "seconds": 0.28334655500009376
+        }
+      ],
+      "streaming_penalty_events": [
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "\n"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "*"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "   "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "Topic"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": ":"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": " Rain"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "."
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "\n"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "    "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "*"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "   "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "Constraint"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": ":"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": " One"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": " sentence"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "."
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "\n"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "    "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "*"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "   "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "Goal"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": ":"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": " Explain"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": " it"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "."
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "\n\n"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "    "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "*"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "   "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "It"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "'"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "s"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "Rain"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " is"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " liquid"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " water"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " that"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " falls"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " from"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " clouds"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " in"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " the"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " form"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " of"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " droplets"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " when"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " atmospheric"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " water"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " vapor"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " cond"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "enses"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " and"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " becomes"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " too"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " heavy"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " to"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " remain"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " suspended"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " in"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " the"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " air"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "length"
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-2ddc234e0c6aa0cd7c9a08b8af392916",
+          "object": "chat.completion.chunk",
+          "created": 1790801617,
+          "model": "gem16",
+          "choices": [],
+          "usage": {
+            "prompt_tokens": 22,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 64,
+            "total_tokens": 86
+          }
+        }
+      ],
+      "lifecycle": {
+        "tool_call": {
+          "id": "chatcmpl-gem16-41965756346df434434e809a97c99b4f",
+          "object": "chat.completion",
+          "created": 1790801618,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": null,
+                "tool_calls": [
+                  {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {
+                      "name": "add",
+                      "arguments": "{\"a\":2,\"b\":3}"
+                    }
+                  }
+                ]
+              },
+              "finish_reason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 98,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 15,
+            "total_tokens": 113
+          }
+        },
+        "tool_result": {
+          "id": "chatcmpl-gem16-8a0974b5aa7ccd6987e67ff1a16b0294",
+          "object": "chat.completion",
+          "created": 1790801618,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "The result of 2 plus 3 is 5."
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 124,
+            "prompt_tokens_details": {
+              "cached_tokens": 112
+            },
+            "completion_tokens": 15,
+            "total_tokens": 139
+          }
+        },
+        "post_disconnect_response": {
+          "id": "chatcmpl-gem16-737d10015e3a757d1a3fffd81760cf26",
+          "object": "chat.completion",
+          "created": 1790801618,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hello! How can I help you today?"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 16,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 10,
+            "total_tokens": 26
+          }
+        }
+      },
+      "memory_after_requests": "14528 MiB",
+      "final_health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": true,
+        "base_max_context": 98304,
+        "mtp_max_context": null,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-nvfp4",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "sm120-text-hybrid-v1",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "sm120-text-hybrid-v1",
+        "head_format": "nvfp4",
+        "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "f433358b8e2c1250b95801fc898faee4fcedcbe5",
+        "resident_weight_bytes": 14696668160,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 0,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 155962400,
+        "execution_slot_bytes": 302763040,
+        "admission_free_bytes": 1418526720,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 684523520,
+        "text_only": true,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": false,
+          "mtp": false,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "sampled_peak_gpu_memory_mib": 14528.0
+    },
+    {
+      "profile": "nvfp4-d2",
+      "command": [
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-server",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/nvfp4-penalty-check-8qqk8u1s",
+        "--assistant-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "55669",
+        "--model-name",
+        "gem16",
+        "--max-context",
+        "4096",
+        "--max-sessions",
+        "1",
+        "--seed",
+        "42"
+      ],
+      "samples": [
+        {
+          "warmup": true,
+          "seconds": 0.4885113249999904,
+          "response": {
+            "id": "chatcmpl-gem16-b681684480819ad719865bd1c6115ca5",
+            "object": "chat.completion",
+            "created": 1790801622,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex, multi-stage journey that begins not in the clouds, but on the ground. To understand how a raindrop reaches the earth, one must look at the continuous cycle of water as it moves through the atmosphere, shifting forms through the application of energy and the influence of physical laws.\n\nThe journey begins with evaporation. As the sun warms the surface of the Earth\u2014warming oceans, lakes, rivers, and even the damp soil of a"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "800",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_2daf85abc5772c214a6204bee3d16cc8",
+            "X-Request-Id": "req_gem16_91fbfd2421f7518347f4a91b72b70a50"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.4703429749999941,
+          "response": {
+            "id": "chatcmpl-gem16-75a5b15c46e85262db84b79406ced83c",
+            "object": "chat.completion",
+            "created": 1790801622,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex, multi-stage journey that begins not in the clouds, but on the ground. To understand how a raindrop reaches the earth, one must look at the continuous cycle of water as it moves through the atmosphere, shifting forms through the application of energy and the influence of physical laws.\n\nThe journey begins with evaporation. As the sun warms the surface of the Earth\u2014warming oceans, lakes, rivers, and even the damp soil of a"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "800",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_79cb57f9c177d4cb925c421d494a4c86",
+            "X-Request-Id": "req_gem16_a383a49863ca4a8939c8b0ac0917e48e"
+          }
+        }
+      ],
+      "gpu_observations": [
+        {
+          "monotonic": 573.664194598,
+          "memory_power_clock_temperature": "14, 113.63, 2452, 51"
+        },
+        {
+          "monotonic": 573.880633873,
+          "memory_power_clock_temperature": "14, 91.21, 1500, 50"
+        },
+        {
+          "monotonic": 574.19036226,
+          "memory_power_clock_temperature": "17, 59.20, 1492, 49"
+        },
+        {
+          "monotonic": 574.410237672,
+          "memory_power_clock_temperature": "14232, 25.73, 1492, 48"
+        },
+        {
+          "monotonic": 574.63272249,
+          "memory_power_clock_temperature": "14232, 22.67, 1530, 48"
+        },
+        {
+          "monotonic": 574.853350514,
+          "memory_power_clock_temperature": "14232, 21.60, 1492, 48"
+        },
+        {
+          "monotonic": 575.070430139,
+          "memory_power_clock_temperature": "14232, 22.79, 1492, 48"
+        },
+        {
+          "monotonic": 575.290571651,
+          "memory_power_clock_temperature": "14232, 25.70, 1492, 48"
+        },
+        {
+          "monotonic": 575.506162974,
+          "memory_power_clock_temperature": "14232, 27.80, 1492, 48"
+        },
+        {
+          "monotonic": 575.721934536,
+          "memory_power_clock_temperature": "14528, 28.93, 1515, 48"
+        },
+        {
+          "monotonic": 575.93749459,
+          "memory_power_clock_temperature": "14528, 29.37, 1515, 48"
+        },
+        {
+          "monotonic": 576.153640164,
+          "memory_power_clock_temperature": "14528, 29.44, 1492, 48"
+        },
+        {
+          "monotonic": 576.369661083,
+          "memory_power_clock_temperature": "14528, 28.83, 1492, 48"
+        },
+        {
+          "monotonic": 576.585343387,
+          "memory_power_clock_temperature": "14528, 27.26, 1492, 48"
+        },
+        {
+          "monotonic": 576.800497681,
+          "memory_power_clock_temperature": "14528, 26.62, 1492, 48"
+        },
+        {
+          "monotonic": 577.015263756,
+          "memory_power_clock_temperature": "14812, 26.90, 1522, 49"
+        },
+        {
+          "monotonic": 577.232387494,
+          "memory_power_clock_temperature": "14814, 41.04, 2130, 53"
+        },
+        {
+          "monotonic": 577.451379859,
+          "memory_power_clock_temperature": "14814, 65.88, 2130, 55"
+        },
+        {
+          "monotonic": 577.675062254,
+          "memory_power_clock_temperature": "14814, 83.54, 2655, 56"
+        },
+        {
+          "monotonic": 577.89383118,
+          "memory_power_clock_temperature": "14814, 124.46, 2617, 56"
+        },
+        {
+          "monotonic": 578.111708172,
+          "memory_power_clock_temperature": "14814, 134.97, 2602, 57"
+        },
+        {
+          "monotonic": 578.32736597,
+          "memory_power_clock_temperature": "14814, 143.95, 2580, 57"
+        },
+        {
+          "monotonic": 578.545858828,
+          "memory_power_clock_temperature": "14814, 142.84, 2632, 58"
+        },
+        {
+          "monotonic": 578.766535583,
+          "memory_power_clock_temperature": "14814, 140.77, 2565, 57"
+        },
+        {
+          "monotonic": 578.984098566,
+          "memory_power_clock_temperature": "14814, 139.45, 2610, 58"
+        },
+        {
+          "monotonic": 579.203535375,
+          "memory_power_clock_temperature": "14814, 137.12, 2610, 56"
+        },
+        {
+          "monotonic": 579.422908965,
+          "memory_power_clock_temperature": "14814, 135.87, 2475, 58"
+        },
+        {
+          "monotonic": 579.642514962,
+          "memory_power_clock_temperature": "14814, 128.71, 2527, 56"
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": true,
+        "base_max_context": 98304,
+        "mtp_max_context": 4096,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-nvfp4",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "sm120-text-hybrid-v1",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "sm120-text-hybrid-v1",
+        "head_format": "nvfp4",
+        "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "f433358b8e2c1250b95801fc898faee4fcedcbe5",
+        "resident_weight_bytes": 14696668160,
+        "assistant_weight_bytes": 258313728,
+        "assistant_workspace_bytes": 2330896,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 0,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 162644512,
+        "execution_slot_bytes": 309445152,
+        "admission_free_bytes": 1120731136,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 386727936,
+        "text_only": true,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": false,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "turns": [
+        {
+          "frequency": 0.5,
+          "presence": 0,
+          "response": {
+            "id": "chatcmpl-gem16-cd710fc60e243afd02285366461e672c",
+            "object": "chat.completion",
+            "created": 1790801622,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain plain pain gain main vein lane cane pane crane dane mane lane slain plain plane slain slain slain slain slain slain slain"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 24,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 46,
+              "total_tokens": 70
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "561",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "penalty-continuation",
+            "X-Request-Id": "req_gem16_c4df9840b96a1732a015b95133e0bf01"
+          },
+          "seconds": 0.2951193950000288
+        },
+        {
+          "frequency": 0.5,
+          "presence": 0,
+          "response": {
+            "id": "chatcmpl-gem16-87a4c73ea178d1c2bbf02fe34636d262",
+            "object": "chat.completion",
+            "created": 1790801623,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain train drain brain chain grain plain strain drain train grain strain train grain train drain brain train grain strain drain grain strain drain grain train"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 91,
+              "prompt_tokens_details": {
+                "cached_tokens": 69
+              },
+              "completion_tokens": 42,
+              "total_tokens": 133
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "560",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "penalty-continuation",
+            "X-Request-Id": "req_gem16_017e7408ee7cd49b4c9cef90bdf1105e"
+          },
+          "seconds": 0.28659167399996477
+        },
+        {
+          "frequency": 0,
+          "presence": -0.5,
+          "response": {
+            "id": "chatcmpl-gem16-505a4b0762d6da8c3ccb9696759fe3c2",
+            "object": "chat.completion",
+            "created": 1790801623,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 154,
+              "prompt_tokens_details": {
+                "cached_tokens": 132
+              },
+              "completion_tokens": 42,
+              "total_tokens": 196
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "533",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "penalty-continuation",
+            "X-Request-Id": "req_gem16_2e5158cc5346f005a59f30df3ab561f8"
+          },
+          "seconds": 0.18844782299993312
+        },
+        {
+          "frequency": 0,
+          "presence": 0,
+          "response": {
+            "id": "chatcmpl-gem16-f9c068214b9ce2cd27d8eba6acf0487d",
+            "object": "chat.completion",
+            "created": 1790801623,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain rain"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 217,
+              "prompt_tokens_details": {
+                "cached_tokens": 195
+              },
+              "completion_tokens": 42,
+              "total_tokens": 259
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "533",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "penalty-continuation",
+            "X-Request-Id": "req_gem16_7d448a0725e51a033d1d11f135ad1731"
+          },
+          "seconds": 0.18520688099999916
+        }
+      ],
+      "streaming_penalty_events": [
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "\n"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "*"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "   "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "Topic"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": ":"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": " Rain"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "."
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "\n"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "    "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "*"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "   "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "Constraint"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": ":"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": " One"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": " sentence"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "."
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "\n"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "    "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "*"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "   "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "Goal"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": ":"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": " Explain"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": " it"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "."
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "\n\n"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "    "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "*"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "   "
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "It"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "'"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "s"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "Rain"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " is"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " liquid"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " water"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " that"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " falls"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " from"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " clouds"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " in"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " the"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " form"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " of"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " droplets"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " when"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " atmospheric"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " water"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " vapor"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " cond"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "enses"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " and"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " becomes"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " too"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " heavy"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " to"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " remain"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " suspended"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " in"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " the"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " air"
+              },
+              "finish_reason": null
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "length"
+            }
+          ],
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-gem16-ee9c447d4835d37b614c1419334395ee",
+          "object": "chat.completion.chunk",
+          "created": 1790801623,
+          "model": "gem16",
+          "choices": [],
+          "usage": {
+            "prompt_tokens": 22,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 64,
+            "total_tokens": 86
+          }
+        }
+      ],
+      "lifecycle": {
+        "tool_call": {
+          "id": "chatcmpl-gem16-27b0cb4dad84459d6efca632c58f8cc9",
+          "object": "chat.completion",
+          "created": 1790801624,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": null,
+                "tool_calls": [
+                  {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {
+                      "name": "add",
+                      "arguments": "{\"a\":2,\"b\":3}"
+                    }
+                  }
+                ]
+              },
+              "finish_reason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 98,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 15,
+            "total_tokens": 113
+          }
+        },
+        "tool_result": {
+          "id": "chatcmpl-gem16-68b66b8012dddfaee6ecf93da69a70b6",
+          "object": "chat.completion",
+          "created": 1790801624,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "The result of 2 plus 3 is 5."
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 124,
+            "prompt_tokens_details": {
+              "cached_tokens": 112
+            },
+            "completion_tokens": 15,
+            "total_tokens": 139
+          }
+        },
+        "post_disconnect_response": {
+          "id": "chatcmpl-gem16-7ae9ca4575ee31a7b2405bc486337603",
+          "object": "chat.completion",
+          "created": 1790801624,
+          "model": "gem16",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hello! How can I help you today?"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 16,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens": 10,
+            "total_tokens": 26
+          }
+        }
+      },
+      "memory_after_requests": "14814 MiB",
+      "final_health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": true,
+        "base_max_context": 98304,
+        "mtp_max_context": 4096,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-nvfp4",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "sm120-text-hybrid-v1",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "sm120-text-hybrid-v1",
+        "head_format": "nvfp4",
+        "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "f433358b8e2c1250b95801fc898faee4fcedcbe5",
+        "resident_weight_bytes": 14696668160,
+        "assistant_weight_bytes": 258313728,
+        "assistant_workspace_bytes": 2330896,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 0,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 162644512,
+        "execution_slot_bytes": 309445152,
+        "admission_free_bytes": 1120731136,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 386727936,
+        "text_only": true,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": false,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "sampled_peak_gpu_memory_mib": 14814.0
+    }
+  ]
+}

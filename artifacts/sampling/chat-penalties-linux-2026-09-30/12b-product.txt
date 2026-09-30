@@ -1,0 +1,7 @@
+Test project /home/sebastian/Development/gem16gb/build/Linux/blackwell-release
+    Start 17: gem16-12b-m22-product
+1/1 Test #17: gem16-12b-m22-product ............   Passed    7.01 sec
+
+100% tests passed out of 1
+
+Total Test time (real) =   7.01 sec

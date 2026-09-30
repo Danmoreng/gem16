@@ -1,0 +1,77 @@
+{
+  "source_revision": "0e61daa1eb719692b780a182b71db98f53cccb9f",
+  "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "platform": "Linux-7.2.2-arch1-1-x86_64-with-glibc2.44",
+  "kernel": "Linux 7.2.2-arch1-1 x86_64 GNU/Linux",
+  "cxx": "c++ (GCC) 16.2.1 20260810",
+  "cuda": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Tue_Jun_09_02:43:40_PM_PDT_2026\nCuda compilation tools, release 13.3, V13.3.73\nBuild cuda_13.3.r13.3/compiler.38244171_0",
+  "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU, 610.57.04, 16303 MiB",
+  "builds": {
+    "cuda_release": "passed: cmake --preset blackwell-release && cmake --build --preset blackwell-release --parallel 4",
+    "host_debug": "passed: cmake --preset host-debug && cmake --build --preset host-debug --parallel 4",
+    "studio": "passed: cmake --build build/native-studio --parallel 4"
+  },
+  "test_results": {
+    "host_debug": "7/7 passed",
+    "cuda_release": "14/14 passed, model product gates run separately",
+    "studio": "3/3 passed",
+    "sampling": "passed",
+    "sampling_memcheck": "0 errors",
+    "12b_product": "passed",
+    "repetition_reference": "4 exact token IDs; seeded repeat matches"
+  },
+  "model_modes": [
+    "12b-ordinary",
+    "12b-d2",
+    "compact-ordinary",
+    "compact-d2",
+    "nvfp4-ordinary",
+    "nvfp4-d2"
+  ],
+  "ordinary_d2_four_turn_choices_and_usage_equal": {
+    "12b": true,
+    "compact": true,
+    "nvfp4": true
+  },
+  "greedy_profile_modes": [
+    "12b-ordinary",
+    "12b-d2",
+    "compact-ordinary",
+    "compact-d2"
+  ],
+  "sampled_aggregate_gpu_peak_mib": {
+    "12b-ordinary": 10802.0,
+    "12b-d2": 11638.0,
+    "compact-ordinary": 13006.0,
+    "compact-d2": 13272.0,
+    "nvfp4-ordinary": 14528.0,
+    "nvfp4-d2": 14814.0
+  },
+  "scope": {
+    "context": 4096,
+    "slots": 1,
+    "seed": 42,
+    "warmups": 1,
+    "samples": 1,
+    "performance_claim": false,
+    "everyday_context_and_media_requalified": false
+  },
+  "nvfp4_wrapper_sha256": "73adc7e823162bfd726cc1b6c4e49f8a478d3428fb3229244d4a749867953a76",
+  "retained_file_sha256": {
+    "12b-product.json": "764b6d4a7b93bc44293d5954c65b819d0da714e5e6cd88f53dfc1e7da36eb525",
+    "12b-product.txt": "77dddf1d0940d58be083a1ff49059f6f1ec23d09bf511d24a526e1c3e3a4a6d4",
+    "cuda-sampling.txt": "3b0e5c7fe72612d46abf12bfd400468599f197ac372dbe0a3721204b1df95ec8",
+    "cuda-tests.txt": "244f20c31176d1c61a5d88dab92232f06caf106e86c399469e92f879962c3400",
+    "greedy.json": "1f59625823daf735b7be0f8f407a189c5aa2af73663dc952ab0a8759251a46d0",
+    "host-tests.txt": "6d18f3931a4ced7c9964e8e123b6c9c8283870f23b554a403d63c71e178abfda",
+    "memcheck.txt": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+    "nvfp4-hub-metadata-load-failure.txt": "2898780846a466998660af268e6e5402f08e3a7a4c1fc442c6f297ba114e3b74",
+    "nvfp4-initial-load-failure.txt": "6048e84c746f6e890c720c72ec3718b414956d282064e26ab9a222bfd48da180",
+    "nvfp4-view.json": "a338858edb5a14d1bbff8ed4abc66c773f23200f4da4e4df95c7f0b69d9beb06",
+    "nvfp4.json": "ed158e987cc33ba223c4599475b81e3c6e73809d57c1bce08fc3a7db87b4ac46",
+    "public-models.json": "a9f44e3e4085a3ea7a31ddf3ffbbd42ab7377b454ab13f482c2c432236f471e4",
+    "repetition.json": "e38bd4be8e39df0389c3e6a6852bc68f098d660a21f1de4044da9010e99feea9",
+    "run_nvfp4_view.py": "73adc7e823162bfd726cc1b6c4e49f8a478d3428fb3229244d4a749867953a76",
+    "studio-tests.txt": "da0482e0ebdb0f6652358520c4049694d00c0d98da143fef5557e81c83c3ff60"
+  }
+}

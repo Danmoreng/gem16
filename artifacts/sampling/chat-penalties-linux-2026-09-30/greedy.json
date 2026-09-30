@@ -1,0 +1,1482 @@
+{
+  "platform": "Linux-7.2.2-arch1-1-x86_64-with-glibc2.44",
+  "python": "3.14.7 (main, Aug 10 2026, 07:46:56) [GCC 16.1.1 20260728]",
+  "source_revision": "0e61daa1eb719692b780a182b71db98f53cccb9f",
+  "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "runner_sha256": "608e2d44368e18b5f0f5e00c962a14f8af251817aaad5da721e25c7e82ffb157",
+  "binary_sha256": "03dae732becee5104f5c344ccf544037cec0c6fae3c3085430a15b2b64212371",
+  "locks": {
+    "gemma4-26b-unsloth-nvfp4.lock.json": "6635b15f4f974dec22821c7a9efd4d2404ba4ce9afb1424ca2f3529d20db7941",
+    "gemma4-26b-trellis35-target.lock.json": "a356f7bf06e8aa9fdd999d9e57702edc29de8c53d9b2af9946e14d71268b1e17",
+    "gemma4-26b-qat-q4_0.lock.json": "0893ac0a4db32f0c5549bc17b92f3951ab4da1a6180b188094190a4bbfc88784",
+    "gemma4-12b-nvfp4.lock.json": "d76e63f3366a0fb45957a78e3560e0a5865aac2cb542a609ba6a20ea9140eebe",
+    "gemma4-26b-gem16-target.lock.json": "bb88227ce0755787b86404ba1e61952f903fb3631b1563c4a5fef40df8dfa064",
+    "gemma4-26b-vision-fp8.lock.json": "7055c830be39133f7cfeb8734ffa967594eff4882fbbe1723de91d669c880a99",
+    "gemma4-26b-qat-q4_0-assistant.lock.json": "83e509316eab22749fade9c0968333b0a29f0daf99832314b333702bf45bdda5",
+    "gemma4-26b-qat-bf16.lock.json": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "gemma4-26b-gem16-assistant.lock.json": "c5df256e661a36eb91215f7a0dfd540429760ce8401ceb9725d5ea420f8b4e8e",
+    "gemma4-26b-reference-sources.lock.json": "577528f96ac1e64d5e258a9a50eaa60f4cb48bf0294b8c6db96bace1f921ab6e",
+    "gemma4-12b-mtp-assistant.lock.json": "7d36ff6d1ab0b7362808d85012aa187468516e367dc52cbf0cc23cca9a10e649",
+    "gemma4-26b-base-bf16.lock.json": "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620"
+  },
+  "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU, 610.57.04, 16303 MiB",
+  "scope": "1 warmups + 1 measured sequential HTTP nonstream requests, 96 output tokens; HTTP end-to-end timing",
+  "runs": [
+    {
+      "profile": "12b-ordinary",
+      "command": [
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-server",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "33977",
+        "--model-name",
+        "gem16",
+        "--max-context",
+        "4096",
+        "--max-sessions",
+        "1",
+        "--seed",
+        "42",
+        "--greedy"
+      ],
+      "samples": [
+        {
+          "warmup": true,
+          "seconds": 1.8061105140000109,
+          "response": {
+            "id": "chatcmpl-gem16-e9c07b4a04c126b5da55c0cfd509f327",
+            "object": "chat.completion",
+            "created": 1790801410,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not with the fall itself, but with the invisible movement of energy and matter through the atmosphere. To understand how rain forms, one must view the Earth\u2019s atmosphere as a massive, continuous heat engine. This engine is powered by the sun, which radiates energy toward the planet, warming the surface of the oceans, the land, and the vegetation. As these surfaces heat up, they transfer that thermal energy to the layer of air directly above them"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "812",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_7ae9e2080c432f69b1162c1a28e7ba1e",
+            "X-Request-Id": "req_gem16_eeb0db2f1c81de12f7e90bbd00b930a0"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.8064315459999989,
+          "response": {
+            "id": "chatcmpl-gem16-37bc93642898b68f85fb524ac879b8f1",
+            "object": "chat.completion",
+            "created": 1790801412,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not with the fall itself, but with the invisible movement of energy and matter through the atmosphere. To understand how rain forms, one must view the Earth\u2019s atmosphere as a massive, continuous heat engine. This engine is powered by the sun, which radiates energy toward the planet, warming the surface of the oceans, the land, and the vegetation. As these surfaces heat up, they transfer that thermal energy to the layer of air directly above them"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "812",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_9ecf546a2c42f67ba3a3ccd2fbc5379f",
+            "X-Request-Id": "req_gem16_b09bc63cf6e92577a54dbfcf23e533fb"
+          }
+        }
+      ],
+      "gpu_observations": [
+        {
+          "monotonic": 363.181763755,
+          "memory_power_clock_temperature": "14, 18.86, 1492, 44"
+        },
+        {
+          "monotonic": 363.396709787,
+          "memory_power_clock_temperature": "14, 18.87, 1492, 44"
+        },
+        {
+          "monotonic": 363.69650696,
+          "memory_power_clock_temperature": "17, 19.05, 1492, 44"
+        },
+        {
+          "monotonic": 363.914421011,
+          "memory_power_clock_temperature": "9090, 19.61, 1500, 44"
+        },
+        {
+          "monotonic": 364.129935391,
+          "memory_power_clock_temperature": "9090, 19.95, 1530, 44"
+        },
+        {
+          "monotonic": 364.348175093,
+          "memory_power_clock_temperature": "9090, 20.26, 1492, 44"
+        },
+        {
+          "monotonic": 364.564989912,
+          "memory_power_clock_temperature": "9090, 20.65, 1500, 44"
+        },
+        {
+          "monotonic": 364.7843356,
+          "memory_power_clock_temperature": "9090, 20.83, 1492, 44"
+        },
+        {
+          "monotonic": 365.003021761,
+          "memory_power_clock_temperature": "9090, 20.61, 1492, 44"
+        },
+        {
+          "monotonic": 365.221144053,
+          "memory_power_clock_temperature": "9090, 21.12, 1492, 44"
+        },
+        {
+          "monotonic": 365.442502728,
+          "memory_power_clock_temperature": "10794, 22.86, 1492, 46"
+        },
+        {
+          "monotonic": 365.665174847,
+          "memory_power_clock_temperature": "10794, 43.07, 2010, 48"
+        },
+        {
+          "monotonic": 365.886614143,
+          "memory_power_clock_temperature": "10794, 62.27, 2362, 49"
+        },
+        {
+          "monotonic": 366.106600984,
+          "memory_power_clock_temperature": "10794, 91.39, 2377, 50"
+        },
+        {
+          "monotonic": 366.325815967,
+          "memory_power_clock_temperature": "10794, 119.52, 2407, 50"
+        },
+        {
+          "monotonic": 366.550996964,
+          "memory_power_clock_temperature": "10794, 128.29, 2400, 51"
+        },
+        {
+          "monotonic": 366.769962368,
+          "memory_power_clock_temperature": "10794, 127.43, 2415, 51"
+        },
+        {
+          "monotonic": 366.990251456,
+          "memory_power_clock_temperature": "10794, 127.73, 2415, 51"
+        },
+        {
+          "monotonic": 367.208629398,
+          "memory_power_clock_temperature": "10794, 128.09, 2430, 51"
+        },
+        {
+          "monotonic": 367.428797049,
+          "memory_power_clock_temperature": "10794, 127.93, 2392, 51"
+        },
+        {
+          "monotonic": 367.654288899,
+          "memory_power_clock_temperature": "10794, 127.95, 2347, 51"
+        },
+        {
+          "monotonic": 367.875188602,
+          "memory_power_clock_temperature": "10794, 127.88, 2370, 51"
+        },
+        {
+          "monotonic": 368.093572275,
+          "memory_power_clock_temperature": "10794, 127.77, 2377, 51"
+        },
+        {
+          "monotonic": 368.313767247,
+          "memory_power_clock_temperature": "10794, 127.58, 2392, 52"
+        },
+        {
+          "monotonic": 368.535314165,
+          "memory_power_clock_temperature": "10794, 127.71, 2415, 52"
+        },
+        {
+          "monotonic": 368.758052108,
+          "memory_power_clock_temperature": "10794, 128.12, 2415, 52"
+        },
+        {
+          "monotonic": 368.978733983,
+          "memory_power_clock_temperature": "10794, 128.34, 2430, 52"
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 8192,
+        "default_context_tokens": 8192,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 262144,
+        "model_variant": "gemma4_unified_12b",
+        "profile_id": "gemma4-12b-unified",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "native-checkpoint",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "gemma4_unified_12b_sm120",
+        "weight_profile": "native-checkpoint",
+        "head_format": "native-checkpoint",
+        "artifact_content_sha256": "",
+        "source_lock_sha256": "",
+        "compiler_commit": "",
+        "resident_weight_bytes": 9304895488,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": null,
+        "workspace_bytes": null,
+        "execution_slot_bytes": 1786773504,
+        "admission_free_bytes": 5333909504,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 4599906304,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": true,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": false,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "greedy_rejections": [
+        {
+          "field": "frequency_penalty",
+          "body": {
+            "error": {
+              "message": "non-zero frequency/presence penalties require sampling; restart without --greedy",
+              "type": "unsupported_feature",
+              "param": null,
+              "code": "unsupported_feature"
+            }
+          }
+        },
+        {
+          "field": "presence_penalty",
+          "body": {
+            "error": {
+              "message": "non-zero frequency/presence penalties require sampling; restart without --greedy",
+              "type": "unsupported_feature",
+              "param": null,
+              "code": "unsupported_feature"
+            }
+          }
+        }
+      ],
+      "memory_after_requests": "10794 MiB",
+      "final_health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 8192,
+        "default_context_tokens": 8192,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 262144,
+        "model_variant": "gemma4_unified_12b",
+        "profile_id": "gemma4-12b-unified",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "native-checkpoint",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "gemma4_unified_12b_sm120",
+        "weight_profile": "native-checkpoint",
+        "head_format": "native-checkpoint",
+        "artifact_content_sha256": "",
+        "source_lock_sha256": "",
+        "compiler_commit": "",
+        "resident_weight_bytes": 9304895488,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": null,
+        "workspace_bytes": null,
+        "execution_slot_bytes": 1786773504,
+        "admission_free_bytes": 5333909504,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 4599906304,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": true,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": false,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "sampled_peak_gpu_memory_mib": 10794.0
+    },
+    {
+      "profile": "12b-d2",
+      "command": [
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-server",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--assistant-model",
+        "/home/sebastian/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345",
+        "--mtp-draft-tokens",
+        "2",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "56037",
+        "--model-name",
+        "gem16",
+        "--max-context",
+        "4096",
+        "--max-sessions",
+        "1",
+        "--seed",
+        "42",
+        "--greedy"
+      ],
+      "samples": [
+        {
+          "warmup": true,
+          "seconds": 1.05560213199999,
+          "response": {
+            "id": "chatcmpl-gem16-5c87f85e5aa95dd37945650fee222362",
+            "object": "chat.completion",
+            "created": 1790801416,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not with the fall itself, but with the invisible movement of energy and matter through the atmosphere. To understand how rain forms, one must view the Earth\u2019s atmosphere as a massive, continuous heat engine. This engine is powered by the sun, which radiates energy toward the planet, warming the surface of the oceans, the land, and the vegetation. As these surfaces heat up, they transfer that thermal energy to the layer of air directly above them"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "812",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_78ab84e779e3dc32c14906e6c3c2e807",
+            "X-Request-Id": "req_gem16_fabded39368b087c3b4ebfd04ee1f75c"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.0393467920000035,
+          "response": {
+            "id": "chatcmpl-gem16-3ea0ce58119dbc51a23355ce65e4767f",
+            "object": "chat.completion",
+            "created": 1790801417,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not with the fall itself, but with the invisible movement of energy and matter through the atmosphere. To understand how rain forms, one must view the Earth\u2019s atmosphere as a massive, continuous heat engine. This engine is powered by the sun, which radiates energy toward the planet, warming the surface of the oceans, the land, and the vegetation. As these surfaces heat up, they transfer that thermal energy to the layer of air directly above them"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "812",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_0a6d55b791a2511696a2b81e2c6ad071",
+            "X-Request-Id": "req_gem16_9b96c401f8504be4566ef2451967edca"
+          }
+        }
+      ],
+      "gpu_observations": [
+        {
+          "monotonic": 369.238858075,
+          "memory_power_clock_temperature": "14, 108.24, 2370, 48"
+        },
+        {
+          "monotonic": 369.456904134,
+          "memory_power_clock_temperature": "14, 86.50, 1500, 47"
+        },
+        {
+          "monotonic": 369.721291406,
+          "memory_power_clock_temperature": "17, 60.73, 1492, 47"
+        },
+        {
+          "monotonic": 369.941963713,
+          "memory_power_clock_temperature": "9090, 32.47, 1492, 46"
+        },
+        {
+          "monotonic": 370.161871666,
+          "memory_power_clock_temperature": "9090, 21.76, 1530, 46"
+        },
+        {
+          "monotonic": 370.38063471,
+          "memory_power_clock_temperature": "9090, 20.53, 1500, 46"
+        },
+        {
+          "monotonic": 370.59722051,
+          "memory_power_clock_temperature": "9090, 21.10, 1492, 46"
+        },
+        {
+          "monotonic": 370.814820362,
+          "memory_power_clock_temperature": "9090, 21.00, 1492, 46"
+        },
+        {
+          "monotonic": 371.033110729,
+          "memory_power_clock_temperature": "9090, 20.90, 1492, 46"
+        },
+        {
+          "monotonic": 371.255316494,
+          "memory_power_clock_temperature": "9090, 21.30, 1492, 46"
+        },
+        {
+          "monotonic": 371.472594141,
+          "memory_power_clock_temperature": "11610, 21.73, 1492, 46"
+        },
+        {
+          "monotonic": 371.692973328,
+          "memory_power_clock_temperature": "11622, 39.24, 1807, 51"
+        },
+        {
+          "monotonic": 371.909815268,
+          "memory_power_clock_temperature": "11622, 72.59, 2475, 53"
+        },
+        {
+          "monotonic": 372.129092408,
+          "memory_power_clock_temperature": "11622, 102.35, 2482, 54"
+        },
+        {
+          "monotonic": 372.352168575,
+          "memory_power_clock_temperature": "11622, 127.08, 2505, 54"
+        },
+        {
+          "monotonic": 372.570410732,
+          "memory_power_clock_temperature": "11622, 139.18, 2505, 54"
+        },
+        {
+          "monotonic": 372.791409071,
+          "memory_power_clock_temperature": "11622, 143.35, 2422, 54"
+        },
+        {
+          "monotonic": 373.011712386,
+          "memory_power_clock_temperature": "11622, 143.93, 2422, 55"
+        },
+        {
+          "monotonic": 373.228914552,
+          "memory_power_clock_temperature": "11622, 144.06, 2482, 55"
+        },
+        {
+          "monotonic": 373.452244956,
+          "memory_power_clock_temperature": "11622, 144.02, 2505, 55"
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 8192,
+        "default_context_tokens": 8192,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 262144,
+        "model_variant": "gemma4_unified_12b",
+        "profile_id": "gemma4-12b-unified",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "native-checkpoint",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "gemma4_unified_12b_sm120",
+        "weight_profile": "native-checkpoint",
+        "head_format": "native-checkpoint",
+        "artifact_content_sha256": "",
+        "source_lock_sha256": "",
+        "compiler_commit": "",
+        "resident_weight_bytes": 9304895488,
+        "assistant_weight_bytes": 845714944,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": null,
+        "workspace_bytes": null,
+        "execution_slot_bytes": 1795162112,
+        "admission_free_bytes": 4478271488,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 3744268288,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": true,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": false,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "greedy_rejections": [
+        {
+          "field": "frequency_penalty",
+          "body": {
+            "error": {
+              "message": "non-zero frequency/presence penalties require sampling; restart without --greedy",
+              "type": "unsupported_feature",
+              "param": null,
+              "code": "unsupported_feature"
+            }
+          }
+        },
+        {
+          "field": "presence_penalty",
+          "body": {
+            "error": {
+              "message": "non-zero frequency/presence penalties require sampling; restart without --greedy",
+              "type": "unsupported_feature",
+              "param": null,
+              "code": "unsupported_feature"
+            }
+          }
+        }
+      ],
+      "memory_after_requests": "11622 MiB",
+      "final_health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 8192,
+        "default_context_tokens": 8192,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 262144,
+        "model_variant": "gemma4_unified_12b",
+        "profile_id": "gemma4-12b-unified",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "native-checkpoint",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "gemma4_unified_12b_sm120",
+        "weight_profile": "native-checkpoint",
+        "head_format": "native-checkpoint",
+        "artifact_content_sha256": "",
+        "source_lock_sha256": "",
+        "compiler_commit": "",
+        "resident_weight_bytes": 9304895488,
+        "assistant_weight_bytes": 845714944,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": null,
+        "workspace_bytes": null,
+        "execution_slot_bytes": 1795162112,
+        "admission_free_bytes": 4478271488,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 3744268288,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": true,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": false,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "sampled_peak_gpu_memory_mib": 11622.0
+    },
+    {
+      "profile": "compact-ordinary",
+      "command": [
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-server",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--vision-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--vision",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "60719",
+        "--model-name",
+        "gem16",
+        "--max-context",
+        "4096",
+        "--max-sessions",
+        "1",
+        "--seed",
+        "42",
+        "--greedy"
+      ],
+      "samples": [
+        {
+          "warmup": true,
+          "seconds": 0.6923062650000134,
+          "response": {
+            "id": "chatcmpl-gem16-07cf131b9fa7edefc4c6c468c12ec141",
+            "object": "chat.completion",
+            "created": 1790801423,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex, multi-stage cycle driven by the fundamental laws of thermodynamics and the continuous movement of water through the Earth\u2019s atmosphere. To understand how a single raindrop comes to exist, one must look beyond the simple act of water falling from the sky and instead examine a global engine powered by the sun, involving evaporation, condensation, cloud formation, and the intricate physics of droplet growth.\n\nThe journey begins with the sun. As solar radiation hits"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "842",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_3731e998eb2a659323a9abb47f4a9ec0",
+            "X-Request-Id": "req_gem16_6a1cda253c6b47c08947a358842eb15e"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.6920960499999751,
+          "response": {
+            "id": "chatcmpl-gem16-e9e147479ba3a292cbee779511c619bc",
+            "object": "chat.completion",
+            "created": 1790801424,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex, multi-stage cycle driven by the fundamental laws of thermodynamics and the continuous movement of water through the Earth\u2019s atmosphere. To understand how a single raindrop comes to exist, one must look beyond the simple act of water falling from the sky and instead examine a global engine powered by the sun, involving evaporation, condensation, cloud formation, and the intricate physics of droplet growth.\n\nThe journey begins with the sun. As solar radiation hits"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "842",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_b0f59909b4cde837cdadf0bcb6f4d296",
+            "X-Request-Id": "req_gem16_ab6e19d5626ce476e8bedd19c70cb627"
+          }
+        }
+      ],
+      "gpu_observations": [
+        {
+          "monotonic": 373.764995314,
+          "memory_power_clock_temperature": "14, 125.37, 2520, 50"
+        },
+        {
+          "monotonic": 373.981189679,
+          "memory_power_clock_temperature": "14, 100.38, 1552, 49"
+        },
+        {
+          "monotonic": 374.279768395,
+          "memory_power_clock_temperature": "17, 62.36, 1492, 48"
+        },
+        {
+          "monotonic": 374.49812155,
+          "memory_power_clock_temperature": "11856, 25.67, 1492, 48"
+        },
+        {
+          "monotonic": 374.72206771,
+          "memory_power_clock_temperature": "11856, 22.02, 1537, 47"
+        },
+        {
+          "monotonic": 374.943305879,
+          "memory_power_clock_temperature": "11856, 22.12, 1492, 47"
+        },
+        {
+          "monotonic": 375.162787432,
+          "memory_power_clock_temperature": "11856, 23.50, 1492, 47"
+        },
+        {
+          "monotonic": 375.378024881,
+          "memory_power_clock_temperature": "11856, 24.72, 1492, 47"
+        },
+        {
+          "monotonic": 375.592571625,
+          "memory_power_clock_temperature": "11856, 25.63, 1492, 47"
+        },
+        {
+          "monotonic": 375.808111482,
+          "memory_power_clock_temperature": "11856, 26.40, 1492, 47"
+        },
+        {
+          "monotonic": 376.021305337,
+          "memory_power_clock_temperature": "11856, 26.62, 1492, 47"
+        },
+        {
+          "monotonic": 376.235977185,
+          "memory_power_clock_temperature": "11856, 26.84, 1492, 47"
+        },
+        {
+          "monotonic": 376.453017878,
+          "memory_power_clock_temperature": "11856, 26.47, 1492, 47"
+        },
+        {
+          "monotonic": 376.66644498,
+          "memory_power_clock_temperature": "11856, 26.37, 1492, 47"
+        },
+        {
+          "monotonic": 376.882959325,
+          "memory_power_clock_temperature": "12426, 26.36, 1492, 47"
+        },
+        {
+          "monotonic": 377.097188393,
+          "memory_power_clock_temperature": "12426, 26.41, 1492, 47"
+        },
+        {
+          "monotonic": 377.315151837,
+          "memory_power_clock_temperature": "12426, 25.07, 1492, 47"
+        },
+        {
+          "monotonic": 377.531010131,
+          "memory_power_clock_temperature": "12426, 23.68, 1492, 47"
+        },
+        {
+          "monotonic": 377.752812369,
+          "memory_power_clock_temperature": "12426, 22.30, 1492, 47"
+        },
+        {
+          "monotonic": 377.971551258,
+          "memory_power_clock_temperature": "12426, 20.90, 1492, 47"
+        },
+        {
+          "monotonic": 378.188322175,
+          "memory_power_clock_temperature": "12426, 19.46, 1492, 47"
+        },
+        {
+          "monotonic": 378.405313395,
+          "memory_power_clock_temperature": "13004, 23.97, 1522, 51"
+        },
+        {
+          "monotonic": 378.623248967,
+          "memory_power_clock_temperature": "13004, 48.41, 2205, 54"
+        },
+        {
+          "monotonic": 378.84121161,
+          "memory_power_clock_temperature": "13004, 78.18, 2670, 55"
+        },
+        {
+          "monotonic": 379.057161887,
+          "memory_power_clock_temperature": "13004, 96.76, 2670, 56"
+        },
+        {
+          "monotonic": 379.274647765,
+          "memory_power_clock_temperature": "13004, 121.34, 2662, 56"
+        },
+        {
+          "monotonic": 379.49028244,
+          "memory_power_clock_temperature": "13004, 145.86, 2662, 57"
+        },
+        {
+          "monotonic": 379.708111241,
+          "memory_power_clock_temperature": "13004, 153.26, 2662, 57"
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": null,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 450033824,
+        "execution_slot_bytes": 596834464,
+        "admission_free_bytes": 3016556544,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 2282553344,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": false,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": false,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "greedy_rejections": [
+        {
+          "field": "frequency_penalty",
+          "body": {
+            "error": {
+              "message": "non-zero frequency/presence penalties require sampling; restart without --greedy",
+              "type": "unsupported_feature",
+              "param": null,
+              "code": "unsupported_feature"
+            }
+          }
+        },
+        {
+          "field": "presence_penalty",
+          "body": {
+            "error": {
+              "message": "non-zero frequency/presence penalties require sampling; restart without --greedy",
+              "type": "unsupported_feature",
+              "param": null,
+              "code": "unsupported_feature"
+            }
+          }
+        }
+      ],
+      "memory_after_requests": "13004 MiB",
+      "final_health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": null,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 450033824,
+        "execution_slot_bytes": 596834464,
+        "admission_free_bytes": 3016556544,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 2282553344,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": false,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": false,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "sampled_peak_gpu_memory_mib": 13004.0
+    },
+    {
+      "profile": "compact-d2",
+      "command": [
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-server",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--vision-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--vision",
+        "--assistant-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "59535",
+        "--model-name",
+        "gem16",
+        "--max-context",
+        "4096",
+        "--max-sessions",
+        "1",
+        "--seed",
+        "42",
+        "--greedy"
+      ],
+      "samples": [
+        {
+          "warmup": true,
+          "seconds": 0.5503914039999813,
+          "response": {
+            "id": "chatcmpl-gem16-39f60e4bde8d3d39a517792dfc1d6d20",
+            "object": "chat.completion",
+            "created": 1790801431,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex, multi-stage cycle driven by the fundamental laws of thermodynamics and the continuous movement of water through the Earth\u2019s atmosphere. To understand how a single raindrop comes to exist, one must look beyond the simple act of water falling from the sky and instead examine a global engine powered by the sun, involving evaporation, condensation, cloud formation, and the intricate physics of droplet growth.\n\nThe journey begins with the sun. As solar radiation hits"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "842",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_9a4e21464529f33b961fccd6789df2b8",
+            "X-Request-Id": "req_gem16_f64847dc313a03a6b3c8e5ca5cb2de07"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5400696959999891,
+          "response": {
+            "id": "chatcmpl-gem16-c90a130e4434414790bcc62e65f79ec2",
+            "object": "chat.completion",
+            "created": 1790801431,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex, multi-stage cycle driven by the fundamental laws of thermodynamics and the continuous movement of water through the Earth\u2019s atmosphere. To understand how a single raindrop comes to exist, one must look beyond the simple act of water falling from the sky and instead examine a global engine powered by the sun, involving evaporation, condensation, cloud formation, and the intricate physics of droplet growth.\n\nThe journey begins with the sun. As solar radiation hits"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Connection": "close",
+            "Content-Length": "842",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Gem16-Session-Id": "session_1cf5910f67817b8f02c016394256fe9b",
+            "X-Request-Id": "req_gem16_5a7e98e280035efae6c0b461df3559f7"
+          }
+        }
+      ],
+      "gpu_observations": [
+        {
+          "monotonic": 380.042533542,
+          "memory_power_clock_temperature": "14, 122.14, 1500, 51"
+        },
+        {
+          "monotonic": 380.260211651,
+          "memory_power_clock_temperature": "14, 100.90, 1492, 49"
+        },
+        {
+          "monotonic": 380.474453493,
+          "memory_power_clock_temperature": "14, 68.04, 1492, 49"
+        },
+        {
+          "monotonic": 380.697215631,
+          "memory_power_clock_temperature": "44, 28.66, 1492, 48"
+        },
+        {
+          "monotonic": 380.920983757,
+          "memory_power_clock_temperature": "11856, 22.43, 1567, 48"
+        },
+        {
+          "monotonic": 381.136212049,
+          "memory_power_clock_temperature": "11856, 22.06, 1672, 48"
+        },
+        {
+          "monotonic": 381.3559003,
+          "memory_power_clock_temperature": "11856, 24.52, 1672, 48"
+        },
+        {
+          "monotonic": 381.573527904,
+          "memory_power_clock_temperature": "11856, 27.14, 1672, 48"
+        },
+        {
+          "monotonic": 381.790134973,
+          "memory_power_clock_temperature": "11856, 29.63, 1672, 48"
+        },
+        {
+          "monotonic": 382.00728987,
+          "memory_power_clock_temperature": "11856, 31.29, 1672, 48"
+        },
+        {
+          "monotonic": 382.222192071,
+          "memory_power_clock_temperature": "11856, 31.24, 1672, 48"
+        },
+        {
+          "monotonic": 382.437858956,
+          "memory_power_clock_temperature": "11856, 29.97, 1672, 48"
+        },
+        {
+          "monotonic": 382.654629001,
+          "memory_power_clock_temperature": "11856, 29.09, 1665, 48"
+        },
+        {
+          "monotonic": 382.869549426,
+          "memory_power_clock_temperature": "11856, 27.26, 1492, 48"
+        },
+        {
+          "monotonic": 383.084780874,
+          "memory_power_clock_temperature": "11856, 27.08, 1492, 48"
+        },
+        {
+          "monotonic": 383.299724562,
+          "memory_power_clock_temperature": "12426, 26.70, 1492, 48"
+        },
+        {
+          "monotonic": 383.51887314,
+          "memory_power_clock_temperature": "12426, 26.62, 1492, 48"
+        },
+        {
+          "monotonic": 383.735216224,
+          "memory_power_clock_temperature": "12426, 25.20, 1492, 48"
+        },
+        {
+          "monotonic": 383.95408674,
+          "memory_power_clock_temperature": "12426, 23.82, 1492, 48"
+        },
+        {
+          "monotonic": 384.168462252,
+          "memory_power_clock_temperature": "12426, 22.40, 1492, 48"
+        },
+        {
+          "monotonic": 384.38570825,
+          "memory_power_clock_temperature": "12426, 21.00, 1492, 48"
+        },
+        {
+          "monotonic": 384.602763952,
+          "memory_power_clock_temperature": "12426, 19.56, 1492, 48"
+        },
+        {
+          "monotonic": 384.821342841,
+          "memory_power_clock_temperature": "13004, 19.61, 1507, 48"
+        },
+        {
+          "monotonic": 385.039921559,
+          "memory_power_clock_temperature": "13004, 19.56, 1492, 48"
+        },
+        {
+          "monotonic": 385.257594308,
+          "memory_power_clock_temperature": "13004, 19.52, 1492, 48"
+        },
+        {
+          "monotonic": 385.474252003,
+          "memory_power_clock_temperature": "13004, 19.47, 1492, 48"
+        },
+        {
+          "monotonic": 385.689727909,
+          "memory_power_clock_temperature": "13004, 19.44, 1492, 48"
+        },
+        {
+          "monotonic": 385.907570277,
+          "memory_power_clock_temperature": "13004, 19.26, 1492, 47"
+        },
+        {
+          "monotonic": 386.124407297,
+          "memory_power_clock_temperature": "13272, 25.40, 1492, 53"
+        },
+        {
+          "monotonic": 386.34110672,
+          "memory_power_clock_temperature": "13272, 53.38, 2505, 55"
+        },
+        {
+          "monotonic": 386.557936597,
+          "memory_power_clock_temperature": "13272, 75.64, 2640, 56"
+        },
+        {
+          "monotonic": 386.773180088,
+          "memory_power_clock_temperature": "13272, 100.77, 2655, 58"
+        },
+        {
+          "monotonic": 386.992328646,
+          "memory_power_clock_temperature": "13272, 137.18, 2655, 58"
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 4096,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 258313728,
+        "assistant_workspace_bytes": 2330896,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 456715936,
+        "execution_slot_bytes": 603516576,
+        "admission_free_bytes": 2737635328,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 2003632128,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": true
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": false,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "greedy_rejections": [
+        {
+          "field": "frequency_penalty",
+          "body": {
+            "error": {
+              "message": "non-zero frequency/presence penalties require sampling; restart without --greedy",
+              "type": "unsupported_feature",
+              "param": null,
+              "code": "unsupported_feature"
+            }
+          }
+        },
+        {
+          "field": "presence_penalty",
+          "body": {
+            "error": {
+              "message": "non-zero frequency/presence penalties require sampling; restart without --greedy",
+              "type": "unsupported_feature",
+              "param": null,
+              "code": "unsupported_feature"
+            }
+          }
+        }
+      ],
+      "memory_after_requests": "13272 MiB",
+      "final_health": {
+        "status": "ok",
+        "version": "0.2.0",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 4096,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 258313728,
+        "assistant_workspace_bytes": 2330896,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 456715936,
+        "execution_slot_bytes": 603516576,
+        "admission_free_bytes": 2737635328,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 2003632128,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": true
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": false,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "sampled_peak_gpu_memory_mib": 13272.0
+    }
+  ]
+}

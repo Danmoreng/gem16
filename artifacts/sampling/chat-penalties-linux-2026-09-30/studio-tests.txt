@@ -1,0 +1,11 @@
+Test project /home/sebastian/Development/gem16gb/build/native-studio
+    Start 1: gem16-native-studio-host
+1/3 Test #1: gem16-native-studio-host .........   Passed    0.14 sec
+    Start 2: gem16-native-studio-lifecycle
+2/3 Test #2: gem16-native-studio-lifecycle ....   Passed    5.02 sec
+    Start 3: gem16-native-studio-markdown
+3/3 Test #3: gem16-native-studio-markdown .....   Passed    0.23 sec
+
+100% tests passed out of 3
+
+Total Test time (real) =   5.38 sec
