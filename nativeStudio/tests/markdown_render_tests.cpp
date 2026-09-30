@@ -5,11 +5,14 @@
 #include "selectable_text.h"
 #include "shader_background.h"
 #include "svg_preview.h"
+#include "theme.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <vector>
 #ifdef _WIN32
@@ -36,16 +39,38 @@ void StartFrame() {
 // Test-only: samples the font atlas and blends the emitted triangles.
 void Screenshot(const char* path, const gem16::studio::DecodedImage* svg = nullptr,
                 ImTextureID svg_id = ImTextureID_Invalid) {
-  constexpr int w=900,h=1050;
-  std::vector<unsigned char> image(w*h*4,20);
+  const int w = std::max(1, static_cast<int>(ImGui::GetIO().DisplaySize.x));
+  const int h = std::max(1, static_cast<int>(ImGui::GetIO().DisplaySize.y));
+  std::vector<unsigned char> image(w*h*4, gem16::studio::g_studio_dark_theme ? 20 : 243);
+  gem16::studio::DecodedImage navigation;
+  // Optional GPU-rendered shader captures for visual QA of transparent UI layers.
+  if (const char* directory = std::getenv("GEM16_STUDIO_SHADER_PREVIEW_DIR")) {
+    const std::string prefix = gem16::studio::g_studio_dark_theme ? "dark-" : "light-";
+    const auto read = [&](const char* name, int width, int height) {
+      std::vector<unsigned char> bytes(width * height * 4);
+      std::ifstream input(std::filesystem::path(directory) / (prefix + name), std::ios::binary);
+      if (!input.read(reinterpret_cast<char*>(bytes.data()), bytes.size()) || input.peek() != EOF)
+        bytes.clear();
+      return bytes;
+    };
+    const auto background = read("background.rgba", w, h);
+    if (!background.empty())
+      for (int i = 0; i < w*h; ++i)
+        for (int k = 0; k < 3; ++k) image[i*4+k] = background[i*4+2-k];
+    navigation.width = 384;
+    navigation.height = 96;
+    navigation.rgba = read("navigation.rgba", navigation.width, navigation.height);
+  }
   unsigned char* atlas=nullptr;int aw=0,ah=0;
   ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&atlas,&aw,&ah);
   auto cross=[](ImVec2 a,ImVec2 b,ImVec2 p) { return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x); };
   for (const auto* list : ImGui::GetDrawData()->CmdLists) for (const auto& cmd : list->CmdBuffer) {
     if(cmd.UserCallback)continue;
     const bool is_svg = svg && cmd.GetTexID() == svg_id;
-    const auto* texture = is_svg ? svg->rgba.data() : atlas;
-    const int tw = is_svg ? svg->width : aw, th = is_svg ? svg->height : ah;
+    const bool is_navigation = !navigation.rgba.empty() && cmd.GetTexID() == ImTextureID(0x47454d16);
+    const auto* texture = is_svg ? svg->rgba.data() : is_navigation ? navigation.rgba.data() : atlas;
+    const int tw = is_svg ? svg->width : is_navigation ? navigation.width : aw;
+    const int th = is_svg ? svg->height : is_navigation ? navigation.height : ah;
     for(unsigned i=0;i+2<cmd.ElemCount;i+=3) {
       const auto& a=list->VtxBuffer[cmd.VtxOffset+list->IdxBuffer[cmd.IdxOffset+i]];
       const auto& b=list->VtxBuffer[cmd.VtxOffset+list->IdxBuffer[cmd.IdxOffset+i+1]];

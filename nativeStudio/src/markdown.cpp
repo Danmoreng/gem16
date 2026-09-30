@@ -4,11 +4,14 @@
 #include "platform_ui.h"
 #include "fonts.h"
 #include "svg_preview.h"
+#include "theme.h"
 #include <algorithm>
 
 namespace gem16::studio::markdown {
 namespace {
-constexpr ImVec4 kAccent{0.20f, 0.83f, 0.60f, 1.0f};
+ImVec4 Accent() {
+  return ThemeColor({0.20f, 0.83f, 0.60f, 1.0f}, StudioColors().accent);
+}
 
 void SvgCanvas(const ImageTexture& texture, ImVec2 size, float scale) {
   const ImVec2 origin = ImGui::GetCursorScreenPos();
@@ -19,7 +22,7 @@ void SvgCanvas(const ImageTexture& texture, ImVec2 size, float scale) {
   const ImVec2 image_size(texture.Width()*fit, texture.Height()*fit);
   const ImVec2 image_pos(origin.x + (size.x-image_size.x)*0.5f,
                          origin.y + (size.y-image_size.y)*0.5f);
-  draw->AddRectFilled(origin, {origin.x+size.x, origin.y+size.y}, IM_COL32(19,25,24,255), 8*scale);
+  draw->AddRectFilled(origin, {origin.x+size.x, origin.y+size.y}, ImGui::GetColorU32(ThemeColor(ThemeRgb(0x131918), ThemeRgb(0xeaeaea))), 8*scale);
   draw->AddRectFilled({image_pos.x+2*scale,image_pos.y+3*scale},
       {image_pos.x+image_size.x+2*scale,image_pos.y+image_size.y+3*scale}, IM_COL32(0,0,0,60), 3*scale);
   draw->AddRectFilled(image_pos, {image_pos.x+image_size.x,image_pos.y+image_size.y}, IM_COL32_WHITE);
@@ -41,18 +44,18 @@ bool SvgArtifact(const Block& block, SvgPreviewCache& cache, float scale) {
   ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8*scale);
   ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {8*scale,6*scale});
   ImGui::PushStyleColor(ImGuiCol_Button, {0,0,0,0});
-  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, {0.13f,0.25f,0.21f,1});
-  ImGui::PushStyleColor(ImGuiCol_ButtonActive, {0.17f,0.34f,0.27f,1});
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ThemeColor({0.13f,0.25f,0.21f,1}, ThemeRgb(0xd5efdf)));
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ThemeColor({0.17f,0.34f,0.27f,1}, ThemeRgb(0xb9f6ca)));
   const auto badge = ImGui::GetCursorScreenPos();
   ImGui::GetWindowDrawList()->AddRectFilled({badge.x,badge.y+6*scale},
-      {badge.x+38*scale,badge.y+27*scale}, IM_COL32(39,48,45,255), 5*scale);
-  ImGui::GetWindowDrawList()->AddText({badge.x+6*scale,badge.y+8*scale}, IM_COL32(177,190,184,255), "SVG");
+      {badge.x+38*scale,badge.y+27*scale}, ImGui::GetColorU32(ThemeColor(ThemeRgb(0x27302d), StudioColors().subtle_background)), 5*scale);
+  ImGui::GetWindowDrawList()->AddText({badge.x+6*scale,badge.y+8*scale}, ImGui::GetColorU32(ThemeColor(ThemeRgb(0xb1beb8), StudioColors().muted)), "SVG");
   ImGui::SetCursorPos({x+48*scale,y});
-  ImGui::PushStyleColor(ImGuiCol_Button, code ? ImVec4(0.12f,0.24f,0.19f,1) : ImVec4(0,0,0,0));
+  ImGui::PushStyleColor(ImGuiCol_Button, code ? ThemeColor({0.12f,0.24f,0.19f,1}, StudioColors().accent_dim) : ImVec4(0,0,0,0));
   if (ImGui::Button("Code##svg-tab", {tab_w,button_h})) code = true;
   ImGui::PopStyleColor();
   ImGui::SameLine(0,0);
-  ImGui::PushStyleColor(ImGuiCol_Button, !code ? ImVec4(0.12f,0.24f,0.19f,1) : ImVec4(0,0,0,0));
+  ImGui::PushStyleColor(ImGuiCol_Button, !code ? ThemeColor({0.12f,0.24f,0.19f,1}, StudioColors().accent_dim) : ImVec4(0,0,0,0));
   if (ImGui::Button("Preview##svg-tab", {tab_w,button_h})) code = false;
   ImGui::PopStyleColor();
   storage->SetBool(mode_id, code);
@@ -77,7 +80,7 @@ bool SvgArtifact(const Block& block, SvgPreviewCache& cache, float scale) {
       SvgCanvas(preview->texture, {width,std::clamp(width*0.60f,280*scale,620*scale)}, scale);
     } else {
       ImGui::PushTextWrapPos();
-      ImGui::TextColored({0.95f,0.73f,0.35f,1}, "%s", preview ? preview->error.c_str() :
+      ImGui::TextColored(ThemeColor({0.95f,0.73f,0.35f,1}, StudioColors().warning), "%s", preview ? preview->error.c_str() :
           "SVG preview limit reached (256 KiB per SVG, eight cached previews).");
       ImGui::PopTextWrapPos();
       draw_code = true;
@@ -115,15 +118,15 @@ std::vector<selectable_text::StyleSpan> DrawSpans(const Block& block, float widt
       auto math = LayoutMath(std::string_view(block.text).substr(span.begin, span.end - span.begin),
           span.display_math, ImGui::GetFontSize(), width);
       if (math.data) draw.math = std::make_shared<MathLayout>(std::move(math));
-      else draw.background_color = IM_COL32(70, 45, 20, 170);
+      else draw.background_color = ImGui::GetColorU32(ThemeColor(ThemeRgb(0x462d14, 170.0f / 255.0f), ThemeRgb(0xffedc7)));
     }
     draw.underline = span.link;
-    if (span.link) draw.text_color = ImGui::ColorConvertFloat4ToU32(kAccent);
+    if (span.link) draw.text_color = ImGui::ColorConvertFloat4ToU32(Accent());
     else if (span.emphasis)
       draw.text_color = ImGui::ColorConvertFloat4ToU32(
-          {0.73f, 0.80f, 0.77f, 1.0f});
+          ThemeColor({0.73f, 0.80f, 0.77f, 1.0f}, StudioColors().field_text));
     if (span.code) {
-      draw.background_color = IM_COL32(27, 48, 42, 235);
+      draw.background_color = ImGui::GetColorU32(StudioColors().inline_code_background);
       draw.font = StudioCodeFont();
     }
     result.push_back(draw);
@@ -140,7 +143,7 @@ void DrawInline(const char* id, const Block& block, float width,
       id, block.text,
       {.width = width,
        .text_color = text_color,
-       .selection_color = IM_COL32(38, 144, 102, 205),
+       .selection_color = ImGui::GetColorU32(StudioColors().selection),
        .line_spacing = 3.0f * ImGui::GetFontSize() / 17.0f,
        .spans = &spans,
        .selection_group = selection_group,
@@ -190,7 +193,7 @@ void Render(const char* id, const std::string& source, float width, SvgPreviewCa
         const float scales[] = {1.0f, 1.42f, 1.30f, 1.20f, 1.12f, 1.06f, 1.03f};
         ImGui::SetWindowFontScale(scales[std::clamp(block.level, 1, 6)]);
         DrawInline("##heading", block, available,
-                   ImGui::ColorConvertFloat4ToU32(kAccent), selection_group,
+                   ImGui::ColorConvertFloat4ToU32(Accent()), selection_group,
                    selection_text, selection_offsets[index]);
         ImGui::SetWindowFontScale(1.0f);
         break;
@@ -199,9 +202,9 @@ void Render(const char* id, const std::string& source, float width, SvgPreviewCa
         const bool svg = svg_cache && IsSvgCode(block.info, block.text);
         if (svg) ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 13*scale);
         ImGui::PushStyleColor(ImGuiCol_ChildBg,
-                              {0.025f, 0.045f, 0.041f, 0.96f});
+                              StudioColors().code_background);
         ImGui::PushStyleColor(ImGuiCol_Border,
-                              {0.12f, 0.31f, 0.25f, 0.92f});
+                              StudioColors().code_border);
         ImGui::BeginChild("##code-block", {available, 0},
                           ImGuiChildFlags_AutoResizeY |
                               ImGuiChildFlags_Borders);
@@ -214,7 +217,7 @@ void Render(const char* id, const std::string& source, float width, SvgPreviewCa
         const float label_width = std::max(0.0f, header_width - button_width - 8 * scale);
         const ImVec2 label_pos = ImGui::GetCursorScreenPos();
         ImGui::PushClipRect(label_pos, {label_pos.x + label_width, label_pos.y + ImGui::GetTextLineHeight()}, true);
-        ImGui::GetWindowDrawList()->AddText(label_pos, ImGui::ColorConvertFloat4ToU32(kAccent),
+        ImGui::GetWindowDrawList()->AddText(label_pos, ImGui::ColorConvertFloat4ToU32(Accent()),
             block.info.empty() ? "Code" : block.info.c_str());
         ImGui::PopClipRect();
         ImGui::SetCursorPosX(header_x + std::max(0.0f, header_width - button_width));
@@ -228,8 +231,8 @@ void Render(const char* id, const std::string& source, float width, SvgPreviewCa
               "##code-text", block.text,
               {.width = ImGui::GetContentRegionAvail().x,
                .text_color = ImGui::ColorConvertFloat4ToU32(
-                   {0.82f, 0.89f, 0.86f, 1.0f}),
-               .selection_color = IM_COL32(38, 144, 102, 205),
+                   StudioColors().code_text),
+               .selection_color = ImGui::GetColorU32(StudioColors().selection),
                .line_spacing = 4.0f,
                .selection_group = selection_group,
                .selection_text = selection_text,
@@ -246,7 +249,7 @@ void Render(const char* id, const std::string& source, float width, SvgPreviewCa
         const std::string marker = block.task ? (block.checked ? "☑" : "☐") : block.kind == BlockKind::kBulletItem
                                        ? "•"
                                        : std::to_string(block.ordinal) + ".";
-        ImGui::TextColored(kAccent, "%s", marker.c_str());
+        ImGui::TextColored(Accent(), "%s", marker.c_str());
         ImGui::SameLine(0, 7);
         DrawInline("##list-item", block,
                    std::max(40.0f, available - 30.0f),
@@ -294,11 +297,11 @@ void Render(const char* id, const std::string& source, float width, SvgPreviewCa
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 14.0f);
         DrawInline("##quote", block, std::max(40.0f, available - 14.0f),
                    ImGui::ColorConvertFloat4ToU32(
-                       {0.72f, 0.80f, 0.77f, 1.0f}), selection_group,
+                       ThemeColor({0.72f, 0.80f, 0.77f, 1.0f}, StudioColors().muted)), selection_group,
                    selection_text, selection_offsets[index]);
         ImGui::GetWindowDrawList()->AddRectFilled(
             rail, {rail.x + 3.0f, ImGui::GetItemRectMax().y},
-            ImGui::ColorConvertFloat4ToU32(kAccent), 2.0f);
+            ImGui::ColorConvertFloat4ToU32(Accent()), 2.0f);
         break;
       }
       case BlockKind::kRule:

@@ -27,8 +27,9 @@ struct StyleSpan {
 
 struct Options {
   float width = 0.0f;
-  ImU32 text_color = IM_COL32_WHITE;
-  ImU32 selection_color = IM_COL32(37, 132, 96, 190);
+  // Zero inherits the current ImGui theme, including tool-detail previews.
+  ImU32 text_color = 0;
+  ImU32 selection_color = 0;
   float line_spacing = 3.0f;
   const std::vector<StyleSpan>* spans = nullptr;
   // Widgets that share a group use one selection over selection_text. The
