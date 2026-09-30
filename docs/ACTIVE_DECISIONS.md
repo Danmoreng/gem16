@@ -1,6 +1,6 @@
 # Active decisions
 
-**Updated:** 2026-09-30 · **Track:** productization · **Status:** v0.2.0 stable publication authorized
+**Updated:** 2026-09-30 · **Track:** productization · **Status:** v0.2.1 patch publication authorized
 
 Permanent rules in [AGENTS.md](../AGENTS.md) remain binding. Read the
 [product contract](PRODUCT_CONTRACT.md) and the narrow task contract next.
@@ -227,6 +227,24 @@ explicit and pass actual admission with Vision, Assistant and the desktop active
 No weight offload, precision change or automatic context fallback is authorized.
 
 ## Open product gates
+
+### Owner update: stable v0.2.1 bugfix publication (2026-09-30)
+
+The owner explicitly authorizes committing and pushing today's native Studio
+Light theme fixes, creating `v0.2.1`, and publishing a stable patch release with
+the native Chat penalty/agent compatibility work already integrated on main.
+This supersedes the earlier native-penalty main-only publication restriction.
+For this bounded patch publication, the owner's release instruction also
+supersedes waiting for the still-open extended C07/C08 campaign under standing
+decisions 1 and 10 and the product contract. Those gates remain open and are
+not claimed as passed; this is not full Agent Core or clean-machine qualification.
+
+Retain the existing Windows penalty evidence and the added Linux operator,
+sanitizer, protected 12B, public-profile lifecycle and internal NVFP4 checks.
+Exact-tag Windows and Linux CI/build/archive integrity checks remain required
+before binary publication. Release notes identify the actual evidence, earlier
+model-check revisions and remaining media/everyday-context and platform limits.
+Model locks, precision, contexts and other runtime rules are unchanged.
 
 ### Owner update: stable v0.2.0 publication (2026-09-21)
 
