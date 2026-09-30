@@ -703,12 +703,29 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
       object,
       {"model", "messages", "max_completion_tokens", "max_tokens", "stream",
        "stream_options", "reasoning_effort", "tools", "tool_choice",
-       "parallel_tool_calls", "n", "vision_soft_token_budget"},
+       "parallel_tool_calls", "n", "vision_soft_token_budget",
+       "frequency_penalty", "presence_penalty"},
       "Chat Completions request");
   if (!request_fields.ok()) return request_fields;
+  SamplingPenalties penalties;
+  for (const auto key : {"frequency_penalty", "presence_penalty"}) {
+    const auto* value = root.value().find(key);
+    if (value == nullptr) continue;
+    if (!value->is_number() || value->as_number() < -2.0 ||
+        value->as_number() > 2.0) {
+      return Invalid(std::string(key) + " must be a number in [-2, 2]");
+    }
+    const float coefficient = static_cast<float>(value->as_number());
+    if (value->as_number() != 0.0 && coefficient == 0.0F) {
+      return Invalid(std::string(key) + " is too small to represent in the FP32 sampler");
+    }
+    if (std::string_view(key) == "frequency_penalty") penalties.frequency = coefficient;
+    else penalties.presence = coefficient;
+  }
   auto requested_vision_budget = RequestedVisionSoftTokenBudget(object, options);
   if (!requested_vision_budget.ok()) return requested_vision_budget.status();
   OpenAiChatRequest request;
+  request.generation.sampling_penalties = penalties;
   auto model = RequiredString(object, "model");
   if (!model.ok()) return model.status();
   if (!options.served_model.empty() && model.value() != options.served_model) {

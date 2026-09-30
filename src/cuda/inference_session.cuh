@@ -560,7 +560,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     std::span<const AudioEmbeddingSegment> audio_segments,
     std::span<const VisionEmbeddingSegment> vision_segments,
     std::span<const Gemma4Moe26BVisionInputSegment>
-        moe26b_vision_segments, GenerationCancellation cancellation) {
+        moe26b_vision_segments, GenerationCancellation cancellation,
+    const SamplingPenalties& penalties) {
   const Status cancelled = cancellation.Check();
   if (!cancelled.ok()) return cancelled;
   if (impl_ == nullptr) {
@@ -570,6 +571,11 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   if (impl_->poisoned) {
     return Error(StatusCode::kInternal,
                  "conversation session cannot continue after an inference failure");
+  }
+  const Status penalty_validation = ValidateSamplingPenalties(penalties);
+  if (!penalty_validation.ok()) return penalty_validation;
+  if (penalties.active() && !impl_->sampling.enabled) {
+    return Error(StatusCode::kUnsupported, "active penalties require sampling");
   }
   if (full_prompt_token_ids.empty()) {
     return Error(StatusCode::kInvalidArgument,
@@ -708,12 +714,19 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
                    "conversation turn adds no uncached prompt tokens");
     }
 
+    const Status configure_penalties =
+        impl_->runtime->impl_->moe26b_engine->BeginSamplingRequest(penalties);
+    if (!configure_penalties.ok()) {
+      impl_->poisoned = true;
+      return configure_penalties;
+    }
     GreedyInferenceResult result;
     result.output_token_ids.reserve(
         static_cast<std::size_t>(max_generated_tokens));
     result.artifact_profile = impl_->runtime->impl_->artifact_profile;
     result.kv_cache_mode = KvCacheMode::kCheckpointFp8;
     result.sampling = impl_->sampling;
+    result.sampling.penalties = penalties;
     result.model_load_milliseconds = impl_->model_load_milliseconds;
     result.weight_arena_bytes =
         impl_->runtime->impl_->moe26b_engine->weight_arena_bytes();
@@ -891,6 +904,14 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       }
       next_token = force_reasoning_close ? reasoning.channel_close_token_id
                                          : selected.value();
+      if (force_reasoning_close && penalties.active()) {
+        status = impl_->runtime->impl_->moe26b_engine->ReplaceSamplingOutput(
+            selected.value(), next_token);
+        if (!status.ok()) {
+          impl_->poisoned = true;
+          return status;
+        }
+      }
       result.reasoning_budget_forced =
           result.reasoning_budget_forced || force_reasoning_close;
       result.output_token_ids.push_back(next_token);
@@ -1068,6 +1089,12 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
                  "conversation turn adds no uncached prompt tokens");
   }
 
+  const Status configure_penalties =
+      impl_->engine.BeginSamplingRequest(penalties);
+  if (!configure_penalties.ok()) {
+    impl_->poisoned = true;
+    return configure_penalties;
+  }
   GreedyInferenceResult result;
   result.output_token_ids.reserve(
       static_cast<std::size_t>(max_generated_tokens));
@@ -1078,6 +1105,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   }
   result.kv_cache_mode = impl_->kv_cache_mode;
   result.sampling = impl_->sampling;
+  result.sampling.penalties = penalties;
   result.decode_graphs = true;
   result.model_load_milliseconds = impl_->model_load_milliseconds;
   result.weight_arena_bytes = impl_->engine.weight_bytes();
@@ -1187,6 +1215,14 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       ++result.reasoning_ordinary_target_tokens;
       next_token = force_close ? reasoning.channel_close_token_id
                                : forwarded.value();
+      if (force_close && penalties.active()) {
+        const Status replace = impl_->engine.ReplaceSamplingOutput(
+            forwarded.value(), next_token);
+        if (!replace.ok()) {
+          impl_->poisoned = true;
+          return replace;
+        }
+      }
       result.reasoning_budget_forced =
           result.reasoning_budget_forced || force_close;
       result.output_token_ids.push_back(next_token);
@@ -1437,6 +1473,14 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     impl_->cached_token_ids.push_back(input_token);
     next_token = force_reasoning_close ? reasoning.channel_close_token_id
                                        : forwarded.value();
+    if (force_reasoning_close && penalties.active()) {
+      const Status replace = impl_->engine.ReplaceSamplingOutput(
+          forwarded.value(), next_token);
+      if (!replace.ok()) {
+        impl_->poisoned = true;
+        return replace;
+      }
+    }
     result.reasoning_budget_forced =
         result.reasoning_budget_forced || force_reasoning_close;
     result.output_token_ids.push_back(next_token);

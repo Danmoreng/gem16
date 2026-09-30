@@ -4,6 +4,7 @@
 #include <charconv>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "server/openai_chat.h"
@@ -424,6 +425,70 @@ void RunOpenAiChatTests() {
                       .image);
     }
   }
+  for (const bool compact : {false, true}) {
+    const gem16::server::OpenAiChatAdapterOptions options{8192U, compact};
+    const std::string prefix =
+        R"({"model":"gem16","messages":[{"role":"user","content":"x"}],)";
+    const auto omitted = gem16::server::ParseChatCompletionsRequest(
+        R"({"model":"gem16","messages":[{"role":"user","content":"x"}]})", options);
+    GEM16_CHECK(omitted.ok());
+    for (const auto key : {"frequency_penalty", "presence_penalty"}) {
+      const auto parse_penalty = [&](std::string_view value) {
+        return gem16::server::ParseChatCompletionsRequest(
+            prefix + "\"" + key + "\":" + std::string(value) + "}", options);
+      };
+      for (const auto zero : {"0", "0.0", "-0", "-0.0", "0e0", "0e-9999"}) {
+        const auto neutral = parse_penalty(zero);
+        GEM16_CHECK(neutral.ok());
+        if (neutral.ok() && omitted.ok()) {
+          GEM16_CHECK(gem16::internal::ResidentMessageEquivalent(
+              neutral.value().generation.messages.front(),
+              omitted.value().generation.messages.front()));
+          GEM16_CHECK(neutral.value().generation.max_generated_tokens ==
+                      omitted.value().generation.max_generated_tokens);
+        }
+      }
+      for (const auto active : {"-2", "2", "-0.5", "0.5", "1e-30"}) {
+        const auto parsed = parse_penalty(active);
+        GEM16_CHECK(parsed.ok());
+        if (parsed.ok()) {
+          const auto penalties = parsed.value().generation.sampling_penalties;
+          const float expected = std::stof(active);
+          GEM16_CHECK(std::string(key) == "frequency_penalty"
+                          ? penalties.frequency == expected && penalties.presence == 0.0F
+                          : penalties.presence == expected && penalties.frequency == 0.0F);
+        }
+      }
+      for (const auto invalid : {"null", "false", "true", "\"0\"", "[]", "{}",
+                                 "-2.1", "2.1", "1e-300", "-1e-300", "1e-320"}) {
+        const auto rejected = parse_penalty(invalid);
+        GEM16_CHECK(!rejected.ok());
+        if (!rejected.ok()) {
+          GEM16_CHECK(rejected.status().code() == gem16::StatusCode::kInvalidArgument);
+        }
+      }
+      for (const auto malformed : {"1e309", "1e-9999", "NaN", "Infinity"}) {
+        const auto rejected = parse_penalty(malformed);
+        GEM16_CHECK(!rejected.ok());
+        if (!rejected.ok()) {
+          GEM16_CHECK(rejected.status().code() == gem16::StatusCode::kDataLoss);
+        }
+      }
+    }
+    const auto both = gem16::server::ParseChatCompletionsRequest(
+        prefix + R"("frequency_penalty":0,"presence_penalty":-0.0,"stream":true})",
+        options);
+    GEM16_CHECK(both.ok());
+    if (both.ok()) GEM16_CHECK(both.value().stream);
+    GEM16_CHECK(gem16::server::ParseChatCompletionsRequest(
+        prefix + R"("frequency_penalty":0,"presence_penalty":0.5})", options).ok());
+    GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
+        prefix + R"("frequency_penalty":0,"frequency_penalty":0})", options).ok());
+  }
+  GEM16_CHECK(!gem16::server::ParseResponsesRequest(
+      R"({"model":"gem16","input":"x","frequency_penalty":0})").ok());
+  GEM16_CHECK(!gem16::server::ParseResponsesRequest(
+      R"({"model":"gem16","input":"x","presence_penalty":0})").ok());
   GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
                    R"({"model":"gem16","messages":[{"role":"user","content":"x"}],"temperature":0.5})")
                    .ok());

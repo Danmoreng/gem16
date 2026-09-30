@@ -161,7 +161,11 @@ class GraphExecutable {
   }
 
   [[nodiscard]] cudaGraphExec_t get() const { return executable_; }
-  void Adopt(cudaGraphExec_t executable) { executable_ = executable; }
+  void Reset() {
+    if (executable_ != nullptr) (void)cudaGraphExecDestroy(executable_);
+    executable_ = nullptr;
+  }
+  void Adopt(cudaGraphExec_t executable) { Reset(); executable_ = executable; }
 
  private:
   cudaGraphExec_t executable_ = nullptr;
@@ -253,6 +257,7 @@ struct WorkspaceOffsets {
   std::uint64_t sorted_token_ids = 0;
   std::uint64_t sampling_sort_workspace = 0;
   std::uint64_t repetition_mask = 0;
+  std::uint64_t sampling_output_counts = 0;
   std::uint64_t output_candidates = 0;
   std::uint64_t selected = 0;
   std::uint64_t suppressed = 0;
@@ -565,5 +570,11 @@ std::uint64_t InferenceEngine::cache_bytes() const { return impl_->cache_bytes()
 std::uint64_t InferenceEngine::workspace_bytes() const { return impl_->workspace_bytes(); }
 std::uint64_t InferenceEngine::decode_graph_device_bytes() const { return impl_->decode_graph_device_bytes(); }
 std::uint64_t InferenceEngine::prefill_chunk_tokens() const { return impl_->prefill_chunk_tokens(); }
+Status InferenceEngine::BeginSamplingRequest(const SamplingPenalties& penalties) {
+  return impl_->BeginSamplingRequest(penalties);
+}
 
+Status InferenceEngine::ReplaceSamplingOutput(std::uint32_t sampled, std::uint32_t emitted) {
+  return impl_->ReplaceSamplingOutput(sampled, emitted);
+}
 }  // namespace gem16

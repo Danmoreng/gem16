@@ -224,7 +224,8 @@
       for (std::uint64_t row = 0U; row < tokens; ++row) {
         status = SelectSampledTokenWithState(
             sampling_logits + row * kVocabulary, selected + row,
-            row_masks + row * kRepetitionMaskWords, sampling_step_ + row);
+            row_masks + row * kRepetitionMaskWords, sampling_step_ + row,
+            nullptr, device_tokens + 1U, static_cast<std::uint32_t>(row), false);
         if (!status.ok()) return status;
       }
     } else {
@@ -241,6 +242,14 @@
         Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.stop_tokens),
         mtp_stop_token_count_, device_result, device_control, stream_);
     if (!status.ok()) return status;
+    if (sampling_.penalties.active()) {
+      status = internal::LaunchCommitSamplingOutputs(
+          device_result->verified.data(), &device_result->output_count,
+          static_cast<std::uint32_t>(kMaximumMtpVerifyTokens),
+          Pointer<std::uint32_t>(workspace_, offsets_.sampling_output_counts),
+          static_cast<std::uint32_t>(kVocabulary), stream_);
+      if (!status.ok()) return status;
+    }
     if (sampling_.enabled) {
       status = internal::LaunchCommitSpeculativeRepetitionMask(
           Pointer<std::uint32_t>(
@@ -389,7 +398,8 @@
         status = SelectSampledTokenWithState(
             sampling_logits + row * kVocabulary, selected + row,
             row_masks + row * kRepetitionMaskWords, 0U,
-            row_controls + row);
+            row_controls + row, device_tokens + 1U,
+            static_cast<std::uint32_t>(row), false);
         if (!status.ok()) return status;
       }
     } else {
@@ -403,6 +413,14 @@
         Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.stop_tokens),
         mtp_stop_token_count_, device_result, device_control, stream_);
     if (!status.ok()) return status;
+    if (sampling_.penalties.active()) {
+      status = internal::LaunchCommitSamplingOutputs(
+          device_result->verified.data(), &device_result->output_count,
+          static_cast<std::uint32_t>(kMaximumMtpVerifyTokens),
+          Pointer<std::uint32_t>(workspace_, offsets_.sampling_output_counts),
+          static_cast<std::uint32_t>(kVocabulary), stream_);
+      if (!status.ok()) return status;
+    }
     if (sampling_.enabled) {
       status = internal::LaunchCommitSpeculativeRepetitionMask(
           Pointer<std::uint32_t>(
@@ -774,14 +792,14 @@
         sampling_logits, stream_);
     if (!status.ok()) return status;
     if (sampling_.enabled) {
-      status = SelectSampledToken(sampling_logits, selected, decode_control);
+      status = SelectSampledToken(sampling_logits, selected, decode_control, false);
     } else {
       status = internal::LaunchOutputHeadCandidateArgmax(
           Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
           selected, stream_);
     }
     if (!status.ok()) return status;
-    return internal::LaunchFinalizeMtpOrdinaryTail(
+    status = internal::LaunchFinalizeMtpOrdinaryTail(
         selected,
         Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.stop_tokens),
         mtp_stop_token_count_, transaction,
@@ -791,6 +809,12 @@
         static_cast<internal::MtpStreamingRing*>(
             mtp_stream_ring_.device_data()),
         stream_);
+    if (!status.ok() || !sampling_.penalties.active()) return status;
+    return internal::LaunchCommitSamplingOutputs(
+        &transaction->control.current.input_token, nullptr, 1U,
+        Pointer<std::uint32_t>(workspace_, offsets_.sampling_output_counts),
+        static_cast<std::uint32_t>(kVocabulary), stream_);
+
   }
 
   [[nodiscard]] Status ExecuteFixedD2GraphChain(

@@ -1,0 +1,258 @@
+{
+  "parent_revision": "3d35adaddd4dca9fc2b3d96ec811bf7643a11c17",
+  "parent_patch_sha256": "6e1a4579dbfd8574b35fc6313350a1c4e4760534b50a884cea3a09a2cf300106",
+  "parent_binary_sha256": "62391544ebdc88620c6d45ecdb03d5509ff78c654507538de833fac3e7eda922",
+  "candidate_patch_sha256": "cf4d29e62dc2d0d542203c134ce7684ef0d50efe1d7178f76d230b73041961b9",
+  "candidate_binary_sha256": "e7915e089bd8bbf380ebe1be782e493cad2580c4458e82b7c3a262edcac9001a",
+  "timing_boundary": "sequential HTTP end-to-end; 4096 context capacity, max 96 output tokens; stateless, identical prompt and seed 42",
+  "repetitions": "3 warmups and 10 retained measurements per profile/mode",
+  "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU, 596.49, 16303 MiB",
+  "toolchain": "MSVC 14.44.35207; nvcc 13.3.33; CUDA 13.3; driver 596.49",
+  "comparisons": [
+    {
+      "profile": "12b-ordinary",
+      "parent": {
+        "raw_seconds": [
+          1.8507195000001957,
+          1.827914200000123,
+          1.8428161000001637,
+          1.8294213999997737,
+          1.8487559000004694,
+          1.8475134999998772,
+          1.828237500000796,
+          1.830832100000407,
+          1.8328534000002037,
+          1.8430570000000444
+        ],
+        "median_seconds": 1.8378347500001837,
+        "mean_seconds": 1.8382120600002054,
+        "stdev_seconds": 0.009218270197432338,
+        "mean_95pct_ci": [
+          1.8316177072279374,
+          1.8448064127724735
+        ]
+      },
+      "candidate": {
+        "raw_seconds": [
+          1.8337025999999241,
+          1.8240750999993907,
+          1.8224430000000211,
+          1.8385187000003498,
+          1.8359564000002138,
+          1.8386530999996467,
+          1.8293062000002465,
+          1.8290148000005502,
+          1.8434335000001738,
+          1.854182199999741
+        ],
+        "median_seconds": 1.834829500000069,
+        "mean_seconds": 1.8349285600000258,
+        "stdev_seconds": 0.009502208432551692,
+        "mean_95pct_ci": [
+          1.8281310900650134,
+          1.8417260299350382
+        ]
+      },
+      "median_latency_change_percent": -0.16352123062829405,
+      "mean_intervals_overlap": true,
+      "http_choices_usage_exact": true,
+      "sampled_peak_gpu_memory_mib": [
+        10754.0,
+        10756.0
+      ]
+    },
+    {
+      "profile": "12b-d2",
+      "parent": {
+        "raw_seconds": [
+          1.053029400000014,
+          1.0719585999995616,
+          1.0510592999999062,
+          1.0754526999999143,
+          1.0755982999999105,
+          1.0522001000008459,
+          1.070878300000004,
+          1.054999900000439,
+          1.0745714000004227,
+          1.0653000000002066
+        ],
+        "median_seconds": 1.0680891500001053,
+        "mean_seconds": 1.0645048000001225,
+        "stdev_seconds": 0.01051605499241533,
+        "mean_95pct_ci": [
+          1.0569820679791113,
+          1.0720275320211337
+        ]
+      },
+      "candidate": {
+        "raw_seconds": [
+          1.0719702999995206,
+          1.0652538000003915,
+          1.078588800000034,
+          1.0532409999996162,
+          1.0721340999998574,
+          1.0536167999998725,
+          1.0656275000001187,
+          1.0759127000001172,
+          1.0762065999997503,
+          1.0748189000005368
+        ],
+        "median_seconds": 1.072052199999689,
+        "mean_seconds": 1.0687370499999815,
+        "stdev_seconds": 0.00915226577483152,
+        "mean_95pct_ci": [
+          1.0621899139438475,
+          1.0752841860561155
+        ]
+      },
+      "median_latency_change_percent": 0.37104112513297594,
+      "mean_intervals_overlap": true,
+      "http_choices_usage_exact": true,
+      "sampled_peak_gpu_memory_mib": [
+        11588.0,
+        11590.0
+      ]
+    },
+    {
+      "profile": "compact-ordinary",
+      "parent": {
+        "raw_seconds": [
+          0.7203129999998055,
+          0.7283881999992445,
+          0.7077724000000671,
+          0.7082150999995065,
+          0.7194302000007156,
+          0.7104827999992267,
+          0.7098938000008275,
+          0.7344103000004907,
+          0.7269986000001154,
+          0.7228017999996155
+        ],
+        "median_seconds": 0.7198716000002605,
+        "mean_seconds": 0.7188706199999615,
+        "stdev_seconds": 0.009449439864546383,
+        "mean_95pct_ci": [
+          0.7121108984217733,
+          0.7256303415781497
+        ]
+      },
+      "candidate": {
+        "raw_seconds": [
+          0.7291948000001867,
+          0.731733599999643,
+          0.7238763000004838,
+          0.7287466999996468,
+          0.707188600000336,
+          0.7301216000005297,
+          0.7305151000000478,
+          0.732855300000665,
+          0.7101495999995677,
+          0.7098229000002902
+        ],
+        "median_seconds": 0.7289707499999167,
+        "mean_seconds": 0.7234204500001397,
+        "stdev_seconds": 0.010218534161843687,
+        "mean_95pct_ci": [
+          0.7161105515446312,
+          0.7307303484556481
+        ]
+      },
+      "median_latency_change_percent": 1.263996245948995,
+      "mean_intervals_overlap": true,
+      "http_choices_usage_exact": true,
+      "sampled_peak_gpu_memory_mib": [
+        12956.0,
+        12958.0
+      ]
+    },
+    {
+      "profile": "compact-d2",
+      "parent": {
+        "raw_seconds": [
+          0.5682238999997935,
+          0.5574224000001777,
+          0.5682925000000978,
+          0.5561171999997896,
+          0.5574083999999857,
+          0.5445687000001271,
+          0.5627077000008285,
+          0.5720498000000589,
+          0.5445014999995692,
+          0.5652199000005567
+        ],
+        "median_seconds": 0.5600650500005031,
+        "mean_seconds": 0.5596512000000985,
+        "stdev_seconds": 0.009555238345308302,
+        "mean_95pct_ci": [
+          0.5528157947535027,
+          0.5664866052466943
+        ]
+      },
+      "candidate": {
+        "raw_seconds": [
+          0.555550700000822,
+          0.5569555000001856,
+          0.5445294000001013,
+          0.5599895000004835,
+          0.5686358000002656,
+          0.5449400999996215,
+          0.5671853000003466,
+          0.5588056999995388,
+          0.5443947000003391,
+          0.5669470000002548
+        ],
+        "median_seconds": 0.5578805999998622,
+        "mean_seconds": 0.5567933700001959,
+        "stdev_seconds": 0.009497360926518256,
+        "mean_95pct_ci": [
+          0.5499993677618518,
+          0.56358737223854
+        ]
+      },
+      "median_latency_change_percent": -0.39003505050689835,
+      "mean_intervals_overlap": true,
+      "http_choices_usage_exact": true,
+      "sampled_peak_gpu_memory_mib": [
+        13224.0,
+        13226.0
+      ]
+    }
+  ],
+  "sampling_kernels": {
+    "parent": {
+      "SampleCumulativeProbabilitiesKernel": {
+        "instructions": 176,
+        "sha256": "ae39991b738f6bf532899adb18e3fffedccc924cc6934c80bc71c518b7159ff5"
+      },
+      "PrepareSamplingProbabilitiesKernel": {
+        "instructions": 48,
+        "sha256": "f4e90c4b0d14ff3c72d9b15e0233ea7232afeca5cd8a8fe26cedc606f4624e6e"
+      },
+      "PrepareSamplingLogitsKernel": {
+        "instructions": 136,
+        "sha256": "a3bc51cd53882311cb214fb54e2b170e39e9486717137643fd5ea0c69d20a7da"
+      }
+    },
+    "candidate": {
+      "SampleCumulativeProbabilitiesKernel": {
+        "instructions": 176,
+        "sha256": "ae39991b738f6bf532899adb18e3fffedccc924cc6934c80bc71c518b7159ff5"
+      },
+      "PrepareSamplingProbabilitiesKernel": {
+        "instructions": 48,
+        "sha256": "f4e90c4b0d14ff3c72d9b15e0233ea7232afeca5cd8a8fe26cedc606f4624e6e"
+      },
+      "PrepareSamplingLogitsKernel": {
+        "instructions": 136,
+        "sha256": "a3bc51cd53882311cb214fb54e2b170e39e9486717137643fd5ea0c69d20a7da"
+      }
+    }
+  },
+  "limitations": [
+    "HTTP outputs and usage compared exactly; raw model output IDs not exposed by this API",
+    "GPU memory peaks sampled at approximately 200 ms plus query overhead; not instrumentation peak",
+    "Mean 95% intervals use Student t (df=9), assuming independent samples; do not prove absence of every regression",
+    "No Linux run; internal 26B NVFP4 model/tokenizer missing from local installed cache",
+    "Long-context/media and full real-agent quality campaigns not repeated; graph replacement latency not isolated from request latency"
+  ]
+}

@@ -47,6 +47,8 @@ Supported top-level fields:
 - function `tools`;
 - `tool_choice`: `none`, `auto`, `required`, or a named function;
 - `parallel_tool_calls`;
+- `frequency_penalty` and `presence_penalty`: finite numeric values in `[-2, 2]`,
+  defaulting to zero, applied to the current response with native GPU sampling;
 - `vision_soft_token_budget`: GEM16 extension, restricted to `70`, `140`, or
   `280` on the explicit 26B Compact Vision profile and no greater than
   the server's startup-only `vision_max_soft_token_budget`;
@@ -72,6 +74,18 @@ its configured startup maximum.
 Successful streaming emits assistant-role, text or reasoning, indexed
 function-call, finish-reason, optional usage, and terminal `[DONE]` chunks in
 that order.
+
+Frequency subtracts `frequency_penalty * emitted_count` from each logit;
+presence subtracts `presence_penalty` once when that count is non-zero. Apply
+these after the existing repetition penalty and before temperature and sampling
+filters. Counts include Target reasoning/control tokens but exclude the prompt,
+previous responses and rejected speculative drafts. Counts reset each response.
+Resident KV and RNG progress survive coefficient changes; only affected sampling
+graphs are reconstructed, and unchanged coefficients reuse their executables.
+The zero path retains its previous CUDA kernels and graph topology. Active
+penalties require sampling; `--greedy` returns HTTP 400 before generation/SSE.
+Non-numeric/null, out-of-range, and non-zero values that underflow to FP32 zero
+are invalid requests. Other per-request sampling controls remain unsupported.
 
 ## Responses request subset
 

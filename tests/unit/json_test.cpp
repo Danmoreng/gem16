@@ -20,6 +20,16 @@ void RunJsonTests() {
   GEM16_CHECK(!gem16::json::Parse(invalid_surrogate).ok());
   GEM16_CHECK(!gem16::json::Parse("[01]").ok());
   GEM16_CHECK(!gem16::json::Parse("{} trailing").ok());
+  GEM16_CHECK(!gem16::json::Parse("1e-9999").ok());
+  GEM16_CHECK(!gem16::json::Parse("-1e-9999").ok());
+  for (const auto zero : {"0.0", "-0.0", "0e-9999", "-0.00e+9999"}) {
+    const auto neutral = gem16::json::Parse(zero);
+    GEM16_CHECK(neutral.ok());
+    if (neutral.ok()) GEM16_CHECK(neutral.value().as_number() == 0.0);
+  }
+  const auto subnormal = gem16::json::Parse("1e-320");
+  GEM16_CHECK(subnormal.ok());
+  if (subnormal.ok()) GEM16_CHECK(subnormal.value().as_number() > 0.0);
   GEM16_CHECK(!gem16::json::Parse(std::string{"\"\xC0\x80\"", 4}).ok());
   GEM16_CHECK(gem16::json::Escape("a\n\"b") == "a\\n\\\"b");
   if (parsed.ok()) {

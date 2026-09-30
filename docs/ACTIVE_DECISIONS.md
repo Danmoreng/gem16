@@ -1,6 +1,6 @@
 # Active decisions
 
-**Updated:** 2026-09-21 · **Track:** productization · **Status:** v0.2.0 stable publication authorized
+**Updated:** 2026-09-30 · **Track:** productization · **Status:** v0.2.0 stable publication authorized
 
 Permanent rules in [AGENTS.md](../AGENTS.md) remain binding. Read the
 [product contract](PRODUCT_CONTRACT.md) and the narrow task contract next.
@@ -126,6 +126,50 @@ C05/C06 client session continuity, compaction, replay and tool behavior take pri
 after this bounded check; deferred C04 optimization/stress work must not block them.
 This is not a waiver of malformed-input safety, equal-platform applicable checks,
 everyday-context stability or the other release gates. Existing evidence is retained.
+
+### Owner update: neutral Chat penalty compatibility (2026-09-30)
+
+The owner authorizes Chat Completions to accept numeric zero values for
+`frequency_penalty` and `presence_penalty` without changing checkpoint sampling.
+This supersedes the blanket rejection of those two explicitly neutral fields
+in the existing API subset; it does not authorize ignoring active penalties.
+Non-zero values remain unsupported with a specific error, and invalid types or
+values outside `[-2, 2]` remain invalid requests. Responses and all other
+per-request sampling limitations are unchanged. Full native penalty/sampling
+support and its resident RNG/fixed-D2 qualification remain future work.
+
+### Owner update: native response penalties and graph changes (2026-09-30)
+
+The owner's follow-up authorizes real `frequency_penalty` and `presence_penalty`
+for Chat Completions, superseding the neutral-only restriction above for these
+fields. Both default to zero and accept finite FP32-representable values in
+`[-2, 2]`. They apply to emitted Target token counts within the current response,
+including reasoning and control tokens, before temperature/top-k/top-p/min-p.
+Prompt tokens, previous responses and rejected Assistant drafts are excluded.
+The existing multiplicative repetition history remains unchanged.
+
+Keep resident KV and RNG progress across parameter changes. Capture penalty
+coefficients by value; use the existing sampling kernels and graph topology
+when both are zero. Unchanged coefficients must not cause graph reconstruction.
+The owner explicitly accepts reconstruction costs when coefficients change.
+This bounded request-boundary graph executable replacement supersedes the
+no-recurring-allocation requirement only for CUDA graph infrastructure during
+that explicit reconfiguration; arenas and counters remain preallocated and
+no token loop allocates, repacks or recompiles. Active penalties may add count
+work; the zero path must be checked against the measured parent. Other sampling
+parameters remain startup/session configuration, and Responses remains unchanged.
+Windows evidence does not establish Linux qualification or a release claim.
+
+### Owner update: native penalty production-main integration (2026-09-30)
+
+The owner explicitly authorizes committing and pushing the native penalty change
+directly to production `main` using the bounded Windows evidence. For this change,
+this supersedes the requirement to finish the remaining Linux, internal NVFP4
+model and everyday-context/media qualification before main integration. The owner
+will boot the same machine into Linux, build from main and test there afterward.
+Outstanding checks remain documented and are not reclassified as passed. This
+decision does not authorize a new release tag, binary publication or a claim that
+the general two-platform release gates have passed.
 
 ## Current model facts
 

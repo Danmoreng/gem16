@@ -1,0 +1,3958 @@
+{
+  "platform": "Windows-10-10.0.26200-SP0",
+  "python": "3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]",
+  "source_revision": "3d35adaddd4dca9fc2b3d96ec811bf7643a11c17",
+  "source_diff_sha256": "6e1a4579dbfd8574b35fc6313350a1c4e4760534b50a884cea3a09a2cf300106",
+  "runner_sha256": "fbd1c4f727be849ddefe4ce3dd24f7ba322fac6ba08154e022d6abff6758c692",
+  "binary_sha256": "62391544ebdc88620c6d45ecdb03d5509ff78c654507538de833fac3e7eda922",
+  "locks": {
+    "gemma4-12b-mtp-assistant.lock.json": "7d36ff6d1ab0b7362808d85012aa187468516e367dc52cbf0cc23cca9a10e649",
+    "gemma4-12b-nvfp4.lock.json": "d76e63f3366a0fb45957a78e3560e0a5865aac2cb542a609ba6a20ea9140eebe",
+    "gemma4-26b-base-bf16.lock.json": "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620",
+    "gemma4-26b-gem16-assistant.lock.json": "c5df256e661a36eb91215f7a0dfd540429760ce8401ceb9725d5ea420f8b4e8e",
+    "gemma4-26b-gem16-target.lock.json": "bb88227ce0755787b86404ba1e61952f903fb3631b1563c4a5fef40df8dfa064",
+    "gemma4-26b-qat-bf16.lock.json": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "gemma4-26b-qat-q4_0-assistant.lock.json": "83e509316eab22749fade9c0968333b0a29f0daf99832314b333702bf45bdda5",
+    "gemma4-26b-qat-q4_0.lock.json": "0893ac0a4db32f0c5549bc17b92f3951ab4da1a6180b188094190a4bbfc88784",
+    "gemma4-26b-reference-sources.lock.json": "577528f96ac1e64d5e258a9a50eaa60f4cb48bf0294b8c6db96bace1f921ab6e",
+    "gemma4-26b-trellis35-target.lock.json": "a356f7bf06e8aa9fdd999d9e57702edc29de8c53d9b2af9946e14d71268b1e17",
+    "gemma4-26b-unsloth-nvfp4.lock.json": "6635b15f4f974dec22821c7a9efd4d2404ba4ce9afb1424ca2f3529d20db7941",
+    "gemma4-26b-vision-fp8.lock.json": "7055c830be39133f7cfeb8734ffa967594eff4882fbbe1723de91d669c880a99"
+  },
+  "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU, 596.49, 16303 MiB",
+  "scope": "3 warmups + 10 measured sequential HTTP nonstream requests, 96 output tokens; HTTP end-to-end timing",
+  "runs": [
+    {
+      "profile": "12b-ordinary",
+      "command": [
+        "C:\\Development\\gem16gb\\artifacts\\raw\\chat-penalties-20260930-parent\\gem16-server-parent.exe",
+        "--model",
+        "C:\\Users\\User\\.cache\\huggingface\\hub\\.gem16\\snapshots\\unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "55147",
+        "--model-name",
+        "gem16",
+        "--max-context",
+        "4096",
+        "--max-sessions",
+        "1",
+        "--seed",
+        "42"
+      ],
+      "samples": [
+        {
+          "warmup": true,
+          "seconds": 1.9372691999997187,
+          "response": {
+            "id": "chatcmpl-gem16-b5820bc8bf858028c1e6c886ae81c500",
+            "object": "chat.completion",
+            "created": 1790799524,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_cf6cc17055667478be18751f9a2276c4",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_14df729572415e45f37a0f3b0c393a10",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": true,
+          "seconds": 1.8472692000004827,
+          "response": {
+            "id": "chatcmpl-gem16-7f3a5a4bc5718d33b14e8cb08ddca042",
+            "object": "chat.completion",
+            "created": 1790799526,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_95cd5c889556705f5a153fd4c6f3f108",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_fcf6d7585b30fe9dae8b6cae9f6b5bdc",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": true,
+          "seconds": 1.8459551000005376,
+          "response": {
+            "id": "chatcmpl-gem16-47eaea3e4db1d46b9bc96a633f3afcea",
+            "object": "chat.completion",
+            "created": 1790799528,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_70301b10f95f50e4091de263aa738f44",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_fb9f2f106f94f85174db07c411ffbe17",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.8507195000001957,
+          "response": {
+            "id": "chatcmpl-gem16-db95c760e9bff5ba785e4ec49379d3c0",
+            "object": "chat.completion",
+            "created": 1790799530,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_cb184d2667233aa60f41696cb6c92723",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_d0220be67e577b6e557c1df8909919f1",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.827914200000123,
+          "response": {
+            "id": "chatcmpl-gem16-e033f94c5d6c9d7976e2c746ddd768c6",
+            "object": "chat.completion",
+            "created": 1790799532,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_a81ea2843bf2a589728d10254f94efb2",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_77745bd156852b7a47a79a285f317dd0",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.8428161000001637,
+          "response": {
+            "id": "chatcmpl-gem16-b2b8e4b1b89e66461155469d4ca2989c",
+            "object": "chat.completion",
+            "created": 1790799534,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_5682d342f13d15367a20b075b4074806",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_fbdde9b413fe971f975a6c38e2f8df08",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.8294213999997737,
+          "response": {
+            "id": "chatcmpl-gem16-7da07817cef86591c0614a1ab9caab57",
+            "object": "chat.completion",
+            "created": 1790799535,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_da37228e61fee6c0721f39507132c475",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_ab15d138966b3e8419b6a927a110eb4f",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.8487559000004694,
+          "response": {
+            "id": "chatcmpl-gem16-424cbb71d344161281f1db5ead0521d6",
+            "object": "chat.completion",
+            "created": 1790799537,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_6a01ffe9da12e2f271323a0baad33174",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_dafe3334c90ce03dd9ade87fa67d8e05",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.8475134999998772,
+          "response": {
+            "id": "chatcmpl-gem16-1b88ae941d4e64e8e47c6c0feaaf341f",
+            "object": "chat.completion",
+            "created": 1790799539,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_5086052e8a730626c9f1069c69906cee",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_947ce525f7e14939978b2529654a851a",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.828237500000796,
+          "response": {
+            "id": "chatcmpl-gem16-abd5b705620d366b1e13215a340dc100",
+            "object": "chat.completion",
+            "created": 1790799541,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_271639305580ee3a7931b79478dea517",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_9064cb70297db9983e8dca5299f43509",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.830832100000407,
+          "response": {
+            "id": "chatcmpl-gem16-a21e77820a0cc300e6ce3b0a5b730264",
+            "object": "chat.completion",
+            "created": 1790799543,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_596031d3091bdc1ac6bc40fc4ef162e6",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_c9f2b3f03d4e34d899350f74458dba92",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.8328534000002037,
+          "response": {
+            "id": "chatcmpl-gem16-a15c27c7139c0809ff057358a8d19172",
+            "object": "chat.completion",
+            "created": 1790799545,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_a9cd5544d91cb32099fb23d49cf555ae",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_67e52114f337ee4dd80f521b8ca0fd7b",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.8430570000000444,
+          "response": {
+            "id": "chatcmpl-gem16-72bb86f29c9bcc474908c6f532d57ab9",
+            "object": "chat.completion",
+            "created": 1790799546,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_7d289436562cee0fee524b5ee0cdf1e7",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_59b92f529d20c85e6d042ea43c305fee",
+            "Content-Length": "820"
+          }
+        }
+      ],
+      "gpu_observations": [
+        {
+          "monotonic": 6639.421,
+          "memory_power_clock_temperature": "0, 20.60, 1447, 45"
+        },
+        {
+          "monotonic": 6639.89,
+          "memory_power_clock_temperature": "0, 20.59, 1447, 45"
+        },
+        {
+          "monotonic": 6640.375,
+          "memory_power_clock_temperature": "0, 20.54, 1447, 45"
+        },
+        {
+          "monotonic": 6640.859,
+          "memory_power_clock_temperature": "8, 20.50, 1447, 45"
+        },
+        {
+          "monotonic": 6641.218,
+          "memory_power_clock_temperature": "9046, 20.50, 1447, 45"
+        },
+        {
+          "monotonic": 6641.531,
+          "memory_power_clock_temperature": "9046, 22.67, 1447, 45"
+        },
+        {
+          "monotonic": 6641.875,
+          "memory_power_clock_temperature": "9046, 22.32, 1492, 45"
+        },
+        {
+          "monotonic": 6642.203,
+          "memory_power_clock_temperature": "9046, 22.32, 1492, 45"
+        },
+        {
+          "monotonic": 6642.531,
+          "memory_power_clock_temperature": "9046, 20.33, 1492, 45"
+        },
+        {
+          "monotonic": 6642.875,
+          "memory_power_clock_temperature": "9046, 19.69, 1492, 45"
+        },
+        {
+          "monotonic": 6643.218,
+          "memory_power_clock_temperature": "9046, 19.69, 1492, 45"
+        },
+        {
+          "monotonic": 6643.546,
+          "memory_power_clock_temperature": "9046, 19.50, 1492, 45"
+        },
+        {
+          "monotonic": 6643.875,
+          "memory_power_clock_temperature": "9046, 19.25, 1492, 45"
+        },
+        {
+          "monotonic": 6644.218,
+          "memory_power_clock_temperature": "9046, 19.25, 1492, 45"
+        },
+        {
+          "monotonic": 6644.546,
+          "memory_power_clock_temperature": "9046, 19.11, 1492, 45"
+        },
+        {
+          "monotonic": 6644.875,
+          "memory_power_clock_temperature": "9046, 19.08, 1492, 45"
+        },
+        {
+          "monotonic": 6645.203,
+          "memory_power_clock_temperature": "9046, 19.08, 1492, 45"
+        },
+        {
+          "monotonic": 6645.531,
+          "memory_power_clock_temperature": "9046, 19.09, 1492, 45"
+        },
+        {
+          "monotonic": 6645.875,
+          "memory_power_clock_temperature": "9046, 19.14, 1492, 45"
+        },
+        {
+          "monotonic": 6646.203,
+          "memory_power_clock_temperature": "9046, 19.14, 1492, 45"
+        },
+        {
+          "monotonic": 6646.531,
+          "memory_power_clock_temperature": "9046, 19.15, 1492, 45"
+        },
+        {
+          "monotonic": 6646.859,
+          "memory_power_clock_temperature": "9046, 19.12, 1485, 45"
+        },
+        {
+          "monotonic": 6647.187,
+          "memory_power_clock_temperature": "9046, 19.12, 1485, 45"
+        },
+        {
+          "monotonic": 6647.531,
+          "memory_power_clock_temperature": "9046, 19.12, 1492, 45"
+        },
+        {
+          "monotonic": 6647.859,
+          "memory_power_clock_temperature": "9046, 18.99, 1492, 45"
+        },
+        {
+          "monotonic": 6648.187,
+          "memory_power_clock_temperature": "9046, 18.99, 1492, 45"
+        },
+        {
+          "monotonic": 6648.531,
+          "memory_power_clock_temperature": "9046, 18.75, 1485, 46"
+        },
+        {
+          "monotonic": 6648.859,
+          "memory_power_clock_temperature": "9046, 18.65, 1492, 45"
+        },
+        {
+          "monotonic": 6649.187,
+          "memory_power_clock_temperature": "10434, 18.65, 1492, 45"
+        },
+        {
+          "monotonic": 6649.531,
+          "memory_power_clock_temperature": "9058, 19.14, 1537, 46"
+        },
+        {
+          "monotonic": 6649.859,
+          "memory_power_clock_temperature": "10754, 21.44, 1185, 46"
+        },
+        {
+          "monotonic": 6650.187,
+          "memory_power_clock_temperature": "10754, 21.44, 1185, 46"
+        },
+        {
+          "monotonic": 6650.515,
+          "memory_power_clock_temperature": "10754, 65.85, 2587, 51"
+        },
+        {
+          "monotonic": 6650.859,
+          "memory_power_clock_temperature": "10754, 113.14, 2385, 52"
+        },
+        {
+          "monotonic": 6651.203,
+          "memory_power_clock_temperature": "10754, 113.14, 2385, 52"
+        },
+        {
+          "monotonic": 6651.531,
+          "memory_power_clock_temperature": "10754, 122.29, 2407, 52"
+        },
+        {
+          "monotonic": 6651.875,
+          "memory_power_clock_temperature": "10754, 122.15, 2197, 53"
+        },
+        {
+          "monotonic": 6652.203,
+          "memory_power_clock_temperature": "10754, 122.15, 2197, 53"
+        },
+        {
+          "monotonic": 6652.531,
+          "memory_power_clock_temperature": "10754, 122.00, 2355, 53"
+        },
+        {
+          "monotonic": 6652.875,
+          "memory_power_clock_temperature": "10754, 124.65, 2400, 53"
+        },
+        {
+          "monotonic": 6653.203,
+          "memory_power_clock_temperature": "10754, 124.65, 2400, 53"
+        },
+        {
+          "monotonic": 6653.531,
+          "memory_power_clock_temperature": "10754, 123.36, 2407, 53"
+        },
+        {
+          "monotonic": 6653.859,
+          "memory_power_clock_temperature": "10754, 121.61, 2302, 53"
+        },
+        {
+          "monotonic": 6654.203,
+          "memory_power_clock_temperature": "10754, 121.61, 2302, 53"
+        },
+        {
+          "monotonic": 6654.531,
+          "memory_power_clock_temperature": "10754, 121.48, 2355, 54"
+        },
+        {
+          "monotonic": 6654.859,
+          "memory_power_clock_temperature": "10754, 123.62, 2400, 54"
+        },
+        {
+          "monotonic": 6655.203,
+          "memory_power_clock_temperature": "10754, 123.62, 2400, 54"
+        },
+        {
+          "monotonic": 6655.531,
+          "memory_power_clock_temperature": "10754, 123.42, 2407, 54"
+        },
+        {
+          "monotonic": 6655.859,
+          "memory_power_clock_temperature": "10754, 121.28, 2332, 54"
+        },
+        {
+          "monotonic": 6656.203,
+          "memory_power_clock_temperature": "10754, 121.28, 2332, 54"
+        },
+        {
+          "monotonic": 6656.531,
+          "memory_power_clock_temperature": "10754, 121.52, 2362, 54"
+        },
+        {
+          "monotonic": 6656.859,
+          "memory_power_clock_temperature": "10754, 123.98, 2400, 55"
+        },
+        {
+          "monotonic": 6657.203,
+          "memory_power_clock_temperature": "10754, 123.98, 2400, 55"
+        },
+        {
+          "monotonic": 6657.531,
+          "memory_power_clock_temperature": "10754, 124.14, 2355, 55"
+        },
+        {
+          "monotonic": 6657.859,
+          "memory_power_clock_temperature": "10754, 124.31, 2355, 55"
+        },
+        {
+          "monotonic": 6658.203,
+          "memory_power_clock_temperature": "10754, 124.31, 2355, 55"
+        },
+        {
+          "monotonic": 6658.546,
+          "memory_power_clock_temperature": "10754, 124.08, 2370, 55"
+        },
+        {
+          "monotonic": 6658.875,
+          "memory_power_clock_temperature": "10754, 123.89, 2400, 55"
+        },
+        {
+          "monotonic": 6659.218,
+          "memory_power_clock_temperature": "10754, 123.89, 2400, 55"
+        },
+        {
+          "monotonic": 6659.531,
+          "memory_power_clock_temperature": "10754, 123.20, 2317, 56"
+        },
+        {
+          "monotonic": 6659.875,
+          "memory_power_clock_temperature": "10754, 123.26, 2347, 56"
+        },
+        {
+          "monotonic": 6660.218,
+          "memory_power_clock_temperature": "10754, 123.26, 2347, 56"
+        },
+        {
+          "monotonic": 6660.546,
+          "memory_power_clock_temperature": "10754, 124.25, 2407, 56"
+        },
+        {
+          "monotonic": 6660.89,
+          "memory_power_clock_temperature": "10754, 124.43, 2422, 56"
+        },
+        {
+          "monotonic": 6661.218,
+          "memory_power_clock_temperature": "10754, 124.43, 2422, 56"
+        },
+        {
+          "monotonic": 6661.546,
+          "memory_power_clock_temperature": "10754, 124.19, 2310, 56"
+        },
+        {
+          "monotonic": 6661.89,
+          "memory_power_clock_temperature": "10754, 124.05, 2355, 56"
+        },
+        {
+          "monotonic": 6662.234,
+          "memory_power_clock_temperature": "10754, 124.05, 2355, 56"
+        },
+        {
+          "monotonic": 6662.562,
+          "memory_power_clock_temperature": "10754, 124.38, 2400, 57"
+        },
+        {
+          "monotonic": 6662.89,
+          "memory_power_clock_temperature": "10754, 123.73, 2250, 58"
+        },
+        {
+          "monotonic": 6663.234,
+          "memory_power_clock_temperature": "10754, 123.73, 2250, 58"
+        },
+        {
+          "monotonic": 6663.562,
+          "memory_power_clock_temperature": "10754, 123.68, 2340, 57"
+        },
+        {
+          "monotonic": 6663.89,
+          "memory_power_clock_temperature": "10754, 124.55, 2377, 57"
+        },
+        {
+          "monotonic": 6664.234,
+          "memory_power_clock_temperature": "10754, 124.55, 2377, 57"
+        },
+        {
+          "monotonic": 6664.562,
+          "memory_power_clock_temperature": "10754, 124.79, 2400, 57"
+        },
+        {
+          "monotonic": 6664.89,
+          "memory_power_clock_temperature": "10754, 122.48, 2265, 57"
+        },
+        {
+          "monotonic": 6665.218,
+          "memory_power_clock_temperature": "10754, 122.48, 2265, 57"
+        },
+        {
+          "monotonic": 6665.562,
+          "memory_power_clock_temperature": "10754, 122.44, 2347, 58"
+        },
+        {
+          "monotonic": 6665.89,
+          "memory_power_clock_temperature": "10754, 124.88, 2392, 58"
+        },
+        {
+          "monotonic": 6666.218,
+          "memory_power_clock_temperature": "10754, 124.88, 2392, 58"
+        },
+        {
+          "monotonic": 6666.546,
+          "memory_power_clock_temperature": "10754, 125.17, 2407, 58"
+        },
+        {
+          "monotonic": 6666.89,
+          "memory_power_clock_temperature": "10754, 125.08, 2317, 58"
+        },
+        {
+          "monotonic": 6667.218,
+          "memory_power_clock_temperature": "10754, 125.08, 2317, 58"
+        },
+        {
+          "monotonic": 6667.562,
+          "memory_power_clock_temperature": "10754, 125.12, 2355, 58"
+        },
+        {
+          "monotonic": 6667.89,
+          "memory_power_clock_temperature": "10754, 125.20, 2400, 59"
+        },
+        {
+          "monotonic": 6668.218,
+          "memory_power_clock_temperature": "10754, 125.20, 2400, 59"
+        },
+        {
+          "monotonic": 6668.562,
+          "memory_power_clock_temperature": "10754, 125.56, 2355, 59"
+        },
+        {
+          "monotonic": 6668.921,
+          "memory_power_clock_temperature": "10754, 125.38, 2340, 59"
+        },
+        {
+          "monotonic": 6669.25,
+          "memory_power_clock_temperature": "10754, 125.38, 2340, 59"
+        },
+        {
+          "monotonic": 6669.593,
+          "memory_power_clock_temperature": "10754, 125.53, 2377, 59"
+        },
+        {
+          "monotonic": 6669.937,
+          "memory_power_clock_temperature": "10754, 125.66, 2400, 59"
+        },
+        {
+          "monotonic": 6670.296,
+          "memory_power_clock_temperature": "10754, 125.71, 2317, 59"
+        },
+        {
+          "monotonic": 6670.64,
+          "memory_power_clock_temperature": "10754, 125.71, 2317, 59"
+        },
+        {
+          "monotonic": 6670.968,
+          "memory_power_clock_temperature": "10754, 125.70, 2355, 59"
+        },
+        {
+          "monotonic": 6671.296,
+          "memory_power_clock_temperature": "10754, 125.88, 2392, 60"
+        },
+        {
+          "monotonic": 6671.625,
+          "memory_power_clock_temperature": "10754, 125.88, 2392, 60"
+        },
+        {
+          "monotonic": 6671.968,
+          "memory_power_clock_temperature": "10754, 125.94, 2400, 60"
+        },
+        {
+          "monotonic": 6672.296,
+          "memory_power_clock_temperature": "10754, 123.89, 2317, 60"
+        },
+        {
+          "monotonic": 6672.625,
+          "memory_power_clock_temperature": "10754, 123.89, 2317, 60"
+        },
+        {
+          "monotonic": 6672.953,
+          "memory_power_clock_temperature": "10754, 123.91, 2355, 60"
+        },
+        {
+          "monotonic": 6673.296,
+          "memory_power_clock_temperature": "10754, 126.34, 2400, 60"
+        },
+        {
+          "monotonic": 6673.671,
+          "memory_power_clock_temperature": "10754, 126.34, 2400, 60"
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 8192,
+        "default_context_tokens": 8192,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 262144,
+        "model_variant": "gemma4_unified_12b",
+        "profile_id": "gemma4-12b-unified",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "native-checkpoint",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "gemma4_unified_12b_sm120",
+        "weight_profile": "native-checkpoint",
+        "head_format": "native-checkpoint",
+        "artifact_content_sha256": "",
+        "source_lock_sha256": "",
+        "compiler_commit": "",
+        "resident_weight_bytes": 9304895488,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": null,
+        "workspace_bytes": null,
+        "execution_slot_bytes": 1790967808,
+        "admission_free_bytes": 4702863360,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 3968860160,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": true,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "memory_after_requests": "10754 MiB",
+      "final_health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 8192,
+        "default_context_tokens": 8192,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 262144,
+        "model_variant": "gemma4_unified_12b",
+        "profile_id": "gemma4-12b-unified",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "native-checkpoint",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "gemma4_unified_12b_sm120",
+        "weight_profile": "native-checkpoint",
+        "head_format": "native-checkpoint",
+        "artifact_content_sha256": "",
+        "source_lock_sha256": "",
+        "compiler_commit": "",
+        "resident_weight_bytes": 9304895488,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": null,
+        "workspace_bytes": null,
+        "execution_slot_bytes": 1790967808,
+        "admission_free_bytes": 4702863360,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 3968860160,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": true,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "sampled_peak_gpu_memory_mib": 10754.0
+    },
+    {
+      "profile": "12b-d2",
+      "command": [
+        "C:\\Development\\gem16gb\\artifacts\\raw\\chat-penalties-20260930-parent\\gem16-server-parent.exe",
+        "--model",
+        "C:\\Users\\User\\.cache\\huggingface\\hub\\.gem16\\snapshots\\unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--assistant-model",
+        "C:\\Users\\User\\.cache\\huggingface\\hub\\models--google--gemma-4-12B-it-assistant\\snapshots\\364bd03c9952e5b7da73665ee30c9eccfc408345",
+        "--mtp-draft-tokens",
+        "2",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "63062",
+        "--model-name",
+        "gem16",
+        "--max-context",
+        "4096",
+        "--max-sessions",
+        "1",
+        "--seed",
+        "42"
+      ],
+      "samples": [
+        {
+          "warmup": true,
+          "seconds": 1.1452621999997064,
+          "response": {
+            "id": "chatcmpl-gem16-1c4cbc7c35efe9f632d506862fddee93",
+            "object": "chat.completion",
+            "created": 1790799559,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_68fde9a22a93317df287699388aaa655",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_bf923b07f8a8922fad4e270197d8ebc9",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": true,
+          "seconds": 1.0527744000000894,
+          "response": {
+            "id": "chatcmpl-gem16-ce2b868aa41d7147f55781f0c233ef61",
+            "object": "chat.completion",
+            "created": 1790799560,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_c99e2e6812c16db9e8f5c405cd22367b",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_4f54343022db8198886557bd4b0d8e68",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": true,
+          "seconds": 1.0661168999995425,
+          "response": {
+            "id": "chatcmpl-gem16-d934618dca83e60fe746796f253ceed1",
+            "object": "chat.completion",
+            "created": 1790799561,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_28f06da75dd3988e001f39da0bdf5088",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_94de1d1d5ef9cbcde706b886e7c66ec1",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.053029400000014,
+          "response": {
+            "id": "chatcmpl-gem16-e39b7f1dec943ad3e53c55516929a8f2",
+            "object": "chat.completion",
+            "created": 1790799562,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_d761b1d2d41f595f62ee770c38473d28",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_409c6dc265b134dee951a4d013cdd3b4",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.0719585999995616,
+          "response": {
+            "id": "chatcmpl-gem16-9cc748aa8f50272c0125146362878a06",
+            "object": "chat.completion",
+            "created": 1790799563,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_f066f1cf60f114dfbe1da01109c9d4b3",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_fe87773f8d553650c6135c3ac40953f0",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.0510592999999062,
+          "response": {
+            "id": "chatcmpl-gem16-af21f4aff46cbf9db6b6d2dfc9e7c9c3",
+            "object": "chat.completion",
+            "created": 1790799564,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_96f59e336be0300e1e3e80bdda32421c",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_2895593bc93dd7d2beac46358cd79bb9",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.0754526999999143,
+          "response": {
+            "id": "chatcmpl-gem16-80953fe7947403c8f2775d58885f63dd",
+            "object": "chat.completion",
+            "created": 1790799565,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_db70731d1b3684126968065ebab1ca33",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_4930ff5f28b1707cf83d0dae5cfdbd2e",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.0755982999999105,
+          "response": {
+            "id": "chatcmpl-gem16-244951912384fcb18366d1a4d56779ed",
+            "object": "chat.completion",
+            "created": 1790799567,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_4f4e980b56c332cdcd82aaaf93f23344",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_150ade958a01f65f5b6b22c56953328a",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.0522001000008459,
+          "response": {
+            "id": "chatcmpl-gem16-3de95fc85eef55cf54bae2fb33597976",
+            "object": "chat.completion",
+            "created": 1790799568,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_b4fab85d17360b722c33e66d7daa99e7",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_6a5bd919e476a31953d58b4512cf8af3",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.070878300000004,
+          "response": {
+            "id": "chatcmpl-gem16-99519d8085fc311b564bb6fadd9d8f74",
+            "object": "chat.completion",
+            "created": 1790799569,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_3540c1da81ae3df6aff89badafa74331",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_7a8b41db450aa5b8639e43ef4c16086e",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.054999900000439,
+          "response": {
+            "id": "chatcmpl-gem16-a85f2dd99b50e00e19d533ade0c65127",
+            "object": "chat.completion",
+            "created": 1790799570,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_4834e955926a1abae7a71092b95a58e3",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_b4bee14013700e278ba1a7fcfe436695",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.0745714000004227,
+          "response": {
+            "id": "chatcmpl-gem16-69a46dc951aa5d645891854606f72ec2",
+            "object": "chat.completion",
+            "created": 1790799571,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_537578b21d12747e659037bfc41ccae4",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_a90016bcf5d3adb369a36e8404826dfc",
+            "Content-Length": "820"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 1.0653000000002066,
+          "response": {
+            "id": "chatcmpl-gem16-a76276818d6945feec66f61a0789580d",
+            "object": "chat.completion",
+            "created": 1790799572,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The journey of a raindrop begins not in the clouds, but in the vast, restless bodies of water that cover our planet. To understand how rain forms, one must view the Earth as a massive, self-regulating heat engine. The sun acts as the furnace, providing the energy required to drive the hydrological cycle, while the atmosphere serves as the machinery that transforms water from one state to another. The process is a continuous, cyclical dance of evaporation, condensation, and precipitation,"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_d753e81bc2c9cdae68732c9559b7a66c",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_f0205f157b2c8cf4ea7133166a25b40d",
+            "Content-Length": "820"
+          }
+        }
+      ],
+      "gpu_observations": [
+        {
+          "monotonic": 6674.281,
+          "memory_power_clock_temperature": "0, 66.99, 360, 55"
+        },
+        {
+          "monotonic": 6675.812,
+          "memory_power_clock_temperature": "8, 18.92, 1725, 55"
+        },
+        {
+          "monotonic": 6676.093,
+          "memory_power_clock_temperature": "9046, 29.44, 1485, 55"
+        },
+        {
+          "monotonic": 6676.375,
+          "memory_power_clock_temperature": "9046, 29.44, 1485, 55"
+        },
+        {
+          "monotonic": 6676.656,
+          "memory_power_clock_temperature": "9046, 26.83, 1447, 55"
+        },
+        {
+          "monotonic": 6676.937,
+          "memory_power_clock_temperature": "9046, 26.83, 1447, 55"
+        },
+        {
+          "monotonic": 6677.296,
+          "memory_power_clock_temperature": "9046, 25.92, 1447, 55"
+        },
+        {
+          "monotonic": 6677.625,
+          "memory_power_clock_temperature": "9046, 24.85, 1462, 55"
+        },
+        {
+          "monotonic": 6677.953,
+          "memory_power_clock_temperature": "9046, 24.85, 1462, 55"
+        },
+        {
+          "monotonic": 6678.296,
+          "memory_power_clock_temperature": "9046, 23.44, 1485, 55"
+        },
+        {
+          "monotonic": 6678.656,
+          "memory_power_clock_temperature": "9046, 21.15, 1485, 54"
+        },
+        {
+          "monotonic": 6679.0,
+          "memory_power_clock_temperature": "9046, 21.15, 1485, 54"
+        },
+        {
+          "monotonic": 6679.343,
+          "memory_power_clock_temperature": "9046, 20.26, 1485, 54"
+        },
+        {
+          "monotonic": 6679.687,
+          "memory_power_clock_temperature": "9046, 20.26, 1485, 54"
+        },
+        {
+          "monotonic": 6680.062,
+          "memory_power_clock_temperature": "9046, 20.26, 1485, 54"
+        },
+        {
+          "monotonic": 6680.406,
+          "memory_power_clock_temperature": "9046, 20.29, 1485, 54"
+        },
+        {
+          "monotonic": 6680.734,
+          "memory_power_clock_temperature": "9046, 20.32, 1485, 54"
+        },
+        {
+          "monotonic": 6681.078,
+          "memory_power_clock_temperature": "9046, 20.32, 1485, 54"
+        },
+        {
+          "monotonic": 6681.421,
+          "memory_power_clock_temperature": "9046, 20.29, 1485, 54"
+        },
+        {
+          "monotonic": 6681.765,
+          "memory_power_clock_temperature": "9046, 20.28, 1485, 54"
+        },
+        {
+          "monotonic": 6682.109,
+          "memory_power_clock_temperature": "9046, 20.16, 1485, 54"
+        },
+        {
+          "monotonic": 6682.453,
+          "memory_power_clock_temperature": "9046, 20.16, 1485, 54"
+        },
+        {
+          "monotonic": 6682.781,
+          "memory_power_clock_temperature": "9046, 19.99, 1485, 54"
+        },
+        {
+          "monotonic": 6683.125,
+          "memory_power_clock_temperature": "9046, 19.92, 1485, 54"
+        },
+        {
+          "monotonic": 6683.468,
+          "memory_power_clock_temperature": "9854, 19.92, 1485, 54"
+        },
+        {
+          "monotonic": 6683.812,
+          "memory_power_clock_temperature": "9854, 20.12, 1485, 54"
+        },
+        {
+          "monotonic": 6684.156,
+          "memory_power_clock_temperature": "9866, 20.33, 1485, 54"
+        },
+        {
+          "monotonic": 6684.515,
+          "memory_power_clock_temperature": "11576, 20.33, 1485, 54"
+        },
+        {
+          "monotonic": 6684.843,
+          "memory_power_clock_temperature": "11588, 26.57, 1717, 58"
+        },
+        {
+          "monotonic": 6685.203,
+          "memory_power_clock_temperature": "11588, 78.12, 2452, 60"
+        },
+        {
+          "monotonic": 6685.515,
+          "memory_power_clock_temperature": "11588, 78.12, 2452, 60"
+        },
+        {
+          "monotonic": 6685.859,
+          "memory_power_clock_temperature": "11588, 132.82, 2482, 61"
+        },
+        {
+          "monotonic": 6686.203,
+          "memory_power_clock_temperature": "11588, 140.57, 2452, 62"
+        },
+        {
+          "monotonic": 6686.546,
+          "memory_power_clock_temperature": "11588, 140.57, 2452, 62"
+        },
+        {
+          "monotonic": 6686.89,
+          "memory_power_clock_temperature": "11588, 140.61, 2475, 62"
+        },
+        {
+          "monotonic": 6687.218,
+          "memory_power_clock_temperature": "11588, 139.67, 2445, 62"
+        },
+        {
+          "monotonic": 6687.562,
+          "memory_power_clock_temperature": "11588, 139.67, 2445, 62"
+        },
+        {
+          "monotonic": 6687.89,
+          "memory_power_clock_temperature": "11588, 139.95, 2475, 62"
+        },
+        {
+          "monotonic": 6688.234,
+          "memory_power_clock_temperature": "11588, 141.09, 2445, 62"
+        },
+        {
+          "monotonic": 6688.562,
+          "memory_power_clock_temperature": "11588, 141.09, 2445, 62"
+        },
+        {
+          "monotonic": 6688.906,
+          "memory_power_clock_temperature": "11588, 140.67, 2460, 63"
+        },
+        {
+          "monotonic": 6689.234,
+          "memory_power_clock_temperature": "11588, 138.96, 2415, 62"
+        },
+        {
+          "monotonic": 6689.562,
+          "memory_power_clock_temperature": "11588, 138.96, 2415, 62"
+        },
+        {
+          "monotonic": 6689.906,
+          "memory_power_clock_temperature": "11588, 139.25, 2460, 63"
+        },
+        {
+          "monotonic": 6690.234,
+          "memory_power_clock_temperature": "11588, 141.23, 2385, 63"
+        },
+        {
+          "monotonic": 6690.562,
+          "memory_power_clock_temperature": "11588, 141.23, 2385, 63"
+        },
+        {
+          "monotonic": 6690.906,
+          "memory_power_clock_temperature": "11588, 141.41, 2460, 63"
+        },
+        {
+          "monotonic": 6691.234,
+          "memory_power_clock_temperature": "11588, 139.58, 2242, 63"
+        },
+        {
+          "monotonic": 6691.562,
+          "memory_power_clock_temperature": "11588, 139.58, 2242, 63"
+        },
+        {
+          "monotonic": 6691.89,
+          "memory_power_clock_temperature": "11588, 139.49, 2445, 63"
+        },
+        {
+          "monotonic": 6692.234,
+          "memory_power_clock_temperature": "11588, 138.77, 2235, 63"
+        },
+        {
+          "monotonic": 6692.578,
+          "memory_power_clock_temperature": "11588, 138.77, 2235, 63"
+        },
+        {
+          "monotonic": 6692.906,
+          "memory_power_clock_temperature": "11588, 139.01, 2452, 63"
+        },
+        {
+          "monotonic": 6693.25,
+          "memory_power_clock_temperature": "11588, 141.79, 2460, 63"
+        },
+        {
+          "monotonic": 6693.578,
+          "memory_power_clock_temperature": "11588, 141.79, 2460, 63"
+        },
+        {
+          "monotonic": 6693.906,
+          "memory_power_clock_temperature": "11588, 141.59, 2452, 63"
+        },
+        {
+          "monotonic": 6694.25,
+          "memory_power_clock_temperature": "11588, 141.51, 2467, 61"
+        },
+        {
+          "monotonic": 6694.593,
+          "memory_power_clock_temperature": "11588, 141.51, 2467, 61"
+        },
+        {
+          "monotonic": 6694.921,
+          "memory_power_clock_temperature": "11588, 139.51, 2430, 63"
+        },
+        {
+          "monotonic": 6695.265,
+          "memory_power_clock_temperature": "11588, 139.62, 2467, 64"
+        },
+        {
+          "monotonic": 6695.593,
+          "memory_power_clock_temperature": "11588, 139.62, 2467, 64"
+        },
+        {
+          "monotonic": 6695.921,
+          "memory_power_clock_temperature": "11588, 141.31, 2430, 64"
+        },
+        {
+          "monotonic": 6696.265,
+          "memory_power_clock_temperature": "11588, 141.10, 2460, 64"
+        },
+        {
+          "monotonic": 6696.593,
+          "memory_power_clock_temperature": "11588, 141.10, 2460, 64"
+        },
+        {
+          "monotonic": 6696.921,
+          "memory_power_clock_temperature": "11588, 138.63, 2422, 64"
+        },
+        {
+          "monotonic": 6697.265,
+          "memory_power_clock_temperature": "11588, 138.37, 2452, 64"
+        },
+        {
+          "monotonic": 6697.593,
+          "memory_power_clock_temperature": "11588, 140.04, 2385, 64"
+        },
+        {
+          "monotonic": 6697.921,
+          "memory_power_clock_temperature": "11588, 140.04, 2385, 64"
+        },
+        {
+          "monotonic": 6698.265,
+          "memory_power_clock_temperature": "11588, 139.94, 2445, 64"
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 8192,
+        "default_context_tokens": 8192,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 262144,
+        "model_variant": "gemma4_unified_12b",
+        "profile_id": "gemma4-12b-unified",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "native-checkpoint",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "gemma4_unified_12b_sm120",
+        "weight_profile": "native-checkpoint",
+        "head_format": "native-checkpoint",
+        "artifact_content_sha256": "",
+        "source_lock_sha256": "",
+        "compiler_commit": "",
+        "resident_weight_bytes": 9304895488,
+        "assistant_weight_bytes": 845714944,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": null,
+        "workspace_bytes": null,
+        "execution_slot_bytes": 1808751616,
+        "admission_free_bytes": 3840933888,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 3106930688,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": true,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "memory_after_requests": "11588 MiB",
+      "final_health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 8192,
+        "default_context_tokens": 8192,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 262144,
+        "model_variant": "gemma4_unified_12b",
+        "profile_id": "gemma4-12b-unified",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "native-checkpoint",
+        "vision_artifact_profile": "",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "gemma4_unified_12b_sm120",
+        "weight_profile": "native-checkpoint",
+        "head_format": "native-checkpoint",
+        "artifact_content_sha256": "",
+        "source_lock_sha256": "",
+        "compiler_commit": "",
+        "resident_weight_bytes": 9304895488,
+        "assistant_weight_bytes": 845714944,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": false,
+        "vision_weight_bytes": 0,
+        "vision_workspace_bytes": 0,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [],
+        "vision_max_soft_token_budget": null,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": null,
+        "kv_cache_bytes": null,
+        "workspace_bytes": null,
+        "execution_slot_bytes": 1808751616,
+        "admission_free_bytes": 3840933888,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 3106930688,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": true,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "sampled_peak_gpu_memory_mib": 11588.0
+    },
+    {
+      "profile": "compact-ordinary",
+      "command": [
+        "C:\\Development\\gem16gb\\artifacts\\raw\\chat-penalties-20260930-parent\\gem16-server-parent.exe",
+        "--model",
+        "C:\\Users\\User\\.cache\\huggingface\\hub\\.gem16\\snapshots\\danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--vision-model",
+        "C:\\Users\\User\\.cache\\huggingface\\hub\\.gem16\\snapshots\\danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--vision",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "54813",
+        "--model-name",
+        "gem16",
+        "--max-context",
+        "4096",
+        "--max-sessions",
+        "1",
+        "--seed",
+        "42"
+      ],
+      "samples": [
+        {
+          "warmup": true,
+          "seconds": 0.8770925999997417,
+          "response": {
+            "id": "chatcmpl-gem16-2489507a63c0a5aed3257fe4bcbdb53e",
+            "object": "chat.completion",
+            "created": 1790799597,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_e85db8523365c53d28a3323f97894337",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_27e877bbb14e3db0e7c68fde75a17bde",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": true,
+          "seconds": 0.7225531000003684,
+          "response": {
+            "id": "chatcmpl-gem16-ef5a890c494d8d6c7b80f56281102786",
+            "object": "chat.completion",
+            "created": 1790799598,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_8394acf9f7bf645979e6509f53c9778b",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_d8af6eef9ca4e1cb0d82e72c018b78da",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": true,
+          "seconds": 0.7091046000005008,
+          "response": {
+            "id": "chatcmpl-gem16-51a13fcc9b53a058cb3f8aba6055f13b",
+            "object": "chat.completion",
+            "created": 1790799599,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_4e638f1c9d29d0b9461db924d0392459",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_1b5e15cd40073f2b98cacb91e596953c",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.7203129999998055,
+          "response": {
+            "id": "chatcmpl-gem16-37c51166399f64e7a37d1ea3935c2686",
+            "object": "chat.completion",
+            "created": 1790799600,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_0d8158a6039ff5fc2f50bfeda685ddf4",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_8e00c4d45ab051a340f33c242f91347a",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.7283881999992445,
+          "response": {
+            "id": "chatcmpl-gem16-7267041fb659bd7a21a286b583ed1093",
+            "object": "chat.completion",
+            "created": 1790799600,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_77cf02391c1045a70297b285b26b09da",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_f2a90e449c10c89760c3e1c3d088de03",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.7077724000000671,
+          "response": {
+            "id": "chatcmpl-gem16-d7ef680d4c21adb5578ca5abcf5a3957",
+            "object": "chat.completion",
+            "created": 1790799601,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_70cd8b08a26c8238ea3189da5340ecea",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_6f70083a009043a9056a71676b107331",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.7082150999995065,
+          "response": {
+            "id": "chatcmpl-gem16-2f3ac664072dae952c8e6641c07fa63d",
+            "object": "chat.completion",
+            "created": 1790799602,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_f976a175ed25d711beb1c5a7336b398b",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_502f63b5b3bb572040265ef6c29d9760",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.7194302000007156,
+          "response": {
+            "id": "chatcmpl-gem16-af4ddd897dd1e667944cdf6aae322ed2",
+            "object": "chat.completion",
+            "created": 1790799602,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_ad2a119b30a9b548e40455d316a9342c",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_ac57efebfa3d997c62f3b2f92207365c",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.7104827999992267,
+          "response": {
+            "id": "chatcmpl-gem16-68499c0b830071822b0a7b492d6d5b61",
+            "object": "chat.completion",
+            "created": 1790799603,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_ce476a3eb9a77ba292aff6996883154f",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_cac0ff166ef095a62f5cb8943617ce4f",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.7098938000008275,
+          "response": {
+            "id": "chatcmpl-gem16-36539b26858146d300ee32b10f666ff1",
+            "object": "chat.completion",
+            "created": 1790799604,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_73d35d4b036ec945aeda3c90709c53b4",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_90227917b4122b1bd70e3469b645ac1d",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.7344103000004907,
+          "response": {
+            "id": "chatcmpl-gem16-3b2a211c85ba3131f25e42a1256d6f97",
+            "object": "chat.completion",
+            "created": 1790799605,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_938c42dd32dedb7720578c06c210a944",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_f28c3e6fa4e64defb33db78460be1be7",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.7269986000001154,
+          "response": {
+            "id": "chatcmpl-gem16-0967f93e5f20ff3acb3a2c695ef51d4a",
+            "object": "chat.completion",
+            "created": 1790799605,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_d60631b8ab1463c627c8343f5f9865e3",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_d358513d11453ba3921ee3b19eaa326a",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.7228017999996155,
+          "response": {
+            "id": "chatcmpl-gem16-af8740f23ab049342ef6f2daedb7110f",
+            "object": "chat.completion",
+            "created": 1790799606,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_9fd8ff1a54abc6b67cd8592969bc1857",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_61b7fe91f02d86d934a99864250685a2",
+            "Content-Length": "844"
+          }
+        }
+      ],
+      "gpu_observations": [
+        {
+          "monotonic": 6698.921,
+          "memory_power_clock_temperature": "0, 119.41, 555, 59"
+        },
+        {
+          "monotonic": 6700.671,
+          "memory_power_clock_temperature": "8, 18.00, 915, 57"
+        },
+        {
+          "monotonic": 6701.0,
+          "memory_power_clock_temperature": "10860, 23.64, 1492, 56"
+        },
+        {
+          "monotonic": 6701.343,
+          "memory_power_clock_temperature": "11812, 23.64, 1492, 56"
+        },
+        {
+          "monotonic": 6701.671,
+          "memory_power_clock_temperature": "11812, 27.20, 1447, 56"
+        },
+        {
+          "monotonic": 6702.0,
+          "memory_power_clock_temperature": "11812, 26.44, 1447, 56"
+        },
+        {
+          "monotonic": 6702.328,
+          "memory_power_clock_temperature": "11812, 26.44, 1447, 56"
+        },
+        {
+          "monotonic": 6702.671,
+          "memory_power_clock_temperature": "11812, 24.56, 1447, 56"
+        },
+        {
+          "monotonic": 6703.0,
+          "memory_power_clock_temperature": "11812, 23.81, 1485, 56"
+        },
+        {
+          "monotonic": 6703.328,
+          "memory_power_clock_temperature": "11812, 23.81, 1485, 56"
+        },
+        {
+          "monotonic": 6703.671,
+          "memory_power_clock_temperature": "11812, 21.97, 1485, 56"
+        },
+        {
+          "monotonic": 6704.0,
+          "memory_power_clock_temperature": "11812, 20.42, 1485, 55"
+        },
+        {
+          "monotonic": 6704.328,
+          "memory_power_clock_temperature": "11812, 20.42, 1485, 55"
+        },
+        {
+          "monotonic": 6704.671,
+          "memory_power_clock_temperature": "11812, 20.33, 1485, 55"
+        },
+        {
+          "monotonic": 6705.0,
+          "memory_power_clock_temperature": "11812, 20.28, 1485, 55"
+        },
+        {
+          "monotonic": 6705.328,
+          "memory_power_clock_temperature": "11812, 20.28, 1485, 55"
+        },
+        {
+          "monotonic": 6705.656,
+          "memory_power_clock_temperature": "11812, 20.25, 1485, 55"
+        },
+        {
+          "monotonic": 6706.0,
+          "memory_power_clock_temperature": "11812, 20.23, 1485, 55"
+        },
+        {
+          "monotonic": 6706.328,
+          "memory_power_clock_temperature": "11812, 20.23, 1485, 55"
+        },
+        {
+          "monotonic": 6706.656,
+          "memory_power_clock_temperature": "11812, 20.24, 1485, 55"
+        },
+        {
+          "monotonic": 6706.984,
+          "memory_power_clock_temperature": "11812, 20.29, 1485, 55"
+        },
+        {
+          "monotonic": 6707.328,
+          "memory_power_clock_temperature": "11812, 20.29, 1485, 55"
+        },
+        {
+          "monotonic": 6707.656,
+          "memory_power_clock_temperature": "11812, 20.30, 1485, 55"
+        },
+        {
+          "monotonic": 6707.984,
+          "memory_power_clock_temperature": "11812, 20.33, 1485, 55"
+        },
+        {
+          "monotonic": 6708.328,
+          "memory_power_clock_temperature": "11812, 20.33, 1485, 55"
+        },
+        {
+          "monotonic": 6708.656,
+          "memory_power_clock_temperature": "11812, 20.29, 1485, 54"
+        },
+        {
+          "monotonic": 6708.984,
+          "memory_power_clock_temperature": "11812, 20.23, 1485, 54"
+        },
+        {
+          "monotonic": 6709.328,
+          "memory_power_clock_temperature": "11812, 20.23, 1485, 54"
+        },
+        {
+          "monotonic": 6709.656,
+          "memory_power_clock_temperature": "11812, 20.20, 1485, 54"
+        },
+        {
+          "monotonic": 6709.984,
+          "memory_power_clock_temperature": "11812, 20.18, 1485, 54"
+        },
+        {
+          "monotonic": 6710.328,
+          "memory_power_clock_temperature": "11812, 20.18, 1485, 54"
+        },
+        {
+          "monotonic": 6710.656,
+          "memory_power_clock_temperature": "11812, 20.18, 1485, 54"
+        },
+        {
+          "monotonic": 6710.984,
+          "memory_power_clock_temperature": "11812, 20.17, 1485, 54"
+        },
+        {
+          "monotonic": 6711.328,
+          "memory_power_clock_temperature": "11812, 20.17, 1485, 54"
+        },
+        {
+          "monotonic": 6711.656,
+          "memory_power_clock_temperature": "11812, 18.49, 420, 54"
+        },
+        {
+          "monotonic": 6711.984,
+          "memory_power_clock_temperature": "11812, 15.27, 330, 53"
+        },
+        {
+          "monotonic": 6712.328,
+          "memory_power_clock_temperature": "11812, 15.27, 330, 53"
+        },
+        {
+          "monotonic": 6712.656,
+          "memory_power_clock_temperature": "11812, 13.29, 330, 53"
+        },
+        {
+          "monotonic": 6712.984,
+          "memory_power_clock_temperature": "11812, 12.62, 330, 53"
+        },
+        {
+          "monotonic": 6713.328,
+          "memory_power_clock_temperature": "11812, 12.62, 330, 53"
+        },
+        {
+          "monotonic": 6713.656,
+          "memory_power_clock_temperature": "11812, 12.23, 330, 53"
+        },
+        {
+          "monotonic": 6713.984,
+          "memory_power_clock_temperature": "11812, 10.53, 330, 53"
+        },
+        {
+          "monotonic": 6714.328,
+          "memory_power_clock_temperature": "11812, 10.53, 330, 53"
+        },
+        {
+          "monotonic": 6714.656,
+          "memory_power_clock_temperature": "11812, 8.49, 330, 53"
+        },
+        {
+          "monotonic": 6714.984,
+          "memory_power_clock_temperature": "11812, 7.36, 330, 53"
+        },
+        {
+          "monotonic": 6715.312,
+          "memory_power_clock_temperature": "11812, 7.36, 330, 53"
+        },
+        {
+          "monotonic": 6715.656,
+          "memory_power_clock_temperature": "11812, 7.36, 330, 53"
+        },
+        {
+          "monotonic": 6715.984,
+          "memory_power_clock_temperature": "11812, 4.70, 330, 52"
+        },
+        {
+          "monotonic": 6716.312,
+          "memory_power_clock_temperature": "11812, 4.70, 330, 52"
+        },
+        {
+          "monotonic": 6716.656,
+          "memory_power_clock_temperature": "11812, 4.70, 330, 52"
+        },
+        {
+          "monotonic": 6717.0,
+          "memory_power_clock_temperature": "11812, 5.14, 330, 52"
+        },
+        {
+          "monotonic": 6717.343,
+          "memory_power_clock_temperature": "11812, 5.14, 330, 52"
+        },
+        {
+          "monotonic": 6717.671,
+          "memory_power_clock_temperature": "11812, 5.14, 330, 52"
+        },
+        {
+          "monotonic": 6718.015,
+          "memory_power_clock_temperature": "11812, 4.63, 330, 52"
+        },
+        {
+          "monotonic": 6718.343,
+          "memory_power_clock_temperature": "12382, 4.63, 330, 52"
+        },
+        {
+          "monotonic": 6718.671,
+          "memory_power_clock_temperature": "12382, 5.48, 330, 52"
+        },
+        {
+          "monotonic": 6719.015,
+          "memory_power_clock_temperature": "12382, 6.12, 330, 52"
+        },
+        {
+          "monotonic": 6719.343,
+          "memory_power_clock_temperature": "12382, 6.12, 330, 52"
+        },
+        {
+          "monotonic": 6719.671,
+          "memory_power_clock_temperature": "12382, 7.28, 330, 52"
+        },
+        {
+          "monotonic": 6720.015,
+          "memory_power_clock_temperature": "12382, 6.65, 330, 51"
+        },
+        {
+          "monotonic": 6720.343,
+          "memory_power_clock_temperature": "12382, 6.65, 330, 51"
+        },
+        {
+          "monotonic": 6720.671,
+          "memory_power_clock_temperature": "12382, 6.98, 330, 51"
+        },
+        {
+          "monotonic": 6721.015,
+          "memory_power_clock_temperature": "12382, 7.04, 330, 51"
+        },
+        {
+          "monotonic": 6721.343,
+          "memory_power_clock_temperature": "12382, 7.04, 330, 51"
+        },
+        {
+          "monotonic": 6721.671,
+          "memory_power_clock_temperature": "12382, 6.99, 330, 51"
+        },
+        {
+          "monotonic": 6722.015,
+          "memory_power_clock_temperature": "12382, 6.97, 330, 51"
+        },
+        {
+          "monotonic": 6722.343,
+          "memory_power_clock_temperature": "12956, 6.97, 330, 51"
+        },
+        {
+          "monotonic": 6722.687,
+          "memory_power_clock_temperature": "12956, 10.06, 382, 52"
+        },
+        {
+          "monotonic": 6723.015,
+          "memory_power_clock_temperature": "12956, 36.65, 2317, 57"
+        },
+        {
+          "monotonic": 6723.343,
+          "memory_power_clock_temperature": "12956, 36.65, 2317, 57"
+        },
+        {
+          "monotonic": 6723.671,
+          "memory_power_clock_temperature": "12956, 98.17, 2722, 60"
+        },
+        {
+          "monotonic": 6724.015,
+          "memory_power_clock_temperature": "12956, 146.07, 2685, 61"
+        },
+        {
+          "monotonic": 6724.343,
+          "memory_power_clock_temperature": "12956, 146.07, 2685, 61"
+        },
+        {
+          "monotonic": 6724.671,
+          "memory_power_clock_temperature": "12956, 146.68, 2730, 61"
+        },
+        {
+          "monotonic": 6725.0,
+          "memory_power_clock_temperature": "12956, 148.22, 2722, 61"
+        },
+        {
+          "monotonic": 6725.328,
+          "memory_power_clock_temperature": "12956, 148.22, 2722, 61"
+        },
+        {
+          "monotonic": 6725.671,
+          "memory_power_clock_temperature": "12956, 147.35, 2692, 61"
+        },
+        {
+          "monotonic": 6726.0,
+          "memory_power_clock_temperature": "12956, 144.98, 2542, 62"
+        },
+        {
+          "monotonic": 6726.328,
+          "memory_power_clock_temperature": "12956, 144.98, 2542, 62"
+        },
+        {
+          "monotonic": 6726.656,
+          "memory_power_clock_temperature": "12956, 145.74, 2722, 62"
+        },
+        {
+          "monotonic": 6726.984,
+          "memory_power_clock_temperature": "12956, 149.29, 2692, 62"
+        },
+        {
+          "monotonic": 6727.328,
+          "memory_power_clock_temperature": "12956, 149.29, 2692, 62"
+        },
+        {
+          "monotonic": 6727.656,
+          "memory_power_clock_temperature": "12956, 149.59, 2700, 62"
+        },
+        {
+          "monotonic": 6727.984,
+          "memory_power_clock_temperature": "12956, 147.58, 2610, 63"
+        },
+        {
+          "monotonic": 6728.328,
+          "memory_power_clock_temperature": "12956, 147.58, 2610, 63"
+        },
+        {
+          "monotonic": 6728.671,
+          "memory_power_clock_temperature": "12956, 147.45, 2707, 63"
+        },
+        {
+          "monotonic": 6729.0,
+          "memory_power_clock_temperature": "12956, 149.82, 2685, 63"
+        },
+        {
+          "monotonic": 6729.343,
+          "memory_power_clock_temperature": "12956, 149.82, 2685, 63"
+        },
+        {
+          "monotonic": 6729.671,
+          "memory_power_clock_temperature": "12956, 149.39, 2715, 63"
+        },
+        {
+          "monotonic": 6730.0,
+          "memory_power_clock_temperature": "12956, 148.98, 2707, 63"
+        },
+        {
+          "monotonic": 6730.343,
+          "memory_power_clock_temperature": "12956, 148.98, 2707, 63"
+        },
+        {
+          "monotonic": 6730.671,
+          "memory_power_clock_temperature": "12956, 146.78, 2685, 63"
+        },
+        {
+          "monotonic": 6731.015,
+          "memory_power_clock_temperature": "12956, 144.55, 2572, 64"
+        },
+        {
+          "monotonic": 6731.343,
+          "memory_power_clock_temperature": "12956, 144.55, 2572, 64"
+        },
+        {
+          "monotonic": 6731.671,
+          "memory_power_clock_temperature": "12956, 145.32, 2722, 64"
+        },
+        {
+          "monotonic": 6732.0,
+          "memory_power_clock_temperature": "12956, 148.16, 2692, 64"
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": null,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 448985248,
+        "execution_slot_bytes": 595785888,
+        "admission_free_bytes": 2393899008,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 1659895808,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": false,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "memory_after_requests": "12956 MiB",
+      "final_health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": null,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "ordinary",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 0,
+        "assistant_workspace_bytes": 0,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 448985248,
+        "execution_slot_bytes": 595785888,
+        "admission_free_bytes": 2393899008,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 1659895808,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": false,
+          "vision_mtp": false
+        },
+        "mtp_draft_tokens": 0,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "sampled_peak_gpu_memory_mib": 12956.0
+    },
+    {
+      "profile": "compact-d2",
+      "command": [
+        "C:\\Development\\gem16gb\\artifacts\\raw\\chat-penalties-20260930-parent\\gem16-server-parent.exe",
+        "--model",
+        "C:\\Users\\User\\.cache\\huggingface\\hub\\.gem16\\snapshots\\danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--vision-model",
+        "C:\\Users\\User\\.cache\\huggingface\\hub\\.gem16\\snapshots\\danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--vision",
+        "--assistant-model",
+        "C:\\Users\\User\\.cache\\huggingface\\hub\\.gem16\\snapshots\\danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "57912",
+        "--model-name",
+        "gem16",
+        "--max-context",
+        "4096",
+        "--max-sessions",
+        "1",
+        "--seed",
+        "42"
+      ],
+      "samples": [
+        {
+          "warmup": true,
+          "seconds": 0.7072701999995843,
+          "response": {
+            "id": "chatcmpl-gem16-765b135d1d781881a2d16a0136cba464",
+            "object": "chat.completion",
+            "created": 1790799635,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_ec343ea01804ea4bef8361e0e8941da4",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_809418034d7e0a9fbe8a7e7e4a81761c",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": true,
+          "seconds": 0.5619649000000209,
+          "response": {
+            "id": "chatcmpl-gem16-b23e967f96e580de78f16461b3a0c8ee",
+            "object": "chat.completion",
+            "created": 1790799636,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_a38446d79ef17b6c885aa80ec30f06cf",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_bcc14391ae0d3fafca6e23a277ac6f4b",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": true,
+          "seconds": 0.5549171000002389,
+          "response": {
+            "id": "chatcmpl-gem16-e81b9ea6d4ed0d855da616c3500c7215",
+            "object": "chat.completion",
+            "created": 1790799637,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_fed9bfd904914f85da84b5ce1ffd4a63",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_e5b683b32e9c483fb55c85f9f6a9553e",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5682238999997935,
+          "response": {
+            "id": "chatcmpl-gem16-885c13fc432e35092f68d30c59409a74",
+            "object": "chat.completion",
+            "created": 1790799637,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_3a7321f7e53860742f1505ba1d19296d",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_dedca63c7b354ce5a09b5bdc48d5d1d4",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5574224000001777,
+          "response": {
+            "id": "chatcmpl-gem16-078e390059a0d2bd2386f51ba8a87aaa",
+            "object": "chat.completion",
+            "created": 1790799638,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_cdfff97c8d62e16c9acc617512a43d07",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_e00d79a06fc3dc6a3cde305f65d31ae5",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5682925000000978,
+          "response": {
+            "id": "chatcmpl-gem16-2c1624da0478e341c70f9ca9c4b50375",
+            "object": "chat.completion",
+            "created": 1790799638,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_10efad7d676396f1efd0f14f078b9f4d",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_d9fa36931f687f8773821fa3cfbe1ac0",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5561171999997896,
+          "response": {
+            "id": "chatcmpl-gem16-29b20edd5916a8edb410b1d33cbb6763",
+            "object": "chat.completion",
+            "created": 1790799639,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_3a42a3baa96178f0557e5ce213332fe5",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_f863d073a63e376973d5a8110352d56d",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5574083999999857,
+          "response": {
+            "id": "chatcmpl-gem16-5ccf3770f5e760871649f7a5a52981fc",
+            "object": "chat.completion",
+            "created": 1790799640,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_32b68ff7aa6da9682ecaa92ab443ade5",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_c5e1fabc127c3941a928fc56867fb502",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5445687000001271,
+          "response": {
+            "id": "chatcmpl-gem16-a8453132a898f6470372973775f98609",
+            "object": "chat.completion",
+            "created": 1790799640,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_3c97f0709e17910816f2f0d0c3b3f11b",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_4048e60af8926f37627e7873d17bef4f",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5627077000008285,
+          "response": {
+            "id": "chatcmpl-gem16-be192ac142d7bac0ac11024cf5b36e30",
+            "object": "chat.completion",
+            "created": 1790799641,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_2f9d347e616e0b72bbce49380dd9f771",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_c7c7d6426ef8ad201882881987642250",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5720498000000589,
+          "response": {
+            "id": "chatcmpl-gem16-c55c94230dc1ad67811d70b410546610",
+            "object": "chat.completion",
+            "created": 1790799641,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_650e4610ce1384ca4ebcb8ff443787f7",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_2484173af1a393d95195953b2d9b4e7e",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5445014999995692,
+          "response": {
+            "id": "chatcmpl-gem16-77cf71c437f7b562376d4b8b8031763f",
+            "object": "chat.completion",
+            "created": 1790799642,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_1d2aaecbe21b267b150a3d743fe2fb07",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_d3cde4e51654f3ac7c8aa0cc06de0407",
+            "Content-Length": "844"
+          }
+        },
+        {
+          "warmup": false,
+          "seconds": 0.5652199000005567,
+          "response": {
+            "id": "chatcmpl-gem16-6c6b3602961d0fddcba7427fa22f25f2",
+            "object": "chat.completion",
+            "created": 1790799642,
+            "model": "gem16",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The process of rain formation is a complex and continuous cycle driven by the movement of energy and the fundamental laws of thermodynamics. To understand how a single raindrop comes to fall from a cloud, one must look at the interconnected systems of the Earth\u2019s atmosphere, beginning with the sun and ending with the gravitational pull acting on liquid water. This journey is a transformation of states\u2014from liquid to gas, and back to liquid\u2014driven by the continuous exchange of moisture and heat between the"
+                },
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 36,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens": 96,
+              "total_tokens": 132
+            }
+          },
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Request-Id": "req_gem16_39e61b3b9cf673fbe93a27c335b5639a",
+            "Connection": "close",
+            "X-Gem16-Session-Id": "session_2c8bd2962a036b03a7367f2604dfa1f9",
+            "Content-Length": "844"
+          }
+        }
+      ],
+      "gpu_observations": [
+        {
+          "monotonic": 6732.703,
+          "memory_power_clock_temperature": "0, 113.56, 675, 58"
+        },
+        {
+          "monotonic": 6734.468,
+          "memory_power_clock_temperature": "6, 23.00, 2422, 55"
+        },
+        {
+          "monotonic": 6734.796,
+          "memory_power_clock_temperature": "10476, 25.17, 1492, 55"
+        },
+        {
+          "monotonic": 6735.125,
+          "memory_power_clock_temperature": "11812, 25.17, 1492, 55"
+        },
+        {
+          "monotonic": 6735.468,
+          "memory_power_clock_temperature": "11812, 26.56, 1447, 55"
+        },
+        {
+          "monotonic": 6735.796,
+          "memory_power_clock_temperature": "11812, 25.88, 1447, 55"
+        },
+        {
+          "monotonic": 6736.125,
+          "memory_power_clock_temperature": "11812, 25.88, 1447, 55"
+        },
+        {
+          "monotonic": 6736.468,
+          "memory_power_clock_temperature": "11812, 23.87, 1447, 55"
+        },
+        {
+          "monotonic": 6736.796,
+          "memory_power_clock_temperature": "11812, 22.82, 1485, 55"
+        },
+        {
+          "monotonic": 6737.125,
+          "memory_power_clock_temperature": "11812, 22.82, 1485, 55"
+        },
+        {
+          "monotonic": 6737.468,
+          "memory_power_clock_temperature": "11812, 21.28, 1485, 55"
+        },
+        {
+          "monotonic": 6737.796,
+          "memory_power_clock_temperature": "11812, 20.25, 1485, 55"
+        },
+        {
+          "monotonic": 6738.14,
+          "memory_power_clock_temperature": "11812, 20.25, 1485, 55"
+        },
+        {
+          "monotonic": 6738.468,
+          "memory_power_clock_temperature": "11812, 20.26, 1485, 54"
+        },
+        {
+          "monotonic": 6738.812,
+          "memory_power_clock_temperature": "11812, 20.28, 1485, 54"
+        },
+        {
+          "monotonic": 6739.14,
+          "memory_power_clock_temperature": "11812, 20.28, 1485, 54"
+        },
+        {
+          "monotonic": 6739.468,
+          "memory_power_clock_temperature": "11812, 20.27, 1485, 54"
+        },
+        {
+          "monotonic": 6739.796,
+          "memory_power_clock_temperature": "11812, 20.27, 1485, 54"
+        },
+        {
+          "monotonic": 6740.14,
+          "memory_power_clock_temperature": "11812, 20.27, 1485, 54"
+        },
+        {
+          "monotonic": 6740.468,
+          "memory_power_clock_temperature": "11812, 20.27, 1485, 54"
+        },
+        {
+          "monotonic": 6740.796,
+          "memory_power_clock_temperature": "11812, 20.27, 1485, 54"
+        },
+        {
+          "monotonic": 6741.14,
+          "memory_power_clock_temperature": "11812, 20.27, 1485, 54"
+        },
+        {
+          "monotonic": 6741.468,
+          "memory_power_clock_temperature": "11812, 20.26, 1485, 54"
+        },
+        {
+          "monotonic": 6741.812,
+          "memory_power_clock_temperature": "11812, 20.21, 1485, 54"
+        },
+        {
+          "monotonic": 6742.14,
+          "memory_power_clock_temperature": "11812, 20.21, 1485, 54"
+        },
+        {
+          "monotonic": 6742.484,
+          "memory_power_clock_temperature": "11812, 20.19, 1485, 54"
+        },
+        {
+          "monotonic": 6742.828,
+          "memory_power_clock_temperature": "11812, 20.19, 1485, 54"
+        },
+        {
+          "monotonic": 6743.375,
+          "memory_power_clock_temperature": "11812, 20.17, 1485, 54"
+        },
+        {
+          "monotonic": 6744.531,
+          "memory_power_clock_temperature": "11812, 20.15, 1485, 54"
+        },
+        {
+          "monotonic": 6744.859,
+          "memory_power_clock_temperature": "11812, 20.15, 1485, 54"
+        },
+        {
+          "monotonic": 6745.203,
+          "memory_power_clock_temperature": "11812, 18.45, 435, 53"
+        },
+        {
+          "monotonic": 6745.531,
+          "memory_power_clock_temperature": "11812, 18.45, 435, 53"
+        },
+        {
+          "monotonic": 6745.875,
+          "memory_power_clock_temperature": "11812, 15.51, 330, 53"
+        },
+        {
+          "monotonic": 6746.203,
+          "memory_power_clock_temperature": "11812, 13.10, 330, 53"
+        },
+        {
+          "monotonic": 6746.531,
+          "memory_power_clock_temperature": "11812, 13.10, 330, 53"
+        },
+        {
+          "monotonic": 6746.875,
+          "memory_power_clock_temperature": "11812, 12.57, 330, 53"
+        },
+        {
+          "monotonic": 6747.218,
+          "memory_power_clock_temperature": "11812, 12.21, 330, 53"
+        },
+        {
+          "monotonic": 6747.546,
+          "memory_power_clock_temperature": "11812, 12.21, 330, 53"
+        },
+        {
+          "monotonic": 6747.89,
+          "memory_power_clock_temperature": "11812, 10.43, 330, 53"
+        },
+        {
+          "monotonic": 6748.218,
+          "memory_power_clock_temperature": "11812, 7.68, 330, 53"
+        },
+        {
+          "monotonic": 6748.562,
+          "memory_power_clock_temperature": "11812, 7.68, 330, 53"
+        },
+        {
+          "monotonic": 6748.89,
+          "memory_power_clock_temperature": "11812, 6.87, 330, 53"
+        },
+        {
+          "monotonic": 6749.25,
+          "memory_power_clock_temperature": "11812, 7.00, 330, 53"
+        },
+        {
+          "monotonic": 6749.578,
+          "memory_power_clock_temperature": "11812, 7.00, 330, 53"
+        },
+        {
+          "monotonic": 6749.906,
+          "memory_power_clock_temperature": "11812, 7.00, 330, 53"
+        },
+        {
+          "monotonic": 6750.25,
+          "memory_power_clock_temperature": "11812, 4.86, 330, 52"
+        },
+        {
+          "monotonic": 6750.578,
+          "memory_power_clock_temperature": "11812, 4.86, 330, 52"
+        },
+        {
+          "monotonic": 6750.906,
+          "memory_power_clock_temperature": "11812, 4.86, 330, 52"
+        },
+        {
+          "monotonic": 6751.25,
+          "memory_power_clock_temperature": "11812, 5.14, 330, 52"
+        },
+        {
+          "monotonic": 6751.578,
+          "memory_power_clock_temperature": "11812, 5.14, 330, 52"
+        },
+        {
+          "monotonic": 6751.906,
+          "memory_power_clock_temperature": "11812, 5.14, 330, 52"
+        },
+        {
+          "monotonic": 6752.25,
+          "memory_power_clock_temperature": "12382, 5.12, 330, 52"
+        },
+        {
+          "monotonic": 6752.578,
+          "memory_power_clock_temperature": "12382, 5.12, 330, 52"
+        },
+        {
+          "monotonic": 6752.906,
+          "memory_power_clock_temperature": "12382, 5.55, 330, 52"
+        },
+        {
+          "monotonic": 6753.25,
+          "memory_power_clock_temperature": "12382, 6.66, 322, 52"
+        },
+        {
+          "monotonic": 6753.578,
+          "memory_power_clock_temperature": "12382, 6.66, 322, 52"
+        },
+        {
+          "monotonic": 6753.906,
+          "memory_power_clock_temperature": "12382, 6.66, 330, 52"
+        },
+        {
+          "monotonic": 6754.25,
+          "memory_power_clock_temperature": "12382, 6.64, 330, 52"
+        },
+        {
+          "monotonic": 6754.578,
+          "memory_power_clock_temperature": "12382, 6.64, 330, 52"
+        },
+        {
+          "monotonic": 6754.906,
+          "memory_power_clock_temperature": "12382, 6.65, 330, 52"
+        },
+        {
+          "monotonic": 6755.234,
+          "memory_power_clock_temperature": "12382, 6.63, 330, 52"
+        },
+        {
+          "monotonic": 6755.578,
+          "memory_power_clock_temperature": "12382, 6.63, 330, 52"
+        },
+        {
+          "monotonic": 6755.906,
+          "memory_power_clock_temperature": "12382, 6.61, 330, 52"
+        },
+        {
+          "monotonic": 6756.234,
+          "memory_power_clock_temperature": "12382, 6.62, 330, 52"
+        },
+        {
+          "monotonic": 6756.578,
+          "memory_power_clock_temperature": "12956, 6.62, 330, 52"
+        },
+        {
+          "monotonic": 6756.906,
+          "memory_power_clock_temperature": "12956, 8.74, 375, 52"
+        },
+        {
+          "monotonic": 6757.234,
+          "memory_power_clock_temperature": "12956, 8.61, 360, 51"
+        },
+        {
+          "monotonic": 6757.578,
+          "memory_power_clock_temperature": "12956, 8.61, 360, 51"
+        },
+        {
+          "monotonic": 6757.906,
+          "memory_power_clock_temperature": "12956, 8.56, 360, 51"
+        },
+        {
+          "monotonic": 6758.234,
+          "memory_power_clock_temperature": "12956, 8.56, 360, 51"
+        },
+        {
+          "monotonic": 6758.578,
+          "memory_power_clock_temperature": "12956, 8.56, 360, 51"
+        },
+        {
+          "monotonic": 6758.906,
+          "memory_power_clock_temperature": "12956, 4.82, 337, 51"
+        },
+        {
+          "monotonic": 6759.234,
+          "memory_power_clock_temperature": "12956, 4.82, 337, 51"
+        },
+        {
+          "monotonic": 6759.578,
+          "memory_power_clock_temperature": "12956, 4.82, 337, 51"
+        },
+        {
+          "monotonic": 6759.906,
+          "memory_power_clock_temperature": "12956, 4.70, 330, 51"
+        },
+        {
+          "monotonic": 6760.234,
+          "memory_power_clock_temperature": "13204, 4.70, 330, 51"
+        },
+        {
+          "monotonic": 6760.578,
+          "memory_power_clock_temperature": "13222, 4.70, 330, 51"
+        },
+        {
+          "monotonic": 6760.921,
+          "memory_power_clock_temperature": "13224, 7.57, 907, 51"
+        },
+        {
+          "monotonic": 6761.25,
+          "memory_power_clock_temperature": "13224, 27.13, 2842, 59"
+        },
+        {
+          "monotonic": 6761.578,
+          "memory_power_clock_temperature": "13224, 27.13, 2842, 59"
+        },
+        {
+          "monotonic": 6761.921,
+          "memory_power_clock_temperature": "13224, 105.28, 2565, 61"
+        },
+        {
+          "monotonic": 6762.25,
+          "memory_power_clock_temperature": "13224, 153.88, 2610, 62"
+        },
+        {
+          "monotonic": 6762.578,
+          "memory_power_clock_temperature": "13224, 153.88, 2610, 62"
+        },
+        {
+          "monotonic": 6762.906,
+          "memory_power_clock_temperature": "13224, 153.84, 2715, 63"
+        },
+        {
+          "monotonic": 6763.25,
+          "memory_power_clock_temperature": "13224, 154.16, 2707, 63"
+        },
+        {
+          "monotonic": 6763.593,
+          "memory_power_clock_temperature": "13224, 154.16, 2707, 63"
+        },
+        {
+          "monotonic": 6763.921,
+          "memory_power_clock_temperature": "13224, 157.12, 2707, 63"
+        },
+        {
+          "monotonic": 6764.265,
+          "memory_power_clock_temperature": "13224, 153.83, 2707, 63"
+        },
+        {
+          "monotonic": 6764.593,
+          "memory_power_clock_temperature": "13224, 153.83, 2707, 63"
+        },
+        {
+          "monotonic": 6764.921,
+          "memory_power_clock_temperature": "13224, 153.84, 2730, 64"
+        },
+        {
+          "monotonic": 6765.265,
+          "memory_power_clock_temperature": "13224, 155.17, 2602, 64"
+        },
+        {
+          "monotonic": 6765.609,
+          "memory_power_clock_temperature": "13224, 155.17, 2602, 64"
+        },
+        {
+          "monotonic": 6765.937,
+          "memory_power_clock_temperature": "13224, 157.28, 2730, 64"
+        },
+        {
+          "monotonic": 6766.265,
+          "memory_power_clock_temperature": "13224, 157.02, 2572, 64"
+        },
+        {
+          "monotonic": 6766.609,
+          "memory_power_clock_temperature": "13224, 157.02, 2572, 64"
+        },
+        {
+          "monotonic": 6766.937,
+          "memory_power_clock_temperature": "13224, 152.36, 2437, 64"
+        },
+        {
+          "monotonic": 6767.265,
+          "memory_power_clock_temperature": "13224, 154.69, 2707, 63"
+        },
+        {
+          "monotonic": 6767.625,
+          "memory_power_clock_temperature": "13224, 154.69, 2707, 63"
+        },
+        {
+          "monotonic": 6767.953,
+          "memory_power_clock_temperature": "13224, 157.99, 2707, 65"
+        },
+        {
+          "monotonic": 6768.296,
+          "memory_power_clock_temperature": "13224, 157.45, 2707, 65"
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 0,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 4096,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 258313728,
+        "assistant_workspace_bytes": 2330896,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 455667360,
+        "execution_slot_bytes": 602468000,
+        "admission_free_bytes": 2114977792,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 1380974592,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": true
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "memory_after_requests": "13224 MiB",
+      "final_health": {
+        "status": "ok",
+        "version": "0.2.0-dev",
+        "request_queue_depth": 0,
+        "request_queue_active": 0,
+        "resident_sessions": 1,
+        "pending_session_creations": 0,
+        "session_limit": 1,
+        "max_context_tokens": 4096,
+        "default_context": 32768,
+        "default_context_tokens": 32768,
+        "qualified_64k": null,
+        "base_max_context": null,
+        "mtp_max_context": 4096,
+        "model_variant": "gemma4_moe_26b_a4b",
+        "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+        "decode_mode": "fixed-d2",
+        "text_artifact_profile": "gem16-trellis35-w4a8-v1",
+        "vision_artifact_profile": "gemma4_26b_trellis35_vision_fp8",
+        "experimental": false,
+        "qualification_state": "production_qualified",
+        "native_path": "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv",
+        "weight_profile": "gem16-trellis35-w4a8-v1",
+        "head_format": "nvfp4_non_routed_trellis35_w4a8_experts",
+        "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+        "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+        "compiler_commit": "trellis35_layer_manifests",
+        "resident_weight_bytes": 12204692480,
+        "assistant_weight_bytes": 258313728,
+        "assistant_workspace_bytes": 2330896,
+        "vision_module_loaded": true,
+        "vision_weight_bytes": 597313024,
+        "vision_workspace_bytes": 120356480,
+        "maximum_images": 4294967295,
+        "vision_soft_token_budgets": [
+          70,
+          140,
+          280
+        ],
+        "vision_max_soft_token_budget": 280,
+        "last_vision_soft_token_budget": null,
+        "vision_max_context_tokens": 229376,
+        "kv_cache_bytes": 146800640,
+        "workspace_bytes": 455667360,
+        "execution_slot_bytes": 602468000,
+        "admission_free_bytes": 2114977792,
+        "required_admission_margin_bytes": 734003200,
+        "admission_headroom_bytes": 1380974592,
+        "text_only": false,
+        "capabilities": {
+          "text": true,
+          "audio": false,
+          "vision": true,
+          "mtp": true,
+          "vision_mtp": true
+        },
+        "mtp_draft_tokens": 2,
+        "mtp_adaptive": false,
+        "sampling": {
+          "enabled": true,
+          "temperature": 1.0,
+          "top_k": 64,
+          "top_p": 0.95,
+          "min_p": 0.0,
+          "repetition_penalty": 1.0,
+          "seed": 42
+        }
+      },
+      "sampled_peak_gpu_memory_mib": 13224.0
+    }
+  ]
+}

@@ -332,7 +332,8 @@ class ConversationSession {
       std::span<const VisionEmbeddingSegment> vision_segments = {},
       std::span<const Gemma4Moe26BVisionInputSegment>
           moe26b_vision_segments = {},
-      GenerationCancellation cancellation = {});
+      GenerationCancellation cancellation = {},
+      const SamplingPenalties& penalties = {});
   [[nodiscard]] Status Reset();
   [[nodiscard]] std::uint64_t cached_token_count() const;
   [[nodiscard]] std::uint64_t reserved_device_bytes() const;

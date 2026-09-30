@@ -1,0 +1,27 @@
+CUTLASS NVFP4 Gate/Up projection exact BF16 mismatches: 0/262144
+CUTLASS NVFP4 Gate/Up projection: max_abs=0 rms=0 cosine=1
+CUTLASS NVFP4 real Up gated tail projection exact BF16 mismatches: 0/3932160
+CUTLASS NVFP4 real Up gated tail projection: max_abs=0 rms=0 cosine=1
+CUTLASS NVFP4 Down projection exact BF16 mismatches: 0/491520
+CUTLASS NVFP4 Down projection: max_abs=0 rms=0 cosine=1
+SM120 FP8 split-K2 2816x4096: exact_mismatches=2740/2816 bf16_mismatches=3/2816 max_abs=1.5 relative_l2=1.4981e-06 cosine_delta=5.85865e-13
+SM120 FP8 split-K2 fallback 2817x4096: exact_mismatches=0/2817
+SM120 FP8 split-K2 2816x8192: exact_mismatches=2774/2816 bf16_mismatches=11/2816 max_abs=3 relative_l2=2.91704e-06 cosine_delta=1.95677e-12
+SM120 FP8 split-K2 fallback 2817x8192: exact_mismatches=0/2817
+SM120 FP8 split-K2 fixed-T3 2816x4096: exact_mismatches=0/8448 repeat_mismatches=0/8448
+SM120 FP8 split-K2 fixed-T3 2816x8192: exact_mismatches=0/8448 repeat_mismatches=0/8448
+SM120 FP8 compact local QKV: q_mismatches=0/4096 k_mismatches=0/2048 v_mismatches=0/2048
+SM120 FP8 compact local QKV fallback: q_mismatches=0/4097 k_mismatches=0/2048 v_mismatches=0/2048
+CUTLASS FP8 128x4096x3840 exact mismatches: 0/524288
+CUTLASS FP8 128x4096x3840: max_abs=0 rms=0 cosine=1
+online local FP8 decode: max_abs=4.70318e-08 rms=9.97449e-09 cosine=1
+online global FP8 decode: max_abs=1.53668e-07 rms=3.8291e-08 cosine=1
+long online global FP8 decode: max_abs=1.04308e-07 rms=2.19933e-08 cosine=1
+vectorized 64K global FP8 decode: max_abs=3.98606e-07 rms=6.24295e-08 cosine=1
+global D2 KVH2 fixed exact mismatches=0/24576 bf16 mismatches=0 max_abs=0
+online local FP8 prefill initial causal window: max_abs=0.0023486 rms=0.000304654 cosine=0.999998
+online local FP8 prefill wrapped 1024-token window: max_abs=0.000875607 rms=0.000235319 cosine=0.999992
+online global KVH1 FP8 prefill: max_abs=0.000812948 rms=0.000151991 cosine=0.999996
+prepared global KVH2 exact BF16 mismatches=0/262144
+online global KVH2 FP8 prefill: max_abs=0.000724867 rms=0.000148402 cosine=0.999995
+all CUDA tests passed

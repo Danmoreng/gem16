@@ -11,6 +11,12 @@
         return CudaFailure("clear repetition mask", error);
       }
     }
+    if (sampling_.enabled) {
+      error = cudaMemsetAsync(
+          Pointer<std::uint32_t>(workspace_, offsets_.sampling_output_counts),
+          0, kVocabulary * sizeof(std::uint32_t), stream_);
+      if (error != cudaSuccess) return CudaFailure("clear output counts", error);
+    }
     sampling_step_ = 0U;
     error = cudaStreamSynchronize(stream_);
     return error == cudaSuccess ? Status::Ok() : CudaFailure("reset KV cache", error);
@@ -22,6 +28,63 @@
     if (!status.ok()) return status;
     sampling_ = options;
     sampling_step_ = 0U;
+    return Status::Ok();
+  }
+
+  [[nodiscard]] Status ReplaceSamplingOutput(std::uint32_t sampled, std::uint32_t emitted) {
+    if (!sampling_.penalties.active()) return Status::Ok();
+    return internal::LaunchReplaceSamplingOutput(
+        sampled, emitted,
+        Pointer<std::uint32_t>(workspace_, offsets_.sampling_output_counts),
+        static_cast<std::uint32_t>(kVocabulary), stream_);
+  }
+
+  [[nodiscard]] Status BeginSamplingRequest(const SamplingPenalties& penalties) {
+    Status status = ValidateSamplingPenalties(penalties);
+    if (!status.ok()) return status;
+    if (penalties.active() && !sampling_.enabled) {
+      return Error(StatusCode::kUnsupported, "active penalties require sampling");
+    }
+    if (sampling_.penalties != penalties) {
+      cudaError_t error = cudaStreamSynchronize(stream_);
+      if (error != cudaSuccess) return CudaFailure("sync sampling change", error);
+      std::size_t free_before = 0U, total_bytes = 0U;
+      error = cudaMemGetInfo(&free_before, &total_bytes);
+      if (error != cudaSuccess) return CudaFailure("measure sampling change", error);
+      const bool recapture_d2 = mtp_d2_graph_.get() != nullptr;
+      sampling_.penalties = penalties;
+      // Only these executables capture sampling scalars. Layer graphs, KV,
+      // committed Target hidden state, and RNG position are preserved.
+      mtp_d2_graph_.Reset();
+      mtp_d2_chain_graph_.Reset();
+      full_decode_graph_.Reset();
+      status = CaptureDecodeGraph(
+          full_decode_graph_, [this]() { return LaunchFullDecodeGraphBody(); },
+          "recapture sampling decode graph");
+      if (!status.ok()) return status;
+      // Replace the old graph-memory contribution before D2 preparation adds
+      // the newly measured group/chain contribution.
+      std::size_t free_after = 0U;
+      error = cudaMemGetInfo(&free_after, &total_bytes);
+      if (error != cudaSuccess) return CudaFailure("measure new sampling graph", error);
+      if (free_after > free_before) {
+        const std::size_t released = free_after - free_before;
+        decode_graph_device_bytes_ = released < decode_graph_device_bytes_
+                                         ? decode_graph_device_bytes_ - released : 0U;
+      } else {
+        decode_graph_device_bytes_ += free_before - free_after;
+      }
+      if (recapture_d2) {
+        status = PrepareFixedD2Graph();
+        if (!status.ok()) return status;
+      }
+    }
+    if (penalties.active()) {
+      const cudaError_t error = cudaMemsetAsync(
+          Pointer<std::uint32_t>(workspace_, offsets_.sampling_output_counts),
+          0, kVocabulary * sizeof(std::uint32_t), stream_);
+      if (error != cudaSuccess) return CudaFailure("reset output counts", error);
+    }
     return Status::Ok();
   }
 
@@ -74,7 +137,9 @@
   [[nodiscard]] Status SelectSampledTokenWithState(
       float* logits, std::uint32_t* selected,
       std::uint32_t* repetition_mask, std::uint64_t step,
-      const internal::DecodeControl* control = nullptr) {
+      const internal::DecodeControl* control = nullptr,
+      const std::uint32_t* prefix = nullptr, std::uint32_t prefix_count = 0U,
+      bool commit_selected = true) {
     return internal::LaunchSampleToken(
         logits, Pointer<float>(workspace_, offsets_.sampling_logits),
         Pointer<double>(workspace_, offsets_.sampling_cumulative),
@@ -85,16 +150,20 @@
         suppressed_token_count_, static_cast<std::uint32_t>(kVocabulary),
         sampling_, step, control, selected,
         Pointer<std::uint8_t>(workspace_, offsets_.sampling_sort_workspace),
-        sampling_sort_workspace_bytes_, stream_);
+        sampling_sort_workspace_bytes_, stream_,
+        {Pointer<std::uint32_t>(workspace_, offsets_.sampling_output_counts),
+         prefix, prefix_count, commit_selected});
   }
 
   [[nodiscard]] Status SelectSampledToken(
       float* logits, std::uint32_t* selected,
-      const internal::DecodeControl* control = nullptr) {
+      const internal::DecodeControl* control = nullptr,
+      bool commit_selected = true) {
     return SelectSampledTokenWithState(
         logits, selected,
         Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
-        control == nullptr ? sampling_step_++ : 0U, control);
+        control == nullptr ? sampling_step_++ : 0U, control,
+        nullptr, 0U, commit_selected);
   }
 
   [[nodiscard]] Status AllocateCache() {
@@ -185,6 +254,7 @@
       GEM16_ADD(sampling_sort_workspace, std::uint8_t,
                 sampling_sort_workspace_bytes_);
       GEM16_ADD(repetition_mask, std::uint32_t, kRepetitionMaskWords);
+      GEM16_ADD(sampling_output_counts, std::uint32_t, kVocabulary);
     }
     GEM16_ADD(output_candidates, ArgmaxValue, kFusedOutputHeadBlocks);
     GEM16_ADD(selected, std::uint32_t, 1U);

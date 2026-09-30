@@ -86,6 +86,11 @@ installs the matching package as well. It does not launch a Pi server.
 
 ## Compatibility limits to account for
 
+- Chat Completions implements native frequency/presence penalties in `[-2, 2]`
+  for the current response. Active values require sampling; `--greedy`, null,
+  non-numeric, out-of-range and FP32-underflow values fail. Other per-request sampling
+  controls remain unsupported. This adapter behavior does not add live client
+  qualification to the retained matrix above.
 - Python 2.50.0's `responses.stream().get_final_response()` only accumulates
   `response.completed`. For an output limit, consume the typed `response.incomplete`
   event's `response` instead. The server must not mislabel an incomplete response

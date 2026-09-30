@@ -12,6 +12,24 @@ namespace gem16::internal {
 
 struct DecodeControl;
 
+// Current response only. Speculative rows read base counts plus the proposed
+// output prefix; they never commit a draft. All storage is preallocated.
+struct SamplingOutputHistory {
+  std::uint32_t* counts = nullptr;
+  const std::uint32_t* prefix = nullptr;
+  std::uint32_t prefix_count = 0U;
+  bool commit_selected = true;
+};
+
+[[nodiscard]] Status LaunchCommitSamplingOutputs(
+    const std::uint32_t* tokens, const std::uint32_t* device_count,
+    std::uint32_t maximum_count, std::uint32_t* counts,
+    std::uint32_t vocabulary, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchReplaceSamplingOutput(
+    std::uint32_t sampled, std::uint32_t emitted, std::uint32_t* counts,
+    std::uint32_t vocabulary, cudaStream_t stream);
+
 [[nodiscard]] Result<std::size_t> SamplingWorkspaceBytes(
     std::uint32_t vocabulary, cudaStream_t stream);
 
@@ -47,7 +65,7 @@ struct DecodeControl;
     std::uint32_t vocabulary, const SamplingOptions& options,
     std::uint64_t step, const DecodeControl* control, std::uint32_t* selected,
     void* algorithm_workspace, std::size_t algorithm_workspace_bytes,
-    cudaStream_t stream);
+    cudaStream_t stream, SamplingOutputHistory history = {});
 
 // Variant with a separate radix-sort output, used when source_logits belongs
 // to a verifier batch that must remain intact for commit/diagnostics.
@@ -59,7 +77,7 @@ struct DecodeControl;
     std::uint32_t vocabulary, const SamplingOptions& options,
     std::uint64_t step, const DecodeControl* control, std::uint32_t* selected,
     void* algorithm_workspace, std::size_t algorithm_workspace_bytes,
-    cudaStream_t stream);
+    cudaStream_t stream, SamplingOutputHistory history = {});
 
 // Sample directly from a verifier-logit row while applying the model softcap
 // in place and recording the same finite-state diagnostic as the ordinary
@@ -74,6 +92,6 @@ struct DecodeControl;
     const SamplingOptions& options, std::uint64_t step,
     const DecodeControl* control, std::uint32_t* selected,
     void* algorithm_workspace, std::size_t algorithm_workspace_bytes,
-    cudaStream_t stream);
+    cudaStream_t stream, SamplingOutputHistory history = {});
 
 }  // namespace gem16::internal

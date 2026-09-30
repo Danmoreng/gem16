@@ -297,6 +297,7 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   const auto sampling_token_ids = layout.Add<std::uint32_t>(kVocabulary);
   const auto sampling_sorted_token_ids =
       layout.Add<std::uint32_t>(kVocabulary);
+  const auto sampling_output_counts = layout.Add<std::uint32_t>(kVocabulary);
   const auto repetition_mask =
       layout.Add<std::uint32_t>(kRepetitionMaskWords);
   const auto suppressed_token_ids =
@@ -409,6 +410,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
       reinterpret_cast<std::uint32_t*>(ptr(sampling_token_ids));
   impl->sampling_sorted_token_ids =
       reinterpret_cast<std::uint32_t*>(ptr(sampling_sorted_token_ids));
+  impl->sampling_output_counts =
+      reinterpret_cast<std::uint32_t*>(ptr(sampling_output_counts));
   impl->repetition_mask =
       reinterpret_cast<std::uint32_t*>(ptr(repetition_mask));
   impl->suppressed_token_ids =

@@ -1,0 +1,30 @@
+{
+  "parent": {
+    "SampleCumulativeProbabilitiesKernel": {
+      "instructions": 176,
+      "sha256": "ae39991b738f6bf532899adb18e3fffedccc924cc6934c80bc71c518b7159ff5"
+    },
+    "PrepareSamplingProbabilitiesKernel": {
+      "instructions": 48,
+      "sha256": "f4e90c4b0d14ff3c72d9b15e0233ea7232afeca5cd8a8fe26cedc606f4624e6e"
+    },
+    "PrepareSamplingLogitsKernel": {
+      "instructions": 136,
+      "sha256": "a3bc51cd53882311cb214fb54e2b170e39e9486717137643fd5ea0c69d20a7da"
+    }
+  },
+  "candidate": {
+    "SampleCumulativeProbabilitiesKernel": {
+      "instructions": 176,
+      "sha256": "ae39991b738f6bf532899adb18e3fffedccc924cc6934c80bc71c518b7159ff5"
+    },
+    "PrepareSamplingProbabilitiesKernel": {
+      "instructions": 48,
+      "sha256": "f4e90c4b0d14ff3c72d9b15e0233ea7232afeca5cd8a8fe26cedc606f4624e6e"
+    },
+    "PrepareSamplingLogitsKernel": {
+      "instructions": 136,
+      "sha256": "a3bc51cd53882311cb214fb54e2b170e39e9486717137643fd5ea0c69d20a7da"
+    }
+  }
+}

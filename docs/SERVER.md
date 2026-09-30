@@ -179,8 +179,24 @@ Supported request fields are `model`, `messages`, `max_completion_tokens`
 (`max_tokens` alias), `stream`, `stream_options.include_usage`,
 `reasoning_effort` (`none`, `low`, `medium`, `high`), `tools`, `tool_choice`,
 `parallel_tool_calls`, `n=1`, and the Compact Vision extension
-`vision_soft_token_budget` (70, 140 or 280, bounded by the startup maximum). Every other top-level or nested protocol field
-is rejected rather than silently ignored; this includes per-request sampling,
+`vision_soft_token_budget` (70, 140 or 280, bounded by the startup maximum).
+Chat Completions implements `frequency_penalty` and `presence_penalty` in
+`[-2, 2]`, defaulting to zero. Frequency subtracts its coefficient times each
+token's emitted count; presence subtracts its coefficient once for a seen token.
+Counts cover the current response's Target tokens, including reasoning/control
+tokens, and exclude prompts, earlier responses and rejected Assistant drafts.
+Penalties apply before temperature and sampling filters. Non-zero values require
+sampling; `--greedy` rejects them with HTTP 400 before generation or SSE success.
+Null, non-numeric, out-of-range and non-zero FP32-underflow values are invalid.
+
+A resident turn may change these two coefficients without losing KV or resetting
+RNG progress. Changed coefficients rebuild affected sampling CUDA graphs before
+inference; unchanged coefficients reuse them. The zero path retains the previous
+GPU kernels and graph topology. Counters reserve 1 MiB per slot; active penalties
+add count work. All other sampling controls remain startup/session settings.
+
+Every other top-level or nested protocol field
+is rejected rather than silently ignored; this includes other per-request sampling,
 stop, response-format, logprob, metadata, and unsupported media/tool options.
 
 Message content accepts strings and ordered arrays containing:

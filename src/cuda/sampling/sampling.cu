@@ -110,6 +110,64 @@ __global__ void PrepareSamplingLogitsKernel(
   token_ids[token] = token;
 }
 
+__global__ void PreparePenaltySamplingLogitsKernel(
+    float* logits, float* adjusted, std::uint32_t* token_ids,
+    const std::uint32_t* repetition_mask, float repetition_penalty,
+    float inverse_temperature, const std::uint32_t* suppressed,
+    std::uint32_t suppressed_count, const DecodeControl* control,
+    std::uint32_t vocabulary, float softcap, int* all_finite, const std::uint32_t* counts,
+    const std::uint32_t* prefix, std::uint32_t prefix_count,
+    float frequency, float presence) {
+  const std::uint32_t token = blockIdx.x * blockDim.x + threadIdx.x;
+  if (token >= vocabulary) return;
+  float value = logits[token];
+  if (softcap > 0.0F) {
+    value = tanhf(value / softcap) * softcap;
+    logits[token] = value;
+    if (!isfinite(value)) atomicExch(all_finite, 0);
+  }
+  const bool repeated =
+      (repetition_mask[token / 32U] & (1U << (token % 32U))) != 0U;
+  if (repetition_penalty != 1.0F && repeated) {
+    value = value < 0.0F ? value * repetition_penalty
+                         : value / repetition_penalty;
+  }
+  std::uint32_t count = counts[token];
+  for (std::uint32_t i = 0U; i < prefix_count; ++i) {
+    count += prefix[i] == token ? 1U : 0U;
+  }
+  value -= frequency * static_cast<float>(count) +
+           (count != 0U ? presence : 0.0F);
+  const std::uint32_t dynamic_suppressed_count =
+      control == nullptr ? suppressed_count : control->suppressed_token_count;
+  if (IsSuppressed(token, suppressed, dynamic_suppressed_count)) {
+    value = -FLT_MAX;
+  }
+  adjusted[token] = value * inverse_temperature;
+  token_ids[token] = token;
+}
+
+__global__ void CommitSamplingOutputsKernel(
+    const std::uint32_t* tokens, const std::uint32_t* device_count,
+    std::uint32_t maximum_count, std::uint32_t* counts,
+    std::uint32_t vocabulary) {
+  if (threadIdx.x != 0U) return;
+  const std::uint32_t count = device_count == nullptr
+                                  ? maximum_count
+                                  : min(device_count[0], maximum_count);
+  for (std::uint32_t i = 0U; i < count; ++i) {
+    const std::uint32_t token = tokens[i];
+    if (token < vocabulary) ++counts[token];
+  }
+}
+
+__global__ void ReplaceSamplingOutputKernel(
+    std::uint32_t sampled, std::uint32_t emitted, std::uint32_t* counts) {
+  if (threadIdx.x != 0U || sampled == emitted) return;
+  if (counts[sampled] != 0U) --counts[sampled];
+  ++counts[emitted];
+}
+
 __device__ std::uint64_t SplitMix64(std::uint64_t value) {
   value += 0x9E3779B97F4A7C15ULL;
   value = (value ^ (value >> 30U)) * 0xBF58476D1CE4E5B9ULL;
@@ -184,6 +242,18 @@ __global__ void SampleCumulativeProbabilitiesKernel(
 }
 
 }  // namespace
+
+Status LaunchReplaceSamplingOutput(
+    std::uint32_t sampled, std::uint32_t emitted, std::uint32_t* counts,
+    std::uint32_t vocabulary, cudaStream_t stream) {
+  if (counts == nullptr || sampled >= vocabulary || emitted >= vocabulary) {
+    return Status(StatusCode::kInvalidArgument, "invalid output replacement");
+  }
+  ReplaceSamplingOutputKernel<<<1U, 1U, 0, stream>>>(sampled, emitted, counts);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess ? Status::Ok()
+                             : CudaFailure("replace sampled output count", error);
+}
 
 Result<std::size_t> SamplingWorkspaceBytes(
     std::uint32_t vocabulary, cudaStream_t stream) {
@@ -285,6 +355,22 @@ Status LaunchCommitSpeculativeRepetitionMask(
              : CudaFailure("commit speculative repetition mask", error);
 }
 
+Status LaunchCommitSamplingOutputs(
+    const std::uint32_t* tokens, const std::uint32_t* device_count,
+    std::uint32_t maximum_count, std::uint32_t* counts,
+    std::uint32_t vocabulary, cudaStream_t stream) {
+  if (tokens == nullptr || counts == nullptr || maximum_count == 0U ||
+      vocabulary == 0U) {
+    return Status(StatusCode::kInvalidArgument,
+                  "sampling output count buffers are invalid");
+  }
+  CommitSamplingOutputsKernel<<<1U, 1U, 0, stream>>>(
+      tokens, device_count, maximum_count, counts, vocabulary);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess ? Status::Ok()
+                             : CudaFailure("commit sampled output counts", error);
+}
+
 Status LaunchSampleTokenImpl(
     float* source_logits, float* sorted_logits, float* adjusted_logits,
     double* cumulative_probabilities,
@@ -294,7 +380,7 @@ Status LaunchSampleTokenImpl(
     std::uint32_t vocabulary, const SamplingOptions& options,
     std::uint64_t step, const DecodeControl* control, std::uint32_t* selected,
     void* algorithm_workspace, std::size_t algorithm_workspace_bytes,
-    float softcap, int* all_finite, cudaStream_t stream) {
+    float softcap, int* all_finite, cudaStream_t stream, SamplingOutputHistory history) {
   Status validation = ValidateSamplingOptions(options, vocabulary);
   if (!validation.ok()) return validation;
   if (source_logits == nullptr || sorted_logits == nullptr ||
@@ -305,6 +391,12 @@ Status LaunchSampleTokenImpl(
       vocabulary == 0U || (suppressed_count != 0U && suppressed == nullptr)) {
     return Status(StatusCode::kInvalidArgument,
                   "sampling launch has an invalid buffer or vocabulary");
+  }
+  if (options.penalties.active() &&
+      (history.counts == nullptr ||
+       (history.prefix_count != 0U && history.prefix == nullptr))) {
+    return Status(StatusCode::kInvalidArgument,
+                  "active penalties require an output history");
   }
   if ((softcap > 0.0F) != (all_finite != nullptr)) {
     return Status(StatusCode::kInvalidArgument,
@@ -319,10 +411,19 @@ Status LaunchSampleTokenImpl(
     }
   }
   const unsigned blocks = (vocabulary + kThreads - 1U) / kThreads;
-  PrepareSamplingLogitsKernel<<<blocks, kThreads, 0, stream>>>(
-      source_logits, adjusted_logits, token_ids, repetition_mask,
-      options.repetition_penalty, 1.0F / options.temperature, suppressed,
-      suppressed_count, control, vocabulary, softcap, all_finite);
+  if (options.penalties.active()) {
+    PreparePenaltySamplingLogitsKernel<<<blocks, kThreads, 0, stream>>>(
+        source_logits, adjusted_logits, token_ids, repetition_mask,
+        options.repetition_penalty, 1.0F / options.temperature, suppressed,
+        suppressed_count, control, vocabulary, softcap, all_finite,
+        history.counts, history.prefix, history.prefix_count,
+        options.penalties.frequency, options.penalties.presence);
+  } else {
+    PrepareSamplingLogitsKernel<<<blocks, kThreads, 0, stream>>>(
+        source_logits, adjusted_logits, token_ids, repetition_mask,
+        options.repetition_penalty, 1.0F / options.temperature, suppressed,
+        suppressed_count, control, vocabulary, softcap, all_finite);
+  }
   cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) return CudaFailure("prepare sampling logits", error);
   error = cub::DeviceRadixSort::SortPairsDescending(
@@ -354,8 +455,12 @@ Status LaunchSampleTokenImpl(
       options.top_k, options.top_p, options.min_p, options.seed, control, step,
       selected);
   error = cudaGetLastError();
-  return error == cudaSuccess ? Status::Ok()
-                              : CudaFailure("select sampled token", error);
+  if (error != cudaSuccess) return CudaFailure("select sampled token", error);
+  if (options.penalties.active() && history.commit_selected) {
+    return LaunchCommitSamplingOutputs(selected, nullptr, 1U, history.counts,
+                                       vocabulary, stream);
+  }
+  return Status::Ok();
 }
 
 Status LaunchSampleToken(
@@ -366,12 +471,12 @@ Status LaunchSampleToken(
     std::uint32_t vocabulary, const SamplingOptions& options,
     std::uint64_t step, const DecodeControl* control, std::uint32_t* selected,
     void* algorithm_workspace, std::size_t algorithm_workspace_bytes,
-    cudaStream_t stream) {
+    cudaStream_t stream, SamplingOutputHistory history) {
   return LaunchSampleTokenImpl(
       logits, logits, adjusted_logits, cumulative_probabilities, token_ids,
       sorted_token_ids, repetition_mask, suppressed, suppressed_count,
       vocabulary, options, step, control, selected, algorithm_workspace,
-      algorithm_workspace_bytes, 0.0F, nullptr, stream);
+      algorithm_workspace_bytes, 0.0F, nullptr, stream, history);
 }
 
 Status LaunchSampleTokenFromLogits(
@@ -382,13 +487,13 @@ Status LaunchSampleTokenFromLogits(
     std::uint32_t vocabulary, const SamplingOptions& options,
     std::uint64_t step, const DecodeControl* control, std::uint32_t* selected,
     void* algorithm_workspace, std::size_t algorithm_workspace_bytes,
-    cudaStream_t stream) {
+    cudaStream_t stream, SamplingOutputHistory history) {
   return LaunchSampleTokenImpl(
       source_logits, sorted_logits, adjusted_logits,
       cumulative_probabilities, token_ids, sorted_token_ids, repetition_mask,
       suppressed, suppressed_count, vocabulary, options, step, control,
       selected, algorithm_workspace, algorithm_workspace_bytes, 0.0F,
-      nullptr, stream);
+      nullptr, stream, history);
 }
 
 Status LaunchSampleTokenSoftcapInPlace(
@@ -400,7 +505,7 @@ Status LaunchSampleTokenSoftcapInPlace(
     const SamplingOptions& options, std::uint64_t step,
     const DecodeControl* control, std::uint32_t* selected,
     void* algorithm_workspace, std::size_t algorithm_workspace_bytes,
-    cudaStream_t stream) {
+    cudaStream_t stream, SamplingOutputHistory history) {
   if (!(softcap > 0.0F)) {
     return Status(StatusCode::kInvalidArgument,
                   "sampled verifier softcap must be positive");
@@ -410,7 +515,7 @@ Status LaunchSampleTokenSoftcapInPlace(
       cumulative_probabilities, token_ids, sorted_token_ids, repetition_mask,
       suppressed, suppressed_count, vocabulary, options, step, control,
       selected, algorithm_workspace, algorithm_workspace_bytes, softcap,
-      all_finite, stream);
+      all_finite, stream, history);
 }
 
 }  // namespace gem16::internal

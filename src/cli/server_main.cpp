@@ -373,6 +373,10 @@ gem16::Result<RequestAdmission> AcquireRequestAdmission(
 
 gem16::Status ValidateRequestCapabilities(
     ServerState& state, const gem16::ChatGenerationRequest& request) {
+  if (!state.session_options.sampling.enabled && request.sampling_penalties.active()) {
+    return gem16::Status(gem16::StatusCode::kUnsupported,
+        "non-zero frequency/presence penalties require sampling; restart without --greedy");
+  }
   if (request.tool_choice.mode != gem16::GenerationToolChoiceMode::kAuto &&
       request.tool_choice.mode != gem16::GenerationToolChoiceMode::kNone)
     return gem16::Status(gem16::StatusCode::kUnsupported,

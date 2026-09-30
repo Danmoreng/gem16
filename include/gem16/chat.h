@@ -168,6 +168,8 @@ struct ChatGenerationRequest {
   std::vector<GenerationToolDefinition> tools;
   GenerationToolChoice tool_choice;
   bool parallel_tool_calls = true;
+  // Current-response output tokens only; never part of prompt/KV identity.
+  SamplingPenalties sampling_penalties;
 };
 
 enum class GenerationEventKind {

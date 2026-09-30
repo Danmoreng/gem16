@@ -4716,6 +4716,151 @@ void TestGpuSampling() {
   (void)cudaStreamDestroy(stream);
 }
 
+void TestGpuSamplingPenalties() {
+  constexpr std::uint32_t vocabulary = 8U;
+  const std::array<float, vocabulary> logits =
+      {5.0F, 4.0F, 3.0F, 2.0F, 1.0F, -1.0F, -2.0F, -3.0F};
+  const std::array<std::uint32_t, vocabulary> base_counts =
+      {3U, 1U, 0U, 0U, 0U, 0U, 2U, 0U};
+  const std::array<std::uint32_t, 3U> prefix = {0U, 0U, 6U};
+  const std::uint32_t mask = (1U << 0U) | (1U << 5U);
+  const std::uint32_t suppressed = 1U;
+  DeviceBuffer<float> source(vocabulary), sorted(vocabulary), adjusted(vocabulary);
+  DeviceBuffer<double> cumulative(vocabulary);
+  DeviceBuffer<std::uint32_t> ids(vocabulary), sorted_ids(vocabulary), counts(vocabulary);
+  DeviceBuffer<std::uint32_t> repetition(1U), suppression(1U), selected(1U);
+  DeviceBuffer<std::uint32_t> device_prefix(prefix.size()), committed_count(1U);
+  auto workspace_bytes = gem16::internal::SamplingWorkspaceBytes(vocabulary, nullptr);
+  CUDA_TEST_CHECK(workspace_bytes.ok());
+  if (!workspace_bytes.ok()) return;
+  DeviceBuffer<std::uint8_t> workspace(workspace_bytes.value());
+  CUDA_TEST_CHECK(CudaOk(cudaMemcpy(source.get(), logits.data(), sizeof(logits),
+                                   cudaMemcpyHostToDevice), "penalty logits"));
+  CUDA_TEST_CHECK(CudaOk(cudaMemcpy(repetition.get(), &mask, sizeof(mask),
+                                   cudaMemcpyHostToDevice), "penalty repetition"));
+  CUDA_TEST_CHECK(CudaOk(cudaMemcpy(suppression.get(), &suppressed, sizeof(suppressed),
+                                   cudaMemcpyHostToDevice), "penalty suppression"));
+  CUDA_TEST_CHECK(CudaOk(cudaMemcpy(device_prefix.get(), prefix.data(), sizeof(prefix),
+                                   cudaMemcpyHostToDevice), "penalty draft prefix"));
+  gem16::SamplingOptions options;
+  options.enabled = true;
+  options.top_k = 1U;
+  options.temperature = 0.5F;
+  options.repetition_penalty = 2.0F;
+  for (const auto penalties : {gem16::SamplingPenalties{0.5F, 0.25F},
+                               gem16::SamplingPenalties{-0.5F, -0.25F},
+                               gem16::SamplingPenalties{0.0F, 2.0F},
+                               gem16::SamplingPenalties{2.0F, 0.0F}}) {
+    options.penalties = penalties;
+    for (std::uint32_t row = 0U; row <= prefix.size(); ++row) {
+      CUDA_TEST_CHECK(CudaOk(cudaMemcpy(counts.get(), base_counts.data(), sizeof(base_counts),
+                                       cudaMemcpyHostToDevice), "reset penalty test counts"));
+      const auto status = gem16::internal::LaunchSampleTokenFromLogits(
+          source.get(), sorted.get(), adjusted.get(), cumulative.get(), ids.get(),
+          sorted_ids.get(), repetition.get(), suppression.get(), 1U, vocabulary,
+          options, 7U, nullptr, selected.get(), workspace.get(), workspace.bytes(),
+          nullptr, {counts.get(), device_prefix.get(), row, false});
+      CUDA_TEST_CHECK(status.ok());
+      std::array<float, vocabulary> actual{};
+      std::array<std::uint32_t, vocabulary> actual_counts{};
+      CUDA_TEST_CHECK(CudaOk(cudaMemcpy(actual.data(), adjusted.get(), sizeof(actual),
+                                       cudaMemcpyDeviceToHost), "read adjusted penalties"));
+      CUDA_TEST_CHECK(CudaOk(cudaMemcpy(actual_counts.data(), counts.get(), sizeof(actual_counts),
+                                       cudaMemcpyDeviceToHost), "read speculative counts"));
+      CUDA_TEST_CHECK(actual_counts == base_counts);
+      float best = -std::numeric_limits<float>::infinity();
+      std::uint32_t expected_token = 0U;
+      for (std::uint32_t token = 0U; token < vocabulary; ++token) {
+        std::uint32_t count = base_counts[token];
+        for (std::uint32_t i = 0U; i < row; ++i) count += prefix[i] == token ? 1U : 0U;
+        float expected = logits[token];
+        if ((mask & (1U << token)) != 0U) {
+          expected = expected < 0.0F ? expected * options.repetition_penalty
+                                     : expected / options.repetition_penalty;
+        }
+        expected -= penalties.frequency * static_cast<float>(count) +
+                    (count != 0U ? penalties.presence : 0.0F);
+        expected /= options.temperature;
+        if (token == suppressed) {
+          CUDA_TEST_CHECK(std::isinf(actual[token]) && actual[token] < 0.0F);
+          continue;
+        }
+        CUDA_TEST_CHECK(std::abs(actual[token] - expected) <= 1.0e-6F);
+        if (expected > best) { best = expected; expected_token = token; }
+      }
+      std::uint32_t actual_token = vocabulary;
+      CUDA_TEST_CHECK(CudaOk(cudaMemcpy(&actual_token, selected.get(), sizeof(actual_token),
+                                       cudaMemcpyDeviceToHost), "read penalized sample"));
+      CUDA_TEST_CHECK(actual_token == expected_token);
+    }
+  }
+  // Commit emitted outputs only; a rejected third proposal must not count.
+  const std::array<std::uint32_t, 3U> emitted = {2U, 2U, 7U};
+  const std::uint32_t two = 2U;
+  CUDA_TEST_CHECK(CudaOk(cudaMemcpy(device_prefix.get(), emitted.data(), sizeof(emitted),
+                                   cudaMemcpyHostToDevice), "copy accepted output fixture"));
+  CUDA_TEST_CHECK(CudaOk(cudaMemcpy(committed_count.get(), &two, sizeof(two),
+                                   cudaMemcpyHostToDevice), "copy accepted count"));
+  auto status = gem16::internal::LaunchCommitSamplingOutputs(
+      device_prefix.get(), committed_count.get(), 3U, counts.get(), vocabulary, nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  status = gem16::internal::LaunchReplaceSamplingOutput(2U, 4U, counts.get(), vocabulary, nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  std::array<std::uint32_t, vocabulary> actual_counts{};
+  CUDA_TEST_CHECK(CudaOk(cudaMemcpy(actual_counts.data(), counts.get(), sizeof(actual_counts),
+                                   cudaMemcpyDeviceToHost), "read committed output counts"));
+  auto expected_counts = base_counts;
+  expected_counts[2U] = 1U;
+  expected_counts[4U] = 1U;
+  CUDA_TEST_CHECK(actual_counts == expected_counts);
+  // Captured coefficients are fixed, counts are dynamic, and ordinary sampling
+  // commits exactly one selected output. Zero uses the original graph topology.
+  cudaStream_t stream = nullptr;
+  CUDA_TEST_CHECK(CudaOk(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking),
+                         "create penalty graph stream"));
+  std::size_t zero_nodes = 0U;
+  for (const bool active : {false, true}) {
+    options.penalties = active ? gem16::SamplingPenalties{0.5F, 0.25F}
+                              : gem16::SamplingPenalties{};
+    CUDA_TEST_CHECK(CudaOk(cudaMemcpy(counts.get(), base_counts.data(), sizeof(base_counts),
+                                     cudaMemcpyHostToDevice), "reset captured output counts"));
+    cudaGraph_t graph = nullptr;
+    cudaGraphExec_t executable = nullptr;
+    CUDA_TEST_CHECK(CudaOk(cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal),
+                           "begin penalty graph"));
+    status = gem16::internal::LaunchSampleTokenFromLogits(
+        source.get(), sorted.get(), adjusted.get(), cumulative.get(), ids.get(),
+        sorted_ids.get(), repetition.get(), suppression.get(), 1U, vocabulary,
+        options, 7U, nullptr, selected.get(), workspace.get(), workspace.bytes(),
+        stream, {counts.get()});
+    CUDA_TEST_CHECK(status.ok());
+    CUDA_TEST_CHECK(CudaOk(cudaStreamEndCapture(stream, &graph), "end penalty graph"));
+    std::size_t nodes = 0U;
+    CUDA_TEST_CHECK(CudaOk(cudaGraphGetNodes(graph, nullptr, &nodes), "count penalty nodes"));
+    if (active) CUDA_TEST_CHECK(nodes == zero_nodes + 1U);
+    else zero_nodes = nodes;
+    CUDA_TEST_CHECK(CudaOk(cudaGraphInstantiate(&executable, graph, nullptr, nullptr, 0U),
+                           "instantiate penalty graph"));
+    options.penalties = {-2.0F, -2.0F};  // Must not change captured scalars.
+    CUDA_TEST_CHECK(CudaOk(cudaGraphLaunch(executable, stream), "launch penalty graph"));
+    CUDA_TEST_CHECK(CudaOk(cudaStreamSynchronize(stream), "sync penalty graph"));
+    CUDA_TEST_CHECK(CudaOk(cudaMemcpy(actual_counts.data(), counts.get(), sizeof(actual_counts),
+                                     cudaMemcpyDeviceToHost), "read captured committed counts"));
+    std::uint32_t actual_token = vocabulary;
+    CUDA_TEST_CHECK(CudaOk(cudaMemcpy(&actual_token, selected.get(), sizeof(actual_token),
+                                     cudaMemcpyDeviceToHost), "read captured penalized token"));
+    expected_counts = base_counts;
+    if (active) {
+      CUDA_TEST_CHECK(actual_token == 2U);
+      ++expected_counts[actual_token];
+    } else CUDA_TEST_CHECK(actual_token == 2U);
+    CUDA_TEST_CHECK(actual_counts == expected_counts);
+    (void)cudaGraphExecDestroy(executable);
+    (void)cudaGraphDestroy(graph);
+  }
+  (void)cudaStreamDestroy(stream);
+}
+
 void TestMtpDeviceControlTransitions() {
   DeviceBuffer<std::uint32_t> drafts(
       gem16::internal::kMaximumMtpDraftTokens);
@@ -5303,6 +5448,7 @@ int main(int argc, char** argv) {
   }
   if (argc == 2 && std::string_view(argv[1]) == "sampling") {
     TestGpuSampling();
+    TestGpuSamplingPenalties();
     if (failures != 0) {
       std::cerr << failures << " CUDA test assertion(s) failed\n";
       return 1;
@@ -5420,6 +5566,7 @@ int main(int argc, char** argv) {
   TestMtpReasoningTransitions();
   TestMtpConditionalD2Chain();
   TestGpuSampling();
+  TestGpuSamplingPenalties();
   if (failures != 0) {
     std::cerr << failures << " CUDA test assertion(s) failed\n";
     return 1;

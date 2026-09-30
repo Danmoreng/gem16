@@ -37,7 +37,9 @@ Status Gemma4Moe26BReferenceEngine::Impl::SelectMtpVerificationTokens(
                               logits_finite + row, sampling, 0U,
                               row_controls + row, selected + row,
                               sampling_algorithm_workspace,
-                              sampling_algorithm_workspace_bytes, stream)
+                              sampling_algorithm_workspace_bytes, stream,
+                              {sampling_output_counts, verification_inputs + 1U,
+                               row, false})
                         : LaunchSampleTokenFromLogits(
                               row_logits, logits, sampling_logits,
                               sampling_cumulative, sampling_token_ids,
@@ -46,7 +48,9 @@ Status Gemma4Moe26BReferenceEngine::Impl::SelectMtpVerificationTokens(
                               static_cast<std::uint32_t>(kVocabulary), sampling,
                               0U, row_controls + row, selected + row,
                               sampling_algorithm_workspace,
-                              sampling_algorithm_workspace_bytes, stream);
+                              sampling_algorithm_workspace_bytes, stream,
+                              {sampling_output_counts, verification_inputs + 1U,
+                               row, false});
     if (!status.ok()) return status;
   }
   return Status::Ok();
@@ -265,6 +269,13 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
         mtp_verifier.As<std::uint32_t>(mtp_stop_tokens_offset),
         mtp_stop_token_count, &transaction->result, control, stream);
     if (!status.ok()) return status;
+    if (sampling.penalties.active()) {
+      status = LaunchCommitSamplingOutputs(
+          transaction->result.verified.data(), &transaction->result.output_count,
+          kM25MaximumVerifyTokens, sampling_output_counts,
+          static_cast<std::uint32_t>(kVocabulary), stream);
+      if (!status.ok()) return status;
+    }
     if (sampling.enabled && sampling.repetition_penalty != 1.0F) {
       status = LaunchCommitSpeculativeRepetitionMask(
           mtp_verifier.As<std::uint32_t>(
@@ -540,16 +551,21 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpOrdinaryTailBody() {
         suppressed_token_count, static_cast<std::uint32_t>(kVocabulary),
         sampling, 0U, decode_control, selected_token,
         sampling_algorithm_workspace, sampling_algorithm_workspace_bytes,
-        stream);
+        stream, {sampling_output_counts, nullptr, 0U, false});
     if (!status.ok()) return status;
     selected = selected_token;
   }
-  return LaunchFinalizeMtpOrdinaryTail(
+  status = LaunchFinalizeMtpOrdinaryTail(
       selected, mtp_verifier.As<std::uint32_t>(mtp_stop_tokens_offset),
       mtp_stop_token_count, transaction,
       mtp_verifier.As<MtpChainResult>(mtp_chain_result_offset),
       mtp_verifier.As<std::uint32_t>(mtp_chain_outputs_offset),
       mtp_streaming_ring_device, stream);
+  if (!status.ok() || !sampling.penalties.active()) return status;
+  return LaunchCommitSamplingOutputs(
+      &transaction->control.current.input_token, nullptr, 1U,
+      sampling_output_counts, static_cast<std::uint32_t>(kVocabulary), stream);
+
 }
 
 Status Gemma4Moe26BReferenceEngine::Impl::PrepareFixedMtpChainGraph(

@@ -124,6 +124,8 @@ class Gemma4Moe26BReferenceEngine {
   // Product token selection is configured once per resident session. All
   // device buffers are reserved by Create; recurring selection performs no
   // allocation and preserves the existing Gemma sampling semantics.
+  [[nodiscard]] Status ReplaceSamplingOutput(std::uint32_t sampled, std::uint32_t emitted);
+  [[nodiscard]] Status BeginSamplingRequest(const SamplingPenalties& penalties);
   [[nodiscard]] Status ConfigureTokenSelection(
       const SamplingOptions& options,
       std::span<const std::uint32_t> suppressed_token_ids);

@@ -140,6 +140,8 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << ",\"min_p\":" << result.sampling.min_p
          << ",\"repetition_penalty\":"
          << result.sampling.repetition_penalty
+         << ",\"frequency_penalty\":" << result.sampling.penalties.frequency
+         << ",\"presence_penalty\":" << result.sampling.penalties.presence
          << ",\"seed\":" << result.sampling.seed << "},\n"
          << "  \"fallbacks\": " << result.fallback_count << ",\n"
          << "  \"packed_weight_source_layout_direct\": "
@@ -476,6 +478,8 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"min_p\":" << result.options.sampling.min_p
          << ",\"repetition_penalty\":"
          << result.options.sampling.repetition_penalty
+         << ",\"frequency_penalty\":" << result.options.sampling.penalties.frequency
+         << ",\"presence_penalty\":" << result.options.sampling.penalties.presence
          << ",\"seed\":" << result.options.sampling.seed << '}'
          << ",\"context_tokens\":" << result.options.context_tokens
          << ",\"generated_tokens\":" << result.options.generated_tokens

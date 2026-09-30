@@ -1,3 +1,62 @@
+Status Gemma4Moe26BReferenceEngine::ReplaceSamplingOutput(
+    std::uint32_t sampled, std::uint32_t emitted) {
+  if (!implementation_) return Invalid("engine is not initialized");
+  auto& x = *implementation_;
+  if (!x.sampling.penalties.active()) return Status::Ok();
+  return LaunchReplaceSamplingOutput(sampled, emitted, x.sampling_output_counts,
+                                    static_cast<std::uint32_t>(kVocabulary), x.stream);
+}
+
+Status Gemma4Moe26BReferenceEngine::BeginSamplingRequest(
+    const SamplingPenalties& penalties) {
+  if (!implementation_) return Invalid("engine is not initialized");
+  Status valid = ValidateSamplingPenalties(penalties);
+  if (!valid.ok()) return valid;
+  auto& x = *implementation_;
+  if (penalties.active() && !x.sampling.enabled) {
+    return Status(StatusCode::kUnsupported, "active penalties require sampling");
+  }
+  if (x.sampling.penalties != penalties) {
+    const cudaError_t error = cudaStreamSynchronize(x.stream);
+    if (error != cudaSuccess) return CudaFailure("sync sampling change", error);
+    std::array<bool, kMaximumMtpDraftTokens + 1U> recapture_groups{};
+    std::array<bool, kMaximumMtpDraftTokens + 1U> recapture_chains{};
+    for (std::size_t i = 0U; i < recapture_groups.size(); ++i) {
+      recapture_groups[i] = x.mtp_group_graphs[i] != nullptr;
+      recapture_chains[i] = x.mtp_chain_graphs[i] != nullptr;
+    }
+    x.sampling.penalties = penalties;
+    // Ordinary layer decode excludes sampling; only MTP captures its scalars.
+    // Rebuild at the request boundary, before any new inference work.
+    for (cudaGraphExec_t& graph : x.mtp_group_graphs) {
+      if (graph != nullptr) (void)cudaGraphExecDestroy(graph);
+      graph = nullptr;
+    }
+    for (cudaGraphExec_t& graph : x.mtp_chain_graphs) {
+      if (graph != nullptr) (void)cudaGraphExecDestroy(graph);
+      graph = nullptr;
+    }
+    x.mtp_group_graph_device_bytes = 0U;
+    x.mtp_chain_graph_device_bytes.fill(0U);
+    for (std::uint32_t i = 1U; i < recapture_groups.size(); ++i) {
+      if (recapture_groups[i]) {
+        valid = x.PrepareFixedMtpGraph(i);
+        if (!valid.ok()) return valid;
+      }
+      if (recapture_chains[i]) {
+        valid = x.PrepareFixedMtpChainGraph(i);
+        if (!valid.ok()) return valid;
+      }
+    }
+  }
+  if (penalties.active()) {
+    const cudaError_t error = cudaMemsetAsync(
+        x.sampling_output_counts, 0, kVocabulary * sizeof(std::uint32_t), x.stream);
+    if (error != cudaSuccess) return CudaFailure("reset output counts", error);
+  }
+  return Status::Ok();
+}
+
 Status Gemma4Moe26BReferenceEngine::ConfigureTokenSelection(
     const SamplingOptions& options,
     std::span<const std::uint32_t> suppressed_token_ids) {
@@ -32,6 +91,9 @@ Status Gemma4Moe26BReferenceEngine::ConfigureTokenSelection(
   x.mtp_group_graph_device_bytes = 0U;
   x.mtp_chain_graph_device_bytes.fill(0U);
   cudaError_t error = cudaMemsetAsync(
+      x.sampling_output_counts, 0, kVocabulary * sizeof(std::uint32_t), x.stream);
+  if (error != cudaSuccess) return CudaFailure("initialize output counts", error);
+  error = cudaMemsetAsync(
       x.repetition_mask, 0,
       static_cast<std::size_t>(kRepetitionMaskWords) * sizeof(std::uint32_t),
       x.stream);
@@ -165,7 +227,8 @@ Result<std::uint32_t> Gemma4Moe26BReferenceEngine::SelectToken() {
         x.suppressed_token_count, static_cast<std::uint32_t>(kVocabulary),
         x.sampling, x.sampling_step++, nullptr, x.selected_token,
         x.sampling_algorithm_workspace,
-        x.sampling_algorithm_workspace_bytes, x.stream);
+        x.sampling_algorithm_workspace_bytes, x.stream,
+        {x.sampling_output_counts});
     if (!selected.ok()) return selected;
     CommitSampledSelectionKernel<<<1U, 1U, 0, x.stream>>>(
         x.selected_token, x.prediction_device_status, x.decode_control,
@@ -795,6 +858,13 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
       x.mtp_stop_token_count,
       &transaction->result, &transaction->control, x.stream);
   if (!status.ok()) return status;
+  if (x.sampling.penalties.active()) {
+    status = LaunchCommitSamplingOutputs(
+        transaction->result.verified.data(), &transaction->result.output_count,
+        kM25MaximumVerifyTokens, x.sampling_output_counts,
+        static_cast<std::uint32_t>(kVocabulary), x.stream);
+    if (!status.ok()) return status;
+  }
   if (x.sampling.enabled && x.sampling.repetition_penalty != 1.0F) {
     status = LaunchCommitSpeculativeRepetitionMask(
         x.mtp_verifier.As<std::uint32_t>(

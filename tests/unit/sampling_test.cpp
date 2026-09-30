@@ -31,6 +31,20 @@ void TestSamplingValidation() {
   GEM16_CHECK(!gem16::ValidateSamplingOptions(options, 8U).ok());
   options.temperature = 1.0F;
   GEM16_CHECK(!gem16::ValidateSamplingOptions(options, 0U).ok());
+  for (const float value : {-2.0F, -0.5F, 0.0F, 0.5F, 2.0F}) {
+    options.penalties = {value, -value};
+    GEM16_CHECK(gem16::ValidateSamplingOptions(options, 8U).ok());
+  }
+  options.enabled = false;
+  GEM16_CHECK(!gem16::ValidateSamplingOptions(options, 8U).ok());
+  options.penalties = {};
+  GEM16_CHECK(gem16::ValidateSamplingOptions(options, 8U).ok());
+  for (const float value : {-2.01F, 2.01F,
+                           std::numeric_limits<float>::quiet_NaN(),
+                           std::numeric_limits<float>::infinity()}) {
+    GEM16_CHECK(!gem16::ValidateSamplingPenalties({value, 0.0F}).ok());
+    GEM16_CHECK(!gem16::ValidateSamplingPenalties({0.0F, value}).ok());
+  }
 }
 
 }  // namespace

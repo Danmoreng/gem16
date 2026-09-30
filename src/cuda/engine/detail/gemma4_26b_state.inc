@@ -122,6 +122,7 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::uint32_t* sampling_token_ids = nullptr;
   std::uint32_t* sampling_sorted_token_ids = nullptr;
   std::uint32_t* repetition_mask = nullptr;
+  std::uint32_t* sampling_output_counts = nullptr;
   std::uint32_t* suppressed_token_ids = nullptr;
   std::uint32_t* selected_token = nullptr;
   void* sampling_algorithm_workspace = nullptr;

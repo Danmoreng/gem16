@@ -233,6 +233,12 @@ class Parser {
     if (end != terminated.c_str() + terminated.size() || !std::isfinite(parsed)) {
       return Error("invalid or non-finite number");
     }
+    // Do not silently turn a non-zero JSON number into a neutral zero value.
+    if (parsed == 0.0 &&
+        token.substr(0, token.find_first_of("eE")).find_first_of("123456789") !=
+            std::string_view::npos) {
+      return Error("number underflows to zero");
+    }
     return Value(parsed);
   }
 

@@ -77,6 +77,8 @@ class InferenceEngine {
       std::uint64_t remaining_output_capacity,
       std::uint64_t output_write_position, bool stopped,
       std::uint32_t stop_token) const;
+  [[nodiscard]] Status ReplaceSamplingOutput(std::uint32_t sampled, std::uint32_t emitted);
+  [[nodiscard]] Status BeginSamplingRequest(const SamplingPenalties& penalties);
   [[nodiscard]] Status ResetCache();
   [[nodiscard]] Status SetSampling(const SamplingOptions& options);
   [[nodiscard]] Status SetSuppressedTokens(
