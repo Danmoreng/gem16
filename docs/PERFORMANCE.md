@@ -3,6 +3,37 @@
 These are retained measurements at the revisions named below, not a new benchmark of current HEAD.
 The public profiles and qualification limits are described in the [README](../README.md).
 
+## 2026-10-11 restored Trellis35 D2 comparison
+
+The conditional CUDA graph fix restores native D2 on the installed 615.71.09 /
+CUDA 13.4 stack. New 3+10 measurements with the identical 16K prompt and 1,135
+forced greedy outputs give Trellis35 **5,665.11 prefill / 129.087 ordinary
+decode tok/s**, and **172.314 D2 tok/s**. Ordinary/D2 outputs are exactly equal
+in all retained runs. Sampled peak VRAM is **12,455 / 12,725 MiB**.
+
+The completed October 10 current llama.cpp b11552 rows remain **138.461 ordinary
+/ 196.850 D2 tok/s**, with **15,201 / 15,561 MiB** peak VRAM. These llama rows
+are reused measurements, not a second campaign. Formats, KV precision and
+cross-engine output sequences differ; llama's ordinary/D2 outputs also differ.
+The [follow-up report](evidence/gemma4_26b/trellis35-d2-cuda-graph-fix-2026-10-11.md)
+and [raw record](../benchmarks/baselines/llama_cpp/gemma4-26b-trellis35-q4_0-d2-followup-2026-10-11.json)
+document graph isolation, system updates, the separate ring-atomic correction,
+sanitizer and three-profile regression checks. Earlier evidence is retained below.
+
+## 2026-10-10 current 26B comparison refresh
+
+Current gem16 Trellis35 at `c01789a2` and newly built llama.cpp b11552 at
+`23b0202a1` were measured on Linux with the same 16K prompt, 1,135 forced greedy
+output tokens, three warmups and ten retained runs per successful mode.
+Trellis35 ordinary reaches **5,623.23 prefill / 128.955 decode tok/s**;
+llama.cpp official QAT Q4_0 reaches **4,607.79 / 138.461 tok/s** and
+**196.850 tok/s with D2**. Trellis35 D2 fails during CUDA graph instantiation
+before inference, reproduced three times, so the new D2 comparison is incomplete.
+Formats/KV precision and output sequences differ; llama D2 also differs from its
+ordinary output. The [refresh report](evidence/gemma4_26b/llama-cpp-trellis35-refresh-2026-10-10.md)
+records the measured memory, complete protocol, current environment and failure
+evidence. The tables below retain their historical measurements.
+
 ## Gemma 4 26B performance
 
 The repeatable Linux measurements below use the RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, batch

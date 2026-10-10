@@ -1,0 +1,2960 @@
+{
+  "schema_version": 1,
+  "status": "ordinary_and_d2_complete_not_cross_engine_quality_parity",
+  "base_commit": "c01789a2b46520df8a699ee3338cb19aaccebae2",
+  "provenance": {
+    "base_commit": "c01789a2b46520df8a699ee3338cb19aaccebae2",
+    "local_changes": "M CMakeLists.txt\n M benchmarks/baselines/llama_cpp/README.md\n M benchmarks/baselines/llama_cpp/build.sh\n M benchmarks/baselines/llama_cpp/commit.txt\n M docs/PERFORMANCE.md\n M scripts/benchmark-cross-engine-mtp.sh\n M scripts/run-gemma4-26b-gsm8k-smoke.sh\n M src/cuda/engine/detail/gemma4_26b_mtp_graphs.inc\n M src/cuda/engine/inference_engine_mtp.cuh\n M src/cuda/mtp/verify.cu\n M tests/cuda/nvfp4_reference_test.cu\n M tests/python/test_benchmark_wikipedia_workload.py\n M tools/benchmark_wikipedia_workload.py\n?? benchmarks/baselines/llama_cpp/gemma4-26b-trellis35-q4_0-refresh-2026-10-10.json\n?? docs/evidence/gemma4_26b/llama-cpp-trellis35-refresh-2026-10-10.md\n?? tests/cuda/conditional_graph_copy_test.cu",
+    "llama_source_commit": "23b0202a189c44a54625aadcb37a946dd1d6278d",
+    "llama_version": "version: 0.6.0-dev (build 11552, commit 23b0202a1)\nbuilt with GNU 16.2.1 for Linux x86_64",
+    "hardware": "name, uuid, driver_version, memory.total [MiB]\nNVIDIA GeForce RTX 5080 Laptop GPU, GPU-93070293-2184-eb69-555b-1d856a4fdbb8, 615.71.09, 16303 MiB",
+    "toolkit": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Tue_Sep_01_08:45:21_PDT_2026\nCuda compilation tools, release 13.4, V13.4.92\nBuild cuda_13.4.r13.4/compiler.38855100_0",
+    "files": {
+      "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-run": {
+        "bytes": 12414904,
+        "sha256": "36429fb883d6ae663e5516546c4d108e0aabcdcaa928a41a513fc262e21f3545"
+      },
+      "/home/sebastian/Development/gem16gb/src/cuda/engine/detail/gemma4_26b_mtp_graphs.inc": {
+        "bytes": 35364,
+        "sha256": "11cf11165d8f1253de3987408acda343087591291125cf8bda9187afe2161c58"
+      },
+      "/home/sebastian/Development/gem16gb/src/cuda/engine/inference_engine_mtp.cuh": {
+        "bytes": 44764,
+        "sha256": "ab91d1a15e26e826d40760b94c65a124ae3b59ea6e1ca1d1740b523b4c8999de"
+      },
+      "/home/sebastian/Development/gem16gb/src/cuda/mtp/verify.cu": {
+        "bytes": 39274,
+        "sha256": "382520b77acb556f78dfdb0451b916a540a4ae096741dd33375742d6104dc894"
+      },
+      "/home/sebastian/Development/gem16gb/tests/cuda/nvfp4_reference_test.cu": {
+        "bytes": 280643,
+        "sha256": "8c38943a170d3ffb7724daff61fcd1984bdb4e6a589bc2dc481aaf9140c058f9"
+      },
+      "/home/sebastian/Development/gem16gb/tests/cuda/conditional_graph_copy_test.cu": {
+        "bytes": 7170,
+        "sha256": "28ad27faedc0b01eaebe7ea491781f2a4a42144ac05b6f55ef53b214ddb8d798"
+      },
+      "/home/sebastian/Development/gem16gb/CMakeLists.txt": {
+        "bytes": 40648,
+        "sha256": "0571b27e0d06706026893a68e39ebb37eefa5aca583bb81d369d5197ec6c497d"
+      },
+      "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py": {
+        "bytes": 51659,
+        "sha256": "ecdc5ee11baababe73f06b2250f3c64665b35b0ba85d29b497113a761f8a91f0"
+      },
+      "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/followup-run.py": {
+        "bytes": 1942,
+        "sha256": "32ad8e96b7fd3bcc625b32b76568d02331d434a373c197a3eb06808295312b88"
+      },
+      "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/patch.diff": {
+        "bytes": 21674,
+        "sha256": "de5b2b260fcdd0f1663e61d301628f3d81b9dd1ae70ec4619b59c80170b939cc"
+      }
+    },
+    "prior_campaign": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final",
+    "purpose": "post-fix Trellis35 ordinary and native D2; reuse completed current-llama measurements"
+  },
+  "prior_campaign_provenance": {
+    "gem16_commit": "c01789a2b46520df8a699ee3338cb19aaccebae2",
+    "gem16_worktree_status": "M benchmarks/baselines/llama_cpp/README.md\n M benchmarks/baselines/llama_cpp/build.sh\n M benchmarks/baselines/llama_cpp/commit.txt\n M tests/python/test_benchmark_wikipedia_workload.py\n M tools/benchmark_wikipedia_workload.py",
+    "llama_commit": "23b0202a189c44a54625aadcb37a946dd1d6278d",
+    "llama_worktree_status": "",
+    "llama_version": "version: 0.6.0-dev (build 11552, commit 23b0202a1)\nbuilt with GNU 16.2.1 for Linux x86_64",
+    "compiler": "c++ (GCC) 16.2.1 20260810\nCopyright (C) 2026 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "cuda_toolkit": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Tue_Sep_01_08:45:21_PDT_2026\nCuda compilation tools, release 13.4, V13.4.92\nBuild cuda_13.4.r13.4/compiler.38855100_0",
+    "kernel": "Linux 7.2.9-arch1-1 x86_64 GNU/Linux",
+    "cmake": "cmake version 4.4.4\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+    "gpu": "name, uuid, driver_version, memory.total [MiB]\nNVIDIA GeForce RTX 5080 Laptop GPU, GPU-93070293-2184-eb69-555b-1d856a4fdbb8, 615.71.09, 16303 MiB",
+    "power_profile": "max-power",
+    "nvidia_powerd": "active",
+    "file_identities": {
+      "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-run": {
+        "bytes": 12456592,
+        "sha256": "368ab9010e1f25324106a4cf96c37aad1c97371fd97401dc18ff5e6b6b69748c"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/llama-server": {
+        "bytes": 15976,
+        "sha256": "cff07f9007cb9631e8c020c722d211740699ff9ebfb640b185832dc341536190"
+      },
+      "/home/sebastian/Development/gem16gb/models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf": {
+        "bytes": 14439363584,
+        "sha256": "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d"
+      },
+      "/home/sebastian/.cache/huggingface/hub/models--unsloth--gemma-4-26B-A4B-it-qat-GGUF/snapshots/7b92b5b28818151e8669af2e45e88d6086f490dd/mtp-gemma-4-26B-A4B-it.gguf": {
+        "bytes": 251939328,
+        "sha256": "7272d97595f0d4c74bd7b623492b7dbdaafd8b7c72f329a8270ba4eca68f768a"
+      },
+      "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json": {
+        "bytes": 203477,
+        "sha256": "825ff6dcf2632184c4f70a152fe12e2d2a9c2697ab3f077f5369a049792d03e6"
+      },
+      "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/run.py": {
+        "bytes": 6803,
+        "sha256": "74f68ae994dc76ca69b7804b566f0170594059740ba998a82dcd3d4cb3b16a36"
+      },
+      "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py": {
+        "bytes": 51659,
+        "sha256": "ecdc5ee11baababe73f06b2250f3c64665b35b0ba85d29b497113a761f8a91f0"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/CMakeCache.txt": {
+        "bytes": 37523,
+        "sha256": "f52ddc878dbb83c403c571c8306c9b949ef8d222c4041e34178ab28c4cfcaf43"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/CMakeCache.txt": {
+        "bytes": 54098,
+        "sha256": "1e3f223fe9855a848d9d2cb7715a0e59828769520ef63ee686c77f5781400c04"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libggml-base.so.0.26.0": {
+        "bytes": 976368,
+        "sha256": "1b11e1b338e11c77b5ebfe37197eae6328cefda6e44a7e11dec5e2e9ab4a8127"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libggml-cpu.so.0.26.0": {
+        "bytes": 1459160,
+        "sha256": "36a06ce25c323eb12dd2a258c2500e5abf68146f7b49b7171fdd3674e6c62af8"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libggml-cuda.so.0.26.0": {
+        "bytes": 62847072,
+        "sha256": "7edbe438fb7014c5fa633ffb3d5c546b8a80df6a3a6222cbab10d1d5ee3bacb0"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libggml.so.0.26.0": {
+        "bytes": 55360,
+        "sha256": "5915a41ad43e4dc59e49bce53cad3df698884dd2c6ec6dfedabbe17c707d154f"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libllama-bench-impl.so": {
+        "bytes": 489840,
+        "sha256": "5a7005431fde5645e326e749562139f3fb5d97e826f3e85c922a440aa1a4f680"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libllama-cli-impl.so": {
+        "bytes": 241496,
+        "sha256": "f7fc9e6c030ee72d0d5587fcdc35e1f143def29d934d0159570a9b71485b68a6"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libllama-common.so.0.6.0": {
+        "bytes": 6791480,
+        "sha256": "62690bba5b3c246823bc94ff0cbd971bcde200e16ae3dbdae1edc507020f6a1e"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libllama-server-impl.so": {
+        "bytes": 7448312,
+        "sha256": "32b50e9afb82a9a543f72e4911ff53a35a2d5c377297713a4c17eff14356a17e"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libllama.so.0.6.0": {
+        "bytes": 5009032,
+        "sha256": "bcd476602da75ebace60226c09fff218f552a6873088fd91b78c0a95afefb774"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libmtmd.so.0.6.0": {
+        "bytes": 2173152,
+        "sha256": "f141c4f566253ebd4c3f8dd0ea8b7ad1e980b2e66e3ed9850654f90cb9097a5f"
+      }
+    },
+    "model_locks": {
+      "gemma4-26b-trellis35-target.lock.json": {
+        "schema_version": 2,
+        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "resolved_at_utc": "2026-09-02T20:05:19Z",
+        "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "terms_url": "https://ai.google.dev/gemma/terms",
+        "component": "trellis35",
+        "component_path": "trellis35",
+        "files": [
+          {
+            "path": "LICENSE",
+            "size": 634,
+            "sha256": "e32c5cdb30142b7c670d61be0f2de18ab0007f72ef131e2869ef51687539c86d",
+            "git_oid": "506ff98349a36c9b78904645c9ae492a9b62e826",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/LICENSE"
+            }
+          },
+          {
+            "path": "NOTICE",
+            "size": 243,
+            "sha256": "f48d72e964adc0c5c616d03a5f6ff2bd973504e8d9ca88559d05e071cff585e7",
+            "git_oid": "7f2511abaa0677ccadfd1a677e84569a2a588470",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/NOTICE"
+            }
+          },
+          {
+            "path": "README.md",
+            "size": 298,
+            "sha256": "34f25a364f5ba371e5a0230ef77183567763b89ee16155353cd5b6ddadca269a",
+            "git_oid": "53db2bf1ced47c056a83d528612b8b5c0d88cf27",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/README.md"
+            }
+          },
+          {
+            "path": "SHA256SUMS",
+            "size": 754,
+            "sha256": "958cb982b56f43f53acbd6200d0eb70e9963b3daab1d41d0489f206b6d6daa8e",
+            "git_oid": "93d1ccb225aed94b3f538c8bde9ef49b39d6e05f",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/SHA256SUMS"
+            }
+          },
+          {
+            "path": "chat_template.jinja",
+            "size": 18683,
+            "sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4",
+            "git_oid": "4741bf6e4132ba23a5537f9d6e74e9a6d613d7cd",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/chat_template.jinja"
+            }
+          },
+          {
+            "path": "config.json",
+            "size": 4152,
+            "sha256": "8a647d5444c9e77b03bd80ac802683ffdbf64b3d9296ca5257ced8e50349ea16",
+            "git_oid": "ef0ecec886c4ee7fb9151bbd2a4395973e96c061",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/config.json"
+            }
+          },
+          {
+            "path": "gem16.lock.json",
+            "size": 1012,
+            "sha256": "92ae384611b4b92e061b71a4048abf1f83f54251fd0df612f50751e635fbff08",
+            "git_oid": "26261591a64f018e350c824382beee3726410a46",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/gem16.lock.json"
+            }
+          },
+          {
+            "path": "gem16_compilation.json",
+            "size": 465448,
+            "sha256": "55181031e34c6214e23a3546a393c5f32acb7e01237133b104f9b02188583204",
+            "git_oid": "5857b4eed5ed4291823d19671bd5ce48008202f8",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/gem16_compilation.json"
+            }
+          },
+          {
+            "path": "gem16_model.json",
+            "size": 996,
+            "sha256": "0896c371e9458fee1ada61ed4ba9e174ac921d7f02f03969f9a2d38f3fb9840f",
+            "git_oid": "10b7a99cd17cd046524e60bad07f2ff7ddb82968",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/gem16_model.json"
+            }
+          },
+          {
+            "path": "generation_config.json",
+            "size": 203,
+            "sha256": "b69207f9be617e982d13cc273cce6fd88c98dda99a4bdc5e2d52ffe0a0d9f0a9",
+            "git_oid": "5a376e9fca28bfac73fe81b623bd6e4d00bb0817",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/generation_config.json"
+            }
+          },
+          {
+            "path": "model.gem16",
+            "size": 12204692480,
+            "sha256": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4",
+            "git_oid": "2c8e8321b1ddccf74497c122c19b57d404e505fd",
+            "lfs_oid": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4",
+            "xet_hash": "fc721339987dae85c2a8078408f9e0fa03b76b8109b2a071d69bb526413480ce",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/model.gem16"
+            }
+          },
+          {
+            "path": "tokenizer.json",
+            "size": 32169626,
+            "sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f",
+            "git_oid": "1ff9f3e3439a939b971f9919e821bf87e835a503",
+            "lfs_oid": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f",
+            "xet_hash": "c62336ad134cad6f154d84eb0e5a5fa9ca17cd665ef3ba5ac4fd02b1486760b4",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/tokenizer.json"
+            }
+          },
+          {
+            "path": "tokenizer_config.json",
+            "size": 3729,
+            "sha256": "3ab5c7b94dc97d65ca7064496fa69b88ff875378e1cb7ee3e43070c3a8170999",
+            "git_oid": "bd297dce3d66737f7d6f9136691db3ad05991a2f",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/tokenizer_config.json"
+            }
+          }
+        ]
+      },
+      "gemma4-26b-gem16-assistant.lock.json": {
+        "schema_version": 2,
+        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "resolved_at_utc": "2026-09-02T20:05:19Z",
+        "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "terms_url": "https://ai.google.dev/gemma/terms",
+        "component": "assistant",
+        "component_path": "assistant",
+        "files": [
+          {
+            "path": ".gitattributes",
+            "size": 101,
+            "sha256": "a0e948ca693c63e0b5139f66bd709003cbcf8bc764acb1ee687a552885c8fe2c",
+            "git_oid": "0fd17d2f7c330afce8bc2b472393143fa66f68a1",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/.gitattributes"
+            }
+          },
+          {
+            "path": "LICENSE",
+            "size": 634,
+            "sha256": "e32c5cdb30142b7c670d61be0f2de18ab0007f72ef131e2869ef51687539c86d",
+            "git_oid": "506ff98349a36c9b78904645c9ae492a9b62e826",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/LICENSE"
+            }
+          },
+          {
+            "path": "NOTICE",
+            "size": 791,
+            "sha256": "555f14e6346372367e5facd6979a9594fd1502f319548933f7c867a1b00ec9d3",
+            "git_oid": "80da8080b8090add2bedb8bec8dc62682b16c88d",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/NOTICE"
+            }
+          },
+          {
+            "path": "README.md",
+            "size": 31457,
+            "sha256": "d93671a2e9b9064f670525925ba085c43b4023e70ec76f29b0c4ea0c9a1f5dcc",
+            "git_oid": "1e883f1f67f7231ac09567790a012a84997293da",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/README.md"
+            }
+          },
+          {
+            "path": "chat_template.jinja",
+            "size": 18683,
+            "sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4",
+            "git_oid": "4741bf6e4132ba23a5537f9d6e74e9a6d613d7cd",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/chat_template.jinja"
+            }
+          },
+          {
+            "path": "config.json",
+            "size": 2720,
+            "sha256": "d3c79600ce09c86c993c89bed7ce05baa376770967ffaa1ac9a0c29347a633e4",
+            "git_oid": "049ec62ef9a48d2f0732b580d90b48cbb0f3616b",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/config.json"
+            }
+          },
+          {
+            "path": "gem16.lock.json",
+            "size": 1664,
+            "sha256": "f2d2278a53ecfb3bf7a093a3207dce70148a88708a51b5050dd8d436c3d69455",
+            "git_oid": "bd555c8d0653bd74ec609bb51720e462174c3545",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/gem16.lock.json"
+            }
+          },
+          {
+            "path": "gem16_compilation.json",
+            "size": 217371,
+            "sha256": "d2a722ccad675807ff73a1a645a0f1fbcc0fc200c402a14e823a5927618a116d",
+            "git_oid": "6e938657610d03a7f30aeec5172849238d8708a0",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/gem16_compilation.json"
+            }
+          },
+          {
+            "path": "gem16_model.json",
+            "size": 613,
+            "sha256": "ef69d5384d6cca061e9941375bb2b18ebc9fee6587e492ef16701dce29b0131e",
+            "git_oid": "f34e42339b16ee761c8724ee21aef629dfd84b65",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/gem16_model.json"
+            }
+          },
+          {
+            "path": "generation_config.json",
+            "size": 209,
+            "sha256": "fb53f4c64e58896a63472e8eb304397db4a39453e1da0f5d57625ec5a8c1050e",
+            "git_oid": "76d3a00538aca6a1b85db3328e1b0f4e93316420",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/generation_config.json"
+            }
+          },
+          {
+            "path": "model-00001-of-00001.safetensors",
+            "size": 258317280,
+            "sha256": "4d3ce2102ad0631d9e7e0586be0b108d5789cbc5b90d21b4c50613979228d927",
+            "git_oid": "df6d52c496a1c194c8a167f0fbca4b52e9b2c9d1",
+            "lfs_oid": "4d3ce2102ad0631d9e7e0586be0b108d5789cbc5b90d21b4c50613979228d927",
+            "xet_hash": "65ce9e91a8daba3a8cbfe767aa50c4529ebfa01be88a4e10336dfa8e15c84fc0",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/model-00001-of-00001.safetensors"
+            }
+          },
+          {
+            "path": "model.safetensors.index.json",
+            "size": 8327,
+            "sha256": "8fcc4b09fb62f710558176406385e9a04423119cd6e81301171d9a64bbfd9165",
+            "git_oid": "c094c640185f76249eb96a10d0d07dd7afd9ec89",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/model.safetensors.index.json"
+            }
+          },
+          {
+            "path": "tokenizer.json",
+            "size": 32169440,
+            "sha256": "75a6583c1a418e2bbd79c60d95d28e0f5bf549ad3f2990b5bdb5238c6c2bf70c",
+            "git_oid": "24aa4244652e010036db5fdd29ed39b9428e6e19",
+            "lfs_oid": "75a6583c1a418e2bbd79c60d95d28e0f5bf549ad3f2990b5bdb5238c6c2bf70c",
+            "xet_hash": "864a72dbe9ff99cb862b617e5fd9394a0eb794b06e4e11cbdd8ec3ee7919e503",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/tokenizer.json"
+            }
+          },
+          {
+            "path": "tokenizer_config.json",
+            "size": 3023,
+            "sha256": "01f2ff1c21ef2e722891380323edcaecd9c86a776aeb9b40148e2f35e3cee4d3",
+            "git_oid": "0672fbe45a4922b10e6ccd13947ecdb166bead28",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/tokenizer_config.json"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "workload": {
+    "fixed_output_tokens": 1135,
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "ignore_eos": true,
+    "max_new_tokens": 1135,
+    "path": "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "prompt_tokens": 16384,
+    "seed": 0,
+    "source": {
+      "api_url": "https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=extracts%7Crevisions&explaintext=1&exsectionformat=plain&revids=1366077412&rvprop=ids%7Ctimestamp",
+      "article_url": "https://en.wikipedia.org/w/index.php?title=Artificial+intelligence&oldid=1366077412",
+      "extract_characters": 86450,
+      "extract_utf8_sha256": "2724cd80c72f6ba5ef4b6ae05ed0ff1af172ebdc2d660c506fe4b49828139056",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "page_id": 1164,
+      "revision": 1366077412,
+      "revision_timestamp": "2026-07-26T03:46:54Z",
+      "title": "Artificial intelligence"
+    },
+    "stop_token_ids": [],
+    "suppress_token_ids": [
+      1,
+      50,
+      106,
+      258882,
+      258883
+    ],
+    "temperature": 0.0
+  },
+  "method": {
+    "warmups": 3,
+    "retained_samples": 10,
+    "batch_size": 1,
+    "requested_context_capacity": 17519,
+    "prompt_tokens": 16384,
+    "generated_tokens": 1135,
+    "measured_decode_intervals": 1134,
+    "sampling": "greedy",
+    "prompt_cache": "cold",
+    "suppressed_token_ids": [
+      1,
+      50,
+      106,
+      258882,
+      258883
+    ],
+    "llama_prompt_cache_ram_mib": 0,
+    "llama_context_checkpoints": 0,
+    "llama_actual_context_capacity": 17664,
+    "order": [
+      "gem16-ordinary",
+      "gem16-d2"
+    ],
+    "old_llama_cpp_executed": false,
+    "gem16_model_lifecycle": "fresh process each warmup/measurement; load excluded",
+    "llama_model_lifecycle": "one resident server per mode; full prompt recomputed each request",
+    "llama_rows_reused_from": "2026-10-10 completed current b11552 campaign"
+  },
+  "rows": {
+    "gem16-ordinary": {
+      "status": "complete",
+      "measurement_directory": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix",
+      "measurement_date": "2026-10-11",
+      "newly_measured": true,
+      "prefill_tokens_per_second": {
+        "confidence_interval_95": [
+          5656.594076283912,
+          5679.652895421491
+        ],
+        "maximum": 5699.06012814537,
+        "mean": 5668.123485852701,
+        "median": 5665.111644966029,
+        "minimum": 5650.083799460648,
+        "sample_count": 10,
+        "samples": [
+          5699.06012814537,
+          5685.138276831257,
+          5679.383809041811,
+          5673.05161978366,
+          5670.106660575731,
+          5660.116629356327,
+          5657.028816871647,
+          5652.227910635186,
+          5655.0372078253795,
+          5650.083799460648
+        ],
+        "standard_deviation": 16.118123039043084
+      },
+      "ttft_ms": {
+        "confidence_interval_95": [
+          2884.7020736318404,
+          2896.44192636816
+        ],
+        "maximum": 2899.78,
+        "mean": 2890.572,
+        "median": 2892.09,
+        "minimum": 2874.86,
+        "sample_count": 10,
+        "samples": [
+          2874.86,
+          2881.9,
+          2884.82,
+          2888.04,
+          2889.54,
+          2894.64,
+          2896.22,
+          2898.68,
+          2897.24,
+          2899.78
+        ],
+        "standard_deviation": 8.20616137085075
+      },
+      "decode_tokens_per_second": {
+        "confidence_interval_95": [
+          129.04805284620866,
+          129.15418311423875
+        ],
+        "maximum": 129.29766511676698,
+        "mean": 129.1011179802237,
+        "median": 129.08682467598936,
+        "minimum": 129.02814725138185,
+        "sample_count": 10,
+        "samples": [
+          129.29766511676698,
+          129.11452936957042,
+          129.0726460461543,
+          129.11085430625687,
+          129.10056524189278,
+          129.08278372600756,
+          129.09086562597116,
+          129.06280373576496,
+          129.02814725138185,
+          129.05031938247032
+        ],
+        "standard_deviation": 0.07418509629954635
+      },
+      "average_itl_ms": {
+        "confidence_interval_95": [
+          7.742688254999687,
+          7.749048958404193
+        ],
+        "maximum": 7.750246913580248,
+        "mean": 7.74586860670194,
+        "median": 7.746723985890652,
+        "minimum": 7.734091710758377,
+        "sample_count": 10,
+        "samples": [
+          7.734091710758377,
+          7.745061728395061,
+          7.74757495590829,
+          7.745282186948853,
+          7.745899470899471,
+          7.746966490299823,
+          7.7464814814814815,
+          7.748165784832452,
+          7.750246913580248,
+          7.748915343915344
+        ],
+        "standard_deviation": 0.004446134013931085
+      },
+      "generated_tokens": {
+        "confidence_interval_95": [
+          1135.0,
+          1135.0
+        ],
+        "maximum": 1135.0,
+        "mean": 1135.0,
+        "median": 1135.0,
+        "minimum": 1135.0,
+        "sample_count": 10,
+        "samples": [
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "deterministic_outputs": true,
+      "output_hashes": [
+        "9bc749fe3419fb50806e2b7124bacb7ad5d089d44890ba588842be708a3ab247"
+      ],
+      "telemetry": {
+        "interval_ms": 200,
+        "active_samples": 821,
+        "excluded_idle_invalid_or_nonactive_samples": 28,
+        "active_sample_rule": "memory.used >=1000 MiB, utilization >0; finite plausible hardware values",
+        "peak_power_w": 179.11,
+        "sm_clock_min_max_mhz": [
+          1485.0,
+          2677.0
+        ],
+        "memory_clock_min_max_mhz": [
+          14001.0,
+          14001.0
+        ],
+        "temperature_min_max_c": [
+          43.0,
+          74.0
+        ],
+        "sampled_peak_vram_mib": 12455.0,
+        "minimum_nvml_free_vram_mib": 3848.0
+      },
+      "configuration": {
+        "batch_size": 1,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 0,
+        "mtp_verification_mode": "disabled",
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "decode_samples": [
+        129.29766511676698,
+        129.11452936957042,
+        129.0726460461543,
+        129.11085430625687,
+        129.10056524189278,
+        129.08278372600756,
+        129.09086562597116,
+        129.06280373576496,
+        129.02814725138185,
+        129.05031938247032
+      ],
+      "prefill_samples": [
+        5699.06012814537,
+        5685.138276831257,
+        5679.383809041811,
+        5673.05161978366,
+        5670.106660575731,
+        5660.116629356327,
+        5657.028816871647,
+        5652.227910635186,
+        5655.0372078253795,
+        5650.083799460648
+      ],
+      "commands": [
+        "/usr/bin/python",
+        "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary.json",
+        "--fixed-output-tokens",
+        "1135",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--gpu-telemetry-csv",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary-telemetry.csv",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--executable",
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-run"
+      ]
+    },
+    "gem16-d2": {
+      "status": "complete",
+      "measurement_directory": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix",
+      "measurement_date": "2026-10-11",
+      "newly_measured": true,
+      "prefill_tokens_per_second": {
+        "confidence_interval_95": [
+          5662.541625388926,
+          5673.57517638491
+        ],
+        "maximum": 5684.230977393525,
+        "mean": 5668.058400886918,
+        "median": 5665.469863424607,
+        "minimum": 5660.722861594912,
+        "sample_count": 10,
+        "samples": [
+          5684.230977393525,
+          5677.415777837841,
+          5671.343170953751,
+          5669.400325270771,
+          5666.57674296347,
+          5664.362983885745,
+          5661.818320046168,
+          5662.424916881519,
+          5660.722861594912,
+          5662.287932041485
+        ],
+        "standard_deviation": 7.71245619516611
+      },
+      "ttft_ms": {
+        "confidence_interval_95": [
+          2887.7792830649328,
+          2893.398716935067
+        ],
+        "maximum": 2894.33,
+        "mean": 2890.589,
+        "median": 2891.9049999999997,
+        "minimum": 2882.36,
+        "sample_count": 10,
+        "samples": [
+          2882.36,
+          2885.82,
+          2888.91,
+          2889.9,
+          2891.34,
+          2892.47,
+          2893.77,
+          2893.46,
+          2894.33,
+          2893.53
+        ],
+        "standard_deviation": 3.927986337382848
+      },
+      "decode_tokens_per_second": {
+        "confidence_interval_95": [
+          172.21245033351022,
+          172.4717819438681
+        ],
+        "maximum": 172.7018395639507,
+        "mean": 172.34211613868916,
+        "median": 172.31385187700448,
+        "minimum": 172.1170395869191,
+        "sample_count": 10,
+        "samples": [
+          172.7018395639507,
+          172.53892395963138,
+          172.43004722819458,
+          172.40671565206682,
+          172.34775947912675,
+          172.2799442748822,
+          172.20041455655354,
+          172.21009023565753,
+          172.1883868499091,
+          172.1170395869191
+        ],
+        "standard_deviation": 0.18127289080685213
+      },
+      "average_itl_ms": {
+        "confidence_interval_95": [
+          5.798055361461291,
+          5.806780617374688
+        ],
+        "maximum": 5.81,
+        "mean": 5.8024179894179895,
+        "median": 5.803364197530865,
+        "minimum": 5.790326278659611,
+        "sample_count": 10,
+        "samples": [
+          5.790326278659611,
+          5.795793650793651,
+          5.799453262786596,
+          5.800238095238096,
+          5.802222222222222,
+          5.804506172839506,
+          5.807186948853616,
+          5.806860670194003,
+          5.807592592592593,
+          5.81
+        ],
+        "standard_deviation": 0.00609895708536389
+      },
+      "generated_tokens": {
+        "confidence_interval_95": [
+          1135.0,
+          1135.0
+        ],
+        "maximum": 1135.0,
+        "mean": 1135.0,
+        "median": 1135.0,
+        "minimum": 1135.0,
+        "sample_count": 10,
+        "samples": [
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "deterministic_outputs": true,
+      "output_hashes": [
+        "9bc749fe3419fb50806e2b7124bacb7ad5d089d44890ba588842be708a3ab247"
+      ],
+      "telemetry": {
+        "interval_ms": 200,
+        "active_samples": 677,
+        "excluded_idle_invalid_or_nonactive_samples": 121,
+        "active_sample_rule": "memory.used >=1000 MiB, utilization >0; finite plausible hardware values",
+        "peak_power_w": 177.66,
+        "sm_clock_min_max_mhz": [
+          1485.0,
+          2662.0
+        ],
+        "memory_clock_min_max_mhz": [
+          14001.0,
+          14001.0
+        ],
+        "temperature_min_max_c": [
+          50.0,
+          74.0
+        ],
+        "sampled_peak_vram_mib": 12725.0,
+        "minimum_nvml_free_vram_mib": 3578.0
+      },
+      "configuration": {
+        "batch_size": 1,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 2,
+        "mtp_verification_mode": "batched_exact_target",
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "decode_samples": [
+        172.7018395639507,
+        172.53892395963138,
+        172.43004722819458,
+        172.40671565206682,
+        172.34775947912675,
+        172.2799442748822,
+        172.20041455655354,
+        172.21009023565753,
+        172.1883868499091,
+        172.1170395869191
+      ],
+      "prefill_samples": [
+        5684.230977393525,
+        5677.415777837841,
+        5671.343170953751,
+        5669.400325270771,
+        5666.57674296347,
+        5664.362983885745,
+        5661.818320046168,
+        5662.424916881519,
+        5660.722861594912,
+        5662.287932041485
+      ],
+      "commands": [
+        "/usr/bin/python",
+        "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2.json",
+        "--fixed-output-tokens",
+        "1135",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--gpu-telemetry-csv",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2-telemetry.csv",
+        "--mtp-draft-tokens",
+        "2",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--executable",
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-run",
+        "--assistant-model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant"
+      ],
+      "mtp": {
+        "acceptance_rate": {
+          "confidence_interval_95": [
+            0.6294820717131474,
+            0.6294820717131474
+          ],
+          "maximum": 0.6294820717131474,
+          "mean": 0.6294820717131474,
+          "median": 0.6294820717131474,
+          "minimum": 0.6294820717131474,
+          "sample_count": 10,
+          "samples": [
+            0.6294820717131474,
+            0.6294820717131474,
+            0.6294820717131474,
+            0.6294820717131474,
+            0.6294820717131474,
+            0.6294820717131474,
+            0.6294820717131474,
+            0.6294820717131474,
+            0.6294820717131474,
+            0.6294820717131474
+          ],
+          "standard_deviation": 0.0
+        },
+        "accepted_tokens": {
+          "confidence_interval_95": [
+            632.0,
+            632.0
+          ],
+          "maximum": 632.0,
+          "mean": 632.0,
+          "median": 632.0,
+          "minimum": 632.0,
+          "sample_count": 10,
+          "samples": [
+            632.0,
+            632.0,
+            632.0,
+            632.0,
+            632.0,
+            632.0,
+            632.0,
+            632.0,
+            632.0,
+            632.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "d1_groups": {
+          "confidence_interval_95": [
+            0.0,
+            0.0
+          ],
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "sample_count": 10,
+          "samples": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "d2_groups": {
+          "confidence_interval_95": [
+            502.0,
+            502.0
+          ],
+          "maximum": 502.0,
+          "mean": 502.0,
+          "median": 502.0,
+          "minimum": 502.0,
+          "sample_count": 10,
+          "samples": [
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "d4_groups": {
+          "confidence_interval_95": [
+            0.0,
+            0.0
+          ],
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "sample_count": 10,
+          "samples": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "mean_accepted_length": {
+          "confidence_interval_95": [
+            1.25896,
+            1.25896
+          ],
+          "maximum": 1.25896,
+          "mean": 1.25896,
+          "median": 1.25896,
+          "minimum": 1.25896,
+          "sample_count": 10,
+          "samples": [
+            1.25896,
+            1.25896,
+            1.25896,
+            1.25896,
+            1.25896,
+            1.25896,
+            1.25896,
+            1.25896,
+            1.25896,
+            1.25896
+          ],
+          "standard_deviation": 0.0
+        },
+        "ordinary_fallback_tokens": {
+          "confidence_interval_95": [
+            0.0,
+            0.0
+          ],
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "sample_count": 10,
+          "samples": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "proposed_tokens": {
+          "confidence_interval_95": [
+            1004.0,
+            1004.0
+          ],
+          "maximum": 1004.0,
+          "mean": 1004.0,
+          "median": 1004.0,
+          "minimum": 1004.0,
+          "sample_count": 10,
+          "samples": [
+            1004.0,
+            1004.0,
+            1004.0,
+            1004.0,
+            1004.0,
+            1004.0,
+            1004.0,
+            1004.0,
+            1004.0,
+            1004.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "rejected_tokens": {
+          "confidence_interval_95": [
+            372.0,
+            372.0
+          ],
+          "maximum": 372.0,
+          "mean": 372.0,
+          "median": 372.0,
+          "minimum": 372.0,
+          "sample_count": 10,
+          "samples": [
+            372.0,
+            372.0,
+            372.0,
+            372.0,
+            372.0,
+            372.0,
+            372.0,
+            372.0,
+            372.0,
+            372.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "target_batches": {
+          "confidence_interval_95": [
+            502.0,
+            502.0
+          ],
+          "maximum": 502.0,
+          "mean": 502.0,
+          "median": 502.0,
+          "minimum": 502.0,
+          "sample_count": 10,
+          "samples": [
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0,
+            502.0
+          ],
+          "standard_deviation": 0.0
+        }
+      }
+    },
+    "llama-ordinary": {
+      "status": "complete",
+      "measurement_directory": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final",
+      "measurement_date": "2026-10-10",
+      "newly_measured": false,
+      "prefill_tokens_per_second": {
+        "confidence_interval_95": [
+          4602.786334108811,
+          4621.610092712562
+        ],
+        "maximum": 4637.383184447784,
+        "mean": 4612.198213410687,
+        "median": 4607.792823868722,
+        "minimum": 4599.935594163495,
+        "sample_count": 10,
+        "samples": [
+          4637.383184447784,
+          4631.007569198712,
+          4619.136883373842,
+          4612.695724247284,
+          4609.65241633962,
+          4605.559053701538,
+          4605.933231397824,
+          4600.680891786279,
+          4599.935594163495,
+          4599.997585450486
+        ],
+        "standard_deviation": 13.15781417175976
+      },
+      "ttft_ms": {
+        "confidence_interval_95": [
+          3545.113284932591,
+          3559.576915067409
+        ],
+        "maximum": 3561.789,
+        "mean": 3552.3451,
+        "median": 3555.716,
+        "minimum": 3533.027,
+        "sample_count": 10,
+        "samples": [
+          3533.027,
+          3537.891,
+          3546.983,
+          3551.936,
+          3554.281,
+          3557.44,
+          3557.151,
+          3561.212,
+          3561.789,
+          3561.741
+        ],
+        "standard_deviation": 10.110082771943818
+      },
+      "decode_tokens_per_second": {
+        "confidence_interval_95": [
+          138.3969644211064,
+          138.77431562490867
+        ],
+        "maximum": 139.11753112754758,
+        "mean": 138.58564002300753,
+        "median": 138.4610482186734,
+        "minimum": 138.30730639446878,
+        "sample_count": 10,
+        "samples": [
+          139.11753112754758,
+          138.78491239110616,
+          138.89101525780268,
+          138.62236748911863,
+          138.42694017746723,
+          138.4588673380904,
+          138.40495973074744,
+          138.4632290992564,
+          138.37927122446985,
+          138.30730639446878
+        ],
+        "standard_deviation": 0.2637686299340225
+      },
+      "average_itl_ms": {
+        "confidence_interval_95": [
+          7.205970584532143,
+          7.225586029224471
+        ],
+        "maximum": 7.230276014109347,
+        "mean": 7.215778306878307,
+        "median": 7.222247795414463,
+        "minimum": 7.188166666666667,
+        "sample_count": 10,
+        "samples": [
+          7.188166666666667,
+          7.2053941798941805,
+          7.199889770723105,
+          7.2138430335097,
+          7.2240273368606704,
+          7.222361552028219,
+          7.225174603174603,
+          7.222134038800705,
+          7.226515873015874,
+          7.230276014109347
+        ],
+        "standard_deviation": 0.013711203038199097
+      },
+      "generated_tokens": {
+        "confidence_interval_95": [
+          1135.0,
+          1135.0
+        ],
+        "maximum": 1135.0,
+        "mean": 1135.0,
+        "median": 1135.0,
+        "minimum": 1135.0,
+        "sample_count": 10,
+        "samples": [
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "deterministic_outputs": true,
+      "output_hashes": [
+        "c37b58ecd3ad56fca0023be58fe07744c2c6fcc801f9bc70b79de847505f8321"
+      ],
+      "telemetry": {
+        "interval_ms": 200,
+        "active_samples": 767,
+        "excluded_idle_invalid_or_nonactive_samples": 11,
+        "active_sample_rule": "memory.used >=1000 MiB, utilization >0; finite plausible hardware values",
+        "peak_power_w": 175.94,
+        "sm_clock_min_max_mhz": [
+          1492.0,
+          2460.0
+        ],
+        "memory_clock_min_max_mhz": [
+          14001.0,
+          14001.0
+        ],
+        "temperature_min_max_c": [
+          50.0,
+          77.0
+        ],
+        "sampled_peak_vram_mib": 15201.0,
+        "minimum_nvml_free_vram_mib": 1102.0
+      },
+      "configuration": {
+        "batch_size": 2048,
+        "cache_prompt": false,
+        "context_checkpoints": 0,
+        "draft_tensor_overrides": [],
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "log_verbosity": 4,
+        "maximum_draft_tokens": 0,
+        "measured_repetitions": 10,
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "prompt_cache_ram_mib": 0,
+        "speculative_types": [],
+        "tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "threads": 8,
+        "ubatch_size": 512,
+        "warmups": 3
+      },
+      "decode_samples": [
+        139.11753112754758,
+        138.78491239110616,
+        138.89101525780268,
+        138.62236748911863,
+        138.42694017746723,
+        138.4588673380904,
+        138.40495973074744,
+        138.4632290992564,
+        138.37927122446985,
+        138.30730639446878
+      ],
+      "prefill_samples": [
+        4637.383184447784,
+        4631.007569198712,
+        4619.136883373842,
+        4612.695724247284,
+        4609.65241633962,
+        4605.559053701538,
+        4605.933231397824,
+        4600.680891786279,
+        4599.935594163495,
+        4599.997585450486
+      ],
+      "commands": [
+        "/usr/bin/python",
+        "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "llama-cpp",
+        "--workload",
+        "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.json",
+        "--fixed-output-tokens",
+        "1135",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--gpu-telemetry-csv",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary-telemetry.csv",
+        "--mtp-draft-tokens",
+        "0",
+        "--executable",
+        "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/llama-server",
+        "--gguf",
+        "/home/sebastian/Development/gem16gb/models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf",
+        "--llama-kv-cache-type",
+        "q8_0",
+        "--llama-threads",
+        "8",
+        "--llama-batch-size",
+        "2048",
+        "--llama-ubatch-size",
+        "512",
+        "--llama-log-verbosity",
+        "4",
+        "--llama-override-tensor",
+        "token_embd.weight=CUDA0"
+      ]
+    },
+    "llama-d2": {
+      "status": "complete",
+      "measurement_directory": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final",
+      "measurement_date": "2026-10-10",
+      "newly_measured": false,
+      "prefill_tokens_per_second": {
+        "confidence_interval_95": [
+          4440.4125096109965,
+          4449.503403035134
+        ],
+        "maximum": 4456.521443473389,
+        "mean": 4444.957956323065,
+        "median": 4445.204826152785,
+        "minimum": 4435.055562713916,
+        "sample_count": 10,
+        "samples": [
+          4456.521443473389,
+          4451.249794879541,
+          4440.175785865585,
+          4448.867485713742,
+          4445.872372202878,
+          4446.367054330675,
+          4444.537280102693,
+          4438.1683562171875,
+          4435.055562713916,
+          4442.76442773105
+        ],
+        "standard_deviation": 6.354537839549175
+      },
+      "ttft_ms": {
+        "confidence_interval_95": [
+          3682.212634969434,
+          3689.749165030566
+        ],
+        "maximum": 3694.204,
+        "mean": 3685.9809,
+        "median": 3685.7695,
+        "minimum": 3676.41,
+        "sample_count": 10,
+        "samples": [
+          3676.41,
+          3680.764,
+          3689.944,
+          3682.735,
+          3685.216,
+          3684.806,
+          3686.323,
+          3691.613,
+          3694.204,
+          3687.794
+        ],
+        "standard_deviation": 5.26803727840519
+      },
+      "decode_tokens_per_second": {
+        "confidence_interval_95": [
+          196.7200956687202,
+          197.32114121954032
+        ],
+        "maximum": 197.74790594732931,
+        "mean": 197.02061844413026,
+        "median": 196.84956939017846,
+        "minimum": 196.49211328480752,
+        "sample_count": 10,
+        "samples": [
+          197.74790594732931,
+          196.69899537809397,
+          196.7678025409074,
+          196.79921863421342,
+          196.8999201461435,
+          197.17209315911944,
+          196.49211328480752,
+          196.68272215131353,
+          197.5145218459073,
+          197.4308913534671
+        ],
+        "standard_deviation": 0.4201310605884192
+      },
+      "average_itl_ms": {
+        "confidence_interval_95": [
+          5.067897722800664,
+          5.083365592895985
+        ],
+        "maximum": 5.08926278659612,
+        "mean": 5.075631657848325,
+        "median": 5.080021604938271,
+        "minimum": 5.056943562610229,
+        "sample_count": 10,
+        "samples": [
+          5.056943562610229,
+          5.083910052910054,
+          5.082132275132275,
+          5.081320987654321,
+          5.078722222222222,
+          5.07171164021164,
+          5.08926278659612,
+          5.084330687830688,
+          5.062918871252205,
+          5.0650634920634925
+        ],
+        "standard_deviation": 0.010812046872860082
+      },
+      "generated_tokens": {
+        "confidence_interval_95": [
+          1135.0,
+          1135.0
+        ],
+        "maximum": 1135.0,
+        "mean": 1135.0,
+        "median": 1135.0,
+        "minimum": 1135.0,
+        "sample_count": 10,
+        "samples": [
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "deterministic_outputs": true,
+      "output_hashes": [
+        "6a684de01feb57022a616c03bbf4e4c94aa8e338752d5e93a13b75ebc1f3d4a8"
+      ],
+      "telemetry": {
+        "interval_ms": 200,
+        "active_samples": 617,
+        "excluded_idle_invalid_or_nonactive_samples": 13,
+        "active_sample_rule": "memory.used >=1000 MiB, utilization >0; finite plausible hardware values",
+        "peak_power_w": 176.15,
+        "sm_clock_min_max_mhz": [
+          1492.0,
+          2437.0
+        ],
+        "memory_clock_min_max_mhz": [
+          14001.0,
+          14001.0
+        ],
+        "temperature_min_max_c": [
+          48.0,
+          75.0
+        ],
+        "sampled_peak_vram_mib": 15561.0,
+        "minimum_nvml_free_vram_mib": 742.0
+      },
+      "configuration": {
+        "batch_size": 2048,
+        "cache_prompt": false,
+        "context_checkpoints": 0,
+        "draft_tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "log_verbosity": 4,
+        "maximum_draft_tokens": 2,
+        "measured_repetitions": 10,
+        "mtp_backend": "draft-mtp",
+        "mtp_draft_tokens": 2,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "prompt_cache_ram_mib": 0,
+        "speculative_types": [
+          "draft-mtp"
+        ],
+        "tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "threads": 8,
+        "ubatch_size": 512,
+        "warmups": 3
+      },
+      "decode_samples": [
+        197.74790594732931,
+        196.69899537809397,
+        196.7678025409074,
+        196.79921863421342,
+        196.8999201461435,
+        197.17209315911944,
+        196.49211328480752,
+        196.68272215131353,
+        197.5145218459073,
+        197.4308913534671
+      ],
+      "prefill_samples": [
+        4456.521443473389,
+        4451.249794879541,
+        4440.175785865585,
+        4448.867485713742,
+        4445.872372202878,
+        4446.367054330675,
+        4444.537280102693,
+        4438.1683562171875,
+        4435.055562713916,
+        4442.76442773105
+      ],
+      "commands": [
+        "/usr/bin/python",
+        "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "llama-cpp",
+        "--workload",
+        "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.json",
+        "--fixed-output-tokens",
+        "1135",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--gpu-telemetry-csv",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2-telemetry.csv",
+        "--mtp-draft-tokens",
+        "2",
+        "--executable",
+        "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/llama-server",
+        "--gguf",
+        "/home/sebastian/Development/gem16gb/models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf",
+        "--llama-kv-cache-type",
+        "q8_0",
+        "--llama-threads",
+        "8",
+        "--llama-batch-size",
+        "2048",
+        "--llama-ubatch-size",
+        "512",
+        "--llama-log-verbosity",
+        "4",
+        "--llama-override-tensor",
+        "token_embd.weight=CUDA0",
+        "--assistant-model",
+        "/home/sebastian/.cache/huggingface/hub/models--unsloth--gemma-4-26B-A4B-it-qat-GGUF/snapshots/7b92b5b28818151e8669af2e45e88d6086f490dd/mtp-gemma-4-26B-A4B-it.gguf",
+        "--llama-draft-override-tensor",
+        "token_embd.weight=CUDA0"
+      ],
+      "mtp": {
+        "acceptance_rate": {
+          "confidence_interval_95": [
+            0.6524390243902439,
+            0.6524390243902439
+          ],
+          "maximum": 0.6524390243902439,
+          "mean": 0.6524390243902439,
+          "median": 0.6524390243902439,
+          "minimum": 0.6524390243902439,
+          "sample_count": 10,
+          "samples": [
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439
+          ],
+          "standard_deviation": 0.0
+        },
+        "accepted_tokens": {
+          "confidence_interval_95": [
+            642.0,
+            642.0
+          ],
+          "maximum": 642.0,
+          "mean": 642.0,
+          "median": 642.0,
+          "minimum": 642.0,
+          "sample_count": 10,
+          "samples": [
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "d1_groups": {
+          "confidence_interval_95": [
+            0.0,
+            0.0
+          ],
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "sample_count": 10,
+          "samples": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "d2_groups": {
+          "confidence_interval_95": [
+            493.0,
+            493.0
+          ],
+          "maximum": 493.0,
+          "mean": 493.0,
+          "median": 493.0,
+          "minimum": 493.0,
+          "sample_count": 10,
+          "samples": [
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "d4_groups": {
+          "confidence_interval_95": [
+            0.0,
+            0.0
+          ],
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "sample_count": 10,
+          "samples": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "mean_accepted_length": {
+          "confidence_interval_95": [
+            1.3022312373225151,
+            1.3022312373225151
+          ],
+          "maximum": 1.3022312373225151,
+          "mean": 1.3022312373225151,
+          "median": 1.3022312373225151,
+          "minimum": 1.3022312373225151,
+          "sample_count": 10,
+          "samples": [
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151
+          ],
+          "standard_deviation": 0.0
+        },
+        "ordinary_fallback_tokens": {
+          "confidence_interval_95": [
+            0.0,
+            0.0
+          ],
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "sample_count": 10,
+          "samples": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "proposed_tokens": {
+          "confidence_interval_95": [
+            984.0,
+            984.0
+          ],
+          "maximum": 984.0,
+          "mean": 984.0,
+          "median": 984.0,
+          "minimum": 984.0,
+          "sample_count": 10,
+          "samples": [
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "rejected_tokens": {
+          "confidence_interval_95": [
+            342.0,
+            342.0
+          ],
+          "maximum": 342.0,
+          "mean": 342.0,
+          "median": 342.0,
+          "minimum": 342.0,
+          "sample_count": 10,
+          "samples": [
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "target_batches": {
+          "confidence_interval_95": [
+            493.0,
+            493.0
+          ],
+          "maximum": 493.0,
+          "mean": 493.0,
+          "median": 493.0,
+          "minimum": 493.0,
+          "sample_count": 10,
+          "samples": [
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0
+          ],
+          "standard_deviation": 0.0
+        }
+      }
+    }
+  },
+  "ratios": {
+    "ordinary": {
+      "prefill_tokens_per_second_gem16_over_llama": 1.2294631858490501,
+      "decode_tokens_per_second_gem16_over_llama": 0.9322970347019243
+    },
+    "d2": {
+      "prefill_tokens_per_second_gem16_over_llama": 1.274512668143558,
+      "decode_tokens_per_second_gem16_over_llama": 0.8753580330951023
+    },
+    "gem16_d2_over_ordinary_decode": 1.3348678481286984,
+    "llama_d2_over_ordinary_decode": 1.4216963682037946,
+    "gem16_fixed_over_parent_ordinary_decode": 1.0010210845384342
+  },
+  "ordinary_d2_output_identity": {
+    "gem16": {
+      "identical": true,
+      "lengths": [
+        1135,
+        1135
+      ],
+      "first_different_index": null,
+      "matching_positions": 1135
+    },
+    "llama": {
+      "identical": false,
+      "lengths": [
+        1135,
+        1135
+      ],
+      "first_different_index": 101,
+      "matching_positions": 120
+    }
+  },
+  "gem16_parent_ordinary_output_identity": {
+    "identical": true,
+    "lengths": [
+      1135,
+      1135
+    ],
+    "first_different_index": null,
+    "matching_positions": 1135
+  },
+  "cross_engine_ordinary_output_identity": {
+    "identical": false,
+    "lengths": [
+      1135,
+      1135
+    ],
+    "first_different_index": 43,
+    "matching_positions": 75
+  },
+  "model_regressions": {
+    "12b": {
+      "parent_ordinary_vs_fixed_d2": {
+        "identical": true,
+        "lengths": [
+          64,
+          64
+        ],
+        "first_different_index": null,
+        "matching_positions": 64
+      },
+      "fallbacks": 0,
+      "token_loop_allocations": false,
+      "parent": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-parent-ordinary-validated.json",
+        "bytes": 4502,
+        "sha256": "d8e48ff0b0c7b46122872afb0f8704511b9f66c7e050f96820d35459f044e77d"
+      },
+      "candidate": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-d2-fixed.json",
+        "bytes": 4974,
+        "sha256": "5a7db1189670b26c6a2277ef31dcbedff39374d5a4908797350cbe360962663e"
+      }
+    },
+    "nvfp4": {
+      "parent_ordinary_vs_fixed_d2": {
+        "identical": true,
+        "lengths": [
+          64,
+          64
+        ],
+        "first_different_index": null,
+        "matching_positions": 64
+      },
+      "fallbacks": 0,
+      "token_loop_allocations": false,
+      "parent": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-parent-ordinary-runtime.json",
+        "bytes": 4492,
+        "sha256": "2a9a273dba03b56bd34953bd05580c30cb860f77236f634243b686bf37f533d6"
+      },
+      "candidate": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-final-d2.json",
+        "bytes": 4733,
+        "sha256": "d6af08ce2553cb78823f09764fd842289c6d69008be620b80143150024187d93"
+      }
+    },
+    "trellis35": {
+      "parent_ordinary_vs_fixed_d2": {
+        "identical": true,
+        "lengths": [
+          64,
+          64
+        ],
+        "first_different_index": null,
+        "matching_positions": 64
+      },
+      "fallbacks": 0,
+      "token_loop_allocations": false,
+      "parent": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-parent-ordinary-runtime.json",
+        "bytes": 4802,
+        "sha256": "09c0521b0dff35aa5d9185906b8c1311c4474c317b85bfefc61bca47bca133ae"
+      },
+      "candidate": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-final-d2.json",
+        "bytes": 5027,
+        "sha256": "eddec45ac9ebc6ce134a4913e4a2b3b3dc73fe661e1d424ec7fbab7e9ac4a339"
+      }
+    }
+  },
+  "checks": {
+    "operator-tests.log": {
+      "evidence": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/operator-tests.log",
+        "bytes": 590,
+        "sha256": "02f880e66cfa05265a1a47872659f77084a97c9f959b2d38e555e7394ba3570f"
+      },
+      "status": "passed"
+    },
+    "host-tests.log": {
+      "evidence": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/host-tests.log",
+        "bytes": 346,
+        "sha256": "4dcbb05d718987e30a6c3ffcb96b52aa905f40f5dc0887836dc30af2a90b9ba9"
+      },
+      "status": "passed"
+    },
+    "harness-tests.log": {
+      "evidence": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/harness-tests.log",
+        "bytes": 2715,
+        "sha256": "a111be6d28b3037739262406c15850945decb40c866cd47a56b11bc5e3a02906"
+      },
+      "status": "passed"
+    },
+    "12b-product-final.log": {
+      "evidence": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-product-final.log",
+        "bytes": 250,
+        "sha256": "e6468d2237cbf54b650c05c3b74b81ac2799c0cbd9e65144a84ac9b7d6968e29"
+      },
+      "status": "passed"
+    },
+    "full-cuda-tests.log": {
+      "evidence": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/full-cuda-tests.log",
+        "bytes": 237,
+        "sha256": "4b5542fa53885ff99d29c998536749ed58fc9db6207f6aa77f3a5e785d71db6b"
+      },
+      "status": "passed"
+    },
+    "conditional-graph-memcheck.log": {
+      "evidence": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-graph-memcheck.log",
+        "bytes": 160,
+        "sha256": "4d8c2130fa75cec5e65dd374585b8023c20d5a02edb90d7b2d331a97c4274084"
+      },
+      "status": "passed"
+    },
+    "mtp-control-memcheck.log": {
+      "evidence": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/mtp-control-memcheck.log",
+        "bytes": 92,
+        "sha256": "720e3b1a2ba56a819b4c02d11de660a972148d63bdd3f3db993c05e4aa3f61bf"
+      },
+      "status": "passed"
+    },
+    "trellis35-d2-memcheck-after-atomic-fix.log": {
+      "evidence": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-d2-memcheck-after-atomic-fix.log",
+        "bytes": 4789,
+        "sha256": "aabc405afca6228cf9fd1aee0e9baa0c27e7c5ef6e3fceeac5e6998523d472b3"
+      },
+      "status": "passed"
+    }
+  },
+  "system_update_history": [
+    "[2026-10-04T15:52:59+0200] [ALPM] upgraded nvidia-utils (610.57.04-1 -> 615.71.09-1)",
+    "[2026-10-04T15:53:06+0200] [ALPM] upgraded cuda (13.3.1-1 -> 13.4.2-1)",
+    "[2026-10-04T15:53:10+0200] [ALPM] upgraded linux (7.2.2.arch1-1 -> 7.2.8.arch1-2)",
+    "[2026-10-04T15:53:12+0200] [ALPM] upgraded nsight-compute (2026.2.1.5-1 -> 2026.3.1.2-1)",
+    "[2026-10-04T15:53:13+0200] [ALPM] upgraded nsight-systems (2026.1.3.425-1 -> 2026.3.2.476-1)",
+    "[2026-10-04T15:53:13+0200] [ALPM] upgraded nvidia-open (610.57.04-11 -> 615.71.09-6)",
+    "[2026-10-09T18:21:56+0200] [ALPM] upgraded linux (7.2.8.arch1-2 -> 7.2.9.arch1-1)",
+    "[2026-10-09T18:21:57+0200] [ALPM] upgraded nvidia-open (615.71.09-6 -> 615.71.09-7)"
+  ],
+  "runtime_ab": {
+    "scope": "same CUDA 13.4-compiled binary and installed 615 driver; only libcudart selection differs; no system install/downgrade",
+    "extract_command": [
+      "tar",
+      "--zstd",
+      "--no-same-owner",
+      "-xf",
+      "/var/cache/pacman/pkg/cuda-13.3.1-1-x86_64.pkg.tar.zst",
+      "-C",
+      "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/cuda-13.3-runtime",
+      "opt/cuda/targets/x86_64-linux/lib/libcudart.so",
+      "opt/cuda/targets/x86_64-linux/lib/libcudart.so.13",
+      "opt/cuda/targets/x86_64-linux/lib/libcudart.so.13.3.29",
+      ".PKGINFO"
+    ],
+    "build_command": [
+      "nvcc",
+      "-O2",
+      "-arch=sm_120a",
+      "--cudart",
+      "shared",
+      "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-runtime-ab.cu",
+      "-o",
+      "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-runtime-ab"
+    ],
+    "libraries": {
+      "/opt/cuda/targets/x86_64-linux/lib/libcudart.so.13.4.92": "7fb00519a24512bf677b59e87921e5c05aac8246ceb6a57435c0d9dfeef364f6",
+      "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/cuda-13.3-runtime/opt/cuda/targets/x86_64-linux/lib/libcudart.so.13.3.29": "9f92e4c3f7e14d0fed69ef876a45d4255a2dc88cb552a673a90ce881c26282fe"
+    },
+    "package_metadata": "# Generated by makepkg 7.1.0\n# using fakeroot version 1.37.2\npkgname = cuda\npkgbase = cuda\nxdata = pkgtype=pkg\npkgver = 13.3.1-1\npkgdesc = NVIDIA's GPU programming toolkit\nurl = https://developer.nvidia.com/cuda-zone\nbuilddate = 1782852565\npackager = Jakub Klinkovsk\u00fd <lahwaacz@archlinux.org>\nsize = 5057382817\narch = x86_64\nlicense = LicenseRef-NVIDIA-CUDA\nreplaces = cuda-toolkit\nreplaces = cuda-sdk\nreplaces = cuda-static\nreplaces = cuda-tools\nprovides = cuda-toolkit\nprovides = cuda-sdk\nprovides = libcudart.so=13-64\nprovides = libcublas.so=13-64\nprovides = libcublas.so=13-64\nprovides = libcusolver.so=12-64\nprovides = libcusolver.so=12-64\nprovides = libcusparse.so=12-64\nprovides = libcusparse.so=12-64\ndepend = cccl\ndepend = opencl-nvidia\ndepend = python\ndepend = gcc15\noptdepend = gdb: for cuda-gdb\noptdepend = glu: required for some profiling tools in CUPTI\noptdepend = nvidia-utils: for NVIDIA drivers (not needed in CDI containers)\noptdepend = nsight-compute: for profiling CUDA applications\noptdepend = nsight-systems: for system-wide profiling\noptdepend = rdma-core: for GPUDirect Storage (libcufile_rdma.so)\n",
+    "runs": [
+      {
+        "runtime": "current-13.4",
+        "mode": "kernel-only",
+        "command": [
+          "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-runtime-ab"
+        ],
+        "cwd": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/runtime-ab-current-13.4-kernel-only",
+        "LD_LIBRARY_PATH": "/opt/cuda/targets/x86_64-linux/lib",
+        "returncode": 0,
+        "stdout": "result=1\n",
+        "stderr": "runtime=13040 driver=13040 hostNativeAtomicSupported=0\ninstantiating\n"
+      },
+      {
+        "runtime": "current-13.4",
+        "mode": "child-dtod",
+        "command": [
+          "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-runtime-ab",
+          "memcpy"
+        ],
+        "cwd": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/runtime-ab-current-13.4-child-dtod",
+        "LD_LIBRARY_PATH": "/opt/cuda/targets/x86_64-linux/lib",
+        "returncode": -11,
+        "stdout": "",
+        "stderr": "runtime=13040 driver=13040 hostNativeAtomicSupported=0\ninstantiating\n"
+      },
+      {
+        "runtime": "current-13.4",
+        "mode": "direct-dtod",
+        "command": [
+          "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-runtime-ab",
+          "memcpy",
+          "unchanged",
+          "direct"
+        ],
+        "cwd": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/runtime-ab-current-13.4-direct-dtod",
+        "LD_LIBRARY_PATH": "/opt/cuda/targets/x86_64-linux/lib",
+        "returncode": 0,
+        "stdout": "result=1\n",
+        "stderr": "runtime=13040 driver=13040 hostNativeAtomicSupported=0\ninstantiating\n"
+      },
+      {
+        "runtime": "cached-13.3",
+        "mode": "kernel-only",
+        "command": [
+          "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-runtime-ab"
+        ],
+        "cwd": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/runtime-ab-cached-13.3-kernel-only",
+        "LD_LIBRARY_PATH": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/cuda-13.3-runtime/opt/cuda/targets/x86_64-linux/lib",
+        "returncode": 0,
+        "stdout": "result=1\n",
+        "stderr": "runtime=13030 driver=13040 hostNativeAtomicSupported=0\ninstantiating\n"
+      },
+      {
+        "runtime": "cached-13.3",
+        "mode": "child-dtod",
+        "command": [
+          "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-runtime-ab",
+          "memcpy"
+        ],
+        "cwd": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/runtime-ab-cached-13.3-child-dtod",
+        "LD_LIBRARY_PATH": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/cuda-13.3-runtime/opt/cuda/targets/x86_64-linux/lib",
+        "returncode": -11,
+        "stdout": "",
+        "stderr": "runtime=13030 driver=13040 hostNativeAtomicSupported=0\ninstantiating\n"
+      },
+      {
+        "runtime": "cached-13.3",
+        "mode": "direct-dtod",
+        "command": [
+          "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-runtime-ab",
+          "memcpy",
+          "unchanged",
+          "direct"
+        ],
+        "cwd": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/runtime-ab-cached-13.3-direct-dtod",
+        "LD_LIBRARY_PATH": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/cuda-13.3-runtime/opt/cuda/targets/x86_64-linux/lib",
+        "returncode": 0,
+        "stdout": "result=1\n",
+        "stderr": "runtime=13030 driver=13040 hostNativeAtomicSupported=0\ninstantiating\n"
+      }
+    ]
+  },
+  "old_toolkit_control": {
+    "scope": "cached 13.3 nvcc, headers and libcudart with current host GCC and installed 615 driver; no system changes",
+    "extract_members": [
+      "opt/cuda/bin/crt/",
+      "opt/cuda/bin/cudafe++",
+      "opt/cuda/bin/fatbinary",
+      "opt/cuda/bin/nvcc",
+      "opt/cuda/bin/nvcc.profile",
+      "opt/cuda/bin/nvlink",
+      "opt/cuda/bin/ptxas",
+      "opt/cuda/include",
+      "opt/cuda/lib64",
+      "opt/cuda/nvvm/",
+      "opt/cuda/targets/x86_64-linux/include/",
+      "opt/cuda/targets/x86_64-linux/lib/libcudadevrt.a",
+      "opt/cuda/targets/x86_64-linux/lib/libcudart.so",
+      "opt/cuda/targets/x86_64-linux/lib/libcudart.so.13",
+      "opt/cuda/targets/x86_64-linux/lib/libcudart.so.13.3.29"
+    ],
+    "build_command": [
+      "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/cuda-13.3-toolkit-control/opt/cuda/bin/nvcc",
+      "-O2",
+      "-arch=sm_120a",
+      "--allow-unsupported-compiler",
+      "--cudart",
+      "shared",
+      "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-runtime-ab.cu",
+      "-o",
+      "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-old-toolkit"
+    ],
+    "build_returncode": 0,
+    "compiler_version": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Tue_Jun_09_02:43:40_PM_PDT_2026\nCuda compilation tools, release 13.3, V13.3.73\nBuild cuda_13.3.r13.3/compiler.38244171_0\n",
+    "runs": [
+      {
+        "mode": "kernel-only",
+        "command": [
+          "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-old-toolkit"
+        ],
+        "LD_LIBRARY_PATH": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/cuda-13.3-toolkit-control/opt/cuda/targets/x86_64-linux/lib",
+        "returncode": 0,
+        "stdout": "result=1\n",
+        "stderr": "runtime=13030 driver=13040 hostNativeAtomicSupported=0\ninstantiating\n"
+      },
+      {
+        "mode": "child-dtod",
+        "command": [
+          "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-old-toolkit",
+          "memcpy"
+        ],
+        "LD_LIBRARY_PATH": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/cuda-13.3-toolkit-control/opt/cuda/targets/x86_64-linux/lib",
+        "returncode": -11,
+        "stdout": "",
+        "stderr": "runtime=13030 driver=13040 hostNativeAtomicSupported=0\ninstantiating\n"
+      },
+      {
+        "mode": "direct-dtod",
+        "command": [
+          "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-old-toolkit",
+          "memcpy",
+          "unchanged",
+          "direct"
+        ],
+        "LD_LIBRARY_PATH": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/cuda-13.3-toolkit-control/opt/cuda/targets/x86_64-linux/lib",
+        "returncode": 0,
+        "stdout": "result=1\n",
+        "stderr": "runtime=13030 driver=13040 hostNativeAtomicSupported=0\ninstantiating\n"
+      }
+    ]
+  },
+  "dispatch_diagnostics": {
+    "gem16_d2": {
+      "evidence": {
+        "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/dispatch-trellis35-d2-kernels.csv",
+        "bytes": 16676,
+        "sha256": "c75ff0b362446e0736d8dc396363a8a89746c15c5cdd3c11269e694e01d209dd"
+      },
+      "capture": "eight-token decode-only range, exact 16K prompt and 17519 requested capacity, same suppression IDs as primary benchmark",
+      "output_matches_primary_prefix": true,
+      "group_execution": "gpu_chained_fixed_d2_conditional_graph",
+      "timings_used_in_primary_results": false
+    },
+    "prior": {
+      "gem16_ordinary": {
+        "directory": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k",
+        "capture": "eight-token decode-only CUDA profiler range; same 17519 capacity",
+        "suppressed_token_ids": [
+          258882,
+          258883
+        ],
+        "first_eight_tokens_match_final_measurements": true,
+        "kernels": [
+          "MmaW4A8ProjectionSelectedN128InverseKernel",
+          "SplitOnlineDecodeAttentionFp8Kernel",
+          "SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel"
+        ]
+      },
+      "llama": {
+        "capture": "eight-token whole-request profiles, zero warmups/one sample; reduced requested capacity 16392",
+        "kernels": [
+          "mul_mat_q",
+          "flash_attn_ext_f16",
+          "k_set_rows_quant"
+        ]
+      },
+      "timings_used_in_primary_results": false,
+      "instruction_or_quality_equivalence_claim": false
+    }
+  },
+  "raw_evidence": {
+    "gem16-ordinary.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary.json",
+      "bytes": 272791,
+      "sha256": "9bbf6654b0a1754e597f3e63f8c064af5e43f7830aa380caf2c5c052aab55576"
+    },
+    "gem16-ordinary.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary.command.json",
+      "bytes": 888,
+      "sha256": "0e109c26f5d10f2391c1bc85c6e7289a5e6fb4b1eb9ec536177191ae61147a50"
+    },
+    "gem16-ordinary.execution.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary.execution.json",
+      "bytes": 132,
+      "sha256": "675794c90171f6fe952ecb8c1d82cd6e43c1857dc558b71c2a4f1cab18a800f5"
+    },
+    "gem16-ordinary.console.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary.console.log",
+      "bytes": 503,
+      "sha256": "ccdf56a6d1366d9df9ab4fd81877e364af0bce7fa872db7c44fccd33768d48d9"
+    },
+    "gem16-ordinary-telemetry.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary-telemetry.csv",
+      "bytes": 68638,
+      "sha256": "24fd268a459a00b530a1327f42d5d788097dadb58f139755ee39b28eb499aa76"
+    },
+    "gem16-d2.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2.json",
+      "bytes": 283849,
+      "sha256": "6ddf2c91e7c19a075d487272d0452151a61c895e4a2a59794432cdecdb2304e3"
+    },
+    "gem16-d2.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2.command.json",
+      "bytes": 1049,
+      "sha256": "ea2138175c6112beaa58503e33077902e5cdb2f1ca6d3f344a3ebe28a21fe283"
+    },
+    "gem16-d2.execution.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2.execution.json",
+      "bytes": 133,
+      "sha256": "d2130c6a11f99021c3d0fb7d2d491322ea1f8e1f842d74022624837f583cca9c"
+    },
+    "gem16-d2.console.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2.console.log",
+      "bytes": 497,
+      "sha256": "b6518a96150ccbd4b26aa32c9f5b47d50e6ed53212636f114d618db7e4053c41"
+    },
+    "gem16-d2-telemetry.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2-telemetry.csv",
+      "bytes": 64216,
+      "sha256": "7aaaa5f32d8a056d916ad60ecd153f255719b8fb5148028239999126d791770a"
+    },
+    "llama-ordinary.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.json",
+      "bytes": 1139047,
+      "sha256": "ba89b7a1c0e966685088e3967fec5371faca36d1a587582a8f4c333364d08f52"
+    },
+    "llama-ordinary.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.command.json",
+      "bytes": 1182,
+      "sha256": "7a7514af56ec57acb67796627195ded840496ce78f27977f49c8303a5bb06be7"
+    },
+    "llama-ordinary.execution.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.execution.json",
+      "bytes": 134,
+      "sha256": "f6d1eefab19a74b0c15503b67b5a50f1c6294261888c5129df7c859cb23f15cc"
+    },
+    "llama-ordinary.console.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.console.log",
+      "bytes": 577,
+      "sha256": "286f9a19e43edab8a4fadad45e9af03b856cc06a1c5c2dc16545c6ac4fef46fe"
+    },
+    "llama-ordinary-telemetry.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary-telemetry.csv",
+      "bytes": 62542,
+      "sha256": "155569896c616e9c9f3aaa137ac723c2f4efac36dcfe25aa368c5ab4334cd7ff"
+    },
+    "llama-ordinary.server.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.server.log",
+      "bytes": 57696,
+      "sha256": "aa756d1996f74739a074cc924caf4926adaae3b00d2449711b2c5c612a7142d9"
+    },
+    "llama-d2.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.json",
+      "bytes": 1157802,
+      "sha256": "1405884cc49de3e42e4a7ba12d056941b52642f21b14adb397fbd28d3c9f59e8"
+    },
+    "llama-d2.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.command.json",
+      "bytes": 1425,
+      "sha256": "d207ed6f0cec1d6298f0a07c1a49a36e5ae56866e51b5d6bf2e38ff474cebaf6"
+    },
+    "llama-d2.execution.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.execution.json",
+      "bytes": 134,
+      "sha256": "cf806049dc5acbb15eef34928b40bdc7b2a418aaaed6444ed5dec49749fa7c7d"
+    },
+    "llama-d2.console.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.console.log",
+      "bytes": 572,
+      "sha256": "8c37e7f8e50e93266a77cc1b67642356d99472eec938230bd353c4f81ef02722"
+    },
+    "llama-d2-telemetry.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2-telemetry.csv",
+      "bytes": 50649,
+      "sha256": "d66ee15261a31ab472b1a4f2f2f5dac5f291fdc6b6610b79fb4be0438f4197c4"
+    },
+    "llama-d2.server.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.server.log",
+      "bytes": 79738,
+      "sha256": "5e7378b477d76d66df3323a63a9def9ceb9c732424c9c167def7f783ef309fc8"
+    },
+    "fix/12b-d2-fixed.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-d2-fixed.json",
+      "bytes": 4974,
+      "sha256": "5a7db1189670b26c6a2277ef31dcbedff39374d5a4908797350cbe360962663e"
+    },
+    "fix/12b-d2.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-d2.command.json",
+      "bytes": 690,
+      "sha256": "d1a2ca5991bc099a9e89ccc2ac8b615e5867099e234b50b66569867c6e30ef9b"
+    },
+    "fix/12b-d2.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-d2.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "fix/12b-fixed-ordinary-validated.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-fixed-ordinary-validated.command.json",
+      "bytes": 500,
+      "sha256": "7422d83abc4ea76fe8f39e02ddff55a46f25458276f5c003ab7364bcc7ad4758"
+    },
+    "fix/12b-fixed-ordinary-validated.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-fixed-ordinary-validated.json",
+      "bytes": 4500,
+      "sha256": "5ee6db6432f85ecca5d5fe06846a0e545fa5e51cd8c1b387e45c1f644dab56e8"
+    },
+    "fix/12b-graph-build.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-graph-build.log",
+      "bytes": 78743,
+      "sha256": "a7be0e7d3a1f6282361eeaaf40d4ef312d844f298c750381e06bb1dad4ea602d"
+    },
+    "fix/12b-parent-ordinary-checked.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-parent-ordinary-checked.command.json",
+      "bytes": 545,
+      "sha256": "f65cd08e8d04c55b791d07c8af4bc9954b4a69bcfe6462372e91f6872166ab4f"
+    },
+    "fix/12b-parent-ordinary-checked.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-parent-ordinary-checked.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "fix/12b-parent-ordinary-validated.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-parent-ordinary-validated.command.json",
+      "bytes": 525,
+      "sha256": "a9e8d80bd7330a8c5c8e61ae8c1c2eff6637af27ccfe4eb883a318eb7808bdc0"
+    },
+    "fix/12b-parent-ordinary-validated.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-parent-ordinary-validated.json",
+      "bytes": 4502,
+      "sha256": "d8e48ff0b0c7b46122872afb0f8704511b9f66c7e050f96820d35459f044e77d"
+    },
+    "fix/12b-parent-ordinary.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-parent-ordinary.command.json",
+      "bytes": 545,
+      "sha256": "8bc1b7e5df604eb814d45c2b7bbd66304e108aa6dd5e7bb60e8117408f79c0af"
+    },
+    "fix/12b-parent-ordinary.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-parent-ordinary.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "fix/12b-product-final.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-product-final.log",
+      "bytes": 250,
+      "sha256": "e6468d2237cbf54b650c05c3b74b81ac2799c0cbd9e65144a84ac9b7d6968e29"
+    },
+    "fix/12b-product.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/12b-product.log",
+      "bytes": 250,
+      "sha256": "072e3470eb4e9201680efe7e9961a659b5ea096940f87c38131d69f388ba28f5"
+    },
+    "fix/complete-runtime-fix.diff": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/complete-runtime-fix.diff",
+      "bytes": 29229,
+      "sha256": "a7c0a8619fc89fb59d6561183ffbcd498d6fe5fec5cced02e270befee5c50ab5"
+    },
+    "fix/conditional-graph-memcheck.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-graph-memcheck.log",
+      "bytes": 160,
+      "sha256": "4d8c2130fa75cec5e65dd374585b8023c20d5a02edb90d7b2d331a97c4274084"
+    },
+    "fix/conditional-repro-runtime-ab.cu": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-runtime-ab.cu",
+      "bytes": 4122,
+      "sha256": "2448b25668280385c4e16eb2f14f7eece6c84b5027a6d764c71e0b2843ba8292"
+    },
+    "fix/conditional-repro.cu": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro.cu",
+      "bytes": 3824,
+      "sha256": "4750cc9cbdb3814f498016e69ab56b763e971551dedf2ef41e1d4113234e1a99"
+    },
+    "fix/dispatch-followup.py": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/dispatch-followup.py",
+      "bytes": 1301,
+      "sha256": "5f105d0b1df9f930d6709f5b215cfaaae208b90857e754d5c1cf9b6b461c1317"
+    },
+    "fix/dispatch-trellis35-d2-kernels.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/dispatch-trellis35-d2-kernels.csv",
+      "bytes": 16676,
+      "sha256": "c75ff0b362446e0736d8dc396363a8a89746c15c5cdd3c11269e694e01d209dd"
+    },
+    "fix/dispatch-trellis35-d2.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/dispatch-trellis35-d2.command.json",
+      "bytes": 1171,
+      "sha256": "22652dff6afda28fbfb62f9148f29c791385656d9485c6494ce449f5a13a18cb"
+    },
+    "fix/dispatch-trellis35-d2.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/dispatch-trellis35-d2.json",
+      "bytes": 4734,
+      "sha256": "6b8fe991279b7ca929f8cbe86c7f923529eb711f20636adaf1691f6899ab508e"
+    },
+    "fix/dispatch-trellis35-d2.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/dispatch-trellis35-d2.log",
+      "bytes": 1516,
+      "sha256": "9f174d85d6334f78817d21629b612af58cf849b4fa866022a58b33b5e72d2c74"
+    },
+    "fix/dispatch-trellis35-d2.nsys-rep": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/dispatch-trellis35-d2.nsys-rep",
+      "bytes": 1691093,
+      "sha256": "a28fb4f311da9e31046dee7b87285197ae6bd9be9bd694aae9ceb16180010c0e"
+    },
+    "fix/final-build-verified.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/final-build-verified.log",
+      "bytes": 571,
+      "sha256": "cfc633789c698718612bd1f614959cd76427bbc6c69b08b931226cafa2b62428"
+    },
+    "fix/final-build.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/final-build.log",
+      "bytes": 1656,
+      "sha256": "e0b8043a397a985ca0401e7fedbfcee63ec315e44d6816c318c0062c880160b0"
+    },
+    "fix/fixed-probe.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/fixed-probe.command.json",
+      "bytes": 790,
+      "sha256": "eaba8ba20b915918e46b28bc178d5ff8345ec985dc4eac456a44b7b1ac6cef7c"
+    },
+    "fix/fixed-probe.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/fixed-probe.json",
+      "bytes": 4735,
+      "sha256": "7f4f349972a0249812e104a8a8faed6d8e37aeab3e475332e74d6547d50362b3"
+    },
+    "fix/followup-campaign.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/followup-campaign.log",
+      "bytes": 9619,
+      "sha256": "4fe8ce9c9e0c9fab9be12290d2205aac76b836e618da80cf7f83310e774c41ff"
+    },
+    "fix/followup-provenance.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/followup-provenance.json",
+      "bytes": 3638,
+      "sha256": "4c926545269c2ca82c9135cdf9dfe175f27f8bd6b6e7d45b77acd0d24b431b62"
+    },
+    "fix/followup-run.py": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/followup-run.py",
+      "bytes": 1942,
+      "sha256": "32ad8e96b7fd3bcc625b32b76568d02331d434a373c197a3eb06808295312b88"
+    },
+    "fix/full-cuda-tests.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/full-cuda-tests.log",
+      "bytes": 237,
+      "sha256": "4b5542fa53885ff99d29c998536749ed58fc9db6207f6aa77f3a5e785d71db6b"
+    },
+    "fix/gem16-d2-telemetry.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2-telemetry.csv",
+      "bytes": 64216,
+      "sha256": "7aaaa5f32d8a056d916ad60ecd153f255719b8fb5148028239999126d791770a"
+    },
+    "fix/gem16-d2.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2.command.json",
+      "bytes": 1049,
+      "sha256": "ea2138175c6112beaa58503e33077902e5cdb2f1ca6d3f344a3ebe28a21fe283"
+    },
+    "fix/gem16-d2.console.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2.console.log",
+      "bytes": 497,
+      "sha256": "b6518a96150ccbd4b26aa32c9f5b47d50e6ed53212636f114d618db7e4053c41"
+    },
+    "fix/gem16-d2.execution.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2.execution.json",
+      "bytes": 133,
+      "sha256": "d2130c6a11f99021c3d0fb7d2d491322ea1f8e1f842d74022624837f583cca9c"
+    },
+    "fix/gem16-d2.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-d2.json",
+      "bytes": 283849,
+      "sha256": "6ddf2c91e7c19a075d487272d0452151a61c895e4a2a59794432cdecdb2304e3"
+    },
+    "fix/gem16-ordinary-telemetry.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary-telemetry.csv",
+      "bytes": 68638,
+      "sha256": "24fd268a459a00b530a1327f42d5d788097dadb58f139755ee39b28eb499aa76"
+    },
+    "fix/gem16-ordinary.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary.command.json",
+      "bytes": 888,
+      "sha256": "0e109c26f5d10f2391c1bc85c6e7289a5e6fb4b1eb9ec536177191ae61147a50"
+    },
+    "fix/gem16-ordinary.console.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary.console.log",
+      "bytes": 503,
+      "sha256": "ccdf56a6d1366d9df9ab4fd81877e364af0bce7fa872db7c44fccd33768d48d9"
+    },
+    "fix/gem16-ordinary.execution.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary.execution.json",
+      "bytes": 132,
+      "sha256": "675794c90171f6fe952ecb8c1d82cd6e43c1857dc558b71c2a4f1cab18a800f5"
+    },
+    "fix/gem16-ordinary.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-ordinary.json",
+      "bytes": 272791,
+      "sha256": "9bbf6654b0a1754e597f3e63f8c064af5e43f7830aa380caf2c5c052aab55576"
+    },
+    "fix/graph-dump.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/graph-dump.log",
+      "bytes": 75,
+      "sha256": "90f9940e6a1f0c1521d707f020d59d62a74447f68f30cc2bc94eadc8ad654eaa"
+    },
+    "fix/harness-tests.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/harness-tests.log",
+      "bytes": 2715,
+      "sha256": "a111be6d28b3037739262406c15850945decb40c866cd47a56b11bc5e3a02906"
+    },
+    "fix/host-build.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/host-build.log",
+      "bytes": 6296,
+      "sha256": "ab8b1a63f0bf6a20334941bec805f20a41d9c2fadbdafc182746567c535f536b"
+    },
+    "fix/host-tests.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/host-tests.log",
+      "bytes": 346,
+      "sha256": "4dcbb05d718987e30a6c3ffcb96b52aa905f40f5dc0887836dc30af2a90b9ba9"
+    },
+    "fix/mtp-control-memcheck.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/mtp-control-memcheck.log",
+      "bytes": 92,
+      "sha256": "720e3b1a2ba56a819b4c02d11de660a972148d63bdd3f3db993c05e4aa3f61bf"
+    },
+    "fix/mtp-test-build.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/mtp-test-build.log",
+      "bytes": 9453,
+      "sha256": "408775f8562d9894c897ea6c5f531774e803caac86500492b3c6b236dc368cd9"
+    },
+    "fix/nvfp4-final-d2.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-final-d2.json",
+      "bytes": 4733,
+      "sha256": "d6af08ce2553cb78823f09764fd842289c6d69008be620b80143150024187d93"
+    },
+    "fix/nvfp4-fixed-d2-runtime.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-fixed-d2-runtime.command.json",
+      "bytes": 684,
+      "sha256": "771cbf657d4d01c7a6816cdf21cf48223d5475dd4593803a3b09889bea58cdfa"
+    },
+    "fix/nvfp4-fixed-d2-runtime.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-fixed-d2-runtime.json",
+      "bytes": 4733,
+      "sha256": "bab4f510f36b52c408c216d81b6de2c9e923ee9ecbd260a6a436d04169894100"
+    },
+    "fix/nvfp4-fixed-ordinary-runtime.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-fixed-ordinary-runtime.command.json",
+      "bytes": 480,
+      "sha256": "c80c411167a73f1ee15a0e0ee0f15b99c330a5378ae6e89549e0a1d0e3981cdf"
+    },
+    "fix/nvfp4-fixed-ordinary-runtime.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-fixed-ordinary-runtime.json",
+      "bytes": 4492,
+      "sha256": "ac538026810c1b164b61c4c46e35667f19a0e5077de96c1746c68030a1cf059a"
+    },
+    "fix/nvfp4-parent-ordinary-complete.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-parent-ordinary-complete.command.json",
+      "bytes": 504,
+      "sha256": "5cc2b66268f75da450bd4ac77cd141ff0a46daf0fbe59014175abba4b3440b85"
+    },
+    "fix/nvfp4-parent-ordinary-complete.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-parent-ordinary-complete.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "fix/nvfp4-parent-ordinary-runtime.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-parent-ordinary-runtime.command.json",
+      "bytes": 505,
+      "sha256": "ff3292ee6fd64f452451ec24eca9066462b57f6dfa6e065c397255a231d2648d"
+    },
+    "fix/nvfp4-parent-ordinary-runtime.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-parent-ordinary-runtime.json",
+      "bytes": 4492,
+      "sha256": "2a9a273dba03b56bd34953bd05580c30cb860f77236f634243b686bf37f533d6"
+    },
+    "fix/nvfp4-parent-ordinary-validated.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-parent-ordinary-validated.command.json",
+      "bytes": 532,
+      "sha256": "24b94efb283d5b10214504c5a19ad06b3a1c3921fe27c7461f973464155103b8"
+    },
+    "fix/nvfp4-parent-ordinary-validated.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-parent-ordinary-validated.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "fix/old-toolkit-build-missing-cudadevrt.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/old-toolkit-build-missing-cudadevrt.log",
+      "bytes": 107,
+      "sha256": "df0fdb2b7f3dcf1ce4d5a15feb4a97f03bcfb4e525c0b44572e5dcf468c4644e"
+    },
+    "fix/old-toolkit-build-missing-link-stub.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/old-toolkit-build-missing-link-stub.log",
+      "bytes": 214,
+      "sha256": "cdfa6e5fd62ae360fa5d2b496dbfef873675b909fab47c14b03e826252f86c94"
+    },
+    "fix/old-toolkit-build.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/old-toolkit-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "fix/old-toolkit-control-complete.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/old-toolkit-control-complete.log",
+      "bytes": 2547,
+      "sha256": "21f19314c57eb7cbbf56b6b0ca2f46e83f5e18efa141eb2e983426bab6f146b6"
+    },
+    "fix/old-toolkit-control-final.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/old-toolkit-control-final.log",
+      "bytes": 928,
+      "sha256": "939998bfe38f7577e79702d889f377e546d51145a98facd72e359fb0a9f15e1c"
+    },
+    "fix/old-toolkit-control.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/old-toolkit-control.log",
+      "bytes": 928,
+      "sha256": "939998bfe38f7577e79702d889f377e546d51145a98facd72e359fb0a9f15e1c"
+    },
+    "fix/old-toolkit-control.py": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/old-toolkit-control.py",
+      "bytes": 2503,
+      "sha256": "74ce222f30a20613004d9d6241be1fdc64ef3fc0a7cd62dafc91ef11721881b8"
+    },
+    "fix/old-toolkit-results-missing-cudadevrt.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/old-toolkit-results-missing-cudadevrt.json",
+      "bytes": 1437,
+      "sha256": "84734a28aa04f8b7e810d3ee70c57fba58b6e10ebf4af9c0f90cc23e4e057653"
+    },
+    "fix/old-toolkit-results-missing-link-stub.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/old-toolkit-results-missing-link-stub.json",
+      "bytes": 1412,
+      "sha256": "7ceda2c5b6e56a9a3dcec86e7617848e9701f2caecc9afde00dbdcc93b57ea6f"
+    },
+    "fix/old-toolkit-results.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/old-toolkit-results.json",
+      "bytes": 3112,
+      "sha256": "ac5099c938694e7728a46b50f0e93d69900660f00ce9e62166116613112ce950"
+    },
+    "fix/operator-tests.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/operator-tests.log",
+      "bytes": 590,
+      "sha256": "02f880e66cfa05265a1a47872659f77084a97c9f959b2d38e555e7394ba3570f"
+    },
+    "fix/patch.diff": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/patch.diff",
+      "bytes": 21674,
+      "sha256": "de5b2b260fcdd0f1663e61d301628f3d81b9dd1ae70ec4619b59c80170b939cc"
+    },
+    "fix/regressions-checked.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/regressions-checked.log",
+      "bytes": 308,
+      "sha256": "bcb8ac80544f8f29899899047d6e139b1c3fb45d3814b9af41c11daf86f862f2"
+    },
+    "fix/regressions-complete.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/regressions-complete.log",
+      "bytes": 450,
+      "sha256": "69f28150a2d364005c67306d84853e3b1c117cbb3773b7046f2cc24518116eea"
+    },
+    "fix/regressions-runtime.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/regressions-runtime.log",
+      "bytes": 835,
+      "sha256": "521f5235d12805b23e5c1486b0f91644fc5615f18b12b01449d6c88ebea6769c"
+    },
+    "fix/regressions-validated.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/regressions-validated.log",
+      "bytes": 450,
+      "sha256": "850f2e013f70dc8aee879fc48890ffe61eab526c8d0e483e9b1a672e28f68add"
+    },
+    "fix/regressions.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/regressions.log",
+      "bytes": 308,
+      "sha256": "bcb8ac80544f8f29899899047d6e139b1c3fb45d3814b9af41c11daf86f862f2"
+    },
+    "fix/regressions.py": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/regressions.py",
+      "bytes": 2834,
+      "sha256": "bbbeb54ef86cbdaad7de2ef3ebbd2911b0aaa6c61c5f311c2a590b773e71c152"
+    },
+    "fix/runtime-ab-build.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/runtime-ab-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "fix/runtime-ab-results.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/runtime-ab-results.json",
+      "bytes": 6444,
+      "sha256": "fba3298c3a65894b2412125c9dced86e3d00704f8251d73132f1d259b55b7251"
+    },
+    "fix/runtime-ab.py": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/runtime-ab.py",
+      "bytes": 2735,
+      "sha256": "0b2f758aa7f4aebc4fa28ed09adb11c240a82c1624767b4a17de117433ce2bc5"
+    },
+    "fix/short-prompt.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/short-prompt.csv",
+      "bytes": 90,
+      "sha256": "4e9a62723bb1f4e63921b662aad9cf7fe2206d70e81415c98737002a16812821"
+    },
+    "fix/summarize-followup.py": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/summarize-followup.py",
+      "bytes": 8527,
+      "sha256": "37408f73576e2a2913cc1bf50bbe193da90cb67e5de2c26a73b66f6c2aacea7d"
+    },
+    "fix/system-update-history.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/system-update-history.log",
+      "bytes": 671,
+      "sha256": "074e039faabe616d05af40f29d174ff7cda840c7539ee55d6314d8448ba16d4e"
+    },
+    "fix/trellis35-d2-memcheck-after-atomic-fix.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-d2-memcheck-after-atomic-fix.log",
+      "bytes": 4789,
+      "sha256": "aabc405afca6228cf9fd1aee0e9baa0c27e7c5ef6e3fceeac5e6998523d472b3"
+    },
+    "fix/trellis35-d2-memcheck.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-d2-memcheck.command.json",
+      "bytes": 800,
+      "sha256": "2f071895ecbe5cb83edf4331c98efd94c6cf3f21d9e2022c2750e6864a20fddc"
+    },
+    "fix/trellis35-d2-memcheck.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-d2-memcheck.log",
+      "bytes": 40378,
+      "sha256": "43b29062a17092c04e1912ed4822fc055f917f40d9dac591ad024509b5cc41fa"
+    },
+    "fix/trellis35-final-d2.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-final-d2.json",
+      "bytes": 5027,
+      "sha256": "eddec45ac9ebc6ce134a4913e4a2b3b3dc73fe661e1d424ec7fbab7e9ac4a339"
+    },
+    "fix/trellis35-fixed-d2-runtime.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-fixed-d2-runtime.command.json",
+      "bytes": 722,
+      "sha256": "107f33570d5a28cc104346ea76750eba55ae96e9df1cdc12d5282e79e5fe422e"
+    },
+    "fix/trellis35-fixed-d2-runtime.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-fixed-d2-runtime.json",
+      "bytes": 5026,
+      "sha256": "66aeecf6e6c88c732ab4429f7d24cfb5fc4f93ef9c248ef219846627bdbc69f3"
+    },
+    "fix/trellis35-fixed-ordinary-runtime.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-fixed-ordinary-runtime.command.json",
+      "bytes": 518,
+      "sha256": "96f2fc55eda87081e7dea706257dd4ae2d5a8ca65852359c270b9c3d832f6b44"
+    },
+    "fix/trellis35-fixed-ordinary-runtime.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-fixed-ordinary-runtime.json",
+      "bytes": 4802,
+      "sha256": "aeee425a2aaf10b2e74700b1c71379914a8a1f98dd5ae89d72c7844e8a902ef4"
+    },
+    "fix/trellis35-parent-ordinary-runtime.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-parent-ordinary-runtime.command.json",
+      "bytes": 543,
+      "sha256": "9882158c0196b9a636531ece8b23fb6655131377fe621d120fbe5f5599ba0a9b"
+    },
+    "fix/trellis35-parent-ordinary-runtime.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/trellis35-parent-ordinary-runtime.json",
+      "bytes": 4802,
+      "sha256": "09c0521b0dff35aa5d9185906b8c1311c4474c317b85bfefc61bca47bca133ae"
+    },
+    "fix/verify-nvfp4.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/verify-nvfp4.log",
+      "bytes": 1159,
+      "sha256": "1156283a089fecb871989c31f4a61983719075ce8935eaee5fb52f8246fa3c46"
+    },
+    "fix/gem16-run-parent": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/gem16-run-parent",
+      "bytes": 12456592,
+      "sha256": "368ab9010e1f25324106a4cf96c37aad1c97371fd97401dc18ff5e6b6b69748c"
+    },
+    "fix/conditional-repro-runtime-ab": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-runtime-ab",
+      "bytes": 45512,
+      "sha256": "19f73336be273a1d30ecbd2e77cb33cc654958b4f5802c0dd12aae90879742a2"
+    },
+    "fix/conditional-repro-old-toolkit": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/conditional-repro-old-toolkit",
+      "bytes": 45512,
+      "sha256": "b8c1c118fb89bc39094bb6df0ea3f490cc12b5e7beea485410da5c504b876222"
+    }
+  },
+  "limitations": [
+    "Trellis35 W4A8 Target and mixed NVFP4/FP8/BF16 Assistant versus official Google QAT Q4_0 Target and separate Unsloth Q4 GGUF Assistant; quality equivalence is not established.",
+    "gem16 checkpoint FP8 K/V versus llama.cpp Q8_0 K/V; no precision or format fallback.",
+    "Text-only engine comparison; Vision modules are not loaded.",
+    "Model load and initial plan/graph creation are outside inference metrics; process lifecycles differ as disclosed.",
+    "Prefill/TTFT use engine timing including first-token selection; server and CLI orchestration boundaries are not identical.",
+    "Decode throughput uses 1134 post-first-token intervals in both engines; aggregate ITL is not a per-token percentile distribution.",
+    "Peak VRAM is device-wide NVML sampling at 200 ms, not an instrumented allocation maximum.",
+    "D2 proposals are not output tokens; ordinary/D2 identity and counters are reported separately.",
+    "No broad quality suite or Windows measurement was run.",
+    "llama.cpp rows reuse the completed 2026-10-10 campaign on the same installed stack and pinned b11552 binary; gem16 rows were newly measured after the fix. No old llama.cpp binary was run.",
+    "Both runtime-only and CUDA-13.3-compiled reproducer controls retain the child-copy crash on installed 615 driver; current GCC/kernel remain, and exact first bad driver attribution is not established without an old-driver control.",
+    "64-token three-profile and fixed-fixture 1135-token equality checks are bounded regression evidence, not a broad quality qualification or Windows execution."
+  ]
+}

@@ -321,6 +321,66 @@ class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
         self.assertEqual(run["speculative"]["accepted_tokens"], 8)
         self.assertAlmostEqual(run["speculative"]["mean_accepted_length"], 2.0)
 
+    def test_fixed_output_masks_the_same_end_tokens_for_all_engines(self) -> None:
+        generation = {
+            "max_new_tokens": 8192,
+            "stop_token_ids": [1, 106, 50],
+            "suppress_token_ids": [258883, 258882],
+            "temperature": 0.0,
+        }
+        fixed = MODULE.fixed_output_generation(generation, 1135)
+        self.assertEqual(fixed["max_new_tokens"], 1135)
+        self.assertEqual(fixed["suppress_token_ids"], [1, 50, 106, 258882, 258883])
+        self.assertEqual(fixed["stop_token_ids"], [])
+        self.assertTrue(fixed["ignore_eos"])
+        self.assertEqual(generation["stop_token_ids"], [1, 106, 50])
+        self.assertEqual(generation["suppress_token_ids"], [258883, 258882])
+
+    def test_llama_rejects_short_output_and_prompt_cache_reuse(self) -> None:
+        generation = {
+            "max_new_tokens": 3,
+            "seed": 0,
+            "ignore_eos": True,
+            "suppress_token_ids": [],
+        }
+        response = {
+            "tokens": [1, 2, 3],
+            "tokens_evaluated": 2,
+            "truncated": False,
+            "tokens_cached": 0,
+            "timings": {
+                "prompt_n": 2,
+                "cache_n": 0,
+                "prompt_ms": 2.0,
+                "predicted_ms": 4.0,
+                "predicted_n": 3,
+                "predicted_per_second": 500.0,
+            },
+        }
+        for case in ("short_output", "cached_response", "cached_timings", "partial_prompt"):
+            with self.subTest(case=case):
+                invalid = json.loads(json.dumps(response))
+                if case == "short_output":
+                    invalid["tokens"] = [1, 2]
+                    invalid["timings"]["predicted_n"] = 2
+                elif case == "cached_response":
+                    del invalid["timings"]["cache_n"]
+                    invalid["tokens_cached"] = 1
+                elif case == "cached_timings":
+                    invalid["timings"]["cache_n"] = 1
+                else:
+                    invalid["timings"]["prompt_n"] = 1
+                with mock.patch.object(MODULE, "http_json", return_value=invalid):
+                    with self.assertRaises(MODULE.BenchmarkError):
+                        MODULE.run_llama_request("http://127.0.0.1:1", [4, 5], generation, 0)
+        response["tokens_cached"] = 4  # final cache size is not prefix reuse
+        with mock.patch.object(MODULE, "http_json", return_value=response):
+            run, _ = MODULE.run_llama_request("http://127.0.0.1:1", [4, 5], generation, 0)
+        self.assertEqual(run["decode_tokens_per_second"], 500.0)
+        self.assertEqual(run["tokens_cached"], 0)
+        self.assertEqual(run["server_tokens_cached"], 4)
+        self.assertEqual(run["server_response"], response)
+
     def test_llama_mtp_counters_require_active_mode(self) -> None:
         response = {
             "tokens": [1, 2],

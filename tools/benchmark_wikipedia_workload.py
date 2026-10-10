@@ -91,6 +91,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--mtp-adaptive", action="store_true")
     parser.add_argument("--executable", type=Path)
+    parser.add_argument(
+        "--gpu-telemetry-csv",
+        type=Path,
+        help="CSV collected by an external GPU telemetry monitor during this run",
+    )
     parser.add_argument("--gguf", type=Path)
     parser.add_argument("--warmups", type=nonnegative_int, default=3)
     parser.add_argument("--repetitions", type=positive_int, default=10)
@@ -259,6 +264,20 @@ def load_workload(path: Path) -> tuple[dict[str, Any], list[int], dict[str, Any]
     ):
         raise BenchmarkError("workload token IDs do not match their SHA-256")
     return document, tokens, generation
+
+
+def fixed_output_generation(generation: dict[str, Any], tokens: int) -> dict[str, Any]:
+    fixed = dict(generation)
+    fixed["max_new_tokens"] = tokens
+    # llama.cpp ignore_eos masks its EOG IDs; merely removing gem16's stop list
+    # would still allow those IDs to be sampled. Mask the fixture's exact end
+    # tokens in every engine before clearing the stop list.
+    fixed["suppress_token_ids"] = sorted(
+        set(generation["suppress_token_ids"]) | set(generation["stop_token_ids"])
+    )
+    fixed["stop_token_ids"] = []
+    fixed["ignore_eos"] = True
+    return fixed
 
 
 def vllm_channelwise_hf_override(
@@ -535,6 +554,8 @@ def run_gem16(
         raise BenchmarkError("gem16 output token IDs are malformed")
     if result.get("fallbacks") != 0 or result.get("token_loop_allocations") is not False:
         raise BenchmarkError("gem16 reported a fallback or token-loop allocation")
+    if generation.get("ignore_eos", False) and len(output_tokens) != generation["max_new_tokens"]:
+        raise BenchmarkError("gem16 did not produce the requested fixed output length")
     run = metric_run(
         prompt_tokens,
         output_tokens,
@@ -546,6 +567,7 @@ def run_gem16(
     run["process_wall_ms"] = process_wall_ms
     run["workspace_bytes"] = int(result["workspace_bytes"])
     run["kv_cache_bytes"] = int(result["kv_cache_bytes"])
+    run["engine_result"] = result
     if mtp_draft_tokens != 0:
         mtp = result.get("mtp")
         if (
@@ -762,8 +784,18 @@ def run_llama_request(
     predicted_n = int(timings["predicted_n"])
     if predicted_n != len(output_tokens):
         raise BenchmarkError("llama.cpp timing token count differs from returned tokens")
-    # llama.cpp starts this timer after the first sampled token but reports all
-    # generated tokens in predicted_n. Use N-1 explicitly for parity.
+    if generation.get("ignore_eos", False) and len(output_tokens) != generation["max_new_tokens"]:
+        raise BenchmarkError("llama.cpp did not produce the requested fixed output length")
+    # Current upstream tokens_cached is the final slot cache size, including this
+    # request. timings.cache_n counts the prompt prefix actually reused.
+    reused_prompt_tokens = int(timings.get("cache_n", response.get("tokens_cached", 0)))
+    if reused_prompt_tokens != 0:
+        raise BenchmarkError("llama.cpp reused prompt tokens in a cold-cache benchmark")
+    if "prompt_n" in timings and int(timings["prompt_n"]) != len(prompt):
+        raise BenchmarkError("llama.cpp did not process the complete prompt")
+    # predicted_n includes the first sampled token, which is outside predicted_ms.
+    # Current upstream predicted_per_second also uses N-1; compute it explicitly
+    # from the returned tokens and duration to preserve the common boundary.
     run = metric_run(
         len(prompt),
         output_tokens,
@@ -775,7 +807,9 @@ def run_llama_request(
     run["server_predicted_tokens_per_second"] = float(
         timings["predicted_per_second"]
     )
-    run["tokens_cached"] = int(response.get("tokens_cached", 0))
+    run["tokens_cached"] = reused_prompt_tokens
+    run["server_tokens_cached"] = int(response.get("tokens_cached", 0))
+    run["server_response"] = response
     if "draft_n" in timings:
         proposed = int(timings["draft_n"])
         accepted = int(timings["draft_n_accepted"])
@@ -827,9 +861,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
     workload, prompt, generation = load_workload(workload_path)
     generation = dict(generation)
     if args.fixed_output_tokens is not None:
-        generation["max_new_tokens"] = args.fixed_output_tokens
-        generation["stop_token_ids"] = []
-        generation["ignore_eos"] = True
+        generation = fixed_output_generation(generation, args.fixed_output_tokens)
     all_runs: list[dict[str, Any]] = []
     representative: list[int] | None = None
     runtime: dict[str, Any]
@@ -1101,6 +1133,10 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             args.llama_kv_cache_type,
             "--parallel",
             "1",
+            "--cache-ram",
+            "0",
+            "--ctx-checkpoints",
+            "0",
             "--threads",
             str(args.llama_threads),
             "--poll",
@@ -1208,6 +1244,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "ubatch_size": args.llama_ubatch_size,
             "parallel": 1,
             "cache_prompt": False,
+            "prompt_cache_ram_mib": 0,
+            "context_checkpoints": 0,
             "speculative_types": list(speculative_types),
             "maximum_draft_tokens": maximum_draft_tokens,
             "mtp_draft_tokens": args.mtp_draft_tokens,
@@ -1265,8 +1303,14 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         "summary": summarize_runs(all_runs),
         "runs": all_runs,
         "representative_output_token_ids": representative,
+        "gpu_telemetry_csv": (
+            str(args.gpu_telemetry_csv.resolve(strict=True))
+            if args.gpu_telemetry_csv is not None else None
+        ),
         "limitations": [
-            "No continuous power, clock, or thermal telemetry was captured.",
+            *([] if args.gpu_telemetry_csv is not None else [
+                "No continuous power, clock, or thermal telemetry was captured."
+            ]),
             "TTFT includes prompt processing and first-token selection.",
             "Decode throughput uses generated_tokens - 1 intervals after the first token.",
             "Engine checkpoint and KV precisions must be read from configuration before comparison.",
