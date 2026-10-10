@@ -843,6 +843,21 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
   endif()
 
   if(GEM16_ENABLE_CUDA)
+    add_executable(gem16-cuda-conditional-graph-tests
+      tests/cuda/conditional_graph_copy_test.cu
+    )
+    target_link_libraries(gem16-cuda-conditional-graph-tests PRIVATE CUDA::cudart)
+    set_target_properties(gem16-cuda-conditional-graph-tests PROPERTIES
+      CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+    )
+    gem16_set_project_warnings(gem16-cuda-conditional-graph-tests)
+    add_test(NAME gem16-cuda-conditional-graph
+      COMMAND gem16-cuda-conditional-graph-tests
+    )
+    set_tests_properties(gem16-cuda-conditional-graph PROPERTIES
+      SKIP_RETURN_CODE 77
+      RESOURCE_LOCK gem16_gpu0
+    )
     add_executable(gem16-cuda-tests tests/cuda/nvfp4_reference_test.cu)
     target_include_directories(gem16-cuda-tests PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
