@@ -260,7 +260,10 @@ Result<std::uint32_t> Gemma4Moe26BReferenceEngine::SelectToken() {
   }
   auto prediction = Prediction();
   if (!prediction.ok()) return prediction.status();
-  if (x.suppressed_token_count == 0U) {
+  if (GreedyWinnerIsAllowed(
+          prediction.value().token,
+          std::span<const std::uint32_t>(x.configured_suppressed_token_ids)
+              .first(x.suppressed_token_count))) {
     return prediction.value().token;
   }
   Status selected = LaunchLogitArgmax(

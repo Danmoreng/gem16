@@ -173,6 +173,21 @@ the general two-platform release gates have passed.
 
 ## Current model facts
 
+### Owner update: bounded Trellis35 decode optimization (2026-10-22)
+
+The owner authorizes the five follow-up experiments to the pinned decode audit:
+allowed-top1 host selection, test-internal sequence-controlled replay and real
+operator inputs, an isolated eight-warp M1 N128 candidate with separate T3
+qualification, counter-gated KVH2 staging, and GateUp transform/FP8 quantization
+fusion. This supersedes standing decision 7's tuning freeze only for these
+bounded experiments; it does not reopen the closed 220/250 tok/s targets or
+previously rejected generic prefetch/route-packing work. Keep numerical, memory,
+sampling, cache and protected-profile contracts. Retain and commit only correct
+production candidates with reproducible end-to-end benefit, preserving raw
+positive and negative evidence. The owner authorizes commits, not a push or
+release. The starting audit is
+`docs/evidence/gemma4_26b/trellis35-decode-cost-audit-2026-10-22.md`.
+
 | Profile | Public selection | Input | Context policy / retained capacity | Slots |
 |---|---|---|---|---|
 | 12B Unified | Yes | Text, image, audio | Subject to configured capacity | Up to two |
