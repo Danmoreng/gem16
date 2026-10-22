@@ -771,6 +771,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/gemma4_26b_manifest_test.cpp
     tests/unit/gemma4_26b_trellis35_test.cpp
     tests/unit/greedy_selection_test.cpp
+    tests/unit/decode_replay_test.cpp
     tests/unit/image_test.cpp
     tests/unit/json_test.cpp
     tests/unit/gemma4_26b_moe_prefill_plan_test.cpp
@@ -873,6 +874,16 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
       SKIP_RETURN_CODE 77
       RESOURCE_LOCK gem16_gpu0
     )
+    add_executable(gem16-26b-decode-replay-driver
+      tests/cuda/gemma4_26b_decode_replay_driver.cpp
+    )
+    target_include_directories(gem16-26b-decode-replay-driver PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    )
+    target_link_libraries(gem16-26b-decode-replay-driver PRIVATE
+      gem16_core CUDA::cudart ${CMAKE_DL_LIBS}
+    )
+    gem16_set_project_warnings(gem16-26b-decode-replay-driver)
     target_include_directories(gem16-cuda-tests PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
     )
