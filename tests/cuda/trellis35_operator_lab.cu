@@ -22,6 +22,11 @@ extern "C" cudaError_t gem16_lab_launch_t3_pair(
     const std::uint8_t*, const float*,
     const gem16::internal::Trellis35DeviceFamilyBinding*, const std::uint32_t*,
     float*, std::uint64_t, std::uint64_t, cudaStream_t);
+extern "C" cudaError_t gem16_lab_launch_t3_window(
+    const std::uint8_t*, const float*,
+    const gem16::internal::Trellis35DeviceFamilyBinding*, const std::uint32_t*,
+    float*, std::uint64_t, std::uint64_t, cudaStream_t);
+extern "C" cudaError_t gem16_lab_check_t3_window(unsigned*);
 extern "C" cudaError_t gem16_lab_launch_gate_fused(
     const float*, const gem16::internal::Trellis35DeviceFamilyBinding*,
     const std::uint32_t*, std::uint8_t*, float*, float*, unsigned, bool, cudaStream_t);
@@ -192,7 +197,9 @@ extern "C" cudaError_t cudaLaunchKernel(const void* function, dim3 grid, dim3 bl
   if (attention) { injecting = false; return result; }
   const bool transform = std::strstr(name, "SelectedInputTransformWarpKernel") != nullptr;
   const bool projection = std::strstr(name, t3 ? "MmaW4A8ProjectionGroupedT3M16N128InverseKernel"
-                                             : "MmaW4A8ProjectionSelectedN128InverseKernel") != nullptr;
+                                             : "MmaW4A8ProjectionSelectedN128InverseKernel") != nullptr ||
+      (t3 && (std::strstr(name, "MmaW4A8ProjectionGroupedT3N128EightWarpKernel") ||
+              std::strstr(name, "MmaW4A8ProjectionGroupedT3GateWindowKernel")));
   const unsigned assignments = t3 ? 24U : 8U;
   if (transform && Arg<unsigned>(args, 4U) == assignments && Arg<std::uint64_t>(args, 7U) == 2816U) {
     const int slot = Slot(gate_count % 30U);
@@ -281,8 +288,14 @@ extern "C" int gem16_lab_finish(const char* directory) {
     const char* candidate_setting = std::getenv("GEM16_LAB_CANDIDATE");
     const bool test_m1 = candidate_setting && std::strcmp(candidate_setting, "m1") == 0;
     const bool test_t3 = candidate_setting && std::strcmp(candidate_setting, "t3-pair") == 0;
-    const bool test_projection = (!t3 && test_m1) || (t3 && test_t3);
-    const auto candidate_projection = t3 ? gem16_lab_launch_t3_pair : gem16_lab_launch_m1_eight;
+    const bool test_window = candidate_setting && std::strcmp(candidate_setting, "t3-window") == 0;
+    const bool test_projection = (!t3 && test_m1) || (t3 && (test_t3 || test_window));
+    const auto candidate_projection = t3 ? (test_window ? gem16_lab_launch_t3_window : gem16_lab_launch_t3_pair) : gem16_lab_launch_m1_eight;
+    if (test_window) {
+      unsigned errors = 0U; Check(gem16_lab_check_t3_window(&errors));
+      std::fprintf(stderr, "T3 paired-window codec: 2097152 lane cases, mismatches=%u\n", errors);
+      if (errors) throw std::runtime_error("paired-window codec bit mismatch");
+    }
     const bool test_fusion = candidate_setting && std::strcmp(candidate_setting, "fusion") == 0;
     cudaStream_t replay_stream{};
     Check(cudaStreamCreateWithFlags(&replay_stream, cudaStreamNonBlocking));
@@ -407,6 +420,14 @@ extern "C" int gem16_lab_finish(const char* directory) {
         const char* profile_case = std::getenv("GEM16_LAB_PROFILE_CASE");
         const char* profile_kind = std::getenv("GEM16_LAB_PROFILE_KIND");
         const bool profile = profile_case && stem == profile_case;
+        if (profile) {
+          // Explicitly warm the selected real input before cache-preserving NCU
+          // replay; cold-cache profiling is a separately labelled experiment.
+          for (unsigned warm = 0U; warm < 3U; ++warm) {
+            Check(real_launch(r.function, r.grid, r.block, args, 0U, nullptr));
+          }
+          Check(cudaDeviceSynchronize());
+        }
         if (profile && profile_kind && std::strcmp(profile_kind, "parent") == 0) Check(cudaProfilerStart());
         Check(real_launch(r.function, r.grid, r.block, args, 0U, nullptr));
         Check(cudaDeviceSynchronize());
@@ -418,6 +439,12 @@ extern "C" int gem16_lab_finish(const char* directory) {
         bool candidate_exact = false;
         std::array<float, 10> parent_us{}, candidate_us{};
         if (test_projection) {
+          if (profile) {
+            for (unsigned warm = 0U; warm < 3U; ++warm) {
+              Check(candidate_projection(activation, scales, &family, selected, temporary, input, output, nullptr));
+            }
+            Check(cudaDeviceSynchronize());
+          }
           if (profile && profile_kind && std::strcmp(profile_kind, "candidate") == 0) Check(cudaProfilerStart());
           Check(candidate_projection(activation, scales, &family, selected, temporary, input, output, nullptr));
           Check(cudaDeviceSynchronize());

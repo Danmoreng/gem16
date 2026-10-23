@@ -202,6 +202,21 @@ and be committed under the owner's existing instruction; no push or release.
 Rejected staging/fusion, generic prefetch and route-packing stay closed without
 new matching evidence. The 220/250 tok/s targets remain closed.
 
+### Owner update: T3 GateUp countercase follow-up (2026-10-23)
+
+The owner authorizes continuing from accepted T3 Down `6895ed2` with the
+GateUp countercase investigation. This extends standing decision 7's bounded
+exception only to actual-input GateUp counter/latency analysis and one candidate
+justified by that comparison. Keep the accepted Down/M1 and graph/ring fixes,
+precision, K accumulation, cache, sampling and protected profiles. Reopening
+any rejected mechanism requires new matching evidence and an explicit scoped
+record, not the historical task queue. The counter comparison opens only a paired-fragment codec word-window candidate:
+share circular word gathers across both N8 fragments to reduce warp shuffles,
+without changing decoded states or accumulation. It does not open generic
+prefetch, route packing, quantization fusion or KV staging. Retain/commit only
+numerically correct reproducible end-to-end benefit under the existing owner instruction. No push,
+release, or reopening of the closed 220/250 tok/s targets.
+
 | Profile | Public selection | Input | Context policy / retained capacity | Slots |
 |---|---|---|---|---|
 | 12B Unified | Yes | Text, image, audio | Subject to configured capacity | Up to two |

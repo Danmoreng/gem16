@@ -3,6 +3,45 @@
 #include <cuda_fp16.h>
 #include <cuda_fp8.h>
 
+#include <cuda_bf16.h>
+#include "exllamav3_quant/util.cuh"
+#include "exllamav3_quant/quant/codebook.cuh"
+
+namespace gem16::internal {
+namespace {
+#include "cuda/trellis35/detail/codec.cuh"
+#include "cuda/trellis35/detail/t3_gate_pair_codec.cuh"
+
+template <int Rate>
+__global__ void CheckGatePairCodecKernel(unsigned* errors) {
+  const unsigned lane = threadIdx.x;
+  std::uint32_t word = (blockIdx.x + 1U) * 2654435761U ^ (lane + 3U) * 2246822519U;
+  word ^= word >> 15U; word *= 3266489917U; word ^= word >> 16U;
+  if (blockIdx.x == 0U) word = 0U;
+  if (blockIdx.x == 1U) word = 0xffffffffU;
+  const unsigned position = TensorCoreIndex((blockIdx.y & 3U) * 4U, blockIdx.y >> 2U);
+  std::uint32_t left = 0U, right = 0U;
+  DecodeT3GatePairWindow<Rate>(word, position, left, right);
+  const auto expected_left = DecodeLanePayloadNativeE4M3x4<Rate>(word, position);
+  const auto expected_right = DecodeLanePayloadNativeE4M3x4<Rate>(word, position + 4U);
+  if (left != expected_left || right != expected_right) atomicAdd(errors, 1U);
+}
+
+void TestGatePairCodecBits() {
+  DeviceBuffer<unsigned> errors(1U);
+  CHECK(CudaOk(cudaMemset(errors.get(), 0, errors.bytes()), "clear paired codec errors"));
+  CheckGatePairCodecKernel<3><<<dim3(1024U, 32U), 32U>>>(errors.get());
+  CheckGatePairCodecKernel<4><<<dim3(1024U, 32U), 32U>>>(errors.get());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize paired codec matrix"));
+  unsigned count = 0U;
+  CHECK(CudaOk(cudaMemcpy(&count, errors.get(), sizeof(count), cudaMemcpyDeviceToHost),
+               "download paired codec errors"));
+  std::cout << "T3 GateUp paired codec: 2097152 lane cases bit_mismatches=" << count << '\n';
+  CHECK(count == 0U);
+}
+}  // namespace
+}  // namespace gem16::internal
+
 namespace {
 
 __global__ void ConvertHalf4ToFp8x4LegacyKernel(
@@ -153,6 +192,7 @@ void TestRandomizedProjectionParity() {
 }  // namespace
 
 int RunTrellis35CodecTests() {
+  gem16::internal::TestGatePairCodecBits();
   TestNativeFp8x4ConversionParity();
   TestRandomizedProjectionParity();
   return failures;

@@ -17,6 +17,8 @@ constexpr float kHadamardScale = 0.08838834764831845F;
 #include "cuda/trellis35/detail/h128_warp.cuh"
 #include "trellis35_m1_eight_warp_candidate.cuh"
 #include "cuda/trellis35/detail/t3_pair_fragments.cuh"
+#include "cuda/trellis35/detail/t3_gate_pair_codec.cuh"
+#include "cuda/trellis35/detail/t3_gate_pair_window.cuh"
 
 template <bool CaptureTransform>
 __global__ void SelectedGateInputTransformQuantizeCandidateKernel(
@@ -98,4 +100,50 @@ extern "C" cudaError_t gem16_lab_launch_t3_pair(
       dim3(static_cast<unsigned>(outputs / 128U), 24U), 256U, 0U, stream>>>(
           activation, scales, *family, ids, output, inputs, outputs);
   return cudaGetLastError();
+}
+
+extern "C" cudaError_t gem16_lab_launch_t3_window(
+    const std::uint8_t* activation, const float* scales,
+    const gem16::internal::Trellis35DeviceFamilyBinding* family,
+    const std::uint32_t* ids, float* output, std::uint64_t inputs,
+    std::uint64_t outputs, cudaStream_t stream) {
+  using namespace gem16::internal;
+  if (inputs == 2816U && outputs == 1408U) {
+    MmaW4A8ProjectionGroupedT3GateWindowKernel<<<
+        dim3(static_cast<unsigned>(outputs / 128U), 24U), 256U, 0U, stream>>>(
+            activation, scales, *family, ids, output, inputs, outputs);
+    return cudaGetLastError();
+  }
+  return gem16_lab_launch_t3_pair(activation, scales, family, ids, output, inputs, outputs, stream);
+}
+
+namespace {
+template <int Rate>
+__global__ void CheckT3PairWindowCodecKernel(unsigned* errors) {
+  const unsigned lane = threadIdx.x;
+  std::uint32_t word = (blockIdx.x + 1U) * 2654435761U ^ (lane + 3U) * 2246822519U;
+  word ^= word >> 15U; word *= 3266489917U; word ^= word >> 16U;
+  if (blockIdx.x == 0U) word = 0U;
+  if (blockIdx.x == 1U) word = 0xffffffffU;
+  const unsigned position = gem16::internal::TensorCoreIndex((blockIdx.y & 3U) * 4U, blockIdx.y >> 2U);
+  std::uint32_t left = 0U, right = 0U;
+  gem16::internal::DecodeT3GatePairWindow<Rate>(word, position, left, right);
+  const auto expected_left = gem16::internal::DecodeLanePayloadNativeE4M3x4<Rate>(word, position);
+  const auto expected_right = gem16::internal::DecodeLanePayloadNativeE4M3x4<Rate>(word, position + 4U);
+  if (left != expected_left || right != expected_right) atomicAdd(errors, 1U);
+}
+}
+extern "C" cudaError_t gem16_lab_check_t3_window(unsigned* host_errors) {
+  unsigned* device = nullptr;
+  auto status = cudaMalloc(&device, sizeof(unsigned));
+  if (status != cudaSuccess) return status;
+  status = cudaMemset(device, 0, sizeof(unsigned));
+  if (status == cudaSuccess) {
+    CheckT3PairWindowCodecKernel<3><<<dim3(1024U, 32U), 32U>>>(device);
+    CheckT3PairWindowCodecKernel<4><<<dim3(1024U, 32U), 32U>>>(device);
+    status = cudaGetLastError();
+    if (status == cudaSuccess) status = cudaMemcpy(host_errors, device, sizeof(unsigned), cudaMemcpyDeviceToHost);
+  }
+  const auto freed = cudaFree(device);
+  return status == cudaSuccess ? freed : status;
 }

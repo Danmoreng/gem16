@@ -122,7 +122,14 @@ void LaunchGroupedT3N128(
     std::uint64_t input_elements, std::uint64_t output_elements,
     cudaStream_t stream) {
   if constexpr (NativeFp8x4 && VectorStore) {
-    // GateUp retains the separately qualified sixteen-warp specialization.
+    if (input_elements == kTrellis35GateUpInput &&
+        output_elements == kTrellis35GateUpOutput) {
+      MmaW4A8ProjectionGroupedT3GateWindowKernel
+          <<<dim3(blocks, kTrellis35T3Assignments), 256U, 0, stream>>>(
+              activation_e4m3, activation_scales, family, selected_experts,
+              output, input_elements, output_elements);
+      return;
+    }
     if (input_elements == kTrellis35DownInput &&
         output_elements == kTrellis35DownOutput) {
       MmaW4A8ProjectionGroupedT3N128EightWarpKernel

@@ -927,6 +927,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     )
     target_include_directories(gem16-cuda-trellis35-tests PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
+      "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
     )
     target_link_libraries(gem16-cuda-trellis35-tests PRIVATE
       gem16_core CUDA::cudart

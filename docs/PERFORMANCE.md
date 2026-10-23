@@ -3,6 +3,31 @@
 These are retained measurements at the revisions named below, not a new benchmark of current HEAD.
 The public profiles and qualification limits are described in the [README](../README.md).
 
+## 2026-10-23 T3 GateUp codec-window optimization
+
+The accepted native/vector GateUp change is measured against frozen parent
+`6895ed2`, preserving the previous Down/M1 optimizations, precision and cache
+semantics. Linux RTX 5080 Laptop GPU, max-power profile with Dynamic Boost,
+16,384 prompt IDs, 1,135 output IDs, batch one, greedy, FP8 KV, three warmups
+and ten retained runs per cohort:
+
+| Mode / comparison | Parent decode tok/s | Candidate decode tok/s | Change | Sampled peak VRAM, both |
+|---|---:|---:|---:|---:|
+| Fixed-D2 AB | 179.103 | 193.284 | +7.9180% | 12,725 MiB |
+| Fixed-D2 BA | 178.950 | 193.354 | +8.0492% | 12,725 MiB |
+| Ordinary adjacent pair | 137.593 | 137.411 | -0.1323% | 12,455 MiB |
+
+All sixty retained runs reproduce the exact output IDs. All forty D2 runs keep
+502 groups and 632/1,004 accepted proposals, identical arena byte counts, and
+no fallback or token-loop allocation. Ordinary intervals overlap; the adjacent
+pair does not establish an ordinary speed improvement. Operator/reference,
+sanitizer, exact draft/forced-acceptance and protected-profile checks pass.
+The [qualification report](evidence/gemma4_26b/t3-gate-window-2026-10-23.md)
+and [acceptance record](../artifacts/trellis35/t3-gate-window-2026-10-23.json)
+retain source identity, binaries, commands, raw samples and counter evidence.
+No new llama.cpp measurement or Windows/media/release qualification is claimed;
+earlier campaigns below retain their original workloads and results.
+
 ## 2026-10-11 restored Trellis35 D2 comparison
 
 The conditional CUDA graph fix restores native D2 on the installed 615.71.09 /
