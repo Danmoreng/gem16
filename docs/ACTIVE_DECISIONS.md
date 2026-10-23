@@ -188,6 +188,20 @@ positive and negative evidence. The owner authorizes commits, not a push or
 release. The starting audit is
 `docs/evidence/gemma4_26b/trellis35-decode-cost-audit-2026-10-22.md`.
 
+### Owner update: bounded D2 follow-up (2026-10-23)
+
+The owner authorizes continuing the D2 optimization from the completed five-step
+follow-up. This extends the October 22 exception to standing decision 7 only for
+refreshing full fixed-D2 cost/acceptance accounting and one independently qualified
+T3 projection candidate sharing two N8 fragments across eight warps. GateUp and
+Down are screened separately using actual inputs and expert unions; no automatic
+transfer from the accepted M1 kernel is authorized as a performance claim. Keep
+all precision, accumulation, cache, sampling, graph/ring safety and protected
+profile gates. Only correct reproducible end-to-end gains may remain in production
+and be committed under the owner's existing instruction; no push or release.
+Rejected staging/fusion, generic prefetch and route-packing stay closed without
+new matching evidence. The 220/250 tok/s targets remain closed.
+
 | Profile | Public selection | Input | Context policy / retained capacity | Slots |
 |---|---|---|---|---|
 | 12B Unified | Yes | Text, image, audio | Subject to configured capacity | Up to two |

@@ -16,6 +16,7 @@ constexpr float kHadamardScale = 0.08838834764831845F;
 #include "cuda/trellis35/detail/mma_w4a8.cuh"
 #include "cuda/trellis35/detail/h128_warp.cuh"
 #include "trellis35_m1_eight_warp_candidate.cuh"
+#include "cuda/trellis35/detail/t3_pair_fragments.cuh"
 
 template <bool CaptureTransform>
 __global__ void SelectedGateInputTransformQuantizeCandidateKernel(
@@ -84,5 +85,17 @@ extern "C" cudaError_t gem16_lab_launch_gate_fused(
       input, family->suh_f16, ids, quantized, scales, diagnostic_transform, assignments);
   else SelectedGateInputTransformQuantizeCandidateKernel<false><<<assignments, 256U, 0U, stream>>>(
       input, family->suh_f16, ids, quantized, scales, diagnostic_transform, assignments);
+  return cudaGetLastError();
+}
+
+extern "C" cudaError_t gem16_lab_launch_t3_pair(
+    const std::uint8_t* activation, const float* scales,
+    const gem16::internal::Trellis35DeviceFamilyBinding* family,
+    const std::uint32_t* ids, float* output, std::uint64_t inputs,
+    std::uint64_t outputs, cudaStream_t stream) {
+  using namespace gem16::internal;
+  MmaW4A8ProjectionGroupedT3N128EightWarpKernel<<<
+      dim3(static_cast<unsigned>(outputs / 128U), 24U), 256U, 0U, stream>>>(
+          activation, scales, *family, ids, output, inputs, outputs);
   return cudaGetLastError();
 }

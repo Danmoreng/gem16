@@ -18,6 +18,10 @@ extern "C" cudaError_t gem16_lab_launch_m1_eight(
     const std::uint8_t*, const float*,
     const gem16::internal::Trellis35DeviceFamilyBinding*, const std::uint32_t*,
     float*, std::uint64_t, std::uint64_t, cudaStream_t);
+extern "C" cudaError_t gem16_lab_launch_t3_pair(
+    const std::uint8_t*, const float*,
+    const gem16::internal::Trellis35DeviceFamilyBinding*, const std::uint32_t*,
+    float*, std::uint64_t, std::uint64_t, cudaStream_t);
 extern "C" cudaError_t gem16_lab_launch_gate_fused(
     const float*, const gem16::internal::Trellis35DeviceFamilyBinding*,
     const std::uint32_t*, std::uint8_t*, float*, float*, unsigned, bool, cudaStream_t);
@@ -276,6 +280,9 @@ extern "C" int gem16_lab_finish(const char* directory) {
     injecting = true;
     const char* candidate_setting = std::getenv("GEM16_LAB_CANDIDATE");
     const bool test_m1 = candidate_setting && std::strcmp(candidate_setting, "m1") == 0;
+    const bool test_t3 = candidate_setting && std::strcmp(candidate_setting, "t3-pair") == 0;
+    const bool test_projection = (!t3 && test_m1) || (t3 && test_t3);
+    const auto candidate_projection = t3 ? gem16_lab_launch_t3_pair : gem16_lab_launch_m1_eight;
     const bool test_fusion = candidate_setting && std::strcmp(candidate_setting, "fusion") == 0;
     cudaStream_t replay_stream{};
     Check(cudaStreamCreateWithFlags(&replay_stream, cudaStreamNonBlocking));
@@ -410,9 +417,9 @@ extern "C" int gem16_lab_finish(const char* directory) {
         if (std::memcmp(expected.data(), actual.data(), actual.size() * 4U)) throw std::runtime_error("real-input projection replay mismatch");
         bool candidate_exact = false;
         std::array<float, 10> parent_us{}, candidate_us{};
-        if (!t3 && test_m1) {
+        if (test_projection) {
           if (profile && profile_kind && std::strcmp(profile_kind, "candidate") == 0) Check(cudaProfilerStart());
-          Check(gem16_lab_launch_m1_eight(activation, scales, &family, selected, temporary, input, output, nullptr));
+          Check(candidate_projection(activation, scales, &family, selected, temporary, input, output, nullptr));
           Check(cudaDeviceSynchronize());
           if (profile && profile_kind && std::strcmp(profile_kind, "candidate") == 0) Check(cudaProfilerStop());
           Check(cudaMemcpy(actual.data(), b.temporary, actual.size() * 4U, cudaMemcpyDeviceToHost));
@@ -423,8 +430,8 @@ extern "C" int gem16_lab_finish(const char* directory) {
         const auto parent_graph = ReplayGraph(replay_stream, [&] {
           Check(real_launch(r.function, r.grid, r.block, args, 0U, replay_stream));
         });
-        const auto candidate_graph = !t3 && test_m1 ? ReplayGraph(replay_stream, [&] {
-          Check(gem16_lab_launch_m1_eight(activation, scales, &family, selected, temporary, input, output, replay_stream));
+        const auto candidate_graph = test_projection ? ReplayGraph(replay_stream, [&] {
+          Check(candidate_projection(activation, scales, &family, selected, temporary, input, output, replay_stream));
         }) : nullptr;
         auto measure = [&](bool candidate) {
           Check(cudaEventRecord(begin, replay_stream));
@@ -434,13 +441,13 @@ extern "C" int gem16_lab_finish(const char* directory) {
           return ms * 1000.0F / 16.0F;
         };
         for (unsigned warmup = 0U; warmup < 3U; ++warmup) {
-          (void)measure(false); if (!t3 && test_m1) (void)measure(true);
+          (void)measure(false); if (test_projection) (void)measure(true);
         }
         for (unsigned sample = 0U; sample < 10U; ++sample) {
           // Alternate order rather than measuring all parents then candidates.
-          if (!t3 && test_m1 && sample % 2U) candidate_us[sample] = measure(true);
+          if (test_projection && sample % 2U) candidate_us[sample] = measure(true);
           parent_us[sample] = measure(false);
-          if (!t3 && test_m1 && sample % 2U == 0U) candidate_us[sample] = measure(true);
+          if (test_projection && sample % 2U == 0U) candidate_us[sample] = measure(true);
         }
         if (candidate_graph) {
           Check(cudaGraphLaunch(candidate_graph, replay_stream)); Check(cudaStreamSynchronize(replay_stream));
@@ -512,7 +519,7 @@ extern "C" int gem16_lab_finish(const char* directory) {
                 << ",\"timing_scope\":\"diagnostic warm-resident CUDA graph replay, 16 operations/sample\",\"parent_us_samples\":[";
         for (unsigned sample = 0U; sample < 10U; ++sample) summary << (sample ? "," : "") << parent_us[sample];
         summary << "],\"candidate_us_samples\":[";
-        if (!t3 && test_m1) for (unsigned sample = 0U; sample < 10U; ++sample) summary << (sample ? "," : "") << candidate_us[sample];
+        if (test_projection) for (unsigned sample = 0U; sample < 10U; ++sample) summary << (sample ? "," : "") << candidate_us[sample];
         summary << "],\"fusion_available\":" << (fusion_available ? "true" : "false")
                 << ",\"fusion_transform_bit_exact\":" << (transform_exact ? "true" : "false")
                 << ",\"fusion_fp8_scale_bit_exact\":" << (fusion_exact ? "true" : "false")
