@@ -132,7 +132,7 @@ void LaunchGroupedT3N128(
     }
     if (input_elements == kTrellis35DownInput &&
         output_elements == kTrellis35DownOutput) {
-      MmaW4A8ProjectionGroupedT3N128EightWarpKernel
+      MmaW4A8ProjectionGroupedT3DownWindowKernel
           <<<dim3(blocks, kTrellis35T3Assignments), 256U, 0, stream>>>(
               activation_e4m3, activation_scales, family, selected_experts,
               output, input_elements, output_elements);

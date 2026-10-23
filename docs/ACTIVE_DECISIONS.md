@@ -217,6 +217,26 @@ prefetch, route packing, quantization fusion or KV staging. Retain/commit only
 numerically correct reproducible end-to-end benefit under the existing owner instruction. No push,
 release, or reopening of the closed 220/250 tok/s targets.
 
+### Owner update: bounded Down codec follow-up (2026-10-23)
+
+After accepted GateUp `629bbac`, the owner asks to continue toward the pinned
+llama reference. This extends standing decision 7's bounded exception only to
+actual-input counter/operator investigation of paired codec windows for T3 Down
+and, if justified, one separately qualified production candidate. It supersedes
+the GateUp-only boundary above for this Down experiment, preserving GateUp/M1,
+precision, accumulation, context, sampling, cache, graph/ring and protected gates.
+Retain/commit only correct reproducible end-to-end gains; no push or release.
+Generic prefetch/packing/fusion/staging and the closed 220/250 targets stay closed.
+
+The fresh actual-production layer0 Down countercase reports long-scoreboard
+0.9556 versus short-scoreboard0.1742 per active issue, with a four-block register
+occupancy limit. This opens one diagnostic refinement of the Down candidate:
+a fixed four-iteration register pipeline for the same resident payload words,
+using the existing M1 pipeline pattern while preserving the T3 K order. This
+supersedes the generic-prefetch closure only for that counter-backed Down test;
+it does not authorize wider prefetch, layout or runtime changes. No production
+promotion without separate numerical, memory and end-to-end evidence.
+
 | Profile | Public selection | Input | Context policy / retained capacity | Slots |
 |---|---|---|---|---|
 | 12B Unified | Yes | Text, image, audio | Subject to configured capacity | Up to two |

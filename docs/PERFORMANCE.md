@@ -3,6 +3,30 @@
 These are retained measurements at the revisions named below, not a new benchmark of current HEAD.
 The public profiles and qualification limits are described in the [README](../README.md).
 
+## 2026-10-23 T3 Down codec/payload pipeline
+
+Frozen GateUp parent `629bbac` versus the separately qualified native/vector Down
+candidate on the same Linux RTX 5080 Laptop GPU, max-power with Dynamic Boost,
+16,384 prompt IDs, 1,135 outputs, context 17,519, batch one, greedy and FP8 KV.
+Each cohort uses three warmups plus ten retained runs:
+
+| Mode / comparison | Parent decode tok/s | Candidate decode tok/s | Change | Sampled peak VRAM, both |
+|---|---:|---:|---:|---:|
+| Fixed-D2 AB | 193.418 | 194.854 | +0.7426% | 12,725 MiB |
+| Fixed-D2 BA | 193.499 | 194.716 | +0.6286% | 12,725 MiB |
+| Ordinary adjacent pair | 137.672 | 137.659 | -0.0097% | 12,455 MiB |
+
+All 60 retained runs reproduce the exact 1,135 IDs; all 40 D2 runs retain 502
+groups and 632/1,004 accepted proposals, identical arenas and no fallback,
+runtime repack or token-loop allocation. Full
+numerical, sanitizer, protected-profile, actual-dispatch, proposal and forced-case
+gates pass. Ordinary is an adjacent non-regression pair, not an ordinary speed
+claim. The [qualification report](evidence/gemma4_26b/t3-down-window-2026-10-23.md)
+and [acceptance record](../artifacts/trellis35/t3-down-window-2026-10-23.json)
+retain all samples, commands, source identity, telemetry, positive/negative
+operator evidence and limitations. No fresh llama or Windows/media/release claim;
+all earlier measurements remain below.
+
 ## 2026-10-23 T3 GateUp codec-window optimization
 
 The accepted native/vector GateUp change is measured against frozen parent

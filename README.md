@@ -121,15 +121,16 @@ not publish a mirror or duplicate the payload bytes.
 ## Recorded performance
 
 The **2026-10-23 Linux text optimization benchmark** on the RTX 5080 Laptop GPU
-records **137.411 tok/s ordinary decode** and **193.284–193.354 tok/s fixed-D2**,
-with 12,455 / 12,725 MiB sampled peak VRAM. The GateUp change improves D2 by
-**7.92–8.05%** against its frozen parent in AB/BA measurements; the adjacent
-ordinary pair differs by -0.13%. All retained runs reproduce the same 1,135
-output tokens, and D2 acceptance is unchanged. This uses a 16,384-token prompt,
-batch one, greedy decoding, FP8 KV, three warmups and ten retained runs per
-cohort. See the [qualification and raw-evidence record](docs/evidence/gemma4_26b/t3-gate-window-2026-10-23.md)
-for exact revisions, settings and checks. These are bounded text measurements;
-they do not extend Windows, image or release qualification.
+records **137.659 tok/s ordinary decode** and **194.716–194.854 tok/s fixed-D2**,
+with 12,455 / 12,725 MiB sampled peak VRAM. Following the GateUp optimization,
+the Down codec/payload pipeline adds **0.63–0.74% D2 throughput** against its
+frozen parent in AB/BA measurements. The adjacent ordinary pair differs by
+-0.01%. All retained runs reproduce the same 1,135 output tokens, and D2
+acceptance is unchanged. This uses a 16,384-token prompt, batch one, greedy
+decoding, FP8 KV, three warmups and ten retained runs per cohort. See the
+[qualification and raw-evidence record](docs/evidence/gemma4_26b/t3-down-window-2026-10-23.md)
+for exact revisions, settings and checks. These bounded text measurements do not
+extend Windows, image or release qualification.
 
 Earlier public-profile measurements on the same GPU at its firmware-managed
 175 W ceiling are retained below. The public
