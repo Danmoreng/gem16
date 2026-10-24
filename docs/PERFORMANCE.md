@@ -3,6 +3,22 @@
 These are retained measurements at the revisions named below, not a new benchmark of current HEAD.
 The public profiles and qualification limits are described in the [README](../README.md).
 
+<!-- T3-GATE-RDC-AUDIT-2026-10-24 -->
+## 2026-10-24 T3 GateUp production-build audit
+
+The three existing variants also fail their all-case gate with production-matched
+RDC=true; no production change. All24 actual outputs per variant and2,097,152
+codec lanes are exact. These are operator diagnostics, not full-model gain/loss.
+
+| Existing variant | Minimum | Median | Maximum throughput change |
+|---|---:|---:|---:|
+| Depth 2 | -0.764% | -0.155% | +0.659% |
+| Depth 4 | -4.170% | +8.592% | +21.285% |
+| Depth 2, register bounded | -6.809% | -5.213% | -4.358% |
+
+[Matched-build evidence](evidence/gemma4_26b/t3-gate-rdc-audit-2026-10-24.md).
+<!-- /T3-GATE-RDC-AUDIT-2026-10-24 -->
+
 <!-- NVFP4-HEADS-2026-10-24 -->
 ## 2026-10-24 NVFP4 output heads
 

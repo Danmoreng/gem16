@@ -408,3 +408,35 @@ lab; no native head production change is committed. Commit this bounded negative
 record/diagnostic tooling, no push. Fresh latest llama and direct full-stack parent
 comparison remain; audit the existing Step2 non-RDC prototype limitation before
 making the final campaign completion claim. No GPU jobs remain active.
+
+
+## Final Step2 matched-build audit18:46
+
+Main8046990 diagnostic-only, runtime remains accepted f6de38e. The existing
+three variants are now re-screened with production compute120a/sm120a,RDC=true.
+Depth2 min/median/max-0.764/-0.155/+0.659%; depth4-4.170/+8.592/+21.285%;
+bounded2-6.809/-5.213/-4.358%. All24actual projections and2,097,152codec lane
+cases per variant exact. All fail original every-real-GateUp-case>2% gate, so
+no production candidate/memory/full-model gain/loss is claimed. No new variant
+is tested. Source bodies are unchanged; the old first-screen module predates
+appending the bounded kernel, so this is not a flags-only causal attribution.
+
+Fresh union24/layer15 actual-function counter resources parent47/blocklimit5,
+depth2 48/5, depth4 63/4; long-score1.0556/0.8416/0.6535, eligible warps
+2.809/2.915/2.719. NCU wall values have uncontrolled caches/clocks and differ from
+standalone screens; no same-clock counter-wall speed claim. An unrelated old
+attention link derivative is omitted with a visible unsupported stub, never
+called in T3 mode. No attention or runtime precision fallback is executed.
+
+Raw benchmarks/results/2026-10-24/8046990/t3-gate-rdc-audit/; artifact
+artifacts/trellis35/t3-gate-rdc-audit-2026-10-24.json. All789raw entries and current
+source hashes verified. Read-only native-QMMA disassembly derived from the same
+already-hashed module is additionally pinned in t3-gate-rdc-audit-sass-2026-10-24.json;
+it adds no measurement and does not overwrite the initial record. Renderer
+benchmarks/render_t3_gate_rdc_evidence.py idempotent; README/PERFORMANCE updated.
+
+All five bounded investigations are closed: three accepted production gains,
+T3GateUp/head variants rejected with full negative evidence. Remaining goal work:
+fresh latest upstream llama build and matched same-machine comparison, plus a
+direct day-start/full-stack control rather than multiplying historical ratios.
+No active GPU jobs, no push. Commit the audit, then freeze final native binaries.

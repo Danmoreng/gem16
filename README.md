@@ -141,6 +141,12 @@ protected-profile checks for the Target trial pass. See the
 [head experiment evidence](docs/evidence/gemma4_26b/nvfp4-output-heads-2026-10-24.md).
 <!-- /NVFP4-HEADS-RESULT-2026-10-24 -->
 
+<!-- T3-GATE-RDC-RESULT-2026-10-24 -->
+A final [T3 GateUp audit with production-matched RDC builds](docs/evidence/gemma4_26b/t3-gate-rdc-audit-2026-10-24.md)
+also rejects all three existing pipeline variants: exact outputs, but no consistent
+operator gain. The accepted engine implementation and performance baseline remain unchanged.
+<!-- /T3-GATE-RDC-RESULT-2026-10-24 -->
+
 Earlier public-profile measurements on the same GPU at its firmware-managed
 175 W ceiling are retained below. The public
 Compact Vision **text Target** recorded **130.906 tok/s ordinary decode** and

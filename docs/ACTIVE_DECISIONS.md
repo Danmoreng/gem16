@@ -459,3 +459,20 @@ The production source is restored exactly, loaded binary bytes match the
 accepted parent, and only non-loadable nvcc temporary-PID metadata differs.
 All raw data and the trial are retained in the negative output-head record.
 No new head prefetch/staging/pairing/packing search is opened by this result.
+
+The final five-step audit permits one build-mode verification of the existing
+Step2 depth2/depth4/register-bounded-depth2 variants, with production-matching
+compute_120a/sm_120a and RDC=true. The earlier non-RDC record remains valid for
+its stated diagnostic build but cannot establish the matched-build outcome.
+This is only a re-screen of those exact three existing sources and current
+actual-input/operator counters, not a new pipeline/depth/staging search. Keep
+the original all-real-GateUp-case>2% gate and exact codec/output boundaries;
+only a qualifying variant may enter the existing full production acceptance
+loop. Omit the unrelated old attention link derivative with a visible
+cudaErrorNotSupported diagnostic link stub, never executed in T3 projection mode.
+
+
+The build-mode audit is closed: all three current-source RDC variants remain
+exact but fail the unchanged all-case>2% gate. No production source change or
+new pipeline/staging search follows. Matched-build record and disassembly
+supplement preserve the result without rewriting the earlier non-RDC evidence.
