@@ -484,3 +484,154 @@ Raw benchmarks/results/2026-10-24/30a61fc/final-comparison/. No active GPU job.
 Native final02b65a2e (loadable bytes identical to accepted4), day-startb1adc2d0
 matches original26c6840artifact exactly. Build/preflight completed. compare.py is
 prepared but not yet started. No old llama binary has been executed.
+
+
+## Final comparison live 2026-10-24T19:26:05.697677+02:00
+
+Reporting-only helper fix committed15405ec;20Pythonchecks pass. Actual preflight
+server #calls gives497groups/request,994proposed/637accepted, exactly2proposals
+per base step. All raw old reports remain unchanged; no timing/sampling/engine
+change. Current llama ordinary andD2 differ(first index197), and oldb11552 also
+already differed(first101); do not describe this as a newly proven regression or
+attribute it to precision/kernel choices without actual instruction evidence.
+BLACKWELL_NATIVE_FP4=1 in system_info is compiled capability, not proof of every
+operator's activation format. Native-format/kernel baseline is the correct label.
+
+Balanced12-cohort primary job is confirmed live in exec session92044, running
+final-comparison/compare.py. Sequence for each ordinary thenD2:
+day-start-a,native-final-b,llama-current-c,llama-current-c2,native-final-b2,
+day-start-a2. Each3warmups10retained, fixed16K/1135outputs/1134intervals, same
+max-power policy, cooldown<=50C,200msGPUtelemetry and1Hzprocessmonitors. No
+concurrent GPU jobs or CPU builds. Re-poll92044; never restart because an
+observation wait expires. Rawroot above. Nativebeforeb1adc2d0 matches accepted
+26c6840parent; final02b65a2e loaded bytes match qualifiedf6de38e.
+
+After all12: inspect own-output determinism (allnative must match historical1135;
+llama eachmode matches its preflight but not othermode), no cache reuse, allnative
+fallback/allocation zeros, unchanged arenas, source/toolchain/model/sharedlibrary
+identities, GPUprocesses/clocks/power/thermals/VRAM. Use paired bootstrap CIs for
+native before/after and native-vs-currentllama in both orders; no fastest sample
+selection. Preserve nativeFP8KV versus llamaQ8_0KV, model quantization and own
+output/routing/acceptance differences beside comparisons. Llama internally pads
+requested17519 to17664; no auto-fit parameter change or CPU weight offload allowed.
+
+Remaining: optional bounded fresh llama ordinary/D2 full-process Nsight diagnostic
+captures after primary (actual CUDA families/residency, not timing claims), final
+artifact+renderer/README/PERFORMANCE, direct cumulativegain and latest rates,
+wholefive-step completion audit, narrow final commit and markGoalcomplete only
+when all evidence is present. No push. DailyBerlinwrap22:45/save22:55/stop23:00.
+No current performance lead has been claimed. Allfive investigation evidence
+committed; finalcomparison still required before completion/lead claim.
+
+
+## Owner quant-size question during live comparison
+
+Verified actual native target model.gem16 and primary weight_arena both12,204,692,480bytes
+(12.205GB/11.367GiB); official Google QAT Q4_0 GGUF14,439,363,584bytes
+(14.439GB/13.448GiB), difference2,234,671,104bytes. Native target15.476%smaller
+relative toGGUF; GGUF18.310%larger relative to native. These are weight payload
+sizes, not totalVRAM or exact precision/quality parity. Both D2 Assistants roughly
+0.25GBadditional. Facts saved final-comparison/quant-size-comparison.json.
+Answered owner in German. Primary job92044 remains live, no restart or overlap.
+Latest completed ordinary A137.959/B139.647/C143.408tok/s; preliminary only,
+remaining reverse cohorts and allD2 still pending. Continue polling92044, then
+finish previously listed final evidence/README/audit/commit; Goal staysactive.
+
+
+## Final comparison reporting prepared during primary job
+
+Primary session92044 verified live; completedOrdA137.959/B139.647/C143.408/
+C2 143.185/B2 139.607. ReverseOrdA2 currently runs; allD2 remain. These are
+preliminary, not cumulative gain or a lead claim. Actual wholeprocess highutil
+clocks first A2617/B2610/C2355MHz; peaksnative12455/llama15199MiB, expected
+compute+Xorg4MiB only. Do not derive steadydecode clock or allocator peaks.
+
+Prepared raw helpers, syntax checked, not executed before all12 finish:
+- profile_llama.py: requires all12primaryJSON and idleGPU, then ordinary/D2
+  wholeprocess Nsight 0warm/1request diagnostics, full1135outputs; actual CUDA
+  family capture, not primary rates. No before-exec fork tracing.
+- audit_qualification.py: idleGPU/all12 prerequisite; verify seven steprecords
+  including followup/supplement rawhashes, actual7CUDA/host+12Bproduct logs,
+  native8/64/protected64, fullmemory, exactproposals and forced0/1/2; current
+  source equalsacceptedf6, nativeheadsrestored, originalpositive gates preserved.
+- analyze_final.py: requiresqualificationaudit+llamatraces; validateall12, all
+  rawvectors/invariants/caches, actualcumulative497/994/637llamalogs, telemetry
+  andonlyexpectedprocesses; independentwithincohortbootstrap ofmedianratios
+  (pairedexperimentorders, NOT statistical pairedsamples), exactsource/binaries/
+  linkedlibraries, rawmanifest; newimmutable finalartifact. Do not run onpartial.
+- trackedbenchmarks/render_decode_five_steps_final_evidence.py prepared: renders
+  finalreport/README/PERFORMANCE fromnewrecord, keeps historicalFP8numbers with
+  corrected earliercampaign label andexplicitformats/KV/output/clocklimits.
+  Syntaxchecked only; executeafterartifactexists and verifyidempotence/links.
+
+Next poll92044 (neverrestart); afterall12, profilellama, auditqualification,
+runanalyzer, render/inspectdocs, completewholegoalreview/commit(no push), then
+markcompleteonlywhenrequirementsproved. Berlinwrap22:45/save22:55/stop23.
+
+
+## Final comparison nearly complete
+
+Session92044 still live, lastD2day-start-a2 now running. CompletedD2:
+day-start-a194.0302514, native-final-b197.3615576, llama-current-c198.0629670,
+llama-current-c2 198.1345372, native-final-b2 197.3040713tok/s. Preservebothorders
+andallrawsamples; noleadclaim. FirstD2 sampledpeaksnative12725/llama15557MiB;
+wholeprocesshighutilSMparent2572/native2595/llama2306MHz. Actualnewhelper
+specmetadata497groups/994proposals/637accepted agreeswithprefill-excludedcount;
+max-depthprooftrue. Sourcefactmmq.cu115-132: onlyNVFP4/MXFP4 supportW4A4,
+Q4_0 usesQ8activationinMMQ; BLACKWELL_NATIVE_FP4compiledflagisnotactualproof.
+AllrelevantinheritedGGML/CUDA/diagnosticenvflagsunset; savedsourcefactJSON.
+
+Productiondiffreview: exactly6fileschangefrom26c6840, onlyM1GateUp/attention/
+FP8R3;FP8Ooutershapecheckretained, globalQK2bindings/rawKreusepreserved,
+legacyattentionbarrierandR3exactreduction/invalidPVzeroingchecked. Qualification
+auditpreparedwithactual647attention/24FP8/42headbitexactMC/SCproofs, M1codec
+2097152lanes, all24actualM1cases andRDCcodecproofs. OriginalM1sourceidentity
+schema embeds source+SHA ratherthanpath/bytes; audit handles it explicitly.
+Removedheadheaderactualdecode_head_t3.cuhabsent, nvfp4sourceparentSHAasserted.
+FinalanalyzerpinsdaystarttotheacceptedM1parent, rebuiltloadedELFproofagainst
+FP8acceptedcandidate, actuallinkedlibs/sourcearchive/helperandall6changedsource
+hashes. Currentrendererdisclosesmissingwithinrequestp50/p95/p99ITL(notinvented).
+
+Afterterminal92044: checkBerlin/idleGPU, runprofile_llama.py (boundeddiagnostic
+only), audit_qualification.py (streamingrawhashesONLYafterprimary), analyze_final.py
+(noa.record/logredirectthatwouldmutateitsownrawmanifest), rendertrackedfinal
+generatorandverifyidempotence/links/numbers; finishrequirementauditandnarrow
+commit(no push), thencompleteGoal. NootherGPUjobslaunched.
+
+
+## Final closure — October 24, 20:08 CEST
+
+All five scoped experiments and the final comparison are complete. Three changes
+remain in production (M1 GateUp, fixed-D2 attention, FP8 QKV/O R3); both T3 GateUp
+pipelines and output-head trials remain rejected diagnostics. Current runtime
+source matches f6de38e exactly. The accepted changes retain numerical, guarded
+memory/synchronization, protected12B/internalNVFP4, complete outputs/proposals and
+forced0/1/2 continuation evidence. Qualification audit rehashes5,746 unique files;
+final comparison audit verifies181 raw files, all120 retained requests and allsix
+changed production files. No own long-running GPU job remains.
+
+Final medians across both experiment orders (tok/s): native ordinary139.607–139.647
+versus current llama143.185–143.408; native D2197.304–197.362 versus llama
+198.063–198.135. Cumulative gains1.22–1.93% ordinary and1.72–1.79%D2, allfour
+gain intervals positive. D2 gap point estimates0.35–0.42% favor llama; reverse
+interval spanszero. Do not claim native superiority or quality parity. Native
+versus llama sampled peaks12,455/15,199MiB ordinary and12,725/15,557MiB D2.
+Actual llama Q4_0/Q6_K/MoE families are captured in separate whole-process Nsight
+diagnostics. Source and observed dispatch distinguish compiled FP4 capability
+from the actual quantized paths.
+
+Frozen primary artifact: artifacts/trellis35/decode-five-steps-final-2026-10-24.json.
+Storage-scope sidecar preserves that record while clarifying GGUF embeds tokenizer
+metadata and native tokenizer is external; verified file byte counts are unchanged.
+README, PERFORMANCE, final evidence and ACTIVE_DECISIONS are updated by the tracked
+renderer. Its idempotence and all local links pass; git diff whitespace check is
+clean. Detailed closure checks are under
+benchmarks/results/2026-10-24/15405ec/final-closure/.
+
+Owner explicitly selected pushing current code to GitHub main after asking when
+publication is ready. This supersedes the earlier no-push constraint for this
+completed campaign. Fetch confirms origin/main is an ancestor; closure commit
+contains the final evidence/docs/renderer and will be pushed normally without
+force. No new tag or downloadable release packages are requested. Final post-commit
+and remote-ref checks precede marking the Goal complete. No further optimization
+experiment remains in this bounded Goal; broader tuning needs a new owner request.

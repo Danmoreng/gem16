@@ -1,6 +1,6 @@
 # Active decisions
 
-**Updated:** 2026-09-30 · **Track:** productization · **Status:** v0.2.1 patch publication authorized
+**Updated:** 2026-10-24 · **Track:** productization · **Status:** v0.2.1 patch publication authorized
 
 Permanent rules in [AGENTS.md](../AGENTS.md) remain binding. Read the
 [product contract](PRODUCT_CONTRACT.md) and the narrow task contract next.
@@ -476,3 +476,29 @@ The build-mode audit is closed: all three current-source RDC variants remain
 exact but fail the unchanged all-case>2% gate. No production source change or
 new pipeline/staging search follows. Matched-build record and disassembly
 supplement preserve the result without rewriting the earlier non-RDC evidence.
+
+### Five-step decode campaign closeout (2026-10-24)
+
+All five bounded experiments are complete. Production retains M1 GateUp codec-window
+sharing, fixed-D2 attention normalization and native three-row FP8 QKV/O packing;
+the T3 GateUp pipelines and Target/Assistant head trials stay rejected diagnostics.
+The accepted runtime source remains `f6de38e`. Qualification and restoration
+evidence is checked against actual logs, outputs, source/binary hashes and retained
+positive and negative records, including the production-RDC re-screen.
+
+The final twelve-cohort day-start/final/current-llama comparison uses freshly built
+official llama.cpp b11866 at `3f03b17724ad8b69040825f45c43c59b092a0244`.
+Native cumulative gains are 1.22–1.93% ordinary and 1.72–1.79% fixed-D2 under the
+same Dynamic Boost policy. Both point estimates favor llama across engines;
+the reverse D2 gap interval includes zero. Formats, KV and generated streams
+differ, so this is a native-format/kernel baseline with no quality-equivalence or
+native-superiority claim. See
+[final evidence](evidence/gemma4_26b/decode-five-steps-final-2026-10-24.md) and
+the [frozen record](../artifacts/trellis35/decode-five-steps-final-2026-10-24.json).
+This closes the bounded exception; no broader tuning, push, Windows/media
+qualification or release is authorized by the closeout.
+
+The owner's subsequent October24 instruction explicitly authorizes pushing the
+current tested code and documentation to GitHub `main`. This supersedes the
+five-step Goal's no-push restriction for this completed campaign only; it does
+not authorize a new release tag, downloadable release packages or wider tuning.
