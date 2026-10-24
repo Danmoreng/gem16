@@ -428,3 +428,34 @@ parity; it stays test-only. The selected R3 packing/padding passes all numerical
 memory/protected and actual-dispatch gates and yields a small +0.42–0.58% D2
 same-policy AB/BA gain, with differing Dynamic Boost clocks disclosed. No wider
 prefetch/staging scope is carried forward by that acceptance.
+
+### Bounded Step5 output-head experiments (2026-10-24)
+
+Fresh f6de38e actual-head windows execute Assistant proposals, not forced drafts.
+Target R3 NVFP4 head has106registers (112allocated), register block limit4,
+long-score17.72 and three same-weight M16 MMAs perK64; its DRAM utilization is
+91.55%. This opens one native M16 packing of the three actual A rows, using the
+existing matrix SF_A lane map, removing two accumulator sets/MMA instructions.
+Target M1 is already at93.63% DRAM and is left unchanged in this step.
+Assistant R1 head has56registers, long-score47.05/42.38 and95.52/95.59% DRAM.
+This permits one adjacent-two-N8-tiles-per-warp experiment sharing A/SF_A loads,
+with two ordered K64 chains. Keep the original64-token candidate partitions,
+all4096 candidate values/tokens, finite/BF16/divisor/mask/tie semantics exact;
+no weight repack, format change, speculative-depth change or new prefetch opens.
+High DRAM utilization bounds expectations; long-score alone is not proof of
+avoidable latency. First require exact diverse native-scale boundary tests and
+all actual outputs, positive operator medians in every sampled role/position and
+positive aggregate bootstrap lower bound before a full-model trial. Primary
+promotion still requires exact numerical/memory/protected/dispatch evidence,
+fresh AB/BA end-to-end confidence and ordinary non-regression. Failed variants
+stay offline. Raw: benchmarks/results/2026-10-24/f6de38e/output-heads/.
+
+
+Step5 closes both head variants. Assistant pairing loses all sampled operator
+cases and remains offline. The Target trial passes numerical/memory/protected/
+dispatch gates, but D2 AB+0.1647% and BA+0.1728% do not pass the predeclared
+both95lower>0 criterion (BA lower-0.0018%); slightly higher clocks are disclosed.
+The production source is restored exactly, loaded binary bytes match the
+accepted parent, and only non-loadable nvcc temporary-PID metadata differs.
+All raw data and the trial are retained in the negative output-head record.
+No new head prefetch/staging/pairing/packing search is opened by this result.

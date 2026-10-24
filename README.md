@@ -135,6 +135,12 @@ and [D2 attention](docs/evidence/gemma4_26b/d2-attention-warp-normalization-2026
 gains remain recorded. These text tests do not extend Windows, image or release
 qualification; a fresh llama comparison is separate.
 
+<!-- NVFP4-HEADS-RESULT-2026-10-24 -->
+The subsequent NVFP4 output-head trials produce no reproducible end-to-end gain and are not retained in production. The accepted performance figures above remain the qualified baseline. Both variants preserve exact native outputs; all numerical, memory and
+protected-profile checks for the Target trial pass. See the
+[head experiment evidence](docs/evidence/gemma4_26b/nvfp4-output-heads-2026-10-24.md).
+<!-- /NVFP4-HEADS-RESULT-2026-10-24 -->
+
 Earlier public-profile measurements on the same GPU at its firmware-managed
 175 W ceiling are retained below. The public
 Compact Vision **text Target** recorded **130.906 tok/s ordinary decode** and

@@ -3,6 +3,26 @@
 These are retained measurements at the revisions named below, not a new benchmark of current HEAD.
 The public profiles and qualification limits are described in the [README](../README.md).
 
+<!-- NVFP4-HEADS-2026-10-24 -->
+## 2026-10-24 NVFP4 output heads
+
+**Rejected after full qualification and end-to-end comparison.** The predeclared reproducible end-to-end gate is not met. The production Target trial is removed and the accepted parent runtime/source is restored; the Assistant variant never entered production. Correct operator results alone do not justify keeping this change.
+
+| Mode | Parent tok/s | Candidate tok/s | Change | Bootstrap 95% |
+|---|---:|---:|---:|---|
+| Fixed-D2 AB | 195.967 | 196.290 | +0.1647% | [+0.0218%, +0.3158%] |
+| Fixed-D2 BA | 195.881 | 196.220 | +0.1728% | [-0.0018%, +0.3470%] |
+| Ordinary adjacent | 139.027 | 139.169 | +0.1024% | [+0.0604%, +0.2185%] |
+
+Same fixed 16K / 1,135 / context 17,519 / FP8 KV / greedy workload, three warmups + ten retained
+per cohort. All 60 vectors and unchanged D2 acceptance/arenas are exact. Target
+row packing gains only 0.18–0.21% on repeated operators; Assistant pairing loses
+all six cases and is never promoted. Native scale/mask/tie/overflow/memory,
+protected profiles and actual dispatch/instruction checks pass. See
+[head report](evidence/gemma4_26b/nvfp4-output-heads-2026-10-24.md) and
+[record](../artifacts/trellis35/nvfp4-output-heads-2026-10-24.json).
+<!-- /NVFP4-HEADS-2026-10-24 -->
+
 ## 2026-10-24 FP8 QKV/O row packing
 
 Frozen `85fc453` versus qualified three-row native FP8 projections, same 16K

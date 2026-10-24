@@ -17,7 +17,7 @@ No new push/release authorization. Berlin wrap22:45/save-stop22:55/hard-stop23:0
    only a fresh matching finding can reopen a narrowly scoped mechanism.
 4. **QKV/O projections — complete, accepted small D2 gain.** Inspect and measure one/three-row native
    specializations, preserving weights/accumulation/precision and protected12B.
-5. **Target/Assistant output heads — pending.** Profile actual small-batch matrix
+5. **Target/Assistant output heads — complete, no production promotion.** Profile actual small-batch matrix
    work (not already tiny token selection), test one justified candidate, retain
    exact vocabulary/softcap/mask/tie semantics and output IDs.
 
@@ -277,3 +277,134 @@ heads and counters. Source matrix SF_A mapping already explicitly documents
 lane0 lowerM8/lane1 upperM8 under thread-id-a0; use that existing map for any
 R3 candidate, preserving nativeE2M1/UE4M3, BF16/divisor/mask/tie boundaries.
 No head candidate or gain yet. Fresh latest llama comparison remains after5.
+
+
+## Step5 started after owner status request, 17:53 CEST
+
+Step4 committed f6de38e; accepted CLI7e79ca58... frozen. Production is unchanged
+while the head investigation begins. Raw root:
+`benchmarks/results/2026-10-24/f6de38e/output-heads/`.
+Initial observer borrowed the earlier replay driver and forced-D2 windows;
+those windows never execute Assistant generation. Assistant replay therefore
+fails against unexecuted diagnostic slots, not a runtime head regression. Both
+failed captures and the initial older-driver M1 counter are retained. Do not use
+these initial Assistant slots as valid model inputs or acceptance evidence.
+
+The test-only replay driver now has `d2-head-windows`, calling the actual
+`RunMtpAssistantGroup` at the same three controlled positions; existing ordinary,
+forced-D2 and rollback modes retain their behavior. Exact current f6de38e core
+is linked. Driver/source hashes in parent-head-windows.json. New observer has a
+fixed96MiB diagnostic arena, snapshots all mutable A/SF_A and output bytes and
+borrows only immutable resident weights. Never preload into primary benchmarks.
+Current M1 three cases and actual-D2 nine cases replay byte-exactly. Actual Target
+vocab262144/K2816, Assistant vocab262144/K1024, masks258883/258882, candidate
+array4096*8bytes; Target preserves full BF16-rounded float logits, divisor4736.
+
+Fresh current-parent Target M1 has54regs, DRAM93.63% of peak, long-score54.28;
+Target T3 has106regs, DRAM91.55%, long-score17.72, math-throttle0.403. Full9-case
+D2 snapshots pass before profiling. These are cache/clock-uncontrolled diagnostic
+counters, not primary timing or a new gain. Assistant counters are next in the
+serial current_parent_counters.py run. No head candidate is implemented yet.
+Potential bounded Target R3 packing would remove two redundant M16 instructions
+and accumulator sets, preserving the existing native scale-lane map/K64 order;
+weights/traffic stay unchanged and high DRAM utilization limits expectations.
+Only write the narrow active rationale after all counters are reviewed, then
+screen diverse per-row scales and all actual outputs before any promotion.
+
+Status for owner:4/5 investigated; accepted M1 +1.8682/+1.9723% ordinary,
+attention +1.3324/+1.3760% D2 and QKV/O +0.4212/+0.5823% D2. T3GateUp negatives
+retained. D2-specific sequential gains compose to roughly+1.8–2.0%; this is not
+a directly measured complete-stack delta. Latest qualified139.085ordinary,
+196.492–196.555D2. README/evidence updated; accepted changes committed, no push.
+Fresh latest llama comparison remains after Step5, no current superiority claim.
+
+Correction to the earlier Step3 accepted checkpoint's BA line:192.851748 is the
+original BA parent, while197.774083 belongs to the separate monitored BA repeat.
+The repeat parent is195.089586, as recorded in the final audit and qualified
+artifact. The +1.3760% acceptance uses only that matched repeat pair; do not pair
+those two different cohorts or reinterpret the earlier shorthand as a new gain.
+
+Step5 fresh counters completed successfully17:54: all four current-parent runs,
+three M1 and nine actual-D2 cases each, exact. Assistant56regs, sampled
+long-score47.05/42.38, math-throttle0.069/0.070; all raw counters in
+current-parent-counters-summary.json. No GPU jobs left running. Production core
+remains accepted f6de38e; two diagnostic source changes plus this journal remain
+uncommitted. Next review bandwidth/resource counters, write narrowly bounded
+mechanism rationale, implement and screen heads; no new gain claimed yet.
+
+
+## Step5 qualification checkpoint18:14
+
+Fresh counter rationale recorded in ACTIVE_DECISIONS. Native Target R3 packing
+and one adjacent-N8 Assistant candidate are exact in all9actual cases and all42
+scale/zero/mask/tie/overflow/partial-warp guarded cases; standalone plain,
+memcheck0.46s and synccheck0.41s pass. Initial nvcc shorthand emits generic
+compute_120 PTX and ptxas rejects block-scale MMA; failed source/log preserved.
+V2 explicitly matches production compute_120a/sm_120a and RDC=true.
+
+Assistant pairing loses every real case(-0.01..-0.85%, median-0.154%),95regs
+versus56/register block limit2versus4, DRAM95.19%; remains offline. Target packing
+has+0.184..0.214% repeated-operator gain, aggregate bootstrap95lower>0,64regs
+versus106/block limit8versus4, DRAM94.11%. Only Target enters a provisional
+production selector for tokens3/vocab262144/K2816; ordinary/Assistant/legacy and
+other shapes unchanged. Source reverse-audit reconstructs parent exactly.
+
+Production binarya2c4529fd37ec20f197dc64c24e6e023551a37e8079665753a731fada2be1b9f
+is frozen. Seven CUDA/host tests34.51s, recognized fixedT3 memcheck1.17s,
+native8/64 exact, protected12B/internalNVFP464 exact against Step4, explicit12B
+product and full16KD2 memcheck238.78s0errors pass. Actual current native9capture
+input/scale/output bytes match parent; actual64regs/stack-local-shared0, SASS
+OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X confirmed.
+
+Primary job is live in exec session3347, running finish.py (actual_profile.py,
+compare.py, post_compare.py sequentially). First AB195.967129->196.289882,
+point0.1647%,95CI[0.0218%,0.3158%]. This is provisional,
+not acceptance: reverse BA and ordinary cohorts are still running. Do not restart
+or overlap GPU work. Re-poll3347; observation timeout is not process completion.
+
+After all6cohorts/postchecks: run audit_comparison.py; inspect clocks/processes/
+VRAM and head dispatch costs. decision.py implements the predeclared gate and,
+if rejected, restores only owned runtime source/header and rebuilds/compares the
+accepted parent binary byte-for-byte. Then make_record.py preserves accepted or
+rejected artifact, followed by benchmarks/render_nvfp4_head_evidence.py (not run
+yet). Report/README/PERFORMANCE rendering must be checked idempotent, raw/source
+hashes audited, journal/ACTIVE closed and narrow commit. No push. No whitespace
+cleanup/rebuild of the qualified candidate mid-measurement. Fresh latest llama
+and direct cumulative-parent comparison remain afterward.
+
+
+## Step5 closed18:34 — qualified trial rejected
+
+Full D2 AB195.967129->196.289882(+0.1647%,95CI[+0.0218%,+0.3158%]);
+BA195.881483->196.219919(+0.1728%,95CI[-0.0018%,+0.3470%]). Ordinary139.026898->
+139.169282(+0.1024%). Both D2 point estimates are positive, but the predeclared
+both-orders95lower>0 gate fails. No repeat or sample removal is used to force
+acceptance. Whole-process high-util clocks2565vs2572MHz in both D2 orders and
+2580vs2587MHz ordinary, sampled peaks12455/12725MiB, only expected compute plus
+4MiBXorg. Positive ordinary despite unchanged dispatch further limits attribution.
+
+All60vectors and40D2 count records exact. Full traces502Target heads plus1004
+Assistant candidates, all draft arrays and forced0/1/2rollback/continuations pass.
+Target summed diagnostic head elapsed259.079->255.606ms, Assistant185.368->187.205ms;
+non-head legacyT3 grid88 retains15060calls114.534->114.434ms. These elapsed sums
+have uncontrolled clocks/cache and are not same-clock causal accounting.
+
+Owned production selector/include/header removed; runtime source is exactly
+accepted f6de38e. Rebuild succeeds. Strict whole-file hash initially differs in
+four nvcc PID characters inside non-loadable .strtab; read-only ELF proof shows
+every other byte and all PT_LOAD CPU code/data/PTX/SASS/fatbins identical. No
+binary is patched. Restored CLI02b65a2e... versus frozen7e79ca58...; both exact full
+hashes, offsets, temporary names and all segment hashes in rollback/elf-equivalence.
+Initial ELF verifier's uniqueness assumption spans several sm120 source filenames;
+v2 isolates the single changed string. Initial record CTest-summary string expects
+older wording; v2 verifies every one of the7required Passed lines and100%summary,
+not weakening a runtime test. All failed helper versions are retained.
+
+Artifact artifacts/trellis35/nvfp4-output-heads-2026-10-24.json status=rejected,
+545raw identities and all final source hashes verified. README/PERFORMANCE/report
+rendered via benchmarks/render_nvfp4_head_evidence.py, repeated rendering idempotent;
+git diff --check passes. Head trial and Assistant pairing stay only in the offline
+lab; no native head production change is committed. Commit this bounded negative
+record/diagnostic tooling, no push. Fresh latest llama and direct full-stack parent
+comparison remain; audit the existing Step2 non-RDC prototype limitation before
+making the final campaign completion claim. No GPU jobs remain active.

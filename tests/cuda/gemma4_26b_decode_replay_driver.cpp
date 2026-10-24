@@ -13,7 +13,8 @@ int main(int argc, char** argv) {
   try {
     const auto prompt = ReadTokens(argv[2], 16384U);
     const auto history = ReadTokens(argv[3], 1135U);
-    const bool windows = std::string_view(argv[4]) == "d2-windows";
+    const bool head_windows = std::string_view(argv[4]) == "d2-head-windows";
+    const bool windows = head_windows || std::string_view(argv[4]) == "d2-windows";
     const bool d2 = windows || std::string_view(argv[4]) == "d2";
     Require(d2 || std::string_view(argv[4]) == "ordinary", "invalid replay mode");
     Require(!d2 || argc == 6, "D2 requires the pinned assistant");
@@ -49,14 +50,20 @@ int main(int argc, char** argv) {
       if (windows) {
         constexpr std::array<std::size_t, 3> starts{0U, 567U, 1128U};
         std::cout << "{\"diagnostic_only\":true,\"engine\":\"native-trellis35\","
-                     "\"mode\":\"forced_d2_windows\",\"cases\":[";
+                     "\"mode\":\"" << (head_windows ? "actual_assistant_d2_windows" : "forced_d2_windows") << "\",\"cases\":[";
         for (unsigned phase = 0U; phase < starts.size(); ++phase) {
           Check(engine.Reset());
           Check(engine.PrefillTokens(prompt));
           for (std::size_t i = 0U; i < starts[phase]; ++i) Check(engine.ForwardToken(history[i]));
           std::array<std::uint32_t, 2> drafts{history[starts[phase] + 1U], history[starts[phase] + 2U]};
           gem16::internal::MtpGroupResult result{};
-          Check(engine.RunForcedMtpProposalDiagnostic(history[starts[phase]], drafts, &result));
+          if (head_windows) {
+            // Actual Assistant proposals are needed to snapshot both output
+            // heads. Forced verifier windows never execute those graphs.
+            Check(engine.RunMtpAssistantGroup(history[starts[phase]], 2U, &result));
+          } else {
+            Check(engine.RunForcedMtpProposalDiagnostic(history[starts[phase]], drafts, &result));
+          }
           LabSave(phase);
           std::cout << (phase ? "," : "") << "{\"position\":" << 16384U + starts[phase]
                     << ",\"accepted\":" << result.accepted_count << ",\"outputs\":[";
