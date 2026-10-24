@@ -789,7 +789,15 @@ Status LaunchTrellis35MmaW4A8ProjectionM1N128Inverse(
     return Invalid("Trellis35 M1 N128 inverse projection geometry is invalid");
   }
   if (Trellis35M1NativeFp8x4Enabled()) {
-    if (vector_store && input_elements == kTrellis35DownInput &&
+    if (vector_store && input_elements == kTrellis35GateUpInput &&
+        output_elements == kTrellis35GateUpOutput) {
+      MmaW4A8ProjectionSelectedGateWindowKernel<<<
+          dim3(static_cast<unsigned>(output_elements / 128U),
+               kTrellis35M1TopK),
+          256U, 0, stream>>>(
+          activation_e4m3, activation_scales, family, selected_experts, output,
+          input_elements, output_elements);
+    } else if (vector_store && input_elements == kTrellis35DownInput &&
         output_elements == kTrellis35DownOutput) {
       MmaW4A8ProjectionSelectedN128EightWarpKernel<<<
           dim3(static_cast<unsigned>(output_elements / 128U),

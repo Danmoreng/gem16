@@ -20,6 +20,7 @@ constexpr float kHadamardScale = 0.08838834764831845F;
 #include "cuda/trellis35/detail/t3_gate_pair_codec.cuh"
 #include "cuda/trellis35/detail/t3_gate_pair_window.cuh"
 #include "cuda/trellis35/detail/t3_down_pair_window.cuh"
+#include "cuda/trellis35/detail/m1_gate_pair_window.cuh"
 
 template <bool CaptureTransform>
 __global__ void SelectedGateInputTransformQuantizeCandidateKernel(
@@ -77,6 +78,21 @@ extern "C" cudaError_t gem16_lab_launch_m1_eight(
       dim3(static_cast<unsigned>(output_elements / 128U), 8U), 256U, 0U, stream>>>(
           activation, scales, *family, ids, output, input_elements, output_elements);
   return cudaGetLastError();
+}
+
+extern "C" cudaError_t gem16_lab_launch_m1_window(
+    const std::uint8_t* activation, const float* scales,
+    const gem16::internal::Trellis35DeviceFamilyBinding* family,
+    const std::uint32_t* ids, float* output, std::uint64_t inputs,
+    std::uint64_t outputs, cudaStream_t stream) {
+  using namespace gem16::internal;
+  if (inputs == 2816U && outputs == 1408U) {
+    MmaW4A8ProjectionSelectedGateWindowKernel<<<
+        dim3(static_cast<unsigned>(outputs / 128U), 8U), 256U, 0U, stream>>>(
+            activation, scales, *family, ids, output, inputs, outputs);
+    return cudaGetLastError();
+  }
+  return gem16_lab_launch_m1_eight(activation, scales, family, ids, output, inputs, outputs, stream);
 }
 
 extern "C" cudaError_t gem16_lab_launch_gate_fused(

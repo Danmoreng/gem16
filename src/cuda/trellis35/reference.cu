@@ -43,6 +43,7 @@ constexpr unsigned kPrefillOutputBlock = 128U;
 #include "cuda/trellis35/detail/transform_common.cuh"
 #include "cuda/trellis35/detail/m1_kernels.inc.cuh"
 #include "cuda/trellis35/detail/m1_pair_fragments.cuh"
+#include "cuda/trellis35/detail/m1_gate_pair_window.cuh"
 #include "cuda/trellis35/detail/t3_kernels.inc.cuh"
 #include "cuda/trellis35/detail/t3_pair_fragments.cuh"
 #include "cuda/trellis35/detail/t3_gate_pair_window.cuh"

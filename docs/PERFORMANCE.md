@@ -3,6 +3,27 @@
 These are retained measurements at the revisions named below, not a new benchmark of current HEAD.
 The public profiles and qualification limits are described in the [README](../README.md).
 
+## 2026-10-24 M1 GateUp codec windows
+
+Frozen `26c6840` parent versus the qualified native/vector M1 GateUp candidate,
+same RTX 5080 Laptop/max-power/Dynamic Boost, 16,384 prompt IDs, 1,135 outputs,
+context 17,519, batch one, greedy, FP8 KV, three warmups and ten retained runs:
+
+| Mode / comparison | Parent decode tok/s | Candidate decode tok/s | Change |
+|---|---:|---:|---:|
+| Ordinary AB | 136.481 | 139.031 | +1.8682% |
+| Ordinary BA | 136.303 | 138.992 | +1.9723% |
+| D2 adjacent pair | 192.600 | 193.025 | +0.2205% |
+
+All 60 retained output vectors match exactly. D2 acceptance and all arenas stay
+unchanged; no fallback/repack/token-loop allocation. Numerical, sanitizer,
+protected-profile, actual-dispatch and exact draft/forced-case checks pass. D2
+is an adjacent non-regression pair, not a speed claim. See the
+[qualification report](evidence/gemma4_26b/m1-gate-window-2026-10-24.md) and
+[acceptance record](../artifacts/trellis35/m1-gate-window-2026-10-24.json).
+Fresh same-day controls are used rather than yesterday's rates. No new llama
+comparison or Windows/media/release qualification is claimed; historical rows remain.
+
 ## 2026-10-23 T3 Down codec/payload pipeline
 
 Frozen GateUp parent `629bbac` versus the separately qualified native/vector Down

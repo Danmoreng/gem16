@@ -237,6 +237,23 @@ supersedes the generic-prefetch closure only for that counter-backed Down test;
 it does not authorize wider prefetch, layout or runtime changes. No production
 promotion without separate numerical, memory and end-to-end evidence.
 
+### Owner update: five measured decode follow-ups (2026-10-24)
+
+The owner explicitly sets a Goal to carry out the five proposed steps after
+`26c6840`: M1 GateUp, T3 GateUp, local/global fixed-D2 attention, QKV/O projections
+for one/three rows, and Target/Assistant output heads. This supersedes standing
+decision 7's tuning freeze and the earlier GateUp/Down-only scope solely for
+these bounded investigations and counter-justified candidates. It does not
+reopen the old 220/250 targets or authorize generic framework changes. Prior
+negative evidence remains binding context; a rejected mechanism needs new
+matching dispatch/counter evidence and a narrow written rationale before retry.
+Preserve all precision, accumulation, format, sampling, context/cache, graph/ring,
+resident-weight, memory and protected-profile boundaries. Reassess costs after
+each accepted gain; keep/commit only correct reproducible end-to-end benefit.
+Retain positive and negative raw evidence and update README/results. No push or
+release. A fresh current-llama same-machine comparison is required before a
+new superiority claim. Work journal: `plans/gemma4-26b/DECODE_FIVE_STEPS_2026_10_24.md`.
+
 | Profile | Public selection | Input | Context policy / retained capacity | Slots |
 |---|---|---|---|---|
 | 12B Unified | Yes | Text, image, audio | Subject to configured capacity | Up to two |
