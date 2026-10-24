@@ -283,10 +283,50 @@ class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
                 "http://127.0.0.1:1", [1, 2, 3], generation, 2
             )
         self.assertEqual(tokens, list(range(16)))
-        self.assertEqual(run["mtp"]["verification_groups"], 7)
+        self.assertEqual(run["mtp"]["verification_groups"], 6)
         self.assertEqual(run["mtp"]["accepted_tokens"], 9)
         self.assertEqual(run["mtp"]["rejected_tokens"], 3)
-        self.assertAlmostEqual(run["mtp"]["mean_accepted_length"], 9 / 7)
+        self.assertAlmostEqual(run["mtp"]["mean_accepted_length"], 9 / 6)
+
+    def test_llama_groups_exclude_prefill_for_observed_fixed_d2_response(self) -> None:
+        # b11866's 16K fixture: 1 prefill output + 497 base steps + 637
+        # accepted drafts. All 994 proposals form exactly 497 D2 groups.
+        response = {
+            "tokens": list(range(1135)), "tokens_evaluated": 16384,
+            "truncated": False, "tokens_cached": 0, "stop_type": "limit",
+            "timings": {"prompt_ms": 2.0, "predicted_ms": 5695.0,
+                        "predicted_n": 1135, "predicted_per_second": 199.0,
+                        "draft_n": 994, "draft_n_accepted": 637},
+        }
+        generation = {"max_new_tokens": 1135, "seed": 0, "ignore_eos": True,
+                      "suppress_token_ids": []}
+        with mock.patch.object(MODULE, "http_json", return_value=response):
+            run, _ = MODULE.run_llama_request(
+                "http://127.0.0.1:1", [1] * 16384, generation, 2
+            )
+        self.assertEqual(run["mtp"]["verification_groups"], 497)
+        self.assertTrue(run["speculative_all_base_steps_at_max_depth"])
+        self.assertEqual(run["measured_decode_intervals"], 1134)
+        self.assertAlmostEqual(run["decode_tokens_per_second"], 1134 * 1000 / 5695.0)
+
+    def test_llama_prefill_only_has_no_speculative_group(self) -> None:
+        response = {
+            "tokens": [42], "tokens_evaluated": 2, "truncated": False,
+            "tokens_cached": 0, "stop_type": "limit",
+            "timings": {"prompt_ms": 2.0, "predicted_ms": 0.0, "predicted_n": 1,
+                        "predicted_per_second": 0.0, "draft_n": 0,
+                        "draft_n_accepted": 0},
+        }
+        generation = {"max_new_tokens": 1, "seed": 0, "ignore_eos": True,
+                      "suppress_token_ids": []}
+        with mock.patch.object(MODULE, "http_json", return_value=response):
+            run, _ = MODULE.run_llama_request(
+                "http://127.0.0.1:1", [1, 2], generation, 2
+            )
+        self.assertEqual(run["mtp"]["verification_groups"], 0)
+        self.assertEqual(run["mtp"]["mean_accepted_length"], 0.0)
+        self.assertEqual(run["mtp"]["conventional_mean_acceptance_length"], 0.0)
+        self.assertEqual(run["decode_tokens_per_second"], 0.0)
 
     def test_llama_ngram_counters_are_normalized(self) -> None:
         response = {
@@ -317,9 +357,9 @@ class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
                 "http://127.0.0.1:1", [1, 2], generation, 8, ("ngram-mod",)
             )
         self.assertNotIn("mtp", run)
-        self.assertEqual(run["speculative"]["verification_groups"], 4)
+        self.assertEqual(run["speculative"]["verification_groups"], 3)
         self.assertEqual(run["speculative"]["accepted_tokens"], 8)
-        self.assertAlmostEqual(run["speculative"]["mean_accepted_length"], 2.0)
+        self.assertAlmostEqual(run["speculative"]["mean_accepted_length"], 8 / 3)
 
     def test_fixed_output_masks_the_same_end_tokens_for_all_engines(self) -> None:
         generation = {

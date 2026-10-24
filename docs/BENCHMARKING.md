@@ -33,6 +33,15 @@ Keep prompt processing, ordinary decode, speculative decode, and end-to-end timi
 prompt tok/s for prefill; output tok/s and median/p95/p99 ITL for decode. Speculative proposed tokens are not output
 tokens. Throughput speedup is `candidate / baseline`; latency reduction is `1 - candidate / baseline`.
 
+For llama.cpp speculative telemetry, the first generated token comes from prefill.
+The helper therefore infers base decode steps as `generated_tokens - 1 - accepted_drafts`,
+not `generated_tokens - accepted_drafts`. This is an inference rather than an independent
+server group counter: ordinary fallback steps cannot generally be separated. The helper
+records that provenance and whether the proposed-token total proves that every base step
+used the configured maximum draft depth. Where available, verify it against the server's
+cumulative `#calls(b,g,a)` statistics. The correction changes group/acceptance telemetry,
+not the already established `(N-1) / decode_time` throughput boundary or saved historical results.
+
 External llama.cpp comparisons use one of these labels:
 
 1. **same-source closest parity**: the same immutable source with every format mapping and quality difference

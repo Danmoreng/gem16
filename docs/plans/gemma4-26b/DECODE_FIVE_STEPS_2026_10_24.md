@@ -440,3 +440,47 @@ T3GateUp/head variants rejected with full negative evidence. Remaining goal work
 fresh latest upstream llama build and matched same-machine comparison, plus a
 direct day-start/full-stack control rather than multiplying historical ratios.
 No active GPU jobs, no push. Commit the audit, then freeze final native binaries.
+
+
+## Fresh comparison preparation19:17
+
+Current official upstream fetched read-only (checkout left at old23b0202a):
+3f03b17724ad8b69040825f45c43c59b092a0244, b11866, built from safely extracted
+immutable git archive outside any parent Git worktree. Explicit CMake commit/build
+number overrides avoid wrong archive build metadata. Version0.7.0-dev/GNU16.2.1;
+serverSHA dffd2dc391d9bf7792797d8ae1034e2acfd7a09f1e5e6418d6af1f4db4129bde.
+Build446.11s, sameCUDA120a/allFA-quants/graphs/automaticMMQ and CPU-nativeOFF
+settings as previous baseline. Official target14,439,363,584bytes and Assistant
+251,939,328bytes exist; full hashes match immutable HuggingFace LFS metadata.
+Assistant cache blob filename is not its raw SHA; initial filename assertion is
+wrong and retained. Source revisions and payload hashes in gguf-expected-payloads.
+
+First preflight assumes a dynamic-backend load-path log; current build registers
+CUDA through linked libggml-cuda.so.0 instead. ldd resolves all own libraries to
+the new build; exact shared-library hashes recorded. Corrected preflight verifies
+full GPU offload31/31target plus fullAssistant, samebatch2048/ubatch512, Q8KV,
+1135outputs/16384prompt/no reused cache. Requestedcontext17519 is internally
+padded to17664 by llama; explicit settings prevent auto-fit mutation, logged.
+Old failed helpers and real successful results stay unchanged.
+
+Preflight ordinary143.319/D2199.096tok/s are single-sample diagnostics only,
+not primary claims. Current llama's ordinary andD2 streams differ first at output
+index197(932mismatchedpositions); both differ from oldllama streams. Native remains
+strictly exact ordinary/D2 and day-start/final. The final comparison is explicitly
+a native-format/kernel baseline, not exact numerical parity or identical output
+work; disclose this beside rates, formats, KV representations and acceptance.
+
+A real helper telemetry bug is verified against b11866 cumulative source logs:
+#calls(b,g,a) grows497->994 across warmup/retained; proposed994/accepted637 per
+request,1135outputs=1prefill+497base+637accepted. Existing helper infers498groups
+by counting prefill. Narrow host fix excludesprefill, handleszero-group requests
+and marks inferred-group provenance/max-depth proof. Source actual n_draft_verif_steps
+and #calls agree. Throughput already uses(N-1)/time and is unchanged. Twenty Python
+unit checks pass, including real observed fixture and prefill-only boundary;
+no CUDA/runtime source or old results change. Commit this reporting correction
+before12balanced primary cohorts A,B,C,C2,B2,A2 for each ordinary/D2.
+
+Raw benchmarks/results/2026-10-24/30a61fc/final-comparison/. No active GPU job.
+Native final02b65a2e (loadable bytes identical to accepted4), day-startb1adc2d0
+matches original26c6840artifact exactly. Build/preflight completed. compare.py is
+prepared but not yet started. No old llama binary has been executed.

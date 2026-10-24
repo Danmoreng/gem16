@@ -813,10 +813,15 @@ def run_llama_request(
     if "draft_n" in timings:
         proposed = int(timings["draft_n"])
         accepted = int(timings["draft_n_accepted"])
-        groups = len(output_tokens) - accepted
+        # The first output was sampled from prefill. Only the remaining
+        # outputs split into base decode steps and accepted drafts; counting
+        # prefill here invents one extra verification group. This is an
+        # inference, so ordinary fallback steps cannot be separated from
+        # speculative groups without more server telemetry.
+        groups = len(output_tokens) - 1 - accepted
         if (
             maximum_draft_tokens == 0
-            or groups <= 0
+            or groups < 0
             or proposed < accepted
             or proposed > groups * maximum_draft_tokens
         ):
@@ -832,14 +837,20 @@ def run_llama_request(
             "verification_groups": groups,
             "target_forwards": proposed + groups,
             "target_batches": groups,
-            "mean_accepted_length": accepted / groups,
-            "conventional_mean_acceptance_length": 1.0 + accepted / groups,
+            "mean_accepted_length": accepted / groups if groups else 0.0,
+            "conventional_mean_acceptance_length": (
+                1.0 + accepted / groups if groups else 0.0
+            ),
             "d1_groups": groups if fixed_mtp and maximum_draft_tokens == 1 else 0,
             "d2_groups": groups if fixed_mtp and maximum_draft_tokens == 2 else 0,
             "d4_groups": groups if fixed_mtp and maximum_draft_tokens == 4 else 0,
             "ordinary_fallback_tokens": 0,
         }
         run["speculative"] = counters
+        run["speculative_group_count_source"] = "inferred_base_steps_after_prefill"
+        run["speculative_all_base_steps_at_max_depth"] = (
+            proposed == groups * maximum_draft_tokens
+        )
         if fixed_mtp:
             run["mtp"] = dict(counters)
     return run, output_tokens
