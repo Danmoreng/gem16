@@ -399,3 +399,32 @@ Implement practical OpenAI interoperability where semantics can be preserved;
 only substantial unsupported behavior remains an explicit limitation. The
 server-first backlog in ROADMAP.md tracks review C00–C09. Two-platform release
 gates and the existing QUAL01 waiver remain unchanged.
+
+### Bounded Step4 FP8 projection experiments (2026-10-24)
+
+Within the owner's five-step Goal, fresh actual 85fc453 captures show M1
+long-scoreboard per-issue20.65 (local QKV),22.76 (global Q/K),12.53 (global O),
+versus short0.206/0.266/0.075; T3 math-pipe throttle7.04/7.89 (local/global QKV)
+and4.98 (global O), with three same-weight M16 MMAs per K iteration. Raw:
+`benchmarks/results/2026-10-24/85fc453/fp8-projections/`.
+This permits only (a) native M16 A-row packing for the three actual FP8 rows,
+following the existing matrix fragment map, and (b) one fixed two-entry register
+load pipeline for the actual M1 QKV/O FP8 fragments. The latter supersedes the
+prefetch closure solely for these counter-backed projection shapes; no generic
+staging, source-weight repack, K reordering, routing or precision change opens.
+Use production-matching RDC builds, all-case exact/output/resource screens and
+full numerical, memory, protected and end-to-end acceptance before promotion.
+Global layers project Q/K only and reuse raw K for V; retain that behavior.
+
+Step4's exact-input packed-QKV counter shows405,504 shared-load bank conflicts
+versus0 in the original; both execute608,256 shared-load wavefronts. This permits
+one32-byte padding trial between the three *ephemeral shared activation* rows,
+adding96bytes/CTA without changing any persistent tensor/weight layout. Require
+bit parity and a direct packed-versus-padded all-case gain before choosing it.
+Other staging/prefetch mechanisms remain closed.
+
+Step4 closes the M1 two-entry trial: every sampled case loses, despite bit
+parity; it stays test-only. The selected R3 packing/padding passes all numerical,
+memory/protected and actual-dispatch gates and yields a small +0.42–0.58% D2
+same-policy AB/BA gain, with differing Dynamic Boost clocks disclosed. No wider
+prefetch/staging scope is carried forward by that acceptance.

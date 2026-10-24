@@ -15,7 +15,7 @@ No new push/release authorization. Berlin wrap22:45/save-stop22:55/hard-stop23:0
 3. **D2 local/global attention — complete, accepted.** Verify actual dispatch, inputs, numerical
    reduction order and cache semantics. Earlier KV staging rejection remains;
    only a fresh matching finding can reopen a narrowly scoped mechanism.
-4. **QKV/O projections — pending.** Inspect and measure one/three-row native
+4. **QKV/O projections — complete, accepted small D2 gain.** Inspect and measure one/three-row native
    specializations, preserving weights/accumulation/precision and protected12B.
 5. **Target/Assistant output heads — pending.** Profile actual small-batch matrix
    work (not already tiny token selection), test one justified candidate, retain
@@ -227,3 +227,53 @@ non-RDC prototype percentages do not fully transfer to production. Try native
 M16 A-row packing for three rows only when fresh counters justify it. Preserve
 per-row K/MMA/split-K and scale order, source weights and protected12B. M1 is
 an investigation, not a promise to change its already specialized kernels.
+
+## Step4 start 16:36
+
+Step3 committed85fc453, clean; frozen CLIcc956a04..., driver424a3126.... Raw:
+benchmarks/results/2026-10-24/85fc453/fp8-projections/. Initial observer wrongly
+assumes3bindings globally and fails before capture with only25QKV calls; kept
+both failed versions. Source proves five global layers use Q8192/K1024 only,
+then raw-K-to-V copy; local layers Q4096/K2048/V2048. Fixed observer captures
+all24real M1/T3 cases, immutable weights borrowed, mutable data copied; RDC=true.
+Fresh six counters complete. M1 long-score20.65/22.76/12.53 strongly outweighs
+short0.206/0.266/0.075; T3 math-throttle7.04/7.89/4.98 supports reducing three
+M16 MMAs to one packed3-row operation. Counter wall times have different GPC
+clocks and are diagnostic, not same-clock speed evidence.
+Narrow active rationale opens T3 A-row packing and one fixed two-entry M1
+FP8 fragment pipeline, retaining exact K/split-K/scale/MMA order and all formats.
+Do not promote positive medians alone: require per-case gate and full primary
+benefit with numerical/memory/protected/draft/continuation evidence.
+
+## Step4 accepted 17:43
+
+M1 two-entry projection pipeline loses every sampled case; kept only offline.
+All24 real T3 outputs exact; naive packing gains about14–25% operator throughput.
+Packed QKV creates405,504 shared-load conflicts;32B ephemeral row padding removes
+them and cuts608,256->202,752 wavefronts, adding14.18–18.21% QKV throughput versus
+naive in direct3way measurements. Selected24scale/zero/tail/split-K guarded cases
+pass plain/memcheck/synccheck. Production-matching RDC, new actual resources:
+QKV36regs/static0/dynamic8544, O40regs/static96, stack/local0. All24 actual native
+input/output snapshots match frozen parent. M1/12B/non-target/legacy unchanged;
+global Q/K2bindings plus raw-K-to-V copy preserved.
+
+Seven CUDA/host checks, CUDA-suite memcheck, exact native8/64, protected12B/NVFP464,
+explicit12Bproduct, full16K D2 memcheck237.52s0errors pass. Full1135outputs,
+proposals, forced0/1/2continuations and exact30120target projection calls pass.
+Primary D2 AB195.731027->196.555428 (+0.4212%,95CI[0.3610%,0.5460%]);
+BA195.354054->196.491573 (+0.5823%,95CI[0.4399%,0.6969%]); Ordinary139.132828->
+139.085218 neutral(-0.0342%). All60 vectors exact, all40D2 counts502/632/1004.
+Device peaks12455/12725MiB; all pmon only expected compute plus4MiB Xorg.
+High-util clocks parent2565/2557 vs candidate2580/2580MHz: same max-power policy,
+not fixed-clock or pure cycle claim. Whole-model trace QKV essentially unchanged;
+O306.215->298.367ms, explaining much smaller full benefit than repeated operators.
+Source weight traffic is unchanged; cache/bandwidth is an inference, not proof.
+
+Record artifacts/trellis35/fp8-projections-2026-10-24.json; all1602raw files and
+current sources to verify before narrow commit. README/PERFORMANCE/evidence
+rendered via benchmarks/render_fp8_projection_evidence.py (syntax/idempotence pass).
+No push. Next Step5 freeze accepted binary, capture actual Target/Assistant NVFP4
+heads and counters. Source matrix SF_A mapping already explicitly documents
+lane0 lowerM8/lane1 upperM8 under thread-id-a0; use that existing map for any
+R3 candidate, preserving nativeE2M1/UE4M3, BF16/divisor/mask/tie boundaries.
+No head candidate or gain yet. Fresh latest llama comparison remains after5.

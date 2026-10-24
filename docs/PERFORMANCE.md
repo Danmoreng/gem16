@@ -3,6 +3,29 @@
 These are retained measurements at the revisions named below, not a new benchmark of current HEAD.
 The public profiles and qualification limits are described in the [README](../README.md).
 
+## 2026-10-24 FP8 QKV/O row packing
+
+Frozen `85fc453` versus qualified three-row native FP8 projections, same 16K
+prompt / 1,135 outputs / context 17,519 / FP8 KV / greedy, 3 warmups + 10 retained per cohort:
+
+| Mode / comparison | Parent tok/s | Candidate tok/s | Change |
+|---|---:|---:|---:|
+| Fixed-D2 AB | 195.731 | 196.555 | +0.4212% |
+| Fixed-D2 BA | 195.354 | 196.492 | +0.5823% |
+| Ordinary adjacent | 139.133 | 139.085 | -0.0342% |
+
+This is a small same-policy end-to-end gain. Whole-process GPU clocks differ;
+there is no fixed-clock claim. All 60 vectors, D2 groups/acceptance, arenas and
+precision stay exact; sampled peaks 12,455 / 12,725 MiB, process monitoring quiet.
+The M1 two-entry pipeline loses all sampled cases and remains diagnostic only.
+Actual dispatch/shaders, diverse numerical/sanitizer, full-memory, protected
+profiles, proposals and forced continuations pass. Isolated cache-warm gains
+are much larger than the whole-model effect; complete traces show QKV nearly
+unchanged and O about 2.6% shorter. See the
+[qualification report](evidence/gemma4_26b/fp8-projections-2026-10-24.md) and
+[acceptance record](../artifacts/trellis35/fp8-projections-2026-10-24.json).
+No fresh llama or Windows/media/release claim; all earlier rows remain below.
+
 ## 2026-10-24 fixed-D2 warp normalization
 
 Frozen `c48124d` runtime versus qualified R3 local/global FP8 normalization,

@@ -818,6 +818,8 @@ __global__ void Sm120MatrixProjectionKernel(
 #endif
 }
 
+#include "cuda/fp8/detail/decode_t3_rows.cuh"
+
 }  // namespace
 
 Status LaunchFp8Sm120DirectProjection(const std::uint8_t* activation_e4m3fn,
@@ -1084,7 +1086,7 @@ Status LaunchFp8Sm120DirectProjectionBatch(
       return Invalid("batched split-K2 SM120 FP8 projection grid exceeds CUDA limits");
     }
     if (tokens == 3U) {
-      Sm120DirectProjectionSplitK2FixedT3Kernel<<<
+      Sm120DirectProjectionSplitK2PackedT3Kernel<<<
           static_cast<unsigned>(row_tiles), kSplitKThreadsPerBlock, 0,
           stream>>>(activation_e4m3fn, activation_scales, weight_e4m3fn,
                     weight_scales_bf16, output, rows,
@@ -1239,14 +1241,28 @@ Status LaunchFp8Sm120GroupedQkvProjectionBatch(
     const Fp8MatrixBinding v{v_weight_e4m3fn, v_weight_scales_bf16, v_output,
                              v_rows};
     if (tokens == 3U) {
-      const std::size_t shared_bytes =
-          static_cast<std::size_t>(tokens * contracting_elements);
-      Sm120DirectProjectionFixedBatchKernel<3U><<<
-          dim3(static_cast<unsigned>(direct_blocks), 1U,
-               has_v ? 3U : 2U),
-          kThreadsPerBlock, shared_bytes, stream>>>(
-          activation_e4m3fn, activation_scales, q, k, v,
-          has_v ? 3U : 2U, contracting_elements);
+      const bool native_26b_qkv = contracting_elements == kGemma4Moe26BHidden &&
+          ((has_v && q_rows == 4096U && k_rows == 2048U && v_rows == 2048U) ||
+           (!has_v && q_rows == 8192U && k_rows == 1024U));
+      if (native_26b_qkv) {
+        // Three actual M16 rows; pad only ephemeral shared A rows to avoid
+        // the new three-way bank conflict. Checkpoint/layout/K order stay fixed.
+        const std::size_t shared_bytes =
+            static_cast<std::size_t>(tokens * (contracting_elements + 32U));
+        Sm120DirectProjectionPackedT3Kernel<32U><<<
+            dim3(static_cast<unsigned>(direct_blocks), 1U, has_v ? 3U : 2U),
+            kThreadsPerBlock, shared_bytes, stream>>>(
+            activation_e4m3fn, activation_scales, q, k, v,
+            has_v ? 3U : 2U, contracting_elements);
+      } else {
+        const std::size_t shared_bytes =
+            static_cast<std::size_t>(tokens * contracting_elements);
+        Sm120DirectProjectionFixedBatchKernel<3U><<<
+            dim3(static_cast<unsigned>(direct_blocks), 1U, has_v ? 3U : 2U),
+            kThreadsPerBlock, shared_bytes, stream>>>(
+            activation_e4m3fn, activation_scales, q, k, v,
+            has_v ? 3U : 2U, contracting_elements);
+      }
     } else {
       Sm120DirectProjectionKernel<false><<<
           dim3(static_cast<unsigned>(direct_blocks),

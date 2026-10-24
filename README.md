@@ -121,19 +121,19 @@ not publish a mirror or duplicate the payload bytes.
 ## Recorded performance
 
 The **2026-10-24 Linux text optimization benchmark** on the RTX 5080 Laptop GPU
-records **139.219 tok/s ordinary decode** and **195.666–197.774 tok/s fixed-D2**.
-Local/global D2 attention normalization adds **1.33–1.38% D2 throughput** against its
-frozen parent in AB/BA measurements. All retained runs reproduce the same 1,135
-output IDs with unchanged D2 acceptance and arenas. Sampled device-total peaks
-are 12,455 MiB ordinary and 12,725 MiB in the confirmed D2 pairs. An original
-cohort briefly reached 13,129 MiB; all its data and the follow-up are retained
-in the report. The workload uses 16,384 prompt IDs, batch 1, greedy,
-FP8 KV, three warmups and ten retained runs per cohort. See the
-[qualification and raw-evidence record](docs/evidence/gemma4_26b/d2-attention-warp-normalization-2026-10-24.md)
-for revisions, settings and checks. The preceding
-[M1 GateUp result](docs/evidence/gemma4_26b/m1-gate-window-2026-10-24.md) retains
-its 1.87–1.97% ordinary gain. These bounded text measurements do not extend
-Windows, image or release qualification; a fresh llama comparison is separate.
+records **139.085 tok/s ordinary decode** and
+**196.492–196.555 tok/s fixed-D2** in the latest paired campaign.
+Native FP8 QKV/O row packing adds **0.42–0.58% D2 throughput** against fresh controls;
+ordinary is unchanged within variation. All 60 retained runs reproduce the same
+1,135 IDs with unchanged D2 acceptance, arenas and precision. Sampled device-total
+peaks are 12,455 / 12,725 MiB. The workload uses 16,384 prompt IDs, context 17,519,
+batch one, greedy, FP8 KV, three warmups and ten retained runs per cohort. See the
+[qualification and raw evidence](docs/evidence/gemma4_26b/fp8-projections-2026-10-24.md).
+Absolute rates vary under firmware-managed Dynamic Boost; compare paired controls.
+The preceding [M1 GateUp](docs/evidence/gemma4_26b/m1-gate-window-2026-10-24.md)
+and [D2 attention](docs/evidence/gemma4_26b/d2-attention-warp-normalization-2026-10-24.md)
+gains remain recorded. These text tests do not extend Windows, image or release
+qualification; a fresh llama comparison is separate.
 
 Earlier public-profile measurements on the same GPU at its firmware-managed
 175 W ceiling are retained below. The public
