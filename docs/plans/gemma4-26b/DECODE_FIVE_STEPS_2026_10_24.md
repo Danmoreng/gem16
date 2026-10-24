@@ -12,7 +12,7 @@ No new push/release authorization. Berlin wrap22:45/save-stop22:55/hard-stop23:0
 2. **T3 GateUp — complete, rejected diagnostic variants.** Refresh actual counters and residual cost; define one
    justified candidate rather than assuming M1 transfers. Verify unchanged D2
    proposals, acceptance, rollback/continuation and memory boundaries.
-3. **D2 local/global attention — pending.** Verify actual dispatch, inputs, numerical
+3. **D2 local/global attention — complete, accepted.** Verify actual dispatch, inputs, numerical
    reduction order and cache semantics. Earlier KV staging rejection remains;
    only a fresh matching finding can reopen a narrowly scoped mechanism.
 4. **QKV/O projections — pending.** Inspect and measure one/three-row native
@@ -140,3 +140,90 @@ inputs/outputs, modules, samples and NCU metrics preserved. Commit diagnostic/
 evidence changes only; no push. Next Step3 actual local/global T3 attention
 capture and counter analysis. Earlier KV staging stays rejected unless a fresh
 matching finding justifies a specifically scoped new candidate.
+
+## Step3 checkpoint 15:14
+
+Parent c48124d frozen; runtime binary remains the qualified e0c7fe5 code.
+Raw root benchmarks/results/2026-10-24/c48124d/d2-attention/. New explicitly
+attached offline observer snapshots all mutable global/ring/speculative KV,
+queries, controls, scales and expected partial/LSE bytes; no borrowed mutable
+cache. Three actual positions16384/16951/17512, local layer0/global29, all
+parent replays bit exact. Extra304MiB is diagnostic only, never primary timing.
+Fresh global counters barrier0.8261/short0.8936 perissue; local barrier0.6776/
+short1.1447. Test warp-owned normalization retains the old full32 shuffle-down
+chunk tree and second-level eight-warp tree including zero/negative-inf empty
+chunks, preserving all FP32 association. No K/V staging retry or QK/PV/cache/
+merge changes. Global sampled gains14.7–15.2%, local37.3–38.2%, all partials/
+LSE bit exact. Prototype global barrier0.2118 and88->91regs. Initial derivative
+compile failed because renaming removed the old wrapper's kernel reference;
+failed command/source retained; v2 retains the unused original definition.
+Now checking257 global and384 local counterfactual-position boundaries over
+captured bytes with memcheck before production promotion. These synthetic
+positions test arithmetic/masking, not model quality for those prefixes.
+No full-model gain/production acceptance yet. Legacy R2/R5 normalization and
+all one-row attention remain unchanged in the proposed production selector.
+
+## Step3 checkpoint 15:33
+
+The full-model three-window memcheck exceeded420s before standalone operator
+validation; stopped a second kernel-filtered full-driver attempt after317s with
+no operator export. Both incomplete attempts retained, no memory pass claimed.
+A small offline runner now loads the immutable operator snapshots directly:
+647 cases = six actual captures plus641 counterfactual positions. Initial local
+prototype failed short context0 because invalid score slots remained negative
+infinity while local PV reads the entire chunk. Corrected candidate explicitly
+writes masked probability0; plain/memcheck647 cases exact, memcheck5.3s0errors.
+Synccheck then perturbed the *unmodified original local* shader: candidate matches
+capture, original has3084 partial/LSE mismatches. Source lacks a barrier between
+maximum reads and reuse of reduction[item][0]. A diagnostic reference with that
+single barrier passes all647 cases plain, memcheck5.4s and synccheck1.6s0errors.
+Two bounded racecheck runs (block0 and allblocks/one original launch) show0hazards;
+record this limitation rather than claiming a dynamic racecheck report. The
+missing shared lifetime ordering plus the controlled barrier comparison supports
+the fix; no NVIDIA driver/tool defect is asserted.
+Final corrected real-input re-screen: local37.00–38.13%, global14.73–15.16%, all
+six partial/LSE outputs exact. Proposed production: kRows3 warp normalization;
+legacy R2/R5 local arithmetic retained with the maximum-read barrier. All other
+QK/PV/KV/cache/merge semantics and FP32 trees unchanged. Full qualification now
+running. No accepted full-model gain yet. Production whitespace-only cleanup
+recorded separately; rebuild/freeze again before primary measurement.
+
+
+## Step3 accepted
+
+D2 AB 193.092926->195.665682tok/s (+1.3324%),
+BA 192.851748->197.774083 (+1.3760%).
+Ordinary adjacent 139.211053->139.218831 (+0.0056%).
+Exact final-binary full-memory/protected/dispatch/shader/output/proposal/forced
+gates pass. Both binary identities, all negatives and the synccheck original
+countercase retained. README/PERFORMANCE updated; commit narrowly, no push.
+Original candidate-b2 device spike/slow sample retained; monitored BA confirms
+the result. All80 vectors exact; original and follow-up manifests verified.
+Next freeze this accepted parent for Step4 real one-/three-row QKV/O counters
+and native row-packing hypothesis, preserving all formats and precision.
+
+## Step3 final audit 16:24
+
+The initial BA cohort has one transient total-device peak13,129MiB and one
+185.309tok/s sample. Reported weight/KV/workspace/repack/graph bytes are identical;
+allocation source is unknown. Keep all samples and the initial acceptance record.
+One additional BA pair with1Hz compute/graphics pmon confirms195.089586->197.774083
+(+1.3760%,bootstrap95[1.2769%,1.5434%]); both peak12,725MiB, only expected gem16
+compute PIDs plus4MiB Xorg. Original AB gain+1.3324%,95[1.2100%,1.4262%]. All80
+retained vectors and60 D2 group/acceptance records exact. Ordinary139.211053->
+139.218831 is neutral. Original868raw hashes and all runtime-source identities
+reverified. Qualified record supersedes the initial acceptance basis, preserving
+all original data. Traces: global584.252->509.485ms, local413.985->393.440ms
+(summed diagnostic elapsed, not pure same-clock causal accounting).
+
+Final evidence/docs renderer is benchmarks/render_d2_attention_evidence.py;
+idempotence and syntax pass. Source review proves only local/global normalization
+regions changed. README distinguishes confirmed12,725MiB D2 device peak from the
+retained transient13,129MiB observation. Commit Step3 now, no push.
+
+Next Step4: freeze the accepted binary/driver, inspect actual one-/three-row QKV/O
+counters and shapes. Match production -rdc=true in new diagnostic builds; Step3's
+non-RDC prototype percentages do not fully transfer to production. Try native
+M16 A-row packing for three rows only when fresh counters justify it. Preserve
+per-row K/MMA/split-K and scale order, source weights and protected12B. M1 is
+an investigation, not a promise to change its already specialized kernels.

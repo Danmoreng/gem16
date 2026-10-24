@@ -121,15 +121,19 @@ not publish a mirror or duplicate the payload bytes.
 ## Recorded performance
 
 The **2026-10-24 Linux text optimization benchmark** on the RTX 5080 Laptop GPU
-records **138.992–139.031 tok/s ordinary decode** and **193.025 tok/s fixed-D2**.
-M1 GateUp codec windows add **1.87–1.97% ordinary throughput** against the
-frozen parent in AB/BA measurements. The adjacent D2 pair differs by +0.22%.
-Sampled peak VRAM is 12,455 / 12,725 MiB. All retained runs reproduce the
-same 1,135 output tokens, with unchanged D2 acceptance. The workload uses a
-16,384-token prompt, batch one, greedy decoding, FP8 KV, three warmups and ten
-retained runs per cohort. See the [qualification and raw-evidence record](docs/evidence/gemma4_26b/m1-gate-window-2026-10-24.md)
-for revisions, settings and checks. These bounded text measurements do not
-extend Windows, image or release qualification.
+records **139.219 tok/s ordinary decode** and **195.666–197.774 tok/s fixed-D2**.
+Local/global D2 attention normalization adds **1.33–1.38% D2 throughput** against its
+frozen parent in AB/BA measurements. All retained runs reproduce the same 1,135
+output IDs with unchanged D2 acceptance and arenas. Sampled device-total peaks
+are 12,455 MiB ordinary and 12,725 MiB in the confirmed D2 pairs. An original
+cohort briefly reached 13,129 MiB; all its data and the follow-up are retained
+in the report. The workload uses 16,384 prompt IDs, batch 1, greedy,
+FP8 KV, three warmups and ten retained runs per cohort. See the
+[qualification and raw-evidence record](docs/evidence/gemma4_26b/d2-attention-warp-normalization-2026-10-24.md)
+for revisions, settings and checks. The preceding
+[M1 GateUp result](docs/evidence/gemma4_26b/m1-gate-window-2026-10-24.md) retains
+its 1.87–1.97% ordinary gain. These bounded text measurements do not extend
+Windows, image or release qualification; a fresh llama comparison is separate.
 
 Earlier public-profile measurements on the same GPU at its firmware-managed
 175 W ceiling are retained below. The public

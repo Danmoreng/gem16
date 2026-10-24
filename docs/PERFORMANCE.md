@@ -3,6 +3,27 @@
 These are retained measurements at the revisions named below, not a new benchmark of current HEAD.
 The public profiles and qualification limits are described in the [README](../README.md).
 
+## 2026-10-24 fixed-D2 warp normalization
+
+Frozen `c48124d` runtime versus qualified R3 local/global FP8 normalization,
+identical 16K prompt / 1,135 outputs /context 17,519 / FP8 KV/greedy settings,3+10 per cohort:
+
+| Mode / comparison | Parent decode tok/s | Candidate decode tok/s | Change |
+|---|---:|---:|---:|
+| Fixed-D2 AB | 193.093 | 195.666 | +1.3324% |
+| Fixed-D2 BA | 195.090 | 197.774 | +1.3760% |
+| Ordinary adjacent | 139.211 | 139.219 | +0.0056% |
+
+All 80 vectors are exact; D2 groups/acceptance, all arenas and native precision
+remain unchanged. Sampled peaks 12,455/13,129MiB. Operator/tail,
+memcheck/synccheck, final exact-binary full-model/protected-profile, actual
+shader/dispatch, draft and forced-continuation checks pass. Legacy local R2/R5
+keeps its arithmetic with a shared maximum-read barrier; details and the original
+under-instrumentation countercase are in the
+[qualification report](evidence/gemma4_26b/d2-attention-warp-normalization-2026-10-24.md)
+and [acceptance record](../artifacts/trellis35/d2-attention-warp-normalization-qualified-2026-10-24.json).
+No fresh llama comparison or Windows/media/release claim; prior rows stay below.
+
 ## 2026-10-24 bounded T3 GateUp pipeline rejection
 
 Depth2/depth4 resident-payload pipelines and one counter-justified register-bounded
