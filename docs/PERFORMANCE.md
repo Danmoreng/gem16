@@ -3,6 +3,16 @@
 These are retained measurements at the revisions named below, not a new benchmark of current HEAD.
 The public profiles and qualification limits are described in the [README](../README.md).
 
+## 2026-10-24 bounded T3 GateUp pipeline rejection
+
+Depth2/depth4 resident-payload pipelines and one counter-justified register-bounded
+variant are bit exact but fail the predeclared per-case operator gate. Positive
+median microbenchmarks do not establish a whole-model gain; no full-model candidate
+benchmark or production change is claimed. The
+[negative evidence](evidence/gemma4_26b/t3-gate-pipeline-rejected-2026-10-24.md)
+and [record](../artifacts/trellis35/t3-gate-pipeline-rejected-2026-10-24.json)
+preserve all variants and countercases. The qualified M1 rates below remain.
+
 ## 2026-10-24 M1 GateUp codec windows
 
 Frozen `26c6840` parent versus the qualified native/vector M1 GateUp candidate,

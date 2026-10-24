@@ -9,7 +9,7 @@ No new push/release authorization. Berlin wrap22:45/save-stop22:55/hard-stop23:0
    the existing four-iteration payload pipeline. Use actual-input old countercases,
    strict operator/reference comparison and standalone/actual-production resources.
    Promote only after full ordinary AB/BA, D2 non-regression and protected gates.
-2. **T3 GateUp — pending.** Refresh actual counters and residual cost; define one
+2. **T3 GateUp — complete, rejected diagnostic variants.** Refresh actual counters and residual cost; define one
    justified candidate rather than assuming M1 transfers. Verify unchanged D2
    proposals, acceptance, rollback/continuation and memory boundaries.
 3. **D2 local/global attention — pending.** Verify actual dispatch, inputs, numerical
@@ -96,3 +96,47 @@ updated; commit narrowly, no push. Evidence/raw paths above; actual qualified
 executable is built and frozen. Next: freeze this accepted parent for Step2,
 refresh actual T3 GateUp counters and test one justified candidate. All earlier
 closed/rejected mechanisms require matching new evidence before retry.
+
+
+## Step2 start 14:35
+
+Step1 committed as e0c7fe5; no push. Frozen current parent/driver match accepted
+M1 artifact. Raw root: benchmarks/results/2026-10-24/e0c7fe5/t3-gate-pipeline/.
+First collect actual current T3 GateUp counters for old late layer29 and early
+layer5 cases, using the frozen observer only to call captured production handles.
+Previous47-register codec has substantial long-scoreboard ratio; do not assume
+a new pipeline helps until current evidence and real-input/resource screens pass.
+
+
+## Step2 checkpoint 14:48
+
+Fresh parent GateUp long-scoreboard0.8167/0.9589, short0.1809/0.1993,47regs.
+Depth2 real-screen range-4.74%..+23.45%, median+8.11%; depth4-3.28%..+23.07%,
+median+9.28%. All24 projections per variant and2,097,152 lane cases exact, but
+both fail the predeclared all-case>2% gate, so neither is promoted or advertised
+as an end-to-end gain. The union24 phase1/layer15 countercase shows47->63regs,
+register block limit5->4, long-scoreboard1.1063->0.5881 and slightly slower NCU
+wall. This justifies one last depth2 variant bounded to5blocks/256threads; if it
+fails, close this mechanism and retain all negatives. Production is still e0c7fe5.
+
+Later Step5 native-scale source: NVIDIA PTX ISA9.4 block-scaling selectors,
+https://docs.nvidia.com/cuda/archive/13.4.2/parallel-thread-execution/index.html
+(section Block Scaling for mma.sync). For4X UE4M3 all four SF bytes are used;
+byte selectors remain0. Existing thread-id-a0 selects the lower two lanes in
+each quad; thread-id-b0 selects lane0 of the quad. Preserve those selector
+semantics and verify distinct per-row scales with independent native operators
+before trying A-row packing. No scale-format or precision change is authorized.
+
+
+## Step2 closed 14:51
+
+Depth2/depth4 and the one register-bounded depth2 variant are exact, but all fail
+the predeclared sampled-case gate. Bounded shader48regs still loses all cases.
+No production source/binary changed; no full-model speedup/loss claim or candidate
+memory qualification. Positive operator medians are not global performance.
+Evidence: docs/evidence/gemma4_26b/t3-gate-pipeline-rejected-2026-10-24.md;
+artifacts/trellis35/t3-gate-pipeline-rejected-2026-10-24.json. All raw snapshots,
+inputs/outputs, modules, samples and NCU metrics preserved. Commit diagnostic/
+evidence changes only; no push. Next Step3 actual local/global T3 attention
+capture and counter analysis. Earlier KV staging stays rejected unless a fresh
+matching finding justifies a specifically scoped new candidate.

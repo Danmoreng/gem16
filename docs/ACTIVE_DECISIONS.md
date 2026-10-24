@@ -254,6 +254,21 @@ Retain positive and negative raw evidence and update README/results. No push or
 release. A fresh current-llama same-machine comparison is required before a
 new superiority claim. Work journal: `plans/gemma4-26b/DECODE_FIVE_STEPS_2026_10_24.md`.
 
+The October24 Step2 fresh actual T3 GateUp captures show long-scoreboard ratios
+0.8167/0.9589 versus short-scoreboard0.1809/0.1993 per active issue for late29
+and early5, with47registers. This opens only a fixed resident-payload register
+pipeline for T3 GateUp, bounded depths2 and4, preserving exact K order/codec/MMA.
+It supersedes the generic-prefetch closure solely for this matching counter-backed
+experiment; no wider prefetch, routing, packing, staging or fusion is opened.
+
+Step2's union24 countercase shows register occupancy limit5->4 with47->63
+registers, despite lower long-scoreboard ratio1.1063->0.5881. Both depth2/4
+screens regress and remain diagnostic. This supports one final bounded depth2
+variant with `__launch_bounds__(256,5)` to test register-pressure compensation.
+Keep the original countercases, require bit parity and the same all-case gate,
+and stop this pipeline experiment if it still fails; no production promotion
+based on its median operator gain alone.
+
 | Profile | Public selection | Input | Context policy / retained capacity | Slots |
 |---|---|---|---|---|
 | 12B Unified | Yes | Text, image, audio | Subject to configured capacity | Up to two |

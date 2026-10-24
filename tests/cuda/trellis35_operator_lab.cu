@@ -27,6 +27,18 @@ extern "C" cudaError_t gem16_lab_launch_t3_window(
     const gem16::internal::Trellis35DeviceFamilyBinding*, const std::uint32_t*,
     float*, std::uint64_t, std::uint64_t, cudaStream_t);
 extern "C" cudaError_t gem16_lab_check_t3_window(unsigned*);
+extern "C" cudaError_t gem16_lab_launch_t3_gate_bound2(
+    const std::uint8_t*, const float*,
+    const gem16::internal::Trellis35DeviceFamilyBinding*, const std::uint32_t*,
+    float*, std::uint64_t, std::uint64_t, cudaStream_t);
+extern "C" cudaError_t gem16_lab_launch_t3_gate_pipe2(
+    const std::uint8_t*, const float*,
+    const gem16::internal::Trellis35DeviceFamilyBinding*, const std::uint32_t*,
+    float*, std::uint64_t, std::uint64_t, cudaStream_t);
+extern "C" cudaError_t gem16_lab_launch_t3_gate_pipe4(
+    const std::uint8_t*, const float*,
+    const gem16::internal::Trellis35DeviceFamilyBinding*, const std::uint32_t*,
+    float*, std::uint64_t, std::uint64_t, cudaStream_t);
 extern "C" cudaError_t gem16_lab_launch_m1_window(
     const std::uint8_t*, const float*,
     const gem16::internal::Trellis35DeviceFamilyBinding*, const std::uint32_t*,
@@ -208,7 +220,8 @@ extern "C" cudaError_t cudaLaunchKernel(const void* function, dim3 grid, dim3 bl
                                              : "MmaW4A8ProjectionSelectedN128InverseKernel") != nullptr ||
       (t3 && (std::strstr(name, "MmaW4A8ProjectionGroupedT3N128EightWarpKernel") ||
               std::strstr(name, "MmaW4A8ProjectionGroupedT3GateWindowKernel") ||
-              std::strstr(name, "MmaW4A8ProjectionGroupedT3DownWindowKernel"))) ||
+              std::strstr(name, "MmaW4A8ProjectionGroupedT3DownWindowKernel") ||
+              std::strstr(name, "MmaW4A8ProjectionGroupedT3GatePipeline"))) ||
       (!t3 && (std::strstr(name, "MmaW4A8ProjectionSelectedN128EightWarpKernel") ||
                std::strstr(name, "MmaW4A8ProjectionSelectedGateWindowKernel")));
   const unsigned assignments = t3 ? 24U : 8U;
@@ -302,9 +315,21 @@ extern "C" int gem16_lab_finish(const char* directory) {
     const bool test_t3 = candidate_setting && std::strcmp(candidate_setting, "t3-pair") == 0;
     const bool test_window = candidate_setting && std::strcmp(candidate_setting, "t3-window") == 0;
     const bool test_down_window = candidate_setting && std::strcmp(candidate_setting, "t3-down-window") == 0;
-    const bool test_projection = (!t3 && (test_m1 || test_m1_window)) || (t3 && (test_t3 || test_window || test_down_window));
-    const auto candidate_projection = t3 ? (test_down_window ? gem16_lab_launch_t3_down_window : test_window ? gem16_lab_launch_t3_window : gem16_lab_launch_t3_pair) : test_m1_window ? gem16_lab_launch_m1_window : gem16_lab_launch_m1_eight;
-    if (test_window || test_down_window || test_m1_window) {
+    const bool test_bound2 = candidate_setting && std::strcmp(candidate_setting, "t3-gate-bound2") == 0;
+    const bool test_pipe2 = candidate_setting && std::strcmp(candidate_setting, "t3-gate-pipe2") == 0;
+    const bool test_pipe4 = candidate_setting && std::strcmp(candidate_setting, "t3-gate-pipe4") == 0;
+    const bool test_projection = (!t3 && (test_m1 || test_m1_window)) ||
+        (t3 && (test_t3 || test_window || test_down_window || test_pipe2 || test_pipe4 || test_bound2));
+    auto candidate_projection = gem16_lab_launch_m1_eight;
+    if (t3) {
+      if (test_bound2) candidate_projection = gem16_lab_launch_t3_gate_bound2;
+      else if (test_pipe2) candidate_projection = gem16_lab_launch_t3_gate_pipe2;
+      else if (test_pipe4) candidate_projection = gem16_lab_launch_t3_gate_pipe4;
+      else if (test_down_window) candidate_projection = gem16_lab_launch_t3_down_window;
+      else if (test_window) candidate_projection = gem16_lab_launch_t3_window;
+      else candidate_projection = gem16_lab_launch_t3_pair;
+    } else if (test_m1_window) candidate_projection = gem16_lab_launch_m1_window;
+    if (test_window || test_down_window || test_m1_window || test_pipe2 || test_pipe4 || test_bound2) {
       unsigned errors = 0U; Check(gem16_lab_check_t3_window(&errors));
       std::fprintf(stderr, "T3 paired-window codec: 2097152 lane cases, mismatches=%u\n", errors);
       if (errors) throw std::runtime_error("paired-window codec bit mismatch");
