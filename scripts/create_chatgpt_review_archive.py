@@ -175,7 +175,7 @@ def add_compact_artifacts(builder: ArchiveBuilder, raw_dirs: set[str]) -> None:
 
 
 def add_llama_reference(builder: ArchiveBuilder) -> str:
-    llama = ROOT / "third_party/cache/llama.cpp"
+    llama = Path(os.environ.get("LLAMA_CPP_HOME", "C:/llama.cpp")) if os.name == "nt" else ROOT / "third_party/cache/llama.cpp"
     if not llama.is_dir():
         return "not found"
     for relative in ("src", "common", "ggml/include", "ggml/src/ggml-cuda"):
