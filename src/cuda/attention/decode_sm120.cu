@@ -677,115 +677,178 @@ void SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel(
                         static_cast<std::uint64_t>(split * kDecodeLocalChunk)
                   : 0U));
   }
-  float local_maximum[kReductionItems];
-#pragma unroll
-  for (int item = 0; item < kReductionItems; ++item) {
-    local_maximum[item] = -CUDART_INF_F;
-  }
-  for (int token = static_cast<int>(threadIdx.x);
-       token < kDecodeLocalChunk; token += kDecodeThreads) {
-#pragma unroll
-    for (int item = 0; item < kReductionItems; ++item) {
-      local_maximum[item] = fmaxf(
-          local_maximum[item], scores[item * kDecodeLocalChunk + token]);
-    }
-  }
-  for (int offset = 16; offset > 0; offset >>= 1) {
-#pragma unroll
-    for (int item = 0; item < kReductionItems; ++item) {
-      local_maximum[item] = fmaxf(
-          local_maximum[item],
-          __shfl_down_sync(kFullWarpMask, local_maximum[item], offset));
-    }
-  }
-  if (lane == 0) {
-#pragma unroll
-    for (int item = 0; item < kReductionItems; ++item) {
-      reduction[item][warp] = local_maximum[item];
-    }
-  }
-  __syncthreads();
-  if (warp == 0) {
-#pragma unroll
-    for (int item = 0; item < kReductionItems; ++item) {
-      float value = lane < kDecodeWarps ? reduction[item][lane]
-                                        : -CUDART_INF_F;
-      for (int offset = 16; offset > 0; offset >>= 1) {
-        value = fmaxf(
-            value, __shfl_down_sync(kFullWarpMask, value, offset));
+  if constexpr (kRows == 3) {
+    // Each active warp owns one row/head normalization item. Preserve the old
+    // two-level block tree exactly: four active 32-token chunks, four empty
+    // chunks, then the full 32-lane shuffle-down tree over their lane-0 values.
+    // Do not sum four probabilities per lane before reducing (different tree).
+    if (warp < kReductionItems) {
+      const int row = warp / kDecodeLocalGroup;
+      const int group = warp % kDecodeLocalGroup;
+      float chunk_maximum[4];
+  #pragma unroll
+      for (int chunk = 0; chunk < 4; ++chunk) {
+        const int token = chunk * 32 + lane;
+        float value = token < split_tokens[row]
+            ? fmaxf(-CUDART_INF_F, scores[warp *
+                                        kDecodeLocalChunk + token])
+            : -CUDART_INF_F;
+        for (int offset = 16; offset > 0; offset >>= 1)
+          value = fmaxf(value, __shfl_down_sync(kFullWarpMask, value, offset));
+        chunk_maximum[chunk] = __shfl_sync(kFullWarpMask, value, 0);
       }
-      if (lane == 0) reduction[item][0] = value;
-    }
-  }
-  __syncthreads();
-
-  float maximum[kReductionItems];
-#pragma unroll
-  for (int item = 0; item < kReductionItems; ++item) {
-    maximum[item] = reduction[item][0];
-  }
-  float local_sum[kReductionItems] = {};
-  for (int token = static_cast<int>(threadIdx.x);
-       token < kDecodeLocalChunk; token += kDecodeThreads) {
-#pragma unroll
-    for (int row = 0; row < kRows; ++row) {
-#pragma unroll
-      for (int group = 0; group < kDecodeLocalGroup; ++group) {
-        const int item = row * kDecodeLocalGroup + group;
-        const std::uint64_t score_index =
-            static_cast<std::uint64_t>(item) * kDecodeLocalChunk + token;
+      float maximum = lane == 0 ? chunk_maximum[0] :
+                      lane == 1 ? chunk_maximum[1] :
+                      lane == 2 ? chunk_maximum[2] :
+                      lane == 3 ? chunk_maximum[3] : -CUDART_INF_F;
+      for (int offset = 16; offset > 0; offset >>= 1)
+        maximum = fmaxf(maximum, __shfl_down_sync(kFullWarpMask, maximum, offset));
+      maximum = __shfl_sync(kFullWarpMask, maximum, 0);
+      float chunk_sum[4];
+  #pragma unroll
+      for (int chunk = 0; chunk < 4; ++chunk) {
+        const int token = chunk * 32 + lane;
+        const int index = warp * kDecodeLocalChunk + token;
         const float probability = token < split_tokens[row]
-            ? expf(scores[score_index] - maximum[item])
-            : 0.0F;
-        scores[score_index] = probability;
-        local_sum[item] += probability;
+            ? expf(scores[index] - maximum) : 0.0F;
+        // Unlike global PV, local PV reads the entire fixed 128-token chunk.
+        // Its inactive score slots must be explicitly zeroed for short contexts.
+        scores[index] = probability;
+        float value = 0.0F;
+        value += probability;
+        for (int offset = 16; offset > 0; offset >>= 1)
+          value += __shfl_down_sync(kFullWarpMask, value, offset);
+        chunk_sum[chunk] = __shfl_sync(kFullWarpMask, value, 0);
+      }
+      float denominator = lane == 0 ? chunk_sum[0] :
+                          lane == 1 ? chunk_sum[1] :
+                          lane == 2 ? chunk_sum[2] :
+                          lane == 3 ? chunk_sum[3] : 0.0F;
+      for (int offset = 16; offset > 0; offset >>= 1)
+        denominator += __shfl_down_sync(kFullWarpMask, denominator, offset);
+      denominator = __shfl_sync(kFullWarpMask, denominator, 0);
+      if (lane == 0) {
+        inverse_sum[row][group] = denominator > 0.0F ? __frcp_rn(denominator) : 0.0F;
+        partial_lse[(static_cast<std::uint64_t>(row) * max_splits + split) *
+                        kDecodeQueryHeads + query_head_base + group] = split_tokens[row] != 0 ? maximum + logf(denominator) : -CUDART_INF_F;
       }
     }
-  }
-  for (int offset = 16; offset > 0; offset >>= 1) {
-#pragma unroll
+    __syncthreads();
+
+  } else {
+    float local_maximum[kReductionItems];
+  #pragma unroll
     for (int item = 0; item < kReductionItems; ++item) {
-      local_sum[item] +=
-          __shfl_down_sync(kFullWarpMask, local_sum[item], offset);
+      local_maximum[item] = -CUDART_INF_F;
     }
-  }
-  if (lane == 0) {
-#pragma unroll
-    for (int item = 0; item < kReductionItems; ++item) {
-      reduction[item][warp] = local_sum[item];
-    }
-  }
-  __syncthreads();
-  if (warp == 0) {
-#pragma unroll
-    for (int item = 0; item < kReductionItems; ++item) {
-      float value = lane < kDecodeWarps ? reduction[item][lane] : 0.0F;
-      for (int offset = 16; offset > 0; offset >>= 1) {
-        value += __shfl_down_sync(kFullWarpMask, value, offset);
-      }
-      if (lane == 0) reduction[item][0] = value;
-    }
-  }
-  __syncthreads();
-  if (threadIdx.x == 0) {
-#pragma unroll
-    for (int row = 0; row < kRows; ++row) {
-#pragma unroll
-      for (int group = 0; group < kDecodeLocalGroup; ++group) {
-        const int item = row * kDecodeLocalGroup + group;
-        const float denominator = reduction[item][0];
-        inverse_sum[row][group] =
-            denominator > 0.0F ? __frcp_rn(denominator) : 0.0F;
-        partial_lse
-            [(static_cast<std::uint64_t>(row) * max_splits + split) *
-                 kDecodeQueryHeads +
-             query_head_base + group] = split_tokens[row] != 0
-                 ? maximum[item] + logf(denominator)
-                 : -CUDART_INF_F;
+    for (int token = static_cast<int>(threadIdx.x);
+         token < kDecodeLocalChunk; token += kDecodeThreads) {
+  #pragma unroll
+      for (int item = 0; item < kReductionItems; ++item) {
+        local_maximum[item] = fmaxf(
+            local_maximum[item], scores[item * kDecodeLocalChunk + token]);
       }
     }
+    for (int offset = 16; offset > 0; offset >>= 1) {
+  #pragma unroll
+      for (int item = 0; item < kReductionItems; ++item) {
+        local_maximum[item] = fmaxf(
+            local_maximum[item],
+            __shfl_down_sync(kFullWarpMask, local_maximum[item], offset));
+      }
+    }
+    if (lane == 0) {
+  #pragma unroll
+      for (int item = 0; item < kReductionItems; ++item) {
+        reduction[item][warp] = local_maximum[item];
+      }
+    }
+    __syncthreads();
+    if (warp == 0) {
+  #pragma unroll
+      for (int item = 0; item < kReductionItems; ++item) {
+        float value = lane < kDecodeWarps ? reduction[item][lane]
+                                          : -CUDART_INF_F;
+        for (int offset = 16; offset > 0; offset >>= 1) {
+          value = fmaxf(
+              value, __shfl_down_sync(kFullWarpMask, value, offset));
+        }
+        if (lane == 0) reduction[item][0] = value;
+      }
+    }
+    __syncthreads();
+
+    float maximum[kReductionItems];
+  #pragma unroll
+    for (int item = 0; item < kReductionItems; ++item) {
+      maximum[item] = reduction[item][0];
+    }
+    // Complete maximum reads before the shared reduction slots are reused.
+    __syncthreads();
+    float local_sum[kReductionItems] = {};
+    for (int token = static_cast<int>(threadIdx.x);
+         token < kDecodeLocalChunk; token += kDecodeThreads) {
+  #pragma unroll
+      for (int row = 0; row < kRows; ++row) {
+  #pragma unroll
+        for (int group = 0; group < kDecodeLocalGroup; ++group) {
+          const int item = row * kDecodeLocalGroup + group;
+          const std::uint64_t score_index =
+              static_cast<std::uint64_t>(item) * kDecodeLocalChunk + token;
+          const float probability = token < split_tokens[row]
+              ? expf(scores[score_index] - maximum[item])
+              : 0.0F;
+          scores[score_index] = probability;
+          local_sum[item] += probability;
+        }
+      }
+    }
+    for (int offset = 16; offset > 0; offset >>= 1) {
+  #pragma unroll
+      for (int item = 0; item < kReductionItems; ++item) {
+        local_sum[item] +=
+            __shfl_down_sync(kFullWarpMask, local_sum[item], offset);
+      }
+    }
+    if (lane == 0) {
+  #pragma unroll
+      for (int item = 0; item < kReductionItems; ++item) {
+        reduction[item][warp] = local_sum[item];
+      }
+    }
+    __syncthreads();
+    if (warp == 0) {
+  #pragma unroll
+      for (int item = 0; item < kReductionItems; ++item) {
+        float value = lane < kDecodeWarps ? reduction[item][lane] : 0.0F;
+        for (int offset = 16; offset > 0; offset >>= 1) {
+          value += __shfl_down_sync(kFullWarpMask, value, offset);
+        }
+        if (lane == 0) reduction[item][0] = value;
+      }
+    }
+    __syncthreads();
+    if (threadIdx.x == 0) {
+  #pragma unroll
+      for (int row = 0; row < kRows; ++row) {
+  #pragma unroll
+        for (int group = 0; group < kDecodeLocalGroup; ++group) {
+          const int item = row * kDecodeLocalGroup + group;
+          const float denominator = reduction[item][0];
+          inverse_sum[row][group] =
+              denominator > 0.0F ? __frcp_rn(denominator) : 0.0F;
+          partial_lse
+              [(static_cast<std::uint64_t>(row) * max_splits + split) *
+                   kDecodeQueryHeads +
+               query_head_base + group] = split_tokens[row] != 0
+                   ? maximum[item] + logf(denominator)
+                   : -CUDART_INF_F;
+        }
+      }
+    }
+    __syncthreads();
+
   }
-  __syncthreads();
 
   stage(value_cache, speculative_value);
   for (int dimension = static_cast<int>(threadIdx.x);
@@ -1488,39 +1551,98 @@ void SplitOnlineDecodeAttentionFp8GlobalKvh2FixedRowsKernel(
     __syncthreads();
   }
 
-#pragma unroll
-  for (int row = 0; row < kRows; ++row) {
-    for (int local_head = 0; local_head < kQueriesPerKv; ++local_head) {
-      float local_maximum = -CUDART_INF_F;
-      for (int token = static_cast<int>(threadIdx.x);
-           token < split_tokens[row]; token += kDecodeThreads) {
-        local_maximum = fmaxf(
-            local_maximum,
-            scores[(row * kQueriesPerKv + local_head) *
-                       kDecodeGlobalChunk +
-                   token]);
+  if constexpr (kRows == 3) {
+    // Each warp owns the same query head as in QK/PV. Preserve the old
+    // two-level block tree exactly: four active 32-token chunks, four empty
+    // chunks, then the full 32-lane shuffle-down tree over their lane-0 values.
+    // Do not sum four probabilities per lane before reducing (different tree).
+  #pragma unroll
+    for (int row = 0; row < kRows; ++row) {
+      float chunk_maximum[4];
+  #pragma unroll
+      for (int chunk = 0; chunk < 4; ++chunk) {
+        const int token = chunk * 32 + lane;
+        float value = token < split_tokens[row]
+            ? fmaxf(-CUDART_INF_F, scores[(row * kQueriesPerKv + warp) *
+                                        kDecodeGlobalChunk + token])
+            : -CUDART_INF_F;
+        for (int offset = 16; offset > 0; offset >>= 1)
+          value = fmaxf(value, __shfl_down_sync(kFullWarpMask, value, offset));
+        chunk_maximum[chunk] = __shfl_sync(kFullWarpMask, value, 0);
       }
-      const float maximum = DecodeBlockMaximum(local_maximum, reduction);
-      float local_sum = 0.0F;
-      for (int token = static_cast<int>(threadIdx.x);
-           token < split_tokens[row]; token += kDecodeThreads) {
-        const int score_index =
-            (row * kQueriesPerKv + local_head) * kDecodeGlobalChunk + token;
-        const float probability = expf(scores[score_index] - maximum);
-        scores[score_index] = probability;
-        local_sum += probability;
+      float maximum = lane == 0 ? chunk_maximum[0] :
+                      lane == 1 ? chunk_maximum[1] :
+                      lane == 2 ? chunk_maximum[2] :
+                      lane == 3 ? chunk_maximum[3] : -CUDART_INF_F;
+      for (int offset = 16; offset > 0; offset >>= 1)
+        maximum = fmaxf(maximum, __shfl_down_sync(kFullWarpMask, maximum, offset));
+      maximum = __shfl_sync(kFullWarpMask, maximum, 0);
+      float chunk_sum[4];
+  #pragma unroll
+      for (int chunk = 0; chunk < 4; ++chunk) {
+        const int token = chunk * 32 + lane;
+        float value = 0.0F;
+        if (token < split_tokens[row]) {
+          const int index = (row * kQueriesPerKv + warp) * kDecodeGlobalChunk + token;
+          const float probability = expf(scores[index] - maximum);
+          scores[index] = probability;
+          value += probability;
+        }
+        for (int offset = 16; offset > 0; offset >>= 1)
+          value += __shfl_down_sync(kFullWarpMask, value, offset);
+        chunk_sum[chunk] = __shfl_sync(kFullWarpMask, value, 0);
       }
-      const float denominator = DecodeBlockSum(local_sum, reduction);
-      if (threadIdx.x == 0) {
-        inverse_sum_shared[row][local_head] =
-            denominator > 0.0F ? __frcp_rn(denominator) : 0.0F;
-        const int global_head = kv_head * kQueriesPerKv + local_head;
+      float denominator = lane == 0 ? chunk_sum[0] :
+                          lane == 1 ? chunk_sum[1] :
+                          lane == 2 ? chunk_sum[2] :
+                          lane == 3 ? chunk_sum[3] : 0.0F;
+      for (int offset = 16; offset > 0; offset >>= 1)
+        denominator += __shfl_down_sync(kFullWarpMask, denominator, offset);
+      denominator = __shfl_sync(kFullWarpMask, denominator, 0);
+      if (lane == 0) {
+        inverse_sum_shared[row][warp] = denominator > 0.0F ? __frcp_rn(denominator) : 0.0F;
         partial_lse[(static_cast<std::uint64_t>(row) * max_splits + split) *
-                        kDecodeQueryHeads +
-                    global_head] = maximum + logf(denominator);
+                        kDecodeQueryHeads + query_head] = maximum + logf(denominator);
       }
-      __syncthreads();
     }
+    __syncwarp(kFullWarpMask);
+
+  } else {
+  #pragma unroll
+    for (int row = 0; row < kRows; ++row) {
+      for (int local_head = 0; local_head < kQueriesPerKv; ++local_head) {
+        float local_maximum = -CUDART_INF_F;
+        for (int token = static_cast<int>(threadIdx.x);
+             token < split_tokens[row]; token += kDecodeThreads) {
+          local_maximum = fmaxf(
+              local_maximum,
+              scores[(row * kQueriesPerKv + local_head) *
+                         kDecodeGlobalChunk +
+                     token]);
+        }
+        const float maximum = DecodeBlockMaximum(local_maximum, reduction);
+        float local_sum = 0.0F;
+        for (int token = static_cast<int>(threadIdx.x);
+             token < split_tokens[row]; token += kDecodeThreads) {
+          const int score_index =
+              (row * kQueriesPerKv + local_head) * kDecodeGlobalChunk + token;
+          const float probability = expf(scores[score_index] - maximum);
+          scores[score_index] = probability;
+          local_sum += probability;
+        }
+        const float denominator = DecodeBlockSum(local_sum, reduction);
+        if (threadIdx.x == 0) {
+          inverse_sum_shared[row][local_head] =
+              denominator > 0.0F ? __frcp_rn(denominator) : 0.0F;
+          const int global_head = kv_head * kQueriesPerKv + local_head;
+          partial_lse[(static_cast<std::uint64_t>(row) * max_splits + split) *
+                          kDecodeQueryHeads +
+                      global_head] = maximum + logf(denominator);
+        }
+        __syncthreads();
+      }
+    }
+
   }
 
   float accumulators[kRows][16] = {};

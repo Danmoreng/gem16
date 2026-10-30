@@ -19,13 +19,12 @@
 #include "platform_ui.h"
 #include "selectable_text.h"
 #include "settings.h"
+#include "theme.h"
 #include "util/json.h"
 
 namespace gem16::studio {
 namespace {
 
-constexpr ImVec4 kAccent{0.31f, 0.91f, 0.65f, 1.0f};
-constexpr ImVec4 kAccentDim{0.11f, 0.34f, 0.24f, 1.0f};
 float g_ui_scale = 1.0f;
 
 float Ui(float value) { return value * g_ui_scale; }
@@ -85,10 +84,10 @@ const char* PhaseLabel(ServerPhase phase) {
 }
 
 ImVec4 PhaseColor(ServerPhase phase) {
-  if (phase == ServerPhase::kRunning || phase == ServerPhase::kExternal) return kAccent;
-  if (phase == ServerPhase::kError) return {1.0f, 0.39f, 0.39f, 1.0f};
-  if (phase == ServerPhase::kStarting || phase == ServerPhase::kStopping) return {1.0f, 0.76f, 0.30f, 1.0f};
-  return {0.57f, 0.61f, 0.60f, 1.0f};
+  if (phase == ServerPhase::kRunning || phase == ServerPhase::kExternal) return StudioColors().accent;
+  if (phase == ServerPhase::kError) return ThemeColor({1.0f, 0.39f, 0.39f, 1.0f}, StudioColors().error);
+  if (phase == ServerPhase::kStarting || phase == ServerPhase::kStopping) return StudioColors().warning;
+  return ThemeColor({0.57f, 0.61f, 0.60f, 1.0f}, StudioColors().muted);
 }
 
 void DrawGemstone(ImDrawList* draw, ImVec2 center, float radius) {
@@ -189,43 +188,46 @@ bool NavButton(const char* label, Screen screen, bool selected, float width,
   if (selected || glow > 0.01f) {
     draw->AddRectFilled(
         minimum, maximum,
-        IM_COL32(8, 61, 43,
-                 static_cast<int>((selected ? 162.0f : 105.0f) * glow)),
+        ImGui::GetColorU32(ThemeColor(
+            ThemeRgb(0x083d2b, (selected ? 162.0f : 105.0f) / 255.0f * glow),
+            ThemeRgb(0xb9f6ca, glow))),
         Ui(11.0f), ImDrawFlags_RoundCornersRight);
     if (flame_texture != ImTextureID_Invalid) {
       draw->AddImageRounded(
           ImTextureRef(flame_texture), minimum, maximum, {0.0f, 0.0f},
           {1.0f, 1.0f},
-          IM_COL32(255, 255, 255, static_cast<int>(235.0f * glow)),
+          IM_COL32(255, 255, 255, static_cast<int>((g_studio_dark_theme ? 235.0f : 220.0f) * glow)),
           Ui(11.0f), ImDrawFlags_RoundCornersRight);
     } else {
       draw->AddCircleFilled(
           {minimum.x - Ui(2.0f), center.y}, Ui(34.0f),
-          IM_COL32(38, 244, 164, static_cast<int>(42.0f * glow)), 36);
+          IM_COL32(38, 244, 164, static_cast<int>((g_studio_dark_theme ? 42.0f : 8.0f) * glow)), 36);
       draw->AddRectFilledMultiColor(
           {minimum.x + Ui(1.0f), minimum.y + Ui(2.0f)},
           {minimum.x + width * 0.72f, maximum.y - Ui(2.0f)},
-          IM_COL32(37, 239, 160, static_cast<int>(84.0f * glow)),
+          IM_COL32(37, 239, 160, static_cast<int>((g_studio_dark_theme ? 84.0f : 12.0f) * glow)),
           IM_COL32(37, 239, 160, 0), IM_COL32(37, 239, 160, 0),
-          IM_COL32(37, 239, 160, static_cast<int>(84.0f * glow)));
+          IM_COL32(37, 239, 160, static_cast<int>((g_studio_dark_theme ? 84.0f : 12.0f) * glow)));
     }
     draw->AddRectFilled(
         minimum, {minimum.x + Ui(2.5f), maximum.y},
-        IM_COL32(76, 255, 190, static_cast<int>(245.0f * glow)));
+        ImGui::GetColorU32(ThemeColor(
+            ThemeRgb(0x4cffbe, 245.0f / 255.0f * glow),
+            ThemeRgb(0x126c3d, glow))));
   }
   draw->PopClipRect();
 
-  const ImVec4 idle{0.52f, 0.58f, 0.57f, 1.0f};
+  const ImVec4 idle = ThemeColor({0.52f, 0.58f, 0.57f, 1.0f}, StudioColors().muted);
   const ImVec4 lit = selected || hovered
-                         ? ImVec4(kAccent.x, kAccent.y, kAccent.z, 1.0f)
+                         ? ImVec4(StudioColors().accent.x, StudioColors().accent.y, StudioColors().accent.z, 1.0f)
                          : idle;
   DrawNavIcon(draw, screen, center, ImGui::ColorConvertFloat4ToU32(lit));
   const ImVec2 text_size = ImGui::CalcTextSize(label);
   draw->AddText({minimum.x + Ui(53.0f),
                  minimum.y + (Ui(48.0f) - text_size.y) * 0.5f},
                 ImGui::ColorConvertFloat4ToU32(
-                    selected ? kAccent
-                             : (hovered ? ImVec4(0.78f, 0.97f, 0.88f, 1.0f)
+                    selected ? StudioColors().accent
+                             : (hovered ? ThemeColor({0.78f, 0.97f, 0.88f, 1.0f}, StudioColors().accent)
                                         : ImGui::GetStyleColorVec4(ImGuiCol_Text))),
                 label);
   return clicked;
@@ -236,7 +238,10 @@ void StatusPill(const char* text, ImVec4 color) {
   const ImVec2 text_size = ImGui::CalcTextSize(text);
   const ImVec2 min = ImGui::GetCursorScreenPos();
   const ImVec2 max(min.x + text_size.x + padding.x * 2, min.y + text_size.y + padding.y * 2);
-  ImGui::GetWindowDrawList()->AddRectFilled(min, max, ImGui::ColorConvertFloat4ToU32({color.x * 0.20f, color.y * 0.20f, color.z * 0.20f, 0.95f}), Ui(12));
+  const ImVec4 fill = ThemeColor(
+      {color.x * 0.20f, color.y * 0.20f, color.z * 0.20f, 0.95f},
+      {0.90f + color.x * 0.08f, 0.90f + color.y * 0.08f, 0.90f + color.z * 0.08f, 1});
+  ImGui::GetWindowDrawList()->AddRectFilled(min, max, ImGui::GetColorU32(fill), Ui(12));
   ImGui::GetWindowDrawList()->AddCircleFilled({min.x + Ui(9), (min.y + max.y) * 0.5f}, Ui(3), ImGui::ColorConvertFloat4ToU32(color));
   ImGui::SetCursorScreenPos({min.x + padding.x + Ui(6), min.y + padding.y});
   ImGui::TextColored(color, "%s", text);
@@ -246,7 +251,7 @@ void StatusPill(const char* text, ImVec4 color) {
 
 void PanelHeading(const char* title, const char* description) {
   ImGui::SetWindowFontScale(1.16f);
-  ImGui::TextColored(kAccent, "%s", title);
+  ImGui::TextColored(StudioColors().accent, "%s", title);
   ImGui::SetWindowFontScale(1.0f);
   if (description != nullptr && description[0] != '\0') {
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
@@ -257,7 +262,7 @@ void PanelHeading(const char* title, const char* description) {
 }
 
 void FieldLabel(const char* label) {
-  ImGui::TextColored({0.72f, 0.77f, 0.75f, 1.0f}, "%s", label);
+  ImGui::TextColored(StudioColors().field_text, "%s", label);
   ImGui::SetNextItemWidth(-1.0f);
 }
 
@@ -288,13 +293,13 @@ bool PathField(const char* label, const char* id, const char* browse_id,
 void CapabilityChip(const char* text, bool active = true) {
   ImGui::PushStyleColor(
       ImGuiCol_Button,
-      active ? ImVec4(0.08f, 0.31f, 0.22f, 0.96f)
-             : ImVec4(0.11f, 0.13f, 0.13f, 0.92f));
+      active ? ThemeColor({0.08f, 0.31f, 0.22f, 0.96f}, StudioColors().accent_dim)
+             : ThemeColor({0.11f, 0.13f, 0.13f, 0.92f}, StudioColors().subtle_background));
   ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
                         ImGui::GetStyleColorVec4(ImGuiCol_Button));
   ImGui::PushStyleColor(ImGuiCol_Text,
-                        active ? kAccent
-                               : ImVec4(0.48f, 0.53f, 0.52f, 1.0f));
+                        active ? StudioColors().accent
+                               : ThemeColor({0.48f, 0.53f, 0.52f, 1.0f}, StudioColors().muted));
   ImGui::SmallButton(text);
   ImGui::PopStyleColor(3);
 }
@@ -494,6 +499,7 @@ void StudioApp::ApplyUiScale(float configured_scale) {
 }
 
 void StudioApp::ApplyTheme() const {
+  ApplyStudioThemeColors(settings_.dark_theme);
   ImGuiStyle& style = ImGui::GetStyle();
   style.WindowRounding = Ui(16);
   style.ChildRounding = Ui(14);
@@ -525,15 +531,7 @@ void StudioApp::ApplyTheme() const {
     colors[ImGuiCol_ButtonActive] = {0.12f, 0.42f, 0.30f, 1};
     colors[ImGuiCol_Header] = {0.11f, 0.34f, 0.24f, 1};
     colors[ImGuiCol_ScrollbarBg] = {0, 0, 0, 0};
-    colors[ImGuiCol_CheckMark] = kAccent;
-  } else {
-    ImGui::StyleColorsLight();
-    style.WindowRounding = Ui(16);
-    style.ChildRounding = Ui(14);
-    style.FrameRounding = Ui(10);
-    colors[ImGuiCol_CheckMark] = {0.05f, 0.42f, 0.25f, 1};
-    colors[ImGuiCol_Button] = {0.12f, 0.58f, 0.39f, 1};
-    colors[ImGuiCol_ButtonHovered] = {0.09f, 0.48f, 0.32f, 1};
+    colors[ImGuiCol_CheckMark] = StudioColors().accent;
   }
 }
 
@@ -571,18 +569,24 @@ void StudioApp::Render() {
   ImGui::SetNextWindowPos(viewport->WorkPos);
   ImGui::SetNextWindowSize(viewport->WorkSize);
   ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-  ImGui::PushStyleColor(ImGuiCol_WindowBg, {0.02f, 0.03f, 0.03f, 0.24f});
+  ImGui::PushStyleColor(ImGuiCol_WindowBg, StudioColors().root_background);
   ImGui::Begin("##gem16-root", nullptr,
                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                    ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus);
   ImGui::PopStyleColor();
   ImGui::PopStyleVar();
 
+  const ImVec4 glass = ThemeColor(
+      ImGui::GetStyleColorVec4(ImGuiCol_ChildBg), ThemeRgb(0xffffff, 0.32f));
+  ImGui::PushStyleColor(ImGuiCol_ChildBg, glass);
   ImGui::BeginChild("##sidebar", {sidebar_width_, 0}, ImGuiChildFlags_Borders);
+  ImGui::PopStyleColor();
   DrawSidebar();
   ImGui::EndChild();
   ImGui::SameLine(0, Ui(12));
+  ImGui::PushStyleColor(ImGuiCol_ChildBg, glass);
   ImGui::BeginChild("##content", {0, 0}, ImGuiChildFlags_Borders);
+  ImGui::PopStyleColor();
   switch (screen_) {
     case Screen::kChat: {
       if (canvas_visible_ && !conversation_.canvases.empty()) {
@@ -591,7 +595,9 @@ void StudioApp::Render() {
           if (ImGui::SmallButton("Back to chat")) canvas_visible_ = false;
           DrawCanvas();
         } else {
-          ImGui::BeginChild("##canvas-chat", {width * .52f, 0});
+          ImGui::BeginChild("##canvas-chat", {width * .52f, 0}, ImGuiChildFlags_None,
+                            settings_.dark_theme ? ImGuiWindowFlags_None
+                                                 : ImGuiWindowFlags_NoBackground);
           DrawChat();
           ImGui::EndChild();
           ImGui::SameLine();
@@ -892,7 +898,8 @@ void StudioApp::DrawChat() {
                                 error_height + input_height +
                                 static_cast<float>(composer_gaps) * Ui(6.0f);
   ImGui::BeginChild("##conversation", {0, -composer_height}, ImGuiChildFlags_None,
-                    ImGuiWindowFlags_None);
+                    settings_.dark_theme ? ImGuiWindowFlags_None
+                                         : ImGuiWindowFlags_NoBackground);
   if (messages_.empty()) {
     const float y = std::max(Ui(30.0f), ImGui::GetContentRegionAvail().y * 0.23f);
     ImGui::Dummy({0, y});
@@ -901,7 +908,7 @@ void StudioApp::DrawChat() {
     DrawAppLogo(logo, Ui(68.0f));
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + Ui(82.0f));
     ImGui::SetWindowFontScale(1.48f);
-    ImGui::TextColored(kAccent, "%s",
+    ImGui::TextColored(StudioColors().accent, "%s",
                        settings_.onboarding_complete
                            ? "What should we build today?"
                            : "Select a model to begin");
@@ -1139,7 +1146,7 @@ void StudioApp::DrawChat() {
   // A full-width row keeps performance visible with the Canvas open.
   const float status_y = toolbar_origin.y + toolbar_height + Ui(6.0f);
   ImGui::SetCursorScreenPos({toolbar_origin.x, status_y});
-  ImGui::TextColored(busy ? kAccent : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled),
+  ImGui::TextColored(busy ? StudioColors().accent : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled),
                      "%s", status_label);
   if (ImGui::IsItemHovered()) {
     ImGui::SetTooltip(
@@ -1185,7 +1192,7 @@ void StudioApp::DrawChat() {
     composer_draw->AddRectFilled({bar_left, bar_y - Ui(3.0f)},
                                  {bar_left + (bar_right - bar_left) * context_fraction,
                                   bar_y + Ui(3.0f)},
-                                 ImGui::GetColorU32(kAccent), Ui(3.0f));
+                                 ImGui::GetColorU32(StudioColors().accent), Ui(3.0f));
   }
   ImGui::InvisibleButton("##context-usage",
                          {ImGui::GetContentRegionAvail().x, context_height});
@@ -1200,12 +1207,12 @@ void StudioApp::DrawChat() {
   if (!pending_attachments_.empty())
     DrawAttachmentGallery(pending_attachments_, &pending_attachments_);
   if (!live_mismatch.empty() && health.available) {
-    ImGui::TextColored({1.0f, 0.47f, 0.42f, 1.0f}, "%s",
+    ImGui::TextColored(ThemeColor({1.0f, 0.47f, 0.42f, 1.0f}, StudioColors().error), "%s",
                        live_mismatch.c_str());
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + Ui(6.0f));
   }
   if (!attachment_error_.empty()) {
-    ImGui::TextColored({1.0f, 0.47f, 0.42f, 1.0f}, "%s", attachment_error_.c_str());
+    ImGui::TextColored(ThemeColor({1.0f, 0.47f, 0.42f, 1.0f}, StudioColors().error), "%s", attachment_error_.c_str());
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + Ui(6.0f));
   }
 
@@ -1296,8 +1303,8 @@ void StudioApp::DrawAttachmentGallery(
     const std::vector<MediaAttachment>& attachments,
     std::vector<MediaAttachment>* removable) {
   if (attachments.empty()) return;
-  constexpr ImU32 card_fill = IM_COL32(17, 42, 34, 246);
-  constexpr ImU32 card_border = IM_COL32(53, 83, 72, 235);
+  const ImU32 card_fill = ImGui::GetColorU32(ThemeColor(ThemeRgb(0x112a22, 246.0f / 255.0f), StudioColors().subtle_background));
+  const ImU32 card_border = ImGui::GetColorU32(ThemeColor(ThemeRgb(0x355348, 235.0f / 255.0f), StudioColors().assistant_border));
   const float card_width = Ui(152.0f);
   const float card_height = Ui(112.0f);
   const float gap = Ui(8.0f);
@@ -1320,7 +1327,7 @@ void StudioApp::DrawAttachmentGallery(
     const ImVec2 maximum{x + card_width, y + card_height};
     draw->AddRectFilled(minimum, maximum, card_fill, Ui(10.0f));
     draw->AddRect(minimum, maximum,
-                  ImGui::IsItemHovered() ? ImGui::GetColorU32(kAccent)
+                  ImGui::IsItemHovered() ? ImGui::GetColorU32(StudioColors().accent)
                                          : card_border,
                   Ui(10.0f), 0, Ui(1.0f));
 
@@ -1347,12 +1354,12 @@ void StudioApp::DrawAttachmentGallery(
                             preview_max, uv_min, uv_max, IM_COL32_WHITE,
                             Ui(7.0f));
     } else {
-      draw->AddRectFilled(preview_min, preview_max, IM_COL32(12, 32, 27, 255),
+      draw->AddRectFilled(preview_min, preview_max, ImGui::GetColorU32(ThemeColor(ThemeRgb(0x0c201b), ThemeRgb(0xf7f7f7))),
                           Ui(7.0f));
       const ImVec2 center{(preview_min.x + preview_max.x) * 0.5f,
                           (preview_min.y + preview_max.y) * 0.5f};
       if (attachment.kind == MediaKind::kAudio) {
-        const ImU32 color = ImGui::GetColorU32(kAccent);
+        const ImU32 color = ImGui::GetColorU32(StudioColors().accent);
         draw->AddCircleFilled({center.x - Ui(4.0f), center.y + Ui(7.0f)},
                               Ui(4.0f), color);
         draw->AddRectFilled({center.x, center.y - Ui(11.0f)},
@@ -1362,7 +1369,7 @@ void StudioApp::DrawAttachmentGallery(
                       {center.x + Ui(10.0f), center.y - Ui(13.0f)}, color,
                       Ui(3.0f));
       } else {
-        const ImU32 color = ImGui::GetColorU32(kAccent);
+        const ImU32 color = ImGui::GetColorU32(StudioColors().accent);
         draw->AddRect({center.x - Ui(9.0f), center.y - Ui(13.0f)},
                       {center.x + Ui(9.0f), center.y + Ui(13.0f)}, color,
                       Ui(2.0f), 0, Ui(1.7f));
@@ -1407,7 +1414,7 @@ void StudioApp::DrawAttachmentGallery(
       const ImU32 remove_color = ImGui::GetColorU32(
           ImGui::IsItemHovered() ? ImGuiCol_Text : ImGuiCol_TextDisabled);
       draw->AddCircleFilled({remove_min.x + Ui(11.0f), remove_min.y + Ui(11.0f)},
-                            Ui(9.0f), IM_COL32(7, 21, 17, 220));
+                            Ui(9.0f), ImGui::GetColorU32(ThemeColor(ThemeRgb(0x071511, 220.0f / 255.0f), ThemeRgb(0xffffff))));
       draw->AddLine({remove_min.x + Ui(7.0f), remove_min.y + Ui(7.0f)},
                     {remove_min.x + Ui(15.0f), remove_min.y + Ui(15.0f)},
                     remove_color, Ui(1.5f));
@@ -1445,15 +1452,15 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
   }
   ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, Ui(17.0f));
   ImGui::PushStyleColor(ImGuiCol_ChildBg,
-                        user ? ImVec4(0.035f, 0.25f, 0.17f, 0.93f)
-                             : ImVec4(0.060f, 0.078f, 0.074f, 0.92f));
+                        user ? StudioColors().user_background
+                             : StudioColors().assistant_background);
   ImGui::PushStyleColor(ImGuiCol_Border,
-                        user ? ImVec4(0.10f, 0.55f, 0.38f, 0.75f)
-                             : ImVec4(0.19f, 0.26f, 0.24f, 0.86f));
+                        user ? StudioColors().user_border
+                             : StudioColors().assistant_border);
   if (message.error) ImGui::PushStyleColor(ImGuiCol_Border, {0.8f, 0.18f, 0.18f, 1});
   const std::string id = "##message-" + std::to_string(index);
   ImGui::BeginChild(id.c_str(), {width, 0}, ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
-  ImGui::TextColored(user ? kAccent : ImVec4(0.62f, 0.68f, 0.66f, 1), "%s", user ? "You" : ProfileLabel(conversation_.profile));
+  ImGui::TextColored(user ? StudioColors().accent : StudioColors().muted, "%s", user ? "You" : ProfileLabel(conversation_.profile));
   if (!message.attempts.empty() && ImGui::TreeNode(("Previous attempts##" + std::to_string(index)).c_str())) {
     for (const auto& attempt : message.attempts) {
       ImGui::Separator(); ImGui::TextWrapped("%s", attempt.error_message.c_str());
@@ -1488,7 +1495,7 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
     }
   }
   if (!message.error_message.empty()) {
-    ImGui::PushStyleColor(ImGuiCol_Text, {1.0f, 0.55f, 0.55f, 1.0f});
+    ImGui::PushStyleColor(ImGuiCol_Text, ThemeColor({1.0f, 0.55f, 0.55f, 1.0f}, StudioColors().error));
     ImGui::TextWrapped("%s", message.error_message.c_str());
     ImGui::TextWrapped("This exchange is excluded from future context. Retry to include it.");
     ImGui::PopStyleColor();
@@ -1500,7 +1507,7 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
   if (show_reasoning_ && (!message.reasoning.empty() || message.streaming)) {
     ImGui::Spacing();
     const bool reasoning_expanded = expanded_reasoning_.contains(index);
-    ImGui::PushStyleColor(ImGuiCol_Button, {0.04f, 0.11f, 0.09f, 0.88f});
+    ImGui::PushStyleColor(ImGuiCol_Button, StudioColors().subtle_background);
     const std::string reasoning_label =
         std::string("Reasoning##") + std::to_string(index);
     if (ImGui::Button(reasoning_label.c_str(), {-1.0f, Ui(32.0f)})) {
@@ -1527,14 +1534,14 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
     }
     ImGui::PopStyleColor();
     if (reasoning_expanded && !message.reasoning.empty()) {
-      ImGui::PushStyleColor(ImGuiCol_Text, {0.55f, 0.62f, 0.60f, 1});
+      ImGui::PushStyleColor(ImGuiCol_Text, StudioColors().reasoning_text);
       selectable_text::Wrapped(
           (std::string("reasoning##") + std::to_string(index)).c_str(),
           message.reasoning,
           {.width = ImGui::GetContentRegionAvail().x,
            .text_color = ImGui::ColorConvertFloat4ToU32(
-               {0.55f, 0.62f, 0.60f, 1}),
-           .selection_color = IM_COL32(42, 123, 94, 190)});
+               StudioColors().reasoning_text),
+           .selection_color = ImGui::GetColorU32(StudioColors().selection)});
       ImGui::PopStyleColor();
     }
   }
@@ -1590,7 +1597,7 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
   }
   if (message.content.empty() && message.streaming) {
     const int dots = 1 + static_cast<int>(std::fmod(ImGui::GetTime() * 2.5, 3.0));
-    ImGui::TextColored(kAccent, "%.*s", dots, "...");
+    ImGui::TextColored(StudioColors().accent, "%.*s", dots, "...");
   } else {
     ImGui::Spacing();
     markdown::Render((std::string("content##") + std::to_string(index)).c_str(),
@@ -1616,13 +1623,13 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
                             {bubble_max.x + Ui(7.0f), bubble_max.y - Ui(1.0f)},
                             {bubble_max.x - Ui(5.0f), bubble_max.y - Ui(15.0f)}};
     ImGui::GetWindowDrawList()->AddConvexPolyFilled(
-        tail, 3, ImGui::ColorConvertFloat4ToU32({0.035f, 0.25f, 0.17f, 0.93f}));
+        tail, 3, ImGui::GetColorU32(StudioColors().user_background));
   } else {
     const ImVec2 tail[3] = {{bubble_min.x + Ui(16.0f), bubble_min.y + Ui(17.0f)},
                             {bubble_min.x - Ui(8.0f), bubble_min.y + Ui(28.0f)},
                             {bubble_min.x + Ui(2.0f), bubble_min.y + Ui(8.0f)}};
     ImGui::GetWindowDrawList()->AddConvexPolyFilled(
-        tail, 3, ImGui::ColorConvertFloat4ToU32({0.060f, 0.078f, 0.074f, 0.92f}));
+        tail, 3, ImGui::GetColorU32(StudioColors().assistant_background));
   }
   if (message.error) ImGui::PopStyleColor();
   ImGui::PopStyleColor(2);
@@ -1713,9 +1720,9 @@ void StudioApp::DrawModels() {
                           settings_.server.profile == profile;
     const bool downloading = install.downloading &&
                              install.downloading_profile == profile;
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, selected ? ImVec4(0.07f, 0.22f, 0.16f, 0.96f)
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, selected ? ThemeColor({0.07f, 0.22f, 0.16f, 0.96f}, ThemeRgb(0xe5f5eb))
                                                      : ImGui::GetStyleColorVec4(ImGuiCol_ChildBg));
-    ImGui::PushStyleColor(ImGuiCol_Border, selected ? kAccent : ImGui::GetStyleColorVec4(ImGuiCol_Border));
+    ImGui::PushStyleColor(ImGuiCol_Border, selected ? StudioColors().accent : ImGui::GetStyleColorVec4(ImGuiCol_Border));
     const std::string id = std::string("##profile-") + ProfileWireName(profile);
     BeginModelCard(id.c_str(), g_ui_scale);
     const ImVec2 gem_origin = ImGui::GetCursorScreenPos();
@@ -1729,7 +1736,7 @@ void StudioApp::DrawModels() {
     ImGui::TextWrapped("%s", ProfileLabel(profile));
     ImGui::SetWindowFontScale(1.0f);
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", catalog.description);
-    ImGui::PushStyleColor(ImGuiCol_Text, kAccent);
+    ImGui::PushStyleColor(ImGuiCol_Text, StudioColors().accent);
     ImGui::TextWrapped("%s", catalog.capabilities);
     ImGui::PopStyleColor();
     ImGui::PopTextWrapPos();
@@ -1813,7 +1820,7 @@ void StudioApp::DrawModels() {
       if (!profile_state.storage_available) {
         ImGui::TextDisabled("Free space unavailable");
       } else if (!profile_state.sufficient_space) {
-        ImGui::TextColored({1.0f, 0.48f, 0.36f, 1.0f}, "Need %s + 256 MiB reserve · %s free",
+        ImGui::TextColored(ThemeColor({1.0f, 0.48f, 0.36f, 1.0f}, StudioColors().error), "Need %s + 256 MiB reserve · %s free",
                            FormatBytes(profile_state.required_download_bytes).c_str(),
                            FormatBytes(profile_state.available_disk_bytes).c_str());
       } else {
@@ -1823,7 +1830,7 @@ void StudioApp::DrawModels() {
       ImGui::PopTextWrapPos();
     }
     if (!downloading && profile_state.Ready() && selected) {
-      ImGui::TextColored(kAccent, "Installed and selected");
+      ImGui::TextColored(StudioColors().accent, "Installed and selected");
     } else if (!downloading && profile_state.Ready()) {
       const std::string button =
           std::string(
@@ -1863,20 +1870,20 @@ void StudioApp::DrawModels() {
     draw_profile(CatalogForProfile(profile));
   }
   if (!install.error.empty()) {
-    ImGui::TextColored({1.0f, 0.45f, 0.45f, 1.0f}, "%s", install.error.c_str());
+    ImGui::TextColored(ThemeColor({1.0f, 0.45f, 0.45f, 1.0f}, StudioColors().error), "%s", install.error.c_str());
   }
 }
 
 void StudioApp::DrawServer() {
   const HealthSnapshot health = server_.Health();
   if (!server_.Error().empty()) {
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, {0.27f, 0.07f, 0.07f, 0.92f});
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, StudioColors().error_background);
     const float wrap_width = std::max(Ui(240.0f), ImGui::GetContentRegionAvail().x - Ui(36.0f));
     const float error_height = ImGui::CalcTextSize(server_.Error().c_str(), nullptr,
                                                    false, wrap_width).y + Ui(52.0f);
     ImGui::BeginChild("##server-error", {0, error_height}, ImGuiChildFlags_Borders,
                       ImGuiWindowFlags_NoScrollbar);
-    ImGui::TextColored({1, 0.55f, 0.55f, 1}, "Server error");
+    ImGui::TextColored(ThemeColor({1, 0.55f, 0.55f, 1}, StudioColors().error), "Server error");
     ImGui::TextWrapped("%s", server_.Error().c_str());
     ImGui::EndChild();
     ImGui::PopStyleColor();
@@ -1894,8 +1901,8 @@ void StudioApp::DrawServer() {
   ImGui::TextDisabled("ACTIVE PROFILE");
   ImGui::SameLine();
   ImGui::TextColored(settings_.onboarding_complete
-                         ? kAccent
-                         : ImVec4(1.0f, 0.65f, 0.32f, 1.0f),
+                         ? StudioColors().accent
+                         : StudioColors().warning,
                      "%s", settings_.onboarding_complete
                                ? ProfileLabel(settings_.server.profile)
                                : "None selected");
@@ -1922,9 +1929,9 @@ void StudioApp::DrawServer() {
     ImGui::TableSetupColumn("Port", ImGuiTableColumnFlags_WidthStretch, 1.0f);
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
-    ImGui::TextColored({0.72f, 0.77f, 0.75f, 1.0f}, "Server host");
+    ImGui::TextColored(StudioColors().field_text, "Server host");
     ImGui::TableSetColumnIndex(1);
-    ImGui::TextColored({0.72f, 0.77f, 0.75f, 1.0f}, "Port");
+    ImGui::TextColored(StudioColors().field_text, "Port");
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
     ImGui::SetNextItemWidth(-1.0f);
@@ -2000,7 +2007,7 @@ void StudioApp::DrawServer() {
       vision_ready &&
       settings_.server.port > 0 && settings_.server.port <= 65535;
   const bool can_start = settings_.onboarding_complete && preflight_ready;
-  ImGui::TextColored(preflight_ready ? kAccent : ImVec4(1.0f, 0.48f, 0.36f, 1.0f),
+  ImGui::TextColored(preflight_ready ? StudioColors().accent : StudioColors().error,
                      "%s  Executable · %s  Target · %s  Assistant",
                      executable_ready ? "Ready" : "Missing",
                      target_ready ? "Ready" : "Missing",
@@ -2046,7 +2053,7 @@ void StudioApp::DrawServer() {
   StatusPill(PhaseLabel(server_.Phase()), PhaseColor(server_.Phase()));
   if (health.available) {
     ImGui::Dummy({0, Ui(6)});
-    ImGui::TextColored(kAccent, "%s", health.status.c_str());
+    ImGui::TextColored(StudioColors().accent, "%s", health.status.c_str());
     ImGui::Text("Variant: %s", health.model_variant.c_str());
     ImGui::Text("Sessions: %d / %d", health.resident_sessions, health.session_limit);
     ImGui::Text("Context: %lld", static_cast<long long>(health.max_context_tokens));
@@ -2080,8 +2087,8 @@ void StudioApp::DrawServer() {
         "##server-log-text", log_text,
         {.width = ImGui::GetContentRegionAvail().x,
          .text_color = ImGui::ColorConvertFloat4ToU32(
-             {0.72f, 0.77f, 0.75f, 1.0f}),
-         .selection_color = IM_COL32(38, 144, 102, 205)});
+             StudioColors().field_text),
+         .selection_color = ImGui::GetColorU32(StudioColors().selection)});
   }
   ImGui::Dummy({0, Ui(6)});
   if (ImGui::Button("Clear log")) server_.ClearLogs();
@@ -2477,7 +2484,9 @@ void StudioApp::DrawChatLibrary() {
   if (ImGui::InputTextWithHint("##chat-search", "Search chats",
                                chat_search_.data(), chat_search_.size()))
     search_changed_ = std::chrono::steady_clock::now();
-  ImGui::BeginChild("##chat-list", {0, std::max(Ui(40), ImGui::GetContentRegionAvail().y - Ui(112))});
+  ImGui::BeginChild("##chat-list", {0, std::max(Ui(40), ImGui::GetContentRegionAvail().y - Ui(112))},
+                    ImGuiChildFlags_None, settings_.dark_theme ? ImGuiWindowFlags_None
+                                                             : ImGuiWindowFlags_NoBackground);
   for (const auto& chat : chat_list_) {
     const std::string label = std::string(chat.pinned ? "* " : "") + chat.title + "##" + chat.id + "-" + std::to_string(chat.hit_position);
     if (ImGui::Selectable(label.c_str(), chat.id == conversation_.id)) { chat_load_ = chat_store_.Load(chat.id); jump_to_message_=chat.hit_position; restore_latest_ = false; screen_ = Screen::kChat; }

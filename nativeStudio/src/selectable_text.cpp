@@ -295,6 +295,12 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
   layout_spans = options.spans;
   ImGuiWindow* window = ImGui::GetCurrentWindow();
   if (window->SkipItems) return;
+  const ImU32 text_color = options.text_color != 0
+                              ? options.text_color
+                              : ImGui::GetColorU32(ImGuiCol_Text);
+  const ImU32 selection_color = options.selection_color != 0
+                                   ? options.selection_color
+                                   : ImGui::GetColorU32(ImGuiCol_TextSelectedBg);
   ImFont* font = ImGui::GetFont();
   const float font_size = ImGui::GetFontSize();
   const float width = options.width > 0.0f ? options.width
@@ -388,7 +394,7 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
     const WrappedLine& line = lines[index];
     const ImVec2 position(origin.x, origin.y + line_height * index);
     const std::vector<StyledRun> runs =
-        BuildStyledRuns(text, line, options.spans, options.text_color);
+        BuildStyledRuns(text, line, options.spans, text_color);
     for (const StyledRun& run : runs) {
       if (run.style.background_color == 0) continue;
       const float x1 = position.x + XAtByte(text, line, font, font_size,
@@ -412,7 +418,7 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
       const float x2 = position.x + XAtByte(text, line, font, font_size, end);
       draw->AddRectFilled({x1, position.y - 1.0f},
                           {std::max(x1 + 1.0f, x2), position.y + font_size + 2.0f},
-                          options.selection_color, 2.0f);
+                          selection_color, 2.0f);
     }
     for (const StyledRun& run : runs) {
       const float x = position.x +

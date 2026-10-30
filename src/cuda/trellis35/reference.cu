@@ -37,11 +37,17 @@ constexpr unsigned kPrefillM64RowsPerTile = 64U;
 constexpr unsigned kPrefillOutputBlock = 128U;
 
 #include "cuda/trellis35/detail/codec.cuh"
+#include "cuda/trellis35/detail/t3_gate_pair_codec.cuh"
 #include "cuda/trellis35/detail/mma_w4a8.cuh"
 #include "cuda/trellis35/detail/h128_warp.cuh"
 #include "cuda/trellis35/detail/transform_common.cuh"
 #include "cuda/trellis35/detail/m1_kernels.inc.cuh"
+#include "cuda/trellis35/detail/m1_pair_fragments.cuh"
+#include "cuda/trellis35/detail/m1_gate_pair_window.cuh"
 #include "cuda/trellis35/detail/t3_kernels.inc.cuh"
+#include "cuda/trellis35/detail/t3_pair_fragments.cuh"
+#include "cuda/trellis35/detail/t3_gate_pair_window.cuh"
+#include "cuda/trellis35/detail/t3_down_pair_window.cuh"
 #include "cuda/trellis35/detail/prefill_kernels.inc.cuh"
 #include "cuda/trellis35/detail/transform_epilogue.inc.cuh"
 #include "cuda/trellis35/detail/launchers.inc.cuh"

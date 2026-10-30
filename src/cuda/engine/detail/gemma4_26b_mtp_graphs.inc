@@ -594,14 +594,10 @@ Status Gemma4Moe26BReferenceEngine::Impl::PrepareFixedMtpChainGraph(
 
   cudaGraph_t root = nullptr;
   cudaGraph_t route_source = nullptr;
-  cudaGraph_t d2_source = nullptr;
-  cudaGraph_t ordinary_source = nullptr;
   cudaGraph_t continue_source = nullptr;
   cudaGraphExec_t executable = nullptr;
   const auto cleanup = [&]() {
     if (route_source != nullptr) (void)cudaGraphDestroy(route_source);
-    if (d2_source != nullptr) (void)cudaGraphDestroy(d2_source);
-    if (ordinary_source != nullptr) (void)cudaGraphDestroy(ordinary_source);
     if (continue_source != nullptr) (void)cudaGraphDestroy(continue_source);
     if (root != nullptr) (void)cudaGraphDestroy(root);
     if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
@@ -667,7 +663,48 @@ Status Gemma4Moe26BReferenceEngine::Impl::PrepareFixedMtpChainGraph(
                         : CudaFailure("end M25 chain route capture", error);
   }
 
-  error = cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal);
+  cudaGraph_t loop_body = loop_parameters.conditional.phGraph_out[0];
+  cudaGraphNode_t route_node = nullptr;
+  error = cudaGraphAddChildGraphNode(&route_node, loop_body, nullptr, 0U,
+                                    route_source);
+  if (error != cudaSuccess) {
+    cleanup();
+    return CudaFailure("add M25 chain route", error);
+  }
+  cudaGraphNodeParams d2_parameters{};
+  d2_parameters.type = cudaGraphNodeTypeConditional;
+  d2_parameters.conditional.handle = d2_condition;
+  d2_parameters.conditional.type = cudaGraphCondTypeIf;
+  d2_parameters.conditional.size = 1U;
+  cudaGraphNode_t d2_node = nullptr;
+  error = cudaGraphAddNode(&d2_node, loop_body, &route_node, nullptr, 1U,
+                          &d2_parameters);
+  if (error != cudaSuccess) {
+    cleanup();
+    return CudaFailure("add M25 chain D2 branch", error);
+  }
+  cudaGraphNodeParams ordinary_parameters{};
+  ordinary_parameters.type = cudaGraphNodeTypeConditional;
+  ordinary_parameters.conditional.handle = ordinary_condition;
+  ordinary_parameters.conditional.type = cudaGraphCondTypeIf;
+  ordinary_parameters.conditional.size = 1U;
+  cudaGraphNode_t ordinary_node = nullptr;
+  error = cudaGraphAddNode(&ordinary_node, loop_body, &route_node, nullptr,
+                          1U, &ordinary_parameters);
+  if (error != cudaSuccess) {
+    cleanup();
+    return CudaFailure("add M25 chain ordinary branch", error);
+  }
+
+  // Capture into the conditional-owned bodies. Wrapping captured DtoD memcpy
+  // nodes in another child graph crashes graph instantiation on CUDA 13.4 /
+  // driver 615.71.09. Direct capture preserves the kernels, copies and edges.
+  // These body graphs belong to root and must not be destroyed separately.
+  cudaGraph_t d2_body = d2_parameters.conditional.phGraph_out[0];
+  cudaGraph_t captured_body = nullptr;
+  error = cudaStreamBeginCaptureToGraph(
+      stream, d2_body, nullptr, nullptr, 0U,
+      cudaStreamCaptureModeThreadLocal);
   if (error != cudaSuccess) {
     cleanup();
     return CudaFailure("begin M25 chain D2 capture", error);
@@ -678,25 +715,37 @@ Status Gemma4Moe26BReferenceEngine::Impl::PrepareFixedMtpChainGraph(
         transaction, chain_result, chain_outputs, chain_proposals,
         mtp_streaming_ring_device, stream);
   }
-  error = cudaStreamEndCapture(stream, &d2_source);
+  error = cudaStreamEndCapture(stream, &captured_body);
   if (!status.ok() || error != cudaSuccess) {
     cleanup();
     return !status.ok() ? status
                         : CudaFailure("end M25 chain D2 capture", error);
   }
+  if (captured_body != d2_body) {
+    cleanup();
+    return Status(StatusCode::kInternal, "M25 D2 capture changed its body graph");
+  }
 
-  error = cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal);
+  cudaGraph_t ordinary_body = ordinary_parameters.conditional.phGraph_out[0];
+  error = cudaStreamBeginCaptureToGraph(
+      stream, ordinary_body, nullptr, nullptr, 0U,
+      cudaStreamCaptureModeThreadLocal);
   if (error != cudaSuccess) {
     cleanup();
     return CudaFailure("begin M25 chain ordinary capture", error);
   }
   status = LaunchFixedMtpOrdinaryTailBody();
-  error = cudaStreamEndCapture(stream, &ordinary_source);
+  error = cudaStreamEndCapture(stream, &captured_body);
   if (!status.ok() || error != cudaSuccess) {
     cleanup();
     return !status.ok()
                ? status
                : CudaFailure("end M25 chain ordinary capture", error);
+  }
+  if (captured_body != ordinary_body) {
+    cleanup();
+    return Status(StatusCode::kInternal,
+                  "M25 ordinary capture changed its body graph");
   }
 
   error = cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal);
@@ -714,54 +763,6 @@ Status Gemma4Moe26BReferenceEngine::Impl::PrepareFixedMtpChainGraph(
                : CudaFailure("end M25 chain continuation capture", error);
   }
 
-  cudaGraph_t loop_body = loop_parameters.conditional.phGraph_out[0];
-  cudaGraphNode_t route_node = nullptr;
-  error = cudaGraphAddChildGraphNode(&route_node, loop_body, nullptr, 0U,
-                                     route_source);
-  if (error != cudaSuccess) {
-    cleanup();
-    return CudaFailure("add M25 chain route", error);
-  }
-  cudaGraphNodeParams d2_parameters{};
-  d2_parameters.type = cudaGraphNodeTypeConditional;
-  d2_parameters.conditional.handle = d2_condition;
-  d2_parameters.conditional.type = cudaGraphCondTypeIf;
-  d2_parameters.conditional.size = 1U;
-  cudaGraphNode_t d2_node = nullptr;
-  error = cudaGraphAddNode(&d2_node, loop_body, &route_node, nullptr, 1U,
-                           &d2_parameters);
-  if (error != cudaSuccess) {
-    cleanup();
-    return CudaFailure("add M25 chain D2 branch", error);
-  }
-  cudaGraphNode_t d2_body_node = nullptr;
-  error = cudaGraphAddChildGraphNode(
-      &d2_body_node, d2_parameters.conditional.phGraph_out[0], nullptr, 0U,
-      d2_source);
-  if (error != cudaSuccess) {
-    cleanup();
-    return CudaFailure("add M25 chain D2 body", error);
-  }
-  cudaGraphNodeParams ordinary_parameters{};
-  ordinary_parameters.type = cudaGraphNodeTypeConditional;
-  ordinary_parameters.conditional.handle = ordinary_condition;
-  ordinary_parameters.conditional.type = cudaGraphCondTypeIf;
-  ordinary_parameters.conditional.size = 1U;
-  cudaGraphNode_t ordinary_node = nullptr;
-  error = cudaGraphAddNode(&ordinary_node, loop_body, &route_node, nullptr,
-                           1U, &ordinary_parameters);
-  if (error != cudaSuccess) {
-    cleanup();
-    return CudaFailure("add M25 chain ordinary branch", error);
-  }
-  cudaGraphNode_t ordinary_body_node = nullptr;
-  error = cudaGraphAddChildGraphNode(
-      &ordinary_body_node, ordinary_parameters.conditional.phGraph_out[0],
-      nullptr, 0U, ordinary_source);
-  if (error != cudaSuccess) {
-    cleanup();
-    return CudaFailure("add M25 chain ordinary body", error);
-  }
   const cudaGraphNode_t branch_nodes[] = {d2_node, ordinary_node};
   cudaGraphNode_t continue_node = nullptr;
   error = cudaGraphAddChildGraphNode(

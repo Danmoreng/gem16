@@ -1,10 +1,58 @@
 # llama.cpp baseline
 
-The current build pin is upstream build 10623, commit
-`f1357e49980f5462af9783164f3fdec407d90137`, fetched from `master` on 2026-08-25. The nearest preceding release
-tag is b10622. Historical rows below retain the exact older llama.cpp revision that produced them, including the
-b10240 Linux/Windows cross-engine characterizations and the b10364 batch audit; updating the active build pin does
-not relabel those results.
+The active source pin is upstream `master` at
+`23b0202a189c44a54625aadcb37a946dd1d6278d`, resolved on 2026-10-10:
+**0.6.0-dev, build 11552**. The Linux CUDA build is under
+`build/Linux/llama_cpp/current-release`, with SM120a and all Flash-Attention
+K/V quantization combinations enabled. `build.sh` reproduces this pin.
+
+The sections below retain historical measurements and capability investigations
+at their named revisions. References to a "current" build within those records
+mean the build at the time of that investigation, not the active source pin.
+The prior active pin was build 10623,
+`f1357e49980f5462af9783164f3fdec407d90137` (2026-08-25).
+Updating the source pin does not relabel or requalify any historical result.
+
+## 2026-10-11 Trellis35 D2 fix and completed comparison
+
+The CUDA graph compatibility fix restores native Trellis35 D2 on driver
+615.71.09 / CUDA 13.4. New gem16 measurements use the same 16K prompt, 1,135
+forced greedy outputs and 3+10 protocol; the llama rows reuse the completed
+October 10 measurements of the current b11552 binary.
+
+| Engine | Ordinary prefill tok/s | Ordinary decode tok/s | D2 decode tok/s | Peak VRAM ordinary / D2 |
+|---|---:|---:|---:|---:|
+| gem16 Trellis35, fixed source | 5,665.11 | 129.087 | 172.314 | 12,455 / 12,725 MiB |
+| llama.cpp b11552 official QAT Q4_0, October 10 | 4,607.79 | 138.461 | 196.850 | 15,201 / 15,561 MiB |
+
+Trellis35 ordinary and D2 have exact output parity across all retained runs;
+D2 improves its decode by 33.49%. llama D2 differs from its ordinary output at
+index 101. Formats and KV precision also differ, so these remain performance
+characterizations rather than quality parity. The
+[fix report](../../../docs/evidence/gemma4_26b/trellis35-d2-cuda-graph-fix-2026-10-11.md)
+and [new record](gemma4-26b-trellis35-q4_0-d2-followup-2026-10-11.json) retain
+samples, graph/runtime controls, update history, sanitizer checks and protected
+model regressions. The original startup-failure campaign below remains unchanged.
+
+## 2026-10-10 current Trellis35 / Q4_0 refresh
+
+Linux RTX 5080 Laptop, 16K identical prompt IDs, 1,135 forced greedy output
+tokens, three warmups and ten measurements per successful case:
+
+| Engine | Prefill tok/s | Ordinary tok/s | D2 tok/s | Peak VRAM ordinary / D2 |
+|---|---:|---:|---:|---:|
+| gem16 current Trellis35 | 5,623.23 | 128.955 | startup SIGSEGV | 12,455 / — MiB |
+| llama.cpp b11552 official QAT Q4_0 | 4,607.79 | 138.461 | 196.850 | 15,201 / 15,561 MiB |
+
+llama.cpp ordinary decode is 7.37% faster; Trellis35 prefill is 22.04% faster.
+The requested D2 pair remains incomplete because Trellis35 crashes during CUDA
+graph instantiation, reproduced three times. llama D2 differs from its ordinary
+output at index 101. Formats and KV precision differ, so this is performance
+characterization, not quality parity. Read the
+[report](../../../docs/evidence/gemma4_26b/llama-cpp-trellis35-refresh-2026-10-10.md)
+and [new raw-sample record](gemma4-26b-trellis35-q4_0-refresh-2026-10-10.json)
+for exact revisions, common end-token masking, cache checks, dispatch, commands
+and limitations. The old llama.cpp binary was not used.
 
 ## Build 10623 Gemma 4 26B MTP baseline
 

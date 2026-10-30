@@ -37,7 +37,7 @@ if [[ $# -ne 0 ]]; then
   exit 64
 fi
 
-llama_server=${LLAMA_SERVER:-$repo_root/build/Linux/llama_cpp/release/bin/llama-server}
+llama_server=${LLAMA_SERVER:-$repo_root/build/Linux/llama_cpp/current-release/bin/llama-server}
 q4_gguf=${Q4_GGUF:-$repo_root/models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf}
 gem16_server=${GEM16_SERVER:-$repo_root/build/Linux/blackwell-release/bin/gem16-server}
 gem16_model=${GEM16_MODEL:-$repo_root/artifacts/raw/m08/qat-hybrid-clean-1}

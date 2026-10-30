@@ -14,6 +14,8 @@ void RunFp8BatchEncoderTests();
 void RunGemma426BManifestTests();
 void RunGemma426BTrellis35Tests();
 void RunGemma426BMoePrefillPlanTests();
+void RunGreedySelectionTests();
+void RunDecodeReplayTests();
 void RunImageTests();
 void RunMemoryPlanTests();
 void RunMtpSchedulerTests();
@@ -43,6 +45,8 @@ int main() {
   RunGemma426BManifestTests();
   RunGemma426BTrellis35Tests();
   RunGemma426BMoePrefillPlanTests();
+  RunGreedySelectionTests();
+  RunDecodeReplayTests();
   RunImageTests();
   RunMemoryPlanTests();
   RunMtpSchedulerTests();

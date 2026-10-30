@@ -121,6 +121,24 @@ void LaunchGroupedT3N128(
     const std::uint32_t* selected_experts, float* output,
     std::uint64_t input_elements, std::uint64_t output_elements,
     cudaStream_t stream) {
+  if constexpr (NativeFp8x4 && VectorStore) {
+    if (input_elements == kTrellis35GateUpInput &&
+        output_elements == kTrellis35GateUpOutput) {
+      MmaW4A8ProjectionGroupedT3GateWindowKernel
+          <<<dim3(blocks, kTrellis35T3Assignments), 256U, 0, stream>>>(
+              activation_e4m3, activation_scales, family, selected_experts,
+              output, input_elements, output_elements);
+      return;
+    }
+    if (input_elements == kTrellis35DownInput &&
+        output_elements == kTrellis35DownOutput) {
+      MmaW4A8ProjectionGroupedT3DownWindowKernel
+          <<<dim3(blocks, kTrellis35T3Assignments), 256U, 0, stream>>>(
+              activation_e4m3, activation_scales, family, selected_experts,
+              output, input_elements, output_elements);
+      return;
+    }
+  }
   MmaW4A8ProjectionGroupedT3M16N128InverseKernel<NativeFp8x4, VectorStore>
       <<<dim3(blocks, kTrellis35T3Assignments), kMmaN128Threads, 0, stream>>>(
           activation_e4m3, activation_scales, family, selected_experts, output,
@@ -771,7 +789,23 @@ Status LaunchTrellis35MmaW4A8ProjectionM1N128Inverse(
     return Invalid("Trellis35 M1 N128 inverse projection geometry is invalid");
   }
   if (Trellis35M1NativeFp8x4Enabled()) {
-    if (vector_store) {
+    if (vector_store && input_elements == kTrellis35GateUpInput &&
+        output_elements == kTrellis35GateUpOutput) {
+      MmaW4A8ProjectionSelectedGateWindowKernel<<<
+          dim3(static_cast<unsigned>(output_elements / 128U),
+               kTrellis35M1TopK),
+          256U, 0, stream>>>(
+          activation_e4m3, activation_scales, family, selected_experts, output,
+          input_elements, output_elements);
+    } else if (vector_store && input_elements == kTrellis35DownInput &&
+        output_elements == kTrellis35DownOutput) {
+      MmaW4A8ProjectionSelectedN128EightWarpKernel<<<
+          dim3(static_cast<unsigned>(output_elements / 128U),
+               kTrellis35M1TopK),
+          256U, 0, stream>>>(
+          activation_e4m3, activation_scales, family, selected_experts, output,
+          input_elements, output_elements);
+    } else if (vector_store) {
       MmaW4A8ProjectionSelectedN128InverseKernel<true, true><<<
           dim3(static_cast<unsigned>(output_elements / 128U),
                kTrellis35M1TopK),

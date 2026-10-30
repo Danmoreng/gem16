@@ -90,6 +90,11 @@ float4 ps(float4 position : SV_Position) : SV_Target {
   float3 color = base + palette(uv.x + t) * energy;
   color += float3(0.015, 0.34, 0.22) * energy;
   color += grain * float3(0.05, 0.22, 0.16) * (1.0 - u_params.w * 0.7);
+  // Tint a bright base with green instead of adding light until it clips white.
+  float3 light_wave = lerp(float3(0.97, 0.98, 0.97), float3(0.48, 0.86, 0.65),
+                           saturate(energy * 0.55));
+  light_wave += grain * float3(-0.03, 0.015, -0.02);
+  color = lerp(color, light_wave, u_params.w);
   return float4(color, 1.0);
 }
 
@@ -115,10 +120,10 @@ float4 flame_ps(float4 position : SV_Position) : SV_Target {
   spark *= smoothstep(0.50, 0.07, abs(uv.y - 0.5)) * exp(-uv.x * 1.25);
 
   float alpha = saturate(flame * 0.82 + core * 0.50 + spark * 0.92);
-  alpha *= lerp(0.70, 0.94, 1.0 - u_params.w);
-  float3 deep = float3(0.015, 0.32, 0.20);
-  float3 bright = float3(0.32, 1.00, 0.68);
-  float3 hot = float3(0.73, 1.00, 0.87);
+  alpha *= lerp(0.86, 0.94, 1.0 - u_params.w);
+  float3 deep = lerp(float3(0.015, 0.32, 0.20), float3(0.46, 0.80, 0.58), u_params.w);
+  float3 bright = lerp(float3(0.32, 1.00, 0.68), float3(0.55, 0.88, 0.67), u_params.w);
+  float3 hot = lerp(float3(0.73, 1.00, 0.87), float3(0.75, 0.96, 0.83), u_params.w);
   float3 color = lerp(deep, bright, saturate(flame + n * 0.28));
   color = lerp(color, hot, saturate(core * 1.35 + spark));
   return float4(color, alpha);
@@ -172,6 +177,10 @@ void main() {
   vec3 color = base + palette(uv.x + t) * energy;
   color += vec3(0.015, 0.34, 0.22) * energy;
   color += grain * vec3(0.05, 0.22, 0.16) * (1.0 - u_light * 0.7);
+  vec3 light_wave = mix(vec3(0.97, 0.98, 0.97), vec3(0.48, 0.86, 0.65),
+                        clamp(energy * 0.55, 0.0, 1.0));
+  light_wave += grain * vec3(-0.03, 0.015, -0.02);
+  color = mix(color, light_wave, u_light);
   o_color = vec4(color, 1.0);
 }
 )GLSL";
@@ -214,10 +223,10 @@ void main() {
   spark *= smoothstep(0.50, 0.07, abs(uv.y - 0.5)) * exp(-uv.x * 1.25);
 
   float alpha = clamp(flame * 0.82 + core * 0.50 + spark * 0.92, 0.0, 1.0);
-  alpha *= mix(0.70, 0.94, 1.0 - u_light);
-  vec3 deep = vec3(0.015, 0.32, 0.20);
-  vec3 bright = vec3(0.32, 1.00, 0.68);
-  vec3 hot = vec3(0.73, 1.00, 0.87);
+  alpha *= mix(0.86, 0.94, 1.0 - u_light);
+  vec3 deep = mix(vec3(0.015, 0.32, 0.20), vec3(0.46, 0.80, 0.58), u_light);
+  vec3 bright = mix(vec3(0.32, 1.00, 0.68), vec3(0.55, 0.88, 0.67), u_light);
+  vec3 hot = mix(vec3(0.73, 1.00, 0.87), vec3(0.75, 0.96, 0.83), u_light);
   vec3 color = mix(deep, bright, clamp(flame + n * 0.28, 0.0, 1.0));
   color = mix(color, hot, clamp(core * 1.35 + spark, 0.0, 1.0));
   o_color = vec4(color, alpha);

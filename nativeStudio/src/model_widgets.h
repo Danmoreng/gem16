@@ -1,6 +1,7 @@
 #pragma once
 
 #include "imgui.h"
+#include "theme.h"
 
 #include <algorithm>
 #include <cmath>
@@ -33,8 +34,10 @@ inline void ModelComponentSameLine(float width, float gap) {
 inline void ModelDownloadProgress(float fraction, ImVec2 size,
                                   const char* label, double time) {
   fraction = std::isfinite(fraction) ? std::clamp(fraction, 0.0f, 1.0f) : 0.0f;
-  ImGui::PushStyleColor(ImGuiCol_FrameBg, {0.045f, 0.095f, 0.075f, 1.0f});
-  ImGui::PushStyleColor(ImGuiCol_PlotHistogram, {0.08f, 0.48f, 0.31f, 1.0f});
+  ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                        ThemeColor({0.045f, 0.095f, 0.075f, 1.0f}, ThemeRgb(0xeaeaea)));
+  ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
+                        ThemeColor({0.08f, 0.48f, 0.31f, 1.0f}, ThemeRgb(0xb9f6ca)));
   ImGui::ProgressBar(fraction, size, "");
   ImGui::PopStyleColor(2);
   const ImVec2 min = ImGui::GetItemRectMin();
@@ -63,8 +66,10 @@ inline void ModelDownloadProgress(float fraction, ImVec2 size,
   const ImVec2 text = ImGui::CalcTextSize(label);
   const ImVec2 position{min.x + (max.x - min.x - text.x) * 0.5f,
                         min.y + (max.y - min.y - text.y) * 0.5f};
-  draw->AddText({position.x + 1.0f, position.y + 1.0f}, IM_COL32(0, 24, 15, 230), label);
-  draw->AddText(position, IM_COL32(226, 255, 242, 255), label);
+  if (g_studio_dark_theme)
+    draw->AddText({position.x + 1.0f, position.y + 1.0f}, IM_COL32(0, 24, 15, 230), label);
+  draw->AddText(position, ImGui::GetColorU32(
+      ThemeColor(ThemeRgb(0xe2fff2), ThemeRgb(0x202020))), label);
   draw->PopClipRect();
 }
 

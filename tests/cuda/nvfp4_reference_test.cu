@@ -5364,6 +5364,52 @@ void TestMtpConditionalD2Chain() {
     CUDA_TEST_CHECK(host_streaming_ring->producer == 260U);
     CUDA_TEST_CHECK(host_streaming_ring->backpressure_events == 1U);
   }
+  if (graph_ok) {
+    host_transaction = {};
+    host_transaction.control.current.input_token = 7U;
+    host_transaction.control.current.processed_position = 40U;
+    host_transaction.control.current.remaining_output_capacity = 260U;
+    host_transaction.control.next = host_transaction.control.current;
+    host_transaction.control.fixed_draft_tokens = 2U;
+    *host_streaming_ring = {};
+    graph_ok = CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
+                                 sizeof(host_transaction),
+                                 cudaMemcpyHostToDevice),
+                      "prepare cancelled backpressured MTP chain") &&
+               CudaOk(cudaMemset(chain_result.get(), 0, chain_result.bytes()),
+                      "reset cancelled MTP chain result") &&
+               CudaOk(cudaGraphLaunch(executable, stream),
+                      "launch cancelled backpressured MTP graph");
+  }
+  if (graph_ok) {
+    std::atomic_ref<unsigned long long> backpressure_events(
+        host_streaming_ring->backpressure_events);
+    std::atomic_ref<unsigned long long> cancelled(
+        host_streaming_ring->cancelled);
+    while (backpressure_events.load(std::memory_order_acquire) == 0U) {
+      const cudaError_t query = cudaStreamQuery(stream);
+      if (query != cudaErrorNotReady) {
+        graph_ok = CudaOk(query, "poll cancelled backpressured MTP graph");
+        break;
+      }
+      std::this_thread::yield();
+    }
+    if (graph_ok) {
+      cancelled.store(1U, std::memory_order_release);
+      graph_ok = CudaOk(cudaStreamSynchronize(stream),
+                        "cancel backpressured MTP graph") &&
+                 CudaOk(cudaMemcpy(&host_result, chain_result.get(),
+                                    sizeof(host_result),
+                                    cudaMemcpyDeviceToHost),
+                        "copy cancelled MTP chain result");
+    }
+  }
+  if (graph_ok) {
+    CUDA_TEST_CHECK(host_streaming_ring->producer == 256U);
+    CUDA_TEST_CHECK(host_streaming_ring->consumer == 0U);
+    CUDA_TEST_CHECK(host_streaming_ring->backpressure_events == 1U);
+    CUDA_TEST_CHECK(host_result.group_count == 129U);
+  }
   if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
   if (body_source != nullptr) (void)cudaGraphDestroy(body_source);
   if (root != nullptr) (void)cudaGraphDestroy(root);

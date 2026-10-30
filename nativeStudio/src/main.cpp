@@ -234,7 +234,9 @@ int RunWindows() {
       GetClientRect(window, &area);
       ID3D11RenderTargetView* target = d3d.render_target.Get();
       d3d.context->OMSetRenderTargets(1, &target, nullptr);
-      const float clear[4] = {0.01f, 0.015f, 0.015f, 1.0f};
+      const float clear[4] = {app.DarkTheme() ? 0.01f : 0.97f,
+                              app.DarkTheme() ? 0.015f : 0.98f,
+                              app.DarkTheme() ? 0.015f : 0.97f, 1.0f};
       d3d.context->ClearRenderTargetView(target, clear);
       D3D11_VIEWPORT viewport{0.0f, 0.0f, static_cast<float>(area.right),
                               static_cast<float>(area.bottom), 0.0f, 1.0f};
@@ -343,7 +345,9 @@ int RunLinux() {
       int height = 0;
       glfwGetFramebufferSize(window, &width, &height);
       glViewport(0, 0, width, height);
-      glClearColor(0.01f, 0.015f, 0.015f, 1.0f);
+      glClearColor(app.DarkTheme() ? 0.01f : 0.97f,
+                   app.DarkTheme() ? 0.015f : 0.98f,
+                   app.DarkTheme() ? 0.015f : 0.97f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT);
       background.Render(seconds, static_cast<float>(width), static_cast<float>(height), app.DarkTheme());
       ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

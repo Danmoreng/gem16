@@ -770,6 +770,8 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/fp8_batch_encoder_test.cpp
     tests/unit/gemma4_26b_manifest_test.cpp
     tests/unit/gemma4_26b_trellis35_test.cpp
+    tests/unit/greedy_selection_test.cpp
+    tests/unit/decode_replay_test.cpp
     tests/unit/image_test.cpp
     tests/unit/json_test.cpp
     tests/unit/gemma4_26b_moe_prefill_plan_test.cpp
@@ -843,7 +845,45 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
   endif()
 
   if(GEM16_ENABLE_CUDA)
+    add_executable(gem16-cuda-conditional-graph-tests
+      tests/cuda/conditional_graph_copy_test.cu
+    )
+    target_link_libraries(gem16-cuda-conditional-graph-tests PRIVATE CUDA::cudart)
+    set_target_properties(gem16-cuda-conditional-graph-tests PROPERTIES
+      CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+    )
+    gem16_set_project_warnings(gem16-cuda-conditional-graph-tests)
+    add_test(NAME gem16-cuda-conditional-graph
+      COMMAND gem16-cuda-conditional-graph-tests
+    )
+    set_tests_properties(gem16-cuda-conditional-graph PROPERTIES
+      SKIP_RETURN_CODE 77
+      RESOURCE_LOCK gem16_gpu0
+    )
     add_executable(gem16-cuda-tests tests/cuda/nvfp4_reference_test.cu)
+    add_executable(gem16-26b-selection-driver
+      tests/cuda/gemma4_26b_selection_driver.cpp
+    )
+    target_include_directories(gem16-26b-selection-driver PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    )
+    target_link_libraries(gem16-26b-selection-driver PRIVATE gem16_core CUDA::cudart)
+    gem16_set_project_warnings(gem16-26b-selection-driver)
+    add_test(NAME gem16-26b-selection COMMAND gem16-26b-selection-driver)
+    set_tests_properties(gem16-26b-selection PROPERTIES
+      SKIP_RETURN_CODE 77
+      RESOURCE_LOCK gem16_gpu0
+    )
+    add_executable(gem16-26b-decode-replay-driver
+      tests/cuda/gemma4_26b_decode_replay_driver.cpp
+    )
+    target_include_directories(gem16-26b-decode-replay-driver PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    )
+    target_link_libraries(gem16-26b-decode-replay-driver PRIVATE
+      gem16_core CUDA::cudart ${CMAKE_DL_LIBS}
+    )
+    gem16_set_project_warnings(gem16-26b-decode-replay-driver)
     target_include_directories(gem16-cuda-tests PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
     )
@@ -887,6 +927,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     )
     target_include_directories(gem16-cuda-trellis35-tests PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
+      "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
     )
     target_link_libraries(gem16-cuda-trellis35-tests PRIVATE
       gem16_core CUDA::cudart

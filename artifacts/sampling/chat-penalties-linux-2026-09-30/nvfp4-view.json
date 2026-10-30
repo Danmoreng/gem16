@@ -1,0 +1,90 @@
+{
+  "source": "/home/sebastian/.cache/huggingface/hub/models--danmoreng--gemma-4-26B-A4B-it-GEM16/snapshots/6de2a057f11332420819f8e6efd08e42d7a03bc7",
+  "lock_sha256": "bb88227ce0755787b86404ba1e61952f903fb3631b1563c4a5fef40df8dfa064",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "size": 187,
+      "sha256": "2d502a6b780657021f7120758914e3ee67a36c538f02fe2040f29fe70569b9c9",
+      "same_inode": true
+    },
+    {
+      "path": "LICENSE",
+      "size": 634,
+      "sha256": "e32c5cdb30142b7c670d61be0f2de18ab0007f72ef131e2869ef51687539c86d",
+      "same_inode": true
+    },
+    {
+      "path": "NOTICE",
+      "size": 995,
+      "sha256": "db1f7267dfe16a3887a73a47e5f04e222b39ba5415bce05900bd1d0fe34211a6",
+      "same_inode": true
+    },
+    {
+      "path": "README.md",
+      "size": 32548,
+      "sha256": "1f72b10109d89d5f3c893aca915ef8a0c30612df0b8a263c932f0e40e11cea9a",
+      "same_inode": true
+    },
+    {
+      "path": "chat_template.jinja",
+      "size": 18683,
+      "sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4",
+      "same_inode": true
+    },
+    {
+      "path": "config.json",
+      "size": 4152,
+      "sha256": "8a647d5444c9e77b03bd80ac802683ffdbf64b3d9296ca5257ced8e50349ea16",
+      "same_inode": true
+    },
+    {
+      "path": "gem16.lock.json",
+      "size": 4231,
+      "sha256": "d7d2d30743e7c42aa55537a83f563047c9cbd2d83e0d583a2d2c8bcacbfa51a4",
+      "same_inode": true
+    },
+    {
+      "path": "gem16_compilation.json",
+      "size": 3061406,
+      "sha256": "7e5e78b9c6f61fbe8829866395634085261e1261a8c783f69affc5a16bd1847a",
+      "same_inode": true
+    },
+    {
+      "path": "gem16_model.json",
+      "size": 671,
+      "sha256": "c1015228120105ff5e54efe300c77c7e6a831ed598425f4f4c1b27c673732049",
+      "same_inode": true
+    },
+    {
+      "path": "generation_config.json",
+      "size": 203,
+      "sha256": "b69207f9be617e982d13cc273cce6fd88c98dda99a4bdc5e2d52ffe0a0d9f0a9",
+      "same_inode": true
+    },
+    {
+      "path": "model.gem16",
+      "size": 14696668160,
+      "sha256": "1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72",
+      "same_inode": true
+    },
+    {
+      "path": "tokenizer.json",
+      "size": 32169626,
+      "sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f",
+      "same_inode": true
+    },
+    {
+      "path": "tokenizer_config.json",
+      "size": 3729,
+      "sha256": "3ab5c7b94dc97d65ca7064496fa69b88ff875378e1cb7ee3e43070c3a8170999",
+      "same_inode": true
+    }
+  ],
+  "excluded_hub_metadata": {
+    "path": "gem16_components.json",
+    "size": 2535,
+    "sha256": "d9bc235243b6cce80eac3999a608570b9bff4e46b4ef6f93781b74a63df1ee0b",
+    "git_oid": "0108da968883cbee8221bcf05c0c8c91986cb43b"
+  }
+}

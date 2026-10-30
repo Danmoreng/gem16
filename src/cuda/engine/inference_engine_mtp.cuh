@@ -548,14 +548,10 @@
   [[nodiscard]] Status PrepareFixedD2ChainGraph() {
     cudaGraph_t root = nullptr;
     cudaGraph_t route_source = nullptr;
-    cudaGraph_t d2_source = nullptr;
-    cudaGraph_t ordinary_source = nullptr;
     cudaGraph_t continue_source = nullptr;
     cudaGraphExec_t executable = nullptr;
     const auto cleanup = [&]() {
       if (route_source != nullptr) (void)cudaGraphDestroy(route_source);
-      if (d2_source != nullptr) (void)cudaGraphDestroy(d2_source);
-      if (ordinary_source != nullptr) (void)cudaGraphDestroy(ordinary_source);
       if (continue_source != nullptr) (void)cudaGraphDestroy(continue_source);
       if (root != nullptr) (void)cudaGraphDestroy(root);
       if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
@@ -620,7 +616,47 @@
                           : CudaFailure("end MTP branch-route capture", error);
     }
 
-    error = cudaStreamBeginCapture(stream_, cudaStreamCaptureModeThreadLocal);
+    cudaGraph_t loop_body = loop_parameters.conditional.phGraph_out[0];
+    cudaGraphNode_t route_node = nullptr;
+    error = cudaGraphAddChildGraphNode(&route_node, loop_body, nullptr, 0U,
+                                      route_source);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("add MTP branch route", error);
+    }
+    cudaGraphNodeParams d2_parameters{};
+    d2_parameters.type = cudaGraphNodeTypeConditional;
+    d2_parameters.conditional.handle = d2_condition;
+    d2_parameters.conditional.type = cudaGraphCondTypeIf;
+    d2_parameters.conditional.size = 1U;
+    cudaGraphNode_t d2_node = nullptr;
+    error = cudaGraphAddNode(&d2_node, loop_body, &route_node, nullptr, 1U,
+                            &d2_parameters);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("add MTP D2 branch", error);
+    }
+    cudaGraphNodeParams ordinary_parameters{};
+    ordinary_parameters.type = cudaGraphNodeTypeConditional;
+    ordinary_parameters.conditional.handle = ordinary_condition;
+    ordinary_parameters.conditional.type = cudaGraphCondTypeIf;
+    ordinary_parameters.conditional.size = 1U;
+    cudaGraphNode_t ordinary_node = nullptr;
+    error = cudaGraphAddNode(&ordinary_node, loop_body, &route_node, nullptr,
+                            1U, &ordinary_parameters);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("add MTP ordinary branch", error);
+    }
+
+    // Match the 26B construction: directly capture conditional-owned bodies
+    // instead of wrapping DtoD copies in an additional child graph. The latter
+    // crashes graph instantiation on CUDA 13.4 / driver 615.71.09.
+    cudaGraph_t d2_body = d2_parameters.conditional.phGraph_out[0];
+    cudaGraph_t captured_body = nullptr;
+    error = cudaStreamBeginCaptureToGraph(
+        stream_, d2_body, nullptr, nullptr, 0U,
+        cudaStreamCaptureModeThreadLocal);
     if (error != cudaSuccess) {
       cleanup();
       return CudaFailure("begin fixed-D2 chain body capture", error);
@@ -634,26 +670,39 @@
                                  mtp_offsets_.chain_proposals),
           streaming_ring, stream_);
     }
-    error = cudaStreamEndCapture(stream_, &d2_source);
+    error = cudaStreamEndCapture(stream_, &captured_body);
     if (!status.ok() || error != cudaSuccess) {
       cleanup();
       return !status.ok()
                  ? status
                  : CudaFailure("end fixed-D2 chain body capture", error);
     }
+    if (captured_body != d2_body) {
+      cleanup();
+      return Status(StatusCode::kInternal,
+                    "fixed-D2 capture changed its body graph");
+    }
 
-    error = cudaStreamBeginCapture(stream_, cudaStreamCaptureModeThreadLocal);
+    cudaGraph_t ordinary_body = ordinary_parameters.conditional.phGraph_out[0];
+    error = cudaStreamBeginCaptureToGraph(
+        stream_, ordinary_body, nullptr, nullptr, 0U,
+        cudaStreamCaptureModeThreadLocal);
     if (error != cudaSuccess) {
       cleanup();
       return CudaFailure("begin MTP ordinary branch capture", error);
     }
     status = LaunchControlledMtpOrdinaryTailBody();
-    error = cudaStreamEndCapture(stream_, &ordinary_source);
+    error = cudaStreamEndCapture(stream_, &captured_body);
     if (!status.ok() || error != cudaSuccess) {
       cleanup();
       return !status.ok()
                  ? status
                  : CudaFailure("end MTP ordinary branch capture", error);
+    }
+    if (captured_body != ordinary_body) {
+      cleanup();
+      return Status(StatusCode::kInternal,
+                    "ordinary capture changed its body graph");
     }
 
     error = cudaStreamBeginCapture(stream_, cudaStreamCaptureModeThreadLocal);
@@ -668,57 +717,6 @@
       cleanup();
       return !status.ok() ? status
                           : CudaFailure("end MTP continuation capture", error);
-    }
-
-    cudaGraph_t loop_body = loop_parameters.conditional.phGraph_out[0];
-    cudaGraphNode_t route_node = nullptr;
-    error = cudaGraphAddChildGraphNode(&route_node, loop_body, nullptr, 0U,
-                                       route_source);
-    if (error != cudaSuccess) {
-      cleanup();
-      return CudaFailure("add MTP branch route", error);
-    }
-
-    cudaGraphNodeParams d2_parameters{};
-    d2_parameters.type = cudaGraphNodeTypeConditional;
-    d2_parameters.conditional.handle = d2_condition;
-    d2_parameters.conditional.type = cudaGraphCondTypeIf;
-    d2_parameters.conditional.size = 1U;
-    cudaGraphNode_t d2_node = nullptr;
-    error = cudaGraphAddNode(&d2_node, loop_body, &route_node, nullptr, 1U,
-                             &d2_parameters);
-    if (error != cudaSuccess) {
-      cleanup();
-      return CudaFailure("add MTP D2 branch", error);
-    }
-    cudaGraphNode_t d2_body_node = nullptr;
-    error = cudaGraphAddChildGraphNode(
-        &d2_body_node, d2_parameters.conditional.phGraph_out[0], nullptr, 0U,
-        d2_source);
-    if (error != cudaSuccess) {
-      cleanup();
-      return CudaFailure("add MTP D2 branch body", error);
-    }
-
-    cudaGraphNodeParams ordinary_parameters{};
-    ordinary_parameters.type = cudaGraphNodeTypeConditional;
-    ordinary_parameters.conditional.handle = ordinary_condition;
-    ordinary_parameters.conditional.type = cudaGraphCondTypeIf;
-    ordinary_parameters.conditional.size = 1U;
-    cudaGraphNode_t ordinary_node = nullptr;
-    error = cudaGraphAddNode(&ordinary_node, loop_body, &route_node, nullptr,
-                             1U, &ordinary_parameters);
-    if (error != cudaSuccess) {
-      cleanup();
-      return CudaFailure("add MTP ordinary branch", error);
-    }
-    cudaGraphNode_t ordinary_body_node = nullptr;
-    error = cudaGraphAddChildGraphNode(
-        &ordinary_body_node, ordinary_parameters.conditional.phGraph_out[0],
-        nullptr, 0U, ordinary_source);
-    if (error != cudaSuccess) {
-      cleanup();
-      return CudaFailure("add MTP ordinary branch body", error);
     }
 
     const cudaGraphNode_t branch_nodes[] = {d2_node, ordinary_node};

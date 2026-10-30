@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "kind": "storage-boundary clarification; no measurement, rate, size or historical record is changed",
+  "frozen_record": {
+    "path": "/home/sebastian/Development/gem16gb/artifacts/trellis35/decode-five-steps-final-2026-10-24.json",
+    "sha256": "e3d6b4f19d5948208771010d31cfc64b9a49259fe11d149c92149bf8f112494b"
+  },
+  "corrects_field": "quantization_sizes.size_boundary",
+  "reason": "The frozen boundary label excludes tokenizer too broadly. GGUF includes embedded tokenizer metadata; the native tokenizer is external.",
+  "native_model_gem16_bytes": 12204692480,
+  "llama_complete_gguf_bytes": 14439363584,
+  "comparison": "native compiled device image versus complete GGUF file; an approximate target storage comparison, not a tokenizer-normalized pure-weight comparison",
+  "embedded_tokenizer_evidence": "ordinary-llama-current-c.server.log contains tokenizer.ggml.model and tokenizer.ggml.tokens arr[str,262144]; original log hash is pinned in the frozen record",
+  "unchanged_exclusions": "Assistant, KV, workspaces and driver allocations are outside these two target-file sizes"
+}

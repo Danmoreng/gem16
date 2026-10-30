@@ -107,7 +107,7 @@ output_dir="$(realpath "$output_dir")"
 workload="$repo_root/benchmarks/prompts/wikipedia-summary-16k.json"
 gem16_run="$repo_root/build/Linux/blackwell-release/bin/gem16-run"
 vllm_python="${VLLM_PYTHON:-$repo_root/third_party/cache/vllm-0.26.0-env/bin/python}"
-llama_server="${GEM16_LLAMA_SERVER:-$repo_root/build/Linux/llama_cpp/release/bin/llama-server}"
+llama_server="${GEM16_LLAMA_SERVER:-$repo_root/build/Linux/llama_cpp/current-release/bin/llama-server}"
 llama_gguf="${GEM16_LLAMA_GGUF:-$repo_root/build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf}"
 llama_assistant_gguf="${GEM16_LLAMA_ASSISTANT_GGUF:-$repo_root/build/Linux/llama_cpp/gemma4-12b-it-assistant-bf16.gguf}"
 

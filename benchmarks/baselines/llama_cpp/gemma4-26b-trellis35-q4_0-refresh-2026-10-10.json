@@ -1,0 +1,1754 @@
+{
+  "schema_version": 1,
+  "status": "ordinary_comparison_complete_gem16_d2_startup_blocked_not_quality_parity",
+  "provenance": {
+    "gem16_commit": "c01789a2b46520df8a699ee3338cb19aaccebae2",
+    "gem16_worktree_status": "M benchmarks/baselines/llama_cpp/README.md\n M benchmarks/baselines/llama_cpp/build.sh\n M benchmarks/baselines/llama_cpp/commit.txt\n M tests/python/test_benchmark_wikipedia_workload.py\n M tools/benchmark_wikipedia_workload.py",
+    "llama_commit": "23b0202a189c44a54625aadcb37a946dd1d6278d",
+    "llama_worktree_status": "",
+    "llama_version": "version: 0.6.0-dev (build 11552, commit 23b0202a1)\nbuilt with GNU 16.2.1 for Linux x86_64",
+    "compiler": "c++ (GCC) 16.2.1 20260810\nCopyright (C) 2026 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "cuda_toolkit": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Tue_Sep_01_08:45:21_PDT_2026\nCuda compilation tools, release 13.4, V13.4.92\nBuild cuda_13.4.r13.4/compiler.38855100_0",
+    "kernel": "Linux 7.2.9-arch1-1 x86_64 GNU/Linux",
+    "cmake": "cmake version 4.4.4\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+    "gpu": "name, uuid, driver_version, memory.total [MiB]\nNVIDIA GeForce RTX 5080 Laptop GPU, GPU-93070293-2184-eb69-555b-1d856a4fdbb8, 615.71.09, 16303 MiB",
+    "power_profile": "max-power",
+    "nvidia_powerd": "active",
+    "file_identities": {
+      "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-run": {
+        "bytes": 12456592,
+        "sha256": "368ab9010e1f25324106a4cf96c37aad1c97371fd97401dc18ff5e6b6b69748c"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/llama-server": {
+        "bytes": 15976,
+        "sha256": "cff07f9007cb9631e8c020c722d211740699ff9ebfb640b185832dc341536190"
+      },
+      "/home/sebastian/Development/gem16gb/models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf": {
+        "bytes": 14439363584,
+        "sha256": "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d"
+      },
+      "/home/sebastian/.cache/huggingface/hub/models--unsloth--gemma-4-26B-A4B-it-qat-GGUF/snapshots/7b92b5b28818151e8669af2e45e88d6086f490dd/mtp-gemma-4-26B-A4B-it.gguf": {
+        "bytes": 251939328,
+        "sha256": "7272d97595f0d4c74bd7b623492b7dbdaafd8b7c72f329a8270ba4eca68f768a"
+      },
+      "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json": {
+        "bytes": 203477,
+        "sha256": "825ff6dcf2632184c4f70a152fe12e2d2a9c2697ab3f077f5369a049792d03e6"
+      },
+      "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/run.py": {
+        "bytes": 6803,
+        "sha256": "74f68ae994dc76ca69b7804b566f0170594059740ba998a82dcd3d4cb3b16a36"
+      },
+      "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py": {
+        "bytes": 51659,
+        "sha256": "ecdc5ee11baababe73f06b2250f3c64665b35b0ba85d29b497113a761f8a91f0"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/CMakeCache.txt": {
+        "bytes": 37523,
+        "sha256": "f52ddc878dbb83c403c571c8306c9b949ef8d222c4041e34178ab28c4cfcaf43"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/CMakeCache.txt": {
+        "bytes": 54098,
+        "sha256": "1e3f223fe9855a848d9d2cb7715a0e59828769520ef63ee686c77f5781400c04"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libggml-base.so.0.26.0": {
+        "bytes": 976368,
+        "sha256": "1b11e1b338e11c77b5ebfe37197eae6328cefda6e44a7e11dec5e2e9ab4a8127"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libggml-cpu.so.0.26.0": {
+        "bytes": 1459160,
+        "sha256": "36a06ce25c323eb12dd2a258c2500e5abf68146f7b49b7171fdd3674e6c62af8"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libggml-cuda.so.0.26.0": {
+        "bytes": 62847072,
+        "sha256": "7edbe438fb7014c5fa633ffb3d5c546b8a80df6a3a6222cbab10d1d5ee3bacb0"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libggml.so.0.26.0": {
+        "bytes": 55360,
+        "sha256": "5915a41ad43e4dc59e49bce53cad3df698884dd2c6ec6dfedabbe17c707d154f"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libllama-bench-impl.so": {
+        "bytes": 489840,
+        "sha256": "5a7005431fde5645e326e749562139f3fb5d97e826f3e85c922a440aa1a4f680"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libllama-cli-impl.so": {
+        "bytes": 241496,
+        "sha256": "f7fc9e6c030ee72d0d5587fcdc35e1f143def29d934d0159570a9b71485b68a6"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libllama-common.so.0.6.0": {
+        "bytes": 6791480,
+        "sha256": "62690bba5b3c246823bc94ff0cbd971bcde200e16ae3dbdae1edc507020f6a1e"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libllama-server-impl.so": {
+        "bytes": 7448312,
+        "sha256": "32b50e9afb82a9a543f72e4911ff53a35a2d5c377297713a4c17eff14356a17e"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libllama.so.0.6.0": {
+        "bytes": 5009032,
+        "sha256": "bcd476602da75ebace60226c09fff218f552a6873088fd91b78c0a95afefb774"
+      },
+      "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/libmtmd.so.0.6.0": {
+        "bytes": 2173152,
+        "sha256": "f141c4f566253ebd4c3f8dd0ea8b7ad1e980b2e66e3ed9850654f90cb9097a5f"
+      }
+    },
+    "model_locks": {
+      "gemma4-26b-trellis35-target.lock.json": {
+        "schema_version": 2,
+        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "resolved_at_utc": "2026-09-02T20:05:19Z",
+        "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "terms_url": "https://ai.google.dev/gemma/terms",
+        "component": "trellis35",
+        "component_path": "trellis35",
+        "files": [
+          {
+            "path": "LICENSE",
+            "size": 634,
+            "sha256": "e32c5cdb30142b7c670d61be0f2de18ab0007f72ef131e2869ef51687539c86d",
+            "git_oid": "506ff98349a36c9b78904645c9ae492a9b62e826",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/LICENSE"
+            }
+          },
+          {
+            "path": "NOTICE",
+            "size": 243,
+            "sha256": "f48d72e964adc0c5c616d03a5f6ff2bd973504e8d9ca88559d05e071cff585e7",
+            "git_oid": "7f2511abaa0677ccadfd1a677e84569a2a588470",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/NOTICE"
+            }
+          },
+          {
+            "path": "README.md",
+            "size": 298,
+            "sha256": "34f25a364f5ba371e5a0230ef77183567763b89ee16155353cd5b6ddadca269a",
+            "git_oid": "53db2bf1ced47c056a83d528612b8b5c0d88cf27",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/README.md"
+            }
+          },
+          {
+            "path": "SHA256SUMS",
+            "size": 754,
+            "sha256": "958cb982b56f43f53acbd6200d0eb70e9963b3daab1d41d0489f206b6d6daa8e",
+            "git_oid": "93d1ccb225aed94b3f538c8bde9ef49b39d6e05f",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/SHA256SUMS"
+            }
+          },
+          {
+            "path": "chat_template.jinja",
+            "size": 18683,
+            "sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4",
+            "git_oid": "4741bf6e4132ba23a5537f9d6e74e9a6d613d7cd",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/chat_template.jinja"
+            }
+          },
+          {
+            "path": "config.json",
+            "size": 4152,
+            "sha256": "8a647d5444c9e77b03bd80ac802683ffdbf64b3d9296ca5257ced8e50349ea16",
+            "git_oid": "ef0ecec886c4ee7fb9151bbd2a4395973e96c061",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/config.json"
+            }
+          },
+          {
+            "path": "gem16.lock.json",
+            "size": 1012,
+            "sha256": "92ae384611b4b92e061b71a4048abf1f83f54251fd0df612f50751e635fbff08",
+            "git_oid": "26261591a64f018e350c824382beee3726410a46",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/gem16.lock.json"
+            }
+          },
+          {
+            "path": "gem16_compilation.json",
+            "size": 465448,
+            "sha256": "55181031e34c6214e23a3546a393c5f32acb7e01237133b104f9b02188583204",
+            "git_oid": "5857b4eed5ed4291823d19671bd5ce48008202f8",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/gem16_compilation.json"
+            }
+          },
+          {
+            "path": "gem16_model.json",
+            "size": 996,
+            "sha256": "0896c371e9458fee1ada61ed4ba9e174ac921d7f02f03969f9a2d38f3fb9840f",
+            "git_oid": "10b7a99cd17cd046524e60bad07f2ff7ddb82968",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/gem16_model.json"
+            }
+          },
+          {
+            "path": "generation_config.json",
+            "size": 203,
+            "sha256": "b69207f9be617e982d13cc273cce6fd88c98dda99a4bdc5e2d52ffe0a0d9f0a9",
+            "git_oid": "5a376e9fca28bfac73fe81b623bd6e4d00bb0817",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/generation_config.json"
+            }
+          },
+          {
+            "path": "model.gem16",
+            "size": 12204692480,
+            "sha256": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4",
+            "git_oid": "2c8e8321b1ddccf74497c122c19b57d404e505fd",
+            "lfs_oid": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4",
+            "xet_hash": "fc721339987dae85c2a8078408f9e0fa03b76b8109b2a071d69bb526413480ce",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/model.gem16"
+            }
+          },
+          {
+            "path": "tokenizer.json",
+            "size": 32169626,
+            "sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f",
+            "git_oid": "1ff9f3e3439a939b971f9919e821bf87e835a503",
+            "lfs_oid": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f",
+            "xet_hash": "c62336ad134cad6f154d84eb0e5a5fa9ca17cd665ef3ba5ac4fd02b1486760b4",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/tokenizer.json"
+            }
+          },
+          {
+            "path": "tokenizer_config.json",
+            "size": 3729,
+            "sha256": "3ab5c7b94dc97d65ca7064496fa69b88ff875378e1cb7ee3e43070c3a8170999",
+            "git_oid": "bd297dce3d66737f7d6f9136691db3ad05991a2f",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "trellis35/tokenizer_config.json"
+            }
+          }
+        ]
+      },
+      "gemma4-26b-gem16-assistant.lock.json": {
+        "schema_version": 2,
+        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "resolved_at_utc": "2026-09-02T20:05:19Z",
+        "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "terms_url": "https://ai.google.dev/gemma/terms",
+        "component": "assistant",
+        "component_path": "assistant",
+        "files": [
+          {
+            "path": ".gitattributes",
+            "size": 101,
+            "sha256": "a0e948ca693c63e0b5139f66bd709003cbcf8bc764acb1ee687a552885c8fe2c",
+            "git_oid": "0fd17d2f7c330afce8bc2b472393143fa66f68a1",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/.gitattributes"
+            }
+          },
+          {
+            "path": "LICENSE",
+            "size": 634,
+            "sha256": "e32c5cdb30142b7c670d61be0f2de18ab0007f72ef131e2869ef51687539c86d",
+            "git_oid": "506ff98349a36c9b78904645c9ae492a9b62e826",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/LICENSE"
+            }
+          },
+          {
+            "path": "NOTICE",
+            "size": 791,
+            "sha256": "555f14e6346372367e5facd6979a9594fd1502f319548933f7c867a1b00ec9d3",
+            "git_oid": "80da8080b8090add2bedb8bec8dc62682b16c88d",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/NOTICE"
+            }
+          },
+          {
+            "path": "README.md",
+            "size": 31457,
+            "sha256": "d93671a2e9b9064f670525925ba085c43b4023e70ec76f29b0c4ea0c9a1f5dcc",
+            "git_oid": "1e883f1f67f7231ac09567790a012a84997293da",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/README.md"
+            }
+          },
+          {
+            "path": "chat_template.jinja",
+            "size": 18683,
+            "sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4",
+            "git_oid": "4741bf6e4132ba23a5537f9d6e74e9a6d613d7cd",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/chat_template.jinja"
+            }
+          },
+          {
+            "path": "config.json",
+            "size": 2720,
+            "sha256": "d3c79600ce09c86c993c89bed7ce05baa376770967ffaa1ac9a0c29347a633e4",
+            "git_oid": "049ec62ef9a48d2f0732b580d90b48cbb0f3616b",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/config.json"
+            }
+          },
+          {
+            "path": "gem16.lock.json",
+            "size": 1664,
+            "sha256": "f2d2278a53ecfb3bf7a093a3207dce70148a88708a51b5050dd8d436c3d69455",
+            "git_oid": "bd555c8d0653bd74ec609bb51720e462174c3545",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/gem16.lock.json"
+            }
+          },
+          {
+            "path": "gem16_compilation.json",
+            "size": 217371,
+            "sha256": "d2a722ccad675807ff73a1a645a0f1fbcc0fc200c402a14e823a5927618a116d",
+            "git_oid": "6e938657610d03a7f30aeec5172849238d8708a0",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/gem16_compilation.json"
+            }
+          },
+          {
+            "path": "gem16_model.json",
+            "size": 613,
+            "sha256": "ef69d5384d6cca061e9941375bb2b18ebc9fee6587e492ef16701dce29b0131e",
+            "git_oid": "f34e42339b16ee761c8724ee21aef629dfd84b65",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/gem16_model.json"
+            }
+          },
+          {
+            "path": "generation_config.json",
+            "size": 209,
+            "sha256": "fb53f4c64e58896a63472e8eb304397db4a39453e1da0f5d57625ec5a8c1050e",
+            "git_oid": "76d3a00538aca6a1b85db3328e1b0f4e93316420",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/generation_config.json"
+            }
+          },
+          {
+            "path": "model-00001-of-00001.safetensors",
+            "size": 258317280,
+            "sha256": "4d3ce2102ad0631d9e7e0586be0b108d5789cbc5b90d21b4c50613979228d927",
+            "git_oid": "df6d52c496a1c194c8a167f0fbca4b52e9b2c9d1",
+            "lfs_oid": "4d3ce2102ad0631d9e7e0586be0b108d5789cbc5b90d21b4c50613979228d927",
+            "xet_hash": "65ce9e91a8daba3a8cbfe767aa50c4529ebfa01be88a4e10336dfa8e15c84fc0",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/model-00001-of-00001.safetensors"
+            }
+          },
+          {
+            "path": "model.safetensors.index.json",
+            "size": 8327,
+            "sha256": "8fcc4b09fb62f710558176406385e9a04423119cd6e81301171d9a64bbfd9165",
+            "git_oid": "c094c640185f76249eb96a10d0d07dd7afd9ec89",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/model.safetensors.index.json"
+            }
+          },
+          {
+            "path": "tokenizer.json",
+            "size": 32169440,
+            "sha256": "75a6583c1a418e2bbd79c60d95d28e0f5bf549ad3f2990b5bdb5238c6c2bf70c",
+            "git_oid": "24aa4244652e010036db5fdd29ed39b9428e6e19",
+            "lfs_oid": "75a6583c1a418e2bbd79c60d95d28e0f5bf549ad3f2990b5bdb5238c6c2bf70c",
+            "xet_hash": "864a72dbe9ff99cb862b617e5fd9394a0eb794b06e4e11cbdd8ec3ee7919e503",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/tokenizer.json"
+            }
+          },
+          {
+            "path": "tokenizer_config.json",
+            "size": 3023,
+            "sha256": "01f2ff1c21ef2e722891380323edcaecd9c86a776aeb9b40148e2f35e3cee4d3",
+            "git_oid": "0672fbe45a4922b10e6ccd13947ecdb166bead28",
+            "source": {
+              "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+              "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+              "path": "assistant/tokenizer_config.json"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "workload": {
+    "fixed_output_tokens": 1135,
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "ignore_eos": true,
+    "max_new_tokens": 1135,
+    "path": "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "prompt_tokens": 16384,
+    "seed": 0,
+    "source": {
+      "api_url": "https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=extracts%7Crevisions&explaintext=1&exsectionformat=plain&revids=1366077412&rvprop=ids%7Ctimestamp",
+      "article_url": "https://en.wikipedia.org/w/index.php?title=Artificial+intelligence&oldid=1366077412",
+      "extract_characters": 86450,
+      "extract_utf8_sha256": "2724cd80c72f6ba5ef4b6ae05ed0ff1af172ebdc2d660c506fe4b49828139056",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "page_id": 1164,
+      "revision": 1366077412,
+      "revision_timestamp": "2026-07-26T03:46:54Z",
+      "title": "Artificial intelligence"
+    },
+    "stop_token_ids": [],
+    "suppress_token_ids": [
+      1,
+      50,
+      106,
+      258882,
+      258883
+    ],
+    "temperature": 0.0
+  },
+  "method": {
+    "warmups": 3,
+    "retained_samples": 10,
+    "batch_size": 1,
+    "requested_context_capacity": 17519,
+    "prompt_tokens": 16384,
+    "generated_tokens": 1135,
+    "measured_decode_intervals": 1134,
+    "sampling": "greedy",
+    "prompt_cache": "cold",
+    "suppressed_token_ids": [
+      1,
+      50,
+      106,
+      258882,
+      258883
+    ],
+    "llama_prompt_cache_ram_mib": 0,
+    "llama_context_checkpoints": 0,
+    "llama_actual_context_capacity": 17664,
+    "order": [
+      "gem16-ordinary",
+      "llama-ordinary",
+      "gem16-d2",
+      "llama-d2"
+    ],
+    "old_llama_cpp_executed": false,
+    "gem16_model_lifecycle": "fresh process each warmup/measurement; load excluded",
+    "llama_model_lifecycle": "one resident server per mode; full prompt recomputed each request"
+  },
+  "rows": {
+    "gem16-ordinary": {
+      "prefill_tokens_per_second": {
+        "confidence_interval_95": [
+          5616.40539265499,
+          5638.4195342311305
+        ],
+        "maximum": 5655.525217553392,
+        "mean": 5627.41246344306,
+        "median": 5623.226871014079,
+        "minimum": 5608.174023173425,
+        "sample_count": 10,
+        "samples": [
+          5655.525217553392,
+          5646.28687024637,
+          5638.223188844687,
+          5632.718171566875,
+          5625.427040092842,
+          5621.026701935316,
+          5617.249454011856,
+          5615.266505812678,
+          5614.22746119316,
+          5608.174023173425
+        ],
+        "standard_deviation": 15.38789304023244
+      },
+      "ttft_ms": {
+        "confidence_interval_95": [
+          2905.795627329334,
+          2917.168372670666
+        ],
+        "maximum": 2921.45,
+        "mean": 2911.482,
+        "median": 2913.63,
+        "minimum": 2896.99,
+        "sample_count": 10,
+        "samples": [
+          2896.99,
+          2901.73,
+          2905.88,
+          2908.72,
+          2912.49,
+          2914.77,
+          2916.73,
+          2917.76,
+          2918.3,
+          2921.45
+        ],
+        "standard_deviation": 7.949553167037525
+      },
+      "decode_tokens_per_second": {
+        "confidence_interval_95": [
+          128.90453847704526,
+          128.98947674191396
+        ],
+        "maximum": 129.0293217426923,
+        "mean": 128.9470076094796,
+        "median": 128.95515056559537,
+        "minimum": 128.8658329403342,
+        "sample_count": 10,
+        "samples": [
+          129.0293217426923,
+          129.01434857993203,
+          128.98734695548913,
+          128.95610375166737,
+          128.98543965949662,
+          128.95419737952335,
+          128.92458252992324,
+          128.8684689312213,
+          128.88443362451667,
+          128.8658329403342
+        ],
+        "standard_deviation": 0.05937187831296054
+      },
+      "average_itl_ms": {
+        "confidence_interval_95": [
+          7.752570862860323,
+          7.757679578056785
+        ],
+        "maximum": 7.760008818342152,
+        "mean": 7.755125220458554,
+        "median": 7.754634038800706,
+        "minimum": 7.750176366843034,
+        "sample_count": 10,
+        "samples": [
+          7.750176366843034,
+          7.751075837742504,
+          7.752698412698412,
+          7.75457671957672,
+          7.752813051146385,
+          7.754691358024691,
+          7.75647266313933,
+          7.759850088183422,
+          7.7588888888888885,
+          7.760008818342152
+        ],
+        "standard_deviation": 0.0035709937970676083
+      },
+      "generated_tokens": {
+        "confidence_interval_95": [
+          1135.0,
+          1135.0
+        ],
+        "maximum": 1135.0,
+        "mean": 1135.0,
+        "median": 1135.0,
+        "minimum": 1135.0,
+        "sample_count": 10,
+        "samples": [
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "deterministic_outputs": true,
+      "output_hashes": [
+        "9bc749fe3419fb50806e2b7124bacb7ad5d089d44890ba588842be708a3ab247"
+      ],
+      "telemetry": {
+        "interval_ms": 200,
+        "active_samples": 824,
+        "excluded_idle_invalid_or_nonactive_samples": 27,
+        "active_sample_rule": "memory.used >=1000 MiB, utilization >0; finite plausible hardware values",
+        "peak_power_w": 179.55,
+        "sm_clock_min_max_mhz": [
+          1080.0,
+          2677.0
+        ],
+        "memory_clock_min_max_mhz": [
+          14001.0,
+          14001.0
+        ],
+        "temperature_min_max_c": [
+          50.0,
+          78.0
+        ],
+        "sampled_peak_vram_mib": 12455.0,
+        "minimum_nvml_free_vram_mib": 3848.0
+      },
+      "configuration": {
+        "batch_size": 1,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 0,
+        "mtp_verification_mode": "disabled",
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "decode_samples": [
+        129.0293217426923,
+        129.01434857993203,
+        128.98734695548913,
+        128.95610375166737,
+        128.98543965949662,
+        128.95419737952335,
+        128.92458252992324,
+        128.8684689312213,
+        128.88443362451667,
+        128.8658329403342
+      ],
+      "prefill_samples": [
+        5655.525217553392,
+        5646.28687024637,
+        5638.223188844687,
+        5632.718171566875,
+        5625.427040092842,
+        5621.026701935316,
+        5617.249454011856,
+        5615.266505812678,
+        5614.22746119316,
+        5608.174023173425
+      ],
+      "commands": [
+        "/usr/bin/python",
+        "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-ordinary.json",
+        "--fixed-output-tokens",
+        "1135",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--gpu-telemetry-csv",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-ordinary-telemetry.csv",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--executable",
+        "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-run"
+      ]
+    },
+    "gem16-d2": {
+      "status": "failed_before_inference",
+      "decode_tokens_per_second": null,
+      "reason": "SIGSEGV inside libcuda cuGraphInstantiateWithFlags during PrepareFixedMtpChainGraph",
+      "retained_measurements": 0,
+      "probes": [
+        {
+          "module_loading": "default",
+          "command": [
+            "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-run",
+            "--model",
+            "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+            "--input-token-ids-file",
+            "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-d2.prompt-token-ids.txt",
+            "--suppress-token-ids",
+            "1,50,106,258882,258883",
+            "--kv-cache",
+            "fp8",
+            "--max-tokens",
+            "8",
+            "--max-context",
+            "17519",
+            "--greedy",
+            "--assistant-model",
+            "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+            "--mtp-draft-tokens",
+            "2"
+          ],
+          "returncode": -11,
+          "wall_seconds": 5.379907240996545
+        },
+        {
+          "module_loading": "EAGER",
+          "command": [
+            "/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-run",
+            "--model",
+            "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+            "--input-token-ids-file",
+            "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-d2.prompt-token-ids.txt",
+            "--suppress-token-ids",
+            "1,50,106,258882,258883",
+            "--kv-cache",
+            "fp8",
+            "--max-tokens",
+            "8",
+            "--max-context",
+            "17519",
+            "--greedy",
+            "--assistant-model",
+            "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+            "--mtp-draft-tokens",
+            "2"
+          ],
+          "returncode": -11,
+          "wall_seconds": 2.8420865559965023
+        }
+      ]
+    },
+    "llama-ordinary": {
+      "prefill_tokens_per_second": {
+        "confidence_interval_95": [
+          4602.786334108811,
+          4621.610092712562
+        ],
+        "maximum": 4637.383184447784,
+        "mean": 4612.198213410687,
+        "median": 4607.792823868722,
+        "minimum": 4599.935594163495,
+        "sample_count": 10,
+        "samples": [
+          4637.383184447784,
+          4631.007569198712,
+          4619.136883373842,
+          4612.695724247284,
+          4609.65241633962,
+          4605.559053701538,
+          4605.933231397824,
+          4600.680891786279,
+          4599.935594163495,
+          4599.997585450486
+        ],
+        "standard_deviation": 13.15781417175976
+      },
+      "ttft_ms": {
+        "confidence_interval_95": [
+          3545.113284932591,
+          3559.576915067409
+        ],
+        "maximum": 3561.789,
+        "mean": 3552.3451,
+        "median": 3555.716,
+        "minimum": 3533.027,
+        "sample_count": 10,
+        "samples": [
+          3533.027,
+          3537.891,
+          3546.983,
+          3551.936,
+          3554.281,
+          3557.44,
+          3557.151,
+          3561.212,
+          3561.789,
+          3561.741
+        ],
+        "standard_deviation": 10.110082771943818
+      },
+      "decode_tokens_per_second": {
+        "confidence_interval_95": [
+          138.3969644211064,
+          138.77431562490867
+        ],
+        "maximum": 139.11753112754758,
+        "mean": 138.58564002300753,
+        "median": 138.4610482186734,
+        "minimum": 138.30730639446878,
+        "sample_count": 10,
+        "samples": [
+          139.11753112754758,
+          138.78491239110616,
+          138.89101525780268,
+          138.62236748911863,
+          138.42694017746723,
+          138.4588673380904,
+          138.40495973074744,
+          138.4632290992564,
+          138.37927122446985,
+          138.30730639446878
+        ],
+        "standard_deviation": 0.2637686299340225
+      },
+      "average_itl_ms": {
+        "confidence_interval_95": [
+          7.205970584532143,
+          7.225586029224471
+        ],
+        "maximum": 7.230276014109347,
+        "mean": 7.215778306878307,
+        "median": 7.222247795414463,
+        "minimum": 7.188166666666667,
+        "sample_count": 10,
+        "samples": [
+          7.188166666666667,
+          7.2053941798941805,
+          7.199889770723105,
+          7.2138430335097,
+          7.2240273368606704,
+          7.222361552028219,
+          7.225174603174603,
+          7.222134038800705,
+          7.226515873015874,
+          7.230276014109347
+        ],
+        "standard_deviation": 0.013711203038199097
+      },
+      "generated_tokens": {
+        "confidence_interval_95": [
+          1135.0,
+          1135.0
+        ],
+        "maximum": 1135.0,
+        "mean": 1135.0,
+        "median": 1135.0,
+        "minimum": 1135.0,
+        "sample_count": 10,
+        "samples": [
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "deterministic_outputs": true,
+      "output_hashes": [
+        "c37b58ecd3ad56fca0023be58fe07744c2c6fcc801f9bc70b79de847505f8321"
+      ],
+      "telemetry": {
+        "interval_ms": 200,
+        "active_samples": 767,
+        "excluded_idle_invalid_or_nonactive_samples": 11,
+        "active_sample_rule": "memory.used >=1000 MiB, utilization >0; finite plausible hardware values",
+        "peak_power_w": 175.94,
+        "sm_clock_min_max_mhz": [
+          1492.0,
+          2460.0
+        ],
+        "memory_clock_min_max_mhz": [
+          14001.0,
+          14001.0
+        ],
+        "temperature_min_max_c": [
+          50.0,
+          77.0
+        ],
+        "sampled_peak_vram_mib": 15201.0,
+        "minimum_nvml_free_vram_mib": 1102.0
+      },
+      "configuration": {
+        "batch_size": 2048,
+        "cache_prompt": false,
+        "context_checkpoints": 0,
+        "draft_tensor_overrides": [],
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "log_verbosity": 4,
+        "maximum_draft_tokens": 0,
+        "measured_repetitions": 10,
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "prompt_cache_ram_mib": 0,
+        "speculative_types": [],
+        "tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "threads": 8,
+        "ubatch_size": 512,
+        "warmups": 3
+      },
+      "decode_samples": [
+        139.11753112754758,
+        138.78491239110616,
+        138.89101525780268,
+        138.62236748911863,
+        138.42694017746723,
+        138.4588673380904,
+        138.40495973074744,
+        138.4632290992564,
+        138.37927122446985,
+        138.30730639446878
+      ],
+      "prefill_samples": [
+        4637.383184447784,
+        4631.007569198712,
+        4619.136883373842,
+        4612.695724247284,
+        4609.65241633962,
+        4605.559053701538,
+        4605.933231397824,
+        4600.680891786279,
+        4599.935594163495,
+        4599.997585450486
+      ],
+      "commands": [
+        "/usr/bin/python",
+        "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "llama-cpp",
+        "--workload",
+        "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.json",
+        "--fixed-output-tokens",
+        "1135",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--gpu-telemetry-csv",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary-telemetry.csv",
+        "--mtp-draft-tokens",
+        "0",
+        "--executable",
+        "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/llama-server",
+        "--gguf",
+        "/home/sebastian/Development/gem16gb/models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf",
+        "--llama-kv-cache-type",
+        "q8_0",
+        "--llama-threads",
+        "8",
+        "--llama-batch-size",
+        "2048",
+        "--llama-ubatch-size",
+        "512",
+        "--llama-log-verbosity",
+        "4",
+        "--llama-override-tensor",
+        "token_embd.weight=CUDA0"
+      ]
+    },
+    "llama-d2": {
+      "prefill_tokens_per_second": {
+        "confidence_interval_95": [
+          4440.4125096109965,
+          4449.503403035134
+        ],
+        "maximum": 4456.521443473389,
+        "mean": 4444.957956323065,
+        "median": 4445.204826152785,
+        "minimum": 4435.055562713916,
+        "sample_count": 10,
+        "samples": [
+          4456.521443473389,
+          4451.249794879541,
+          4440.175785865585,
+          4448.867485713742,
+          4445.872372202878,
+          4446.367054330675,
+          4444.537280102693,
+          4438.1683562171875,
+          4435.055562713916,
+          4442.76442773105
+        ],
+        "standard_deviation": 6.354537839549175
+      },
+      "ttft_ms": {
+        "confidence_interval_95": [
+          3682.212634969434,
+          3689.749165030566
+        ],
+        "maximum": 3694.204,
+        "mean": 3685.9809,
+        "median": 3685.7695,
+        "minimum": 3676.41,
+        "sample_count": 10,
+        "samples": [
+          3676.41,
+          3680.764,
+          3689.944,
+          3682.735,
+          3685.216,
+          3684.806,
+          3686.323,
+          3691.613,
+          3694.204,
+          3687.794
+        ],
+        "standard_deviation": 5.26803727840519
+      },
+      "decode_tokens_per_second": {
+        "confidence_interval_95": [
+          196.7200956687202,
+          197.32114121954032
+        ],
+        "maximum": 197.74790594732931,
+        "mean": 197.02061844413026,
+        "median": 196.84956939017846,
+        "minimum": 196.49211328480752,
+        "sample_count": 10,
+        "samples": [
+          197.74790594732931,
+          196.69899537809397,
+          196.7678025409074,
+          196.79921863421342,
+          196.8999201461435,
+          197.17209315911944,
+          196.49211328480752,
+          196.68272215131353,
+          197.5145218459073,
+          197.4308913534671
+        ],
+        "standard_deviation": 0.4201310605884192
+      },
+      "average_itl_ms": {
+        "confidence_interval_95": [
+          5.067897722800664,
+          5.083365592895985
+        ],
+        "maximum": 5.08926278659612,
+        "mean": 5.075631657848325,
+        "median": 5.080021604938271,
+        "minimum": 5.056943562610229,
+        "sample_count": 10,
+        "samples": [
+          5.056943562610229,
+          5.083910052910054,
+          5.082132275132275,
+          5.081320987654321,
+          5.078722222222222,
+          5.07171164021164,
+          5.08926278659612,
+          5.084330687830688,
+          5.062918871252205,
+          5.0650634920634925
+        ],
+        "standard_deviation": 0.010812046872860082
+      },
+      "generated_tokens": {
+        "confidence_interval_95": [
+          1135.0,
+          1135.0
+        ],
+        "maximum": 1135.0,
+        "mean": 1135.0,
+        "median": 1135.0,
+        "minimum": 1135.0,
+        "sample_count": 10,
+        "samples": [
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0,
+          1135.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "deterministic_outputs": true,
+      "output_hashes": [
+        "6a684de01feb57022a616c03bbf4e4c94aa8e338752d5e93a13b75ebc1f3d4a8"
+      ],
+      "telemetry": {
+        "interval_ms": 200,
+        "active_samples": 617,
+        "excluded_idle_invalid_or_nonactive_samples": 13,
+        "active_sample_rule": "memory.used >=1000 MiB, utilization >0; finite plausible hardware values",
+        "peak_power_w": 176.15,
+        "sm_clock_min_max_mhz": [
+          1492.0,
+          2437.0
+        ],
+        "memory_clock_min_max_mhz": [
+          14001.0,
+          14001.0
+        ],
+        "temperature_min_max_c": [
+          48.0,
+          75.0
+        ],
+        "sampled_peak_vram_mib": 15561.0,
+        "minimum_nvml_free_vram_mib": 742.0
+      },
+      "configuration": {
+        "batch_size": 2048,
+        "cache_prompt": false,
+        "context_checkpoints": 0,
+        "draft_tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "log_verbosity": 4,
+        "maximum_draft_tokens": 2,
+        "measured_repetitions": 10,
+        "mtp_backend": "draft-mtp",
+        "mtp_draft_tokens": 2,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "prompt_cache_ram_mib": 0,
+        "speculative_types": [
+          "draft-mtp"
+        ],
+        "tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "threads": 8,
+        "ubatch_size": 512,
+        "warmups": 3
+      },
+      "decode_samples": [
+        197.74790594732931,
+        196.69899537809397,
+        196.7678025409074,
+        196.79921863421342,
+        196.8999201461435,
+        197.17209315911944,
+        196.49211328480752,
+        196.68272215131353,
+        197.5145218459073,
+        197.4308913534671
+      ],
+      "prefill_samples": [
+        4456.521443473389,
+        4451.249794879541,
+        4440.175785865585,
+        4448.867485713742,
+        4445.872372202878,
+        4446.367054330675,
+        4444.537280102693,
+        4438.1683562171875,
+        4435.055562713916,
+        4442.76442773105
+      ],
+      "commands": [
+        "/usr/bin/python",
+        "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "llama-cpp",
+        "--workload",
+        "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.json",
+        "--fixed-output-tokens",
+        "1135",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--gpu-telemetry-csv",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2-telemetry.csv",
+        "--mtp-draft-tokens",
+        "2",
+        "--executable",
+        "/home/sebastian/Development/gem16gb/build/Linux/llama_cpp/current-release/bin/llama-server",
+        "--gguf",
+        "/home/sebastian/Development/gem16gb/models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf",
+        "--llama-kv-cache-type",
+        "q8_0",
+        "--llama-threads",
+        "8",
+        "--llama-batch-size",
+        "2048",
+        "--llama-ubatch-size",
+        "512",
+        "--llama-log-verbosity",
+        "4",
+        "--llama-override-tensor",
+        "token_embd.weight=CUDA0",
+        "--assistant-model",
+        "/home/sebastian/.cache/huggingface/hub/models--unsloth--gemma-4-26B-A4B-it-qat-GGUF/snapshots/7b92b5b28818151e8669af2e45e88d6086f490dd/mtp-gemma-4-26B-A4B-it.gguf",
+        "--llama-draft-override-tensor",
+        "token_embd.weight=CUDA0"
+      ],
+      "mtp": {
+        "acceptance_rate": {
+          "confidence_interval_95": [
+            0.6524390243902439,
+            0.6524390243902439
+          ],
+          "maximum": 0.6524390243902439,
+          "mean": 0.6524390243902439,
+          "median": 0.6524390243902439,
+          "minimum": 0.6524390243902439,
+          "sample_count": 10,
+          "samples": [
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439,
+            0.6524390243902439
+          ],
+          "standard_deviation": 0.0
+        },
+        "accepted_tokens": {
+          "confidence_interval_95": [
+            642.0,
+            642.0
+          ],
+          "maximum": 642.0,
+          "mean": 642.0,
+          "median": 642.0,
+          "minimum": 642.0,
+          "sample_count": 10,
+          "samples": [
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0,
+            642.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "d1_groups": {
+          "confidence_interval_95": [
+            0.0,
+            0.0
+          ],
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "sample_count": 10,
+          "samples": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "d2_groups": {
+          "confidence_interval_95": [
+            493.0,
+            493.0
+          ],
+          "maximum": 493.0,
+          "mean": 493.0,
+          "median": 493.0,
+          "minimum": 493.0,
+          "sample_count": 10,
+          "samples": [
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "d4_groups": {
+          "confidence_interval_95": [
+            0.0,
+            0.0
+          ],
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "sample_count": 10,
+          "samples": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "mean_accepted_length": {
+          "confidence_interval_95": [
+            1.3022312373225151,
+            1.3022312373225151
+          ],
+          "maximum": 1.3022312373225151,
+          "mean": 1.3022312373225151,
+          "median": 1.3022312373225151,
+          "minimum": 1.3022312373225151,
+          "sample_count": 10,
+          "samples": [
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151,
+            1.3022312373225151
+          ],
+          "standard_deviation": 0.0
+        },
+        "ordinary_fallback_tokens": {
+          "confidence_interval_95": [
+            0.0,
+            0.0
+          ],
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "sample_count": 10,
+          "samples": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "proposed_tokens": {
+          "confidence_interval_95": [
+            984.0,
+            984.0
+          ],
+          "maximum": 984.0,
+          "mean": 984.0,
+          "median": 984.0,
+          "minimum": 984.0,
+          "sample_count": 10,
+          "samples": [
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0,
+            984.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "rejected_tokens": {
+          "confidence_interval_95": [
+            342.0,
+            342.0
+          ],
+          "maximum": 342.0,
+          "mean": 342.0,
+          "median": 342.0,
+          "minimum": 342.0,
+          "sample_count": 10,
+          "samples": [
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0,
+            342.0
+          ],
+          "standard_deviation": 0.0
+        },
+        "target_batches": {
+          "confidence_interval_95": [
+            493.0,
+            493.0
+          ],
+          "maximum": 493.0,
+          "mean": 493.0,
+          "median": 493.0,
+          "minimum": 493.0,
+          "sample_count": 10,
+          "samples": [
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0,
+            493.0
+          ],
+          "standard_deviation": 0.0
+        }
+      }
+    }
+  },
+  "ratios": {
+    "ordinary": {
+      "prefill_tokens_per_second_gem16_over_llama": 1.2203731994818279,
+      "decode_tokens_per_second_gem16_over_llama": 0.931346051648654
+    },
+    "d2": {
+      "status": "not_measurable_due_to_gem16_startup_crash"
+    },
+    "llama_d2_over_ordinary_decode": 1.4216963682037946
+  },
+  "ordinary_d2_output_identity": {
+    "gem16": {
+      "status": "not_measurable_due_to_startup_crash"
+    },
+    "llama": {
+      "identical": false,
+      "lengths": [
+        1135,
+        1135
+      ],
+      "matching_positions": 120,
+      "first_different_index": 101
+    }
+  },
+  "cross_engine_ordinary_output_identity": {
+    "identical": false,
+    "lengths": [
+      1135,
+      1135
+    ],
+    "matching_positions": 75,
+    "first_different_index": 43
+  },
+  "raw_evidence": {
+    "gem16-ordinary.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-ordinary.json",
+      "bytes": 272818,
+      "sha256": "a7eacfd55b5a322340baf2b687cc41a36149a6ec522de3daebde22b5be2f8587"
+    },
+    "gem16-ordinary-telemetry.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-ordinary-telemetry.csv",
+      "bytes": 68808,
+      "sha256": "658c3c74c93b99032f828263c486d5b5888de51e87838c275ae981b13befae9d"
+    },
+    "gem16-ordinary.console.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-ordinary.console.log",
+      "bytes": 539,
+      "sha256": "3497e64f36cc9adac18a3ee4cbf72368aec2277418c763f277e716fb2c22329a"
+    },
+    "gem16-ordinary.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-ordinary.command.json",
+      "bytes": 960,
+      "sha256": "f80cb34ef4b04e4884a6ab04fddbbfe1635c76799aeb1c618bce057b77f465f1"
+    },
+    "gem16-ordinary.execution.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-ordinary.execution.json",
+      "bytes": 134,
+      "sha256": "de6d3d6430ecbdd7ecf5bc2e486ca3389795443331c8b7b62b866efec27888df"
+    },
+    "gem16-d2-backtrace.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-d2-backtrace.log",
+      "bytes": 4699,
+      "sha256": "ad2e79fae1966de5e82ea536b44c03c1474bd4e9840a9eed176e0a1903820774"
+    },
+    "gem16-d2-coredump-info.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-d2-coredump-info.log",
+      "bytes": 5762,
+      "sha256": "ebd7a6e5fd2df7e4b33608e02e690bdf1bcb0f44050a2dafcb48bbc05c4b017c"
+    },
+    "gem16-d2-probes.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-d2-probes.json",
+      "bytes": 1972,
+      "sha256": "574059225b707763c371d57f867fc5aa3159f87aa76b52c96b881d09877b7731"
+    },
+    "gem16-d2.console.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-d2.console.log",
+      "bytes": 42,
+      "sha256": "7d84a2c4366ee48a883fe57425bb66e3d7407129fec0ba8ddcd88a6c8ba9274f"
+    },
+    "gem16-d2.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-d2.command.json",
+      "bytes": 1121,
+      "sha256": "794ad486e303cd1754c159ec8a1ef7fe8da6a6e2850752656cd1b30d505b9978"
+    },
+    "gem16-d2-telemetry.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-d2-telemetry.csv",
+      "bytes": 1384,
+      "sha256": "523b81334756f3d151e4c45e78f10494098ec8b697a565ffbe8c2721cf298d9c"
+    },
+    "llama-ordinary.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.json",
+      "bytes": 1139047,
+      "sha256": "ba89b7a1c0e966685088e3967fec5371faca36d1a587582a8f4c333364d08f52"
+    },
+    "llama-ordinary-telemetry.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary-telemetry.csv",
+      "bytes": 62542,
+      "sha256": "155569896c616e9c9f3aaa137ac723c2f4efac36dcfe25aa368c5ab4334cd7ff"
+    },
+    "llama-ordinary.console.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.console.log",
+      "bytes": 577,
+      "sha256": "286f9a19e43edab8a4fadad45e9af03b856cc06a1c5c2dc16545c6ac4fef46fe"
+    },
+    "llama-ordinary.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.command.json",
+      "bytes": 1182,
+      "sha256": "7a7514af56ec57acb67796627195ded840496ce78f27977f49c8303a5bb06be7"
+    },
+    "llama-ordinary.execution.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.execution.json",
+      "bytes": 134,
+      "sha256": "f6d1eefab19a74b0c15503b67b5a50f1c6294261888c5129df7c859cb23f15cc"
+    },
+    "llama-ordinary.server.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-ordinary.server.log",
+      "bytes": 57696,
+      "sha256": "aa756d1996f74739a074cc924caf4926adaae3b00d2449711b2c5c612a7142d9"
+    },
+    "llama-d2.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.json",
+      "bytes": 1157802,
+      "sha256": "1405884cc49de3e42e4a7ba12d056941b52642f21b14adb397fbd28d3c9f59e8"
+    },
+    "llama-d2-telemetry.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2-telemetry.csv",
+      "bytes": 50649,
+      "sha256": "d66ee15261a31ab472b1a4f2f2f5dac5f291fdc6b6610b79fb4be0438f4197c4"
+    },
+    "llama-d2.console.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.console.log",
+      "bytes": 572,
+      "sha256": "8c37e7f8e50e93266a77cc1b67642356d99472eec938230bd353c4f81ef02722"
+    },
+    "llama-d2.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.command.json",
+      "bytes": 1425,
+      "sha256": "d207ed6f0cec1d6298f0a07c1a49a36e5ae56866e51b5d6bf2e38ff474cebaf6"
+    },
+    "llama-d2.execution.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.execution.json",
+      "bytes": 134,
+      "sha256": "cf806049dc5acbb15eef34928b40bdc7b2a418aaaed6444ed5dec49749fa7c7d"
+    },
+    "llama-d2.server.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-d2.server.log",
+      "bytes": 79738,
+      "sha256": "5e7378b477d76d66df3323a63a9def9ceb9c732424c9c167def7f783ef309fc8"
+    },
+    "run.py": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/run.py",
+      "bytes": 6803,
+      "sha256": "74f68ae994dc76ca69b7804b566f0170594059740ba998a82dcd3d4cb3b16a36"
+    },
+    "summarize.py": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/summarize.py",
+      "bytes": 10403,
+      "sha256": "50eacc365c378284f15394c7ff9761228869e2d7ce930b66d8527e58be3f50be"
+    },
+    "harness-tests.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/harness-tests.log",
+      "bytes": 2715,
+      "sha256": "8bbadc4cb727f754f474da8ecf37589fc9c8069f78f63bdbd2da4cac6aa6512e"
+    },
+    "gem16-d2-crash.core": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/gem16-d2-crash.core",
+      "bytes": 142950400,
+      "sha256": "2dedade622bf9ef20766b6dc2bc25ca6e97be52683650a36f8024c6f9cc2a0c4"
+    },
+    "llama-current-build-20261010.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/llama-current-build-20261010.log",
+      "bytes": 104682,
+      "sha256": "daea529ffa1755f438e5f1822d59d119984c8f3cfa6822f5d858fb99f25eda5b"
+    },
+    "verify-trellis35.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/verify-trellis35.log",
+      "bytes": 1037,
+      "sha256": "dd61dd0335b8d0bb80881ef57bf65fb0caab5ffa47c0d7e71ad4da6ba5493919"
+    },
+    "verify-gem16-assistant.log": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/verify-gem16-assistant.log",
+      "bytes": 1100,
+      "sha256": "7bcc8ba69cc2b1ffdd4a609e238d94ae1de5a8ebb292a1dac91807f8d6913d0c"
+    },
+    "dispatch-llama-ordinary.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/dispatch-llama-ordinary.json",
+      "bytes": 94858,
+      "sha256": "34bfbdc3f645fc66bf1ad9aaf390391b9b27f84dda6718edc73a2bd43470ccf5"
+    },
+    "dispatch-llama-ordinary.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/dispatch-llama-ordinary.command.json",
+      "bytes": 1280,
+      "sha256": "e1dd9fae5539cf9fc1a48faacc65eca59253fb77ed6e94b0ddeb192c91974a81"
+    },
+    "dispatch-llama-ordinary.nsys-rep": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/dispatch-llama-ordinary.nsys-rep",
+      "bytes": 4380649,
+      "sha256": "e8d84547032e1842812b18b82c0d61c08790ce427f030b8151098e257fd1b3ac"
+    },
+    "dispatch-llama-ordinary-kernels.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/dispatch-llama-ordinary-kernels.csv",
+      "bytes": 13624,
+      "sha256": "8437bc4ed3294894a87c9fe8b30d950df7ca5aa7a9463167ddb4687e08f16432"
+    },
+    "dispatch-llama-d2.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/dispatch-llama-d2.json",
+      "bytes": 102540,
+      "sha256": "a267cdcaec4d6d33c2ff922efb3629719f200c428e8f7dd6a6ec232282612578"
+    },
+    "dispatch-llama-d2.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/dispatch-llama-d2.command.json",
+      "bytes": 1523,
+      "sha256": "7a4b9745435e5912955e38032a31d37f70512389fd1e6a689691bd3f042db43e"
+    },
+    "dispatch-llama-d2.nsys-rep": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/dispatch-llama-d2.nsys-rep",
+      "bytes": 4917447,
+      "sha256": "6fa1fa90475dfb42aa3daddac8dd7379bf57c9799e9e087937955b23f9f154d5"
+    },
+    "dispatch-llama-d2-kernels.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k-final/dispatch-llama-d2-kernels.csv",
+      "bytes": 18907,
+      "sha256": "13bf70c6bc75de74dd6782347504a76d259a30e629ebdef9103bd70d1b03db23"
+    },
+    "initial/dispatch-gem16-ordinary.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k/dispatch-gem16-ordinary.json",
+      "bytes": 4523,
+      "sha256": "64c0e89bcc90c633953670ca7f9b53bb550bc13d013b755bb15f223d89d2c6a9"
+    },
+    "initial/dispatch-gem16-ordinary.command.json": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k/dispatch-gem16-ordinary.command.json",
+      "bytes": 1048,
+      "sha256": "792c11d930338682b6476e4ffa392f37e19ccbf78fa508d95d217504efc4a2a6"
+    },
+    "initial/dispatch-gem16-ordinary.nsys-rep": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k/dispatch-gem16-ordinary.nsys-rep",
+      "bytes": 317791,
+      "sha256": "d37aff4cca215fbf2fbc0c639d6fb2271adf6a839c811d545f79a72c75e968a1"
+    },
+    "initial/dispatch-gem16-ordinary-kernels.csv": {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k/dispatch-gem16-ordinary-kernels.csv",
+      "bytes": 8063,
+      "sha256": "d03d9532114cef717cfbce3f6687ecdfc47f2cf241830abebe08a352ffc678b3"
+    }
+  },
+  "dispatch_diagnostics": {
+    "gem16_ordinary": {
+      "directory": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-10/c01789a2/rtx5080-laptop-llama-current-trellis35-16k",
+      "capture": "eight-token decode-only CUDA profiler range; same 17519 capacity",
+      "suppressed_token_ids": [
+        258882,
+        258883
+      ],
+      "first_eight_tokens_match_final_measurements": true,
+      "kernels": [
+        "MmaW4A8ProjectionSelectedN128InverseKernel",
+        "SplitOnlineDecodeAttentionFp8Kernel",
+        "SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel"
+      ]
+    },
+    "llama": {
+      "capture": "eight-token whole-request profiles, zero warmups/one sample; reduced requested capacity 16392",
+      "kernels": [
+        "mul_mat_q",
+        "flash_attn_ext_f16",
+        "k_set_rows_quant"
+      ]
+    },
+    "timings_used_in_primary_results": false,
+    "instruction_or_quality_equivalence_claim": false
+  },
+  "limitations": [
+    "Trellis35 W4A8 Target and mixed NVFP4/FP8/BF16 Assistant versus official Google QAT Q4_0 Target and separate Unsloth Q4 GGUF Assistant; quality equivalence is not established.",
+    "gem16 checkpoint FP8 K/V versus llama.cpp Q8_0 K/V; no precision or format fallback.",
+    "Text-only engine comparison; Vision modules are not loaded.",
+    "Model load and initial plan/graph creation are outside inference metrics; process lifecycles differ as disclosed.",
+    "Prefill/TTFT use engine timing including first-token selection; server and CLI orchestration boundaries are not identical.",
+    "Decode throughput uses 1134 post-first-token intervals in both engines; aggregate ITL is not a per-token percentile distribution.",
+    "Peak VRAM is device-wide NVML sampling at 200 ms, not an instrumented allocation maximum.",
+    "D2 proposals are not output tokens; ordinary/D2 identity and counters are reported separately.",
+    "Trellis35 D2 fails before inference: initial full-case warmup and both default/EAGER eight-token probes return SIGSEGV. No D2 replacement, graph bypass, precision fallback or runtime-source change was made.",
+    "No broad quality suite or Windows measurement was run."
+  ]
+}

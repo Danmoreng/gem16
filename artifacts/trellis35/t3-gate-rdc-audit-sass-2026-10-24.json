@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "kind": "read-only disassembly supplement; no new measurements or source changes",
+  "audit_record": {
+    "path": "/home/sebastian/Development/gem16gb/artifacts/trellis35/t3-gate-rdc-audit-2026-10-24.json",
+    "sha256": "0a32bbc4b6a6e2daaafd79feefcd519fe4407432edc158db62cf21d074b40332",
+    "bytes": 398476
+  },
+  "input_module": {
+    "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-24/8046990/t3-gate-rdc-audit/operator-lab-rdc.so",
+    "sha256": "a977363ee5faade14555406d504ade9b0df52d960a9a51c51581f82775a66420",
+    "bytes": 621312
+  },
+  "command": [
+    "cuobjdump",
+    "--dump-sass",
+    "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-24/8046990/t3-gate-rdc-audit/operator-lab-rdc.so"
+  ],
+  "disassembly": {
+    "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-10-24/8046990/t3-gate-rdc-audit/matched-rdc-candidates.sass.txt",
+    "sha256": "186f3fe74c79c631c12cb2c7f2a1c200fc3d64b5f7497abf14412ff6f27d1bc5",
+    "bytes": 3188242
+  },
+  "native_qmma_present": true,
+  "input_hash_already_pinned_in_audit_record": true
+}

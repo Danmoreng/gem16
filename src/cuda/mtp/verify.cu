@@ -13,27 +13,44 @@ namespace {
 
 constexpr unsigned kThreads = 256U;
 
+__device__ unsigned long long LoadMtpStreamingCounter(
+    const unsigned long long* counter) {
+  // Aligned system-scope loads/stores work on mapped host memory even when
+  // hostNativeAtomicSupported is false. RMW atomics (including add-zero loads)
+  // require native host atomics. Each SPSC counter has only one writer.
+  return __nv_atomic_load_n(const_cast<unsigned long long*>(counter),
+                            __NV_ATOMIC_ACQUIRE,
+                            __NV_THREAD_SCOPE_SYSTEM);
+}
+
+__device__ void StoreMtpStreamingCounter(unsigned long long* counter,
+                                        unsigned long long value) {
+  __nv_atomic_store_n(counter, value, __NV_ATOMIC_RELEASE,
+                      __NV_THREAD_SCOPE_SYSTEM);
+}
+
 __device__ bool PublishMtpStreamingTokens(
     MtpStreamingRing* ring, const std::uint32_t* tokens,
     std::uint32_t count) {
   if (ring == nullptr) return true;
-  if (atomicAdd_system(&ring->cancelled, 0ULL) != 0ULL) return false;
-  const unsigned long long begin = atomicAdd_system(&ring->producer, 0ULL);
+  if (LoadMtpStreamingCounter(&ring->cancelled) != 0ULL) return false;
+  const unsigned long long begin = LoadMtpStreamingCounter(&ring->producer);
   bool waited = false;
-  while (begin + count - atomicAdd_system(&ring->consumer, 0ULL) >
+  while (begin + count - LoadMtpStreamingCounter(&ring->consumer) >
          kMtpStreamingRingCapacity) {
     if (!waited) {
-      atomicAdd_system(&ring->backpressure_events, 1ULL);
+      StoreMtpStreamingCounter(
+          &ring->backpressure_events,
+          LoadMtpStreamingCounter(&ring->backpressure_events) + 1ULL);
       waited = true;
     }
-    if (atomicAdd_system(&ring->cancelled, 0ULL) != 0ULL) return false;
+    if (LoadMtpStreamingCounter(&ring->cancelled) != 0ULL) return false;
     __nanosleep(1000U);
   }
   for (std::uint32_t index = 0U; index < count; ++index) {
     ring->tokens[(begin + index) % kMtpStreamingRingCapacity] = tokens[index];
   }
-  __threadfence_system();
-  atomicExch_system(&ring->producer, begin + count);
+  StoreMtpStreamingCounter(&ring->producer, begin + count);
   return true;
 }
 
@@ -156,10 +173,8 @@ __global__ void ContinueMtpChainKernel(
   if (blockIdx.x != 0U || threadIdx.x != 0U) return;
   const MtpDeviceState& state = transaction->control.current;
   const bool cancelled = streaming_ring != nullptr &&
-                         atomicAdd_system(
-                             const_cast<unsigned long long*>(
-                                 &streaming_ring->cancelled),
-                             0ULL) != 0ULL;
+                         LoadMtpStreamingCounter(&streaming_ring->cancelled) !=
+                             0ULL;
   cudaGraphSetConditional(
       loop_condition,
       !cancelled && state.stopped == 0U &&

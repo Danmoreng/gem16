@@ -3,6 +3,225 @@
 These are retained measurements at the revisions named below, not a new benchmark of current HEAD.
 The public profiles and qualification limits are described in the [README](../README.md).
 
+<!-- DECODE-FIVE-STEPS-FINAL-2026-10-24 -->
+## 2026-10-24 final five-step / current llama.cpp comparison
+
+The **2026-10-24 final Linux text comparison** directly measures the frozen
+day-start engine, the final accepted engine, and freshly built official
+**llama.cpp b11866 (`3f03b17724ad`)** on the RTX 5080 Laptop. Ranges below are
+the medians from both experiment orders, in tok/s.
+
+| Mode | Day-start gem16 | Final gem16 | Current llama.cpp b11866 |
+|---|---:|---:|---:|
+| ordinary | 136.970–137.959 | 139.607–139.647 | 143.185–143.408 |
+| d2 | 193.837–194.030 | 197.304–197.362 | 198.063–198.135 |
+
+The direct cumulative gain is **1.22–1.93% ordinary** and
+**1.72–1.79% fixed-D2**. Each cohort retains ten runs after three warmups,
+with identical 16,384 prompt IDs / 1,135 outputs / batch one / greedy sampling.
+This is a **native-format/kernel baseline**: Trellis35 W4A8 (12.20 GB) versus
+official QAT Q4_0 GGUF (14.44 GB), FP8 versus Q8_0 KV, and different generated
+streams across engines. It does not prove exact numerical or quality parity.
+File sizes include their format metadata; GGUF embeds tokenizer metadata while
+the native tokenizer is external.
+Requested context is 17,519; llama internally pads to 17,664. Both keep all
+weights on GPU without prompt-cache reuse. Dynamic Boost clocks differ;
+both modes' point estimates favor llama, with the reverse D2 interval spanning zero.
+All samples, confidence intervals, VRAM, formats and limitations are in the
+[final comparison report](evidence/gemma4_26b/decode-five-steps-final-2026-10-24.md).
+<!-- /DECODE-FIVE-STEPS-FINAL-2026-10-24 -->
+
+<!-- T3-GATE-RDC-AUDIT-2026-10-24 -->
+## 2026-10-24 T3 GateUp production-build audit
+
+The three existing variants also fail their all-case gate with production-matched
+RDC=true; no production change. All24 actual outputs per variant and2,097,152
+codec lanes are exact. These are operator diagnostics, not full-model gain/loss.
+
+| Existing variant | Minimum | Median | Maximum throughput change |
+|---|---:|---:|---:|
+| Depth 2 | -0.764% | -0.155% | +0.659% |
+| Depth 4 | -4.170% | +8.592% | +21.285% |
+| Depth 2, register bounded | -6.809% | -5.213% | -4.358% |
+
+[Matched-build evidence](evidence/gemma4_26b/t3-gate-rdc-audit-2026-10-24.md).
+<!-- /T3-GATE-RDC-AUDIT-2026-10-24 -->
+
+<!-- NVFP4-HEADS-2026-10-24 -->
+## 2026-10-24 NVFP4 output heads
+
+**Rejected after full qualification and end-to-end comparison.** The predeclared reproducible end-to-end gate is not met. The production Target trial is removed and the accepted parent runtime/source is restored; the Assistant variant never entered production. Correct operator results alone do not justify keeping this change.
+
+| Mode | Parent tok/s | Candidate tok/s | Change | Bootstrap 95% |
+|---|---:|---:|---:|---|
+| Fixed-D2 AB | 195.967 | 196.290 | +0.1647% | [+0.0218%, +0.3158%] |
+| Fixed-D2 BA | 195.881 | 196.220 | +0.1728% | [-0.0018%, +0.3470%] |
+| Ordinary adjacent | 139.027 | 139.169 | +0.1024% | [+0.0604%, +0.2185%] |
+
+Same fixed 16K / 1,135 / context 17,519 / FP8 KV / greedy workload, three warmups + ten retained
+per cohort. All 60 vectors and unchanged D2 acceptance/arenas are exact. Target
+row packing gains only 0.18–0.21% on repeated operators; Assistant pairing loses
+all six cases and is never promoted. Native scale/mask/tie/overflow/memory,
+protected profiles and actual dispatch/instruction checks pass. See
+[head report](evidence/gemma4_26b/nvfp4-output-heads-2026-10-24.md) and
+[record](../artifacts/trellis35/nvfp4-output-heads-2026-10-24.json).
+<!-- /NVFP4-HEADS-2026-10-24 -->
+
+## 2026-10-24 FP8 QKV/O row packing
+
+Frozen `85fc453` versus qualified three-row native FP8 projections, same 16K
+prompt / 1,135 outputs / context 17,519 / FP8 KV / greedy, 3 warmups + 10 retained per cohort:
+
+| Mode / comparison | Parent tok/s | Candidate tok/s | Change |
+|---|---:|---:|---:|
+| Fixed-D2 AB | 195.731 | 196.555 | +0.4212% |
+| Fixed-D2 BA | 195.354 | 196.492 | +0.5823% |
+| Ordinary adjacent | 139.133 | 139.085 | -0.0342% |
+
+This is a small same-policy end-to-end gain. Whole-process GPU clocks differ;
+there is no fixed-clock claim. All 60 vectors, D2 groups/acceptance, arenas and
+precision stay exact; sampled peaks 12,455 / 12,725 MiB, process monitoring quiet.
+The M1 two-entry pipeline loses all sampled cases and remains diagnostic only.
+Actual dispatch/shaders, diverse numerical/sanitizer, full-memory, protected
+profiles, proposals and forced continuations pass. Isolated cache-warm gains
+are much larger than the whole-model effect; complete traces show QKV nearly
+unchanged and O about 2.6% shorter. See the
+[qualification report](evidence/gemma4_26b/fp8-projections-2026-10-24.md) and
+[acceptance record](../artifacts/trellis35/fp8-projections-2026-10-24.json).
+No fresh llama or Windows/media/release claim; all earlier rows remain below.
+
+## 2026-10-24 fixed-D2 warp normalization
+
+Frozen `c48124d` runtime versus qualified R3 local/global FP8 normalization,
+identical 16K prompt / 1,135 outputs /context 17,519 / FP8 KV/greedy settings,3+10 per cohort:
+
+| Mode / comparison | Parent decode tok/s | Candidate decode tok/s | Change |
+|---|---:|---:|---:|
+| Fixed-D2 AB | 193.093 | 195.666 | +1.3324% |
+| Fixed-D2 BA | 195.090 | 197.774 | +1.3760% |
+| Ordinary adjacent | 139.211 | 139.219 | +0.0056% |
+
+All 80 vectors are exact; D2 groups/acceptance, all arenas and native precision
+remain unchanged. Sampled peaks 12,455/13,129MiB. Operator/tail,
+memcheck/synccheck, final exact-binary full-model/protected-profile, actual
+shader/dispatch, draft and forced-continuation checks pass. Legacy local R2/R5
+keeps its arithmetic with a shared maximum-read barrier; details and the original
+under-instrumentation countercase are in the
+[qualification report](evidence/gemma4_26b/d2-attention-warp-normalization-2026-10-24.md)
+and [acceptance record](../artifacts/trellis35/d2-attention-warp-normalization-qualified-2026-10-24.json).
+No fresh llama comparison or Windows/media/release claim; prior rows stay below.
+
+## 2026-10-24 bounded T3 GateUp pipeline rejection
+
+Depth2/depth4 resident-payload pipelines and one counter-justified register-bounded
+variant are bit exact but fail the predeclared per-case operator gate. Positive
+median microbenchmarks do not establish a whole-model gain; no full-model candidate
+benchmark or production change is claimed. The
+[negative evidence](evidence/gemma4_26b/t3-gate-pipeline-rejected-2026-10-24.md)
+and [record](../artifacts/trellis35/t3-gate-pipeline-rejected-2026-10-24.json)
+preserve all variants and countercases. The qualified M1 rates below remain.
+
+## 2026-10-24 M1 GateUp codec windows
+
+Frozen `26c6840` parent versus the qualified native/vector M1 GateUp candidate,
+same RTX 5080 Laptop/max-power/Dynamic Boost, 16,384 prompt IDs, 1,135 outputs,
+context 17,519, batch one, greedy, FP8 KV, three warmups and ten retained runs:
+
+| Mode / comparison | Parent decode tok/s | Candidate decode tok/s | Change |
+|---|---:|---:|---:|
+| Ordinary AB | 136.481 | 139.031 | +1.8682% |
+| Ordinary BA | 136.303 | 138.992 | +1.9723% |
+| D2 adjacent pair | 192.600 | 193.025 | +0.2205% |
+
+All 60 retained output vectors match exactly. D2 acceptance and all arenas stay
+unchanged; no fallback/repack/token-loop allocation. Numerical, sanitizer,
+protected-profile, actual-dispatch and exact draft/forced-case checks pass. D2
+is an adjacent non-regression pair, not a speed claim. See the
+[qualification report](evidence/gemma4_26b/m1-gate-window-2026-10-24.md) and
+[acceptance record](../artifacts/trellis35/m1-gate-window-2026-10-24.json).
+Fresh same-day controls are used rather than yesterday's rates. No new llama
+comparison or Windows/media/release qualification is claimed; historical rows remain.
+
+## 2026-10-23 T3 Down codec/payload pipeline
+
+Frozen GateUp parent `629bbac` versus the separately qualified native/vector Down
+candidate on the same Linux RTX 5080 Laptop GPU, max-power with Dynamic Boost,
+16,384 prompt IDs, 1,135 outputs, context 17,519, batch one, greedy and FP8 KV.
+Each cohort uses three warmups plus ten retained runs:
+
+| Mode / comparison | Parent decode tok/s | Candidate decode tok/s | Change | Sampled peak VRAM, both |
+|---|---:|---:|---:|---:|
+| Fixed-D2 AB | 193.418 | 194.854 | +0.7426% | 12,725 MiB |
+| Fixed-D2 BA | 193.499 | 194.716 | +0.6286% | 12,725 MiB |
+| Ordinary adjacent pair | 137.672 | 137.659 | -0.0097% | 12,455 MiB |
+
+All 60 retained runs reproduce the exact 1,135 IDs; all 40 D2 runs retain 502
+groups and 632/1,004 accepted proposals, identical arenas and no fallback,
+runtime repack or token-loop allocation. Full
+numerical, sanitizer, protected-profile, actual-dispatch, proposal and forced-case
+gates pass. Ordinary is an adjacent non-regression pair, not an ordinary speed
+claim. The [qualification report](evidence/gemma4_26b/t3-down-window-2026-10-23.md)
+and [acceptance record](../artifacts/trellis35/t3-down-window-2026-10-23.json)
+retain all samples, commands, source identity, telemetry, positive/negative
+operator evidence and limitations. No fresh llama or Windows/media/release claim;
+all earlier measurements remain below.
+
+## 2026-10-23 T3 GateUp codec-window optimization
+
+The accepted native/vector GateUp change is measured against frozen parent
+`6895ed2`, preserving the previous Down/M1 optimizations, precision and cache
+semantics. Linux RTX 5080 Laptop GPU, max-power profile with Dynamic Boost,
+16,384 prompt IDs, 1,135 output IDs, batch one, greedy, FP8 KV, three warmups
+and ten retained runs per cohort:
+
+| Mode / comparison | Parent decode tok/s | Candidate decode tok/s | Change | Sampled peak VRAM, both |
+|---|---:|---:|---:|---:|
+| Fixed-D2 AB | 179.103 | 193.284 | +7.9180% | 12,725 MiB |
+| Fixed-D2 BA | 178.950 | 193.354 | +8.0492% | 12,725 MiB |
+| Ordinary adjacent pair | 137.593 | 137.411 | -0.1323% | 12,455 MiB |
+
+All sixty retained runs reproduce the exact output IDs. All forty D2 runs keep
+502 groups and 632/1,004 accepted proposals, identical arena byte counts, and
+no fallback or token-loop allocation. Ordinary intervals overlap; the adjacent
+pair does not establish an ordinary speed improvement. Operator/reference,
+sanitizer, exact draft/forced-acceptance and protected-profile checks pass.
+The [qualification report](evidence/gemma4_26b/t3-gate-window-2026-10-23.md)
+and [acceptance record](../artifacts/trellis35/t3-gate-window-2026-10-23.json)
+retain source identity, binaries, commands, raw samples and counter evidence.
+No new llama.cpp measurement or Windows/media/release qualification is claimed;
+earlier campaigns below retain their original workloads and results.
+
+## 2026-10-11 restored Trellis35 D2 comparison
+
+The conditional CUDA graph fix restores native D2 on the installed 615.71.09 /
+CUDA 13.4 stack. New 3+10 measurements with the identical 16K prompt and 1,135
+forced greedy outputs give Trellis35 **5,665.11 prefill / 129.087 ordinary
+decode tok/s**, and **172.314 D2 tok/s**. Ordinary/D2 outputs are exactly equal
+in all retained runs. Sampled peak VRAM is **12,455 / 12,725 MiB**.
+
+The completed October 10 current llama.cpp b11552 rows remain **138.461 ordinary
+/ 196.850 D2 tok/s**, with **15,201 / 15,561 MiB** peak VRAM. These llama rows
+are reused measurements, not a second campaign. Formats, KV precision and
+cross-engine output sequences differ; llama's ordinary/D2 outputs also differ.
+The [follow-up report](evidence/gemma4_26b/trellis35-d2-cuda-graph-fix-2026-10-11.md)
+and [raw record](../benchmarks/baselines/llama_cpp/gemma4-26b-trellis35-q4_0-d2-followup-2026-10-11.json)
+document graph isolation, system updates, the separate ring-atomic correction,
+sanitizer and three-profile regression checks. Earlier evidence is retained below.
+
+## 2026-10-10 current 26B comparison refresh
+
+Current gem16 Trellis35 at `c01789a2` and newly built llama.cpp b11552 at
+`23b0202a1` were measured on Linux with the same 16K prompt, 1,135 forced greedy
+output tokens, three warmups and ten retained runs per successful mode.
+Trellis35 ordinary reaches **5,623.23 prefill / 128.955 decode tok/s**;
+llama.cpp official QAT Q4_0 reaches **4,607.79 / 138.461 tok/s** and
+**196.850 tok/s with D2**. Trellis35 D2 fails during CUDA graph instantiation
+before inference, reproduced three times, so the new D2 comparison is incomplete.
+Formats/KV precision and output sequences differ; llama D2 also differs from its
+ordinary output. The [refresh report](evidence/gemma4_26b/llama-cpp-trellis35-refresh-2026-10-10.md)
+records the measured memory, complete protocol, current environment and failure
+evidence. The tables below retain their historical measurements.
+
 ## Gemma 4 26B performance
 
 The repeatable Linux measurements below use the RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, batch

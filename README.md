@@ -120,7 +120,61 @@ not publish a mirror or duplicate the payload bytes.
 
 ## Recorded performance
 
-On the RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, the public
+<!-- DECODE-FIVE-STEPS-FINAL-2026-10-24 -->
+The **2026-10-24 final Linux text comparison** directly measures the frozen
+day-start engine, the final accepted engine, and freshly built official
+**llama.cpp b11866 (`3f03b17724ad`)** on the RTX 5080 Laptop. Ranges below are
+the medians from both experiment orders, in tok/s.
+
+| Mode | Day-start gem16 | Final gem16 | Current llama.cpp b11866 |
+|---|---:|---:|---:|
+| ordinary | 136.970–137.959 | 139.607–139.647 | 143.185–143.408 |
+| d2 | 193.837–194.030 | 197.304–197.362 | 198.063–198.135 |
+
+The direct cumulative gain is **1.22–1.93% ordinary** and
+**1.72–1.79% fixed-D2**. Each cohort retains ten runs after three warmups,
+with identical 16,384 prompt IDs / 1,135 outputs / batch one / greedy sampling.
+This is a **native-format/kernel baseline**: Trellis35 W4A8 (12.20 GB) versus
+official QAT Q4_0 GGUF (14.44 GB), FP8 versus Q8_0 KV, and different generated
+streams across engines. It does not prove exact numerical or quality parity.
+File sizes include their format metadata; GGUF embeds tokenizer metadata while
+the native tokenizer is external.
+Requested context is 17,519; llama internally pads to 17,664. Both keep all
+weights on GPU without prompt-cache reuse. Dynamic Boost clocks differ;
+both modes' point estimates favor llama, with the reverse D2 interval spanning zero.
+All samples, confidence intervals, VRAM, formats and limitations are in the
+[final comparison report](docs/evidence/gemma4_26b/decode-five-steps-final-2026-10-24.md).
+<!-- /DECODE-FIVE-STEPS-FINAL-2026-10-24 -->
+
+The **2026-10-24 Linux text optimization benchmark** on the RTX 5080 Laptop GPU
+records **139.085 tok/s ordinary decode** and
+**196.492–196.555 tok/s fixed-D2** in the earlier FP8 projection qualification campaign.
+Native FP8 QKV/O row packing adds **0.42–0.58% D2 throughput** against fresh controls;
+ordinary is unchanged within variation. All 60 retained runs reproduce the same
+1,135 IDs with unchanged D2 acceptance, arenas and precision. Sampled device-total
+peaks are 12,455 / 12,725 MiB. The workload uses 16,384 prompt IDs, context 17,519,
+batch one, greedy, FP8 KV, three warmups and ten retained runs per cohort. See the
+[qualification and raw evidence](docs/evidence/gemma4_26b/fp8-projections-2026-10-24.md).
+Absolute rates vary under firmware-managed Dynamic Boost; compare paired controls.
+The preceding [M1 GateUp](docs/evidence/gemma4_26b/m1-gate-window-2026-10-24.md)
+and [D2 attention](docs/evidence/gemma4_26b/d2-attention-warp-normalization-2026-10-24.md)
+gains remain recorded. These text tests do not extend Windows, image or release
+qualification; the separate final comparison above includes current llama.cpp.
+
+<!-- NVFP4-HEADS-RESULT-2026-10-24 -->
+The subsequent NVFP4 output-head trials produce no reproducible end-to-end gain and are not retained in production. The accepted performance figures above remain the qualified baseline. Both variants preserve exact native outputs; all numerical, memory and
+protected-profile checks for the Target trial pass. See the
+[head experiment evidence](docs/evidence/gemma4_26b/nvfp4-output-heads-2026-10-24.md).
+<!-- /NVFP4-HEADS-RESULT-2026-10-24 -->
+
+<!-- T3-GATE-RDC-RESULT-2026-10-24 -->
+A final [T3 GateUp audit with production-matched RDC builds](docs/evidence/gemma4_26b/t3-gate-rdc-audit-2026-10-24.md)
+also rejects all three existing pipeline variants: exact outputs, but no consistent
+operator gain. The accepted engine implementation and performance baseline remain unchanged.
+<!-- /T3-GATE-RDC-RESULT-2026-10-24 -->
+
+Earlier public-profile measurements on the same GPU at its firmware-managed
+175 W ceiling are retained below. The public
 Compact Vision **text Target** recorded **130.906 tok/s ordinary decode** and
 **182.526 tok/s fixed-D2 decode**, with 12,522 / 12,794 MiB peak VRAM.
 These are retained Linux batch-one measurements with a 16,384-token prompt,

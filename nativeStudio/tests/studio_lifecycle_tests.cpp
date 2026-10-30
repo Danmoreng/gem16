@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <limits>
@@ -13,6 +14,7 @@
 #include "imgui_internal.h"
 #include "math_renderer.h"
 #include "settings.h"
+#include "theme.h"
 #include "util/json.h"
 void CaptureStudioScreenshot(const char* path);
 namespace {
@@ -50,6 +52,88 @@ void Require(bool value, const char* message) {
 }  // namespace
 namespace gem16::studio {
 struct StudioAppTestAccess {
+  template <class Frame>
+  static void CheckThemes(StudioApp& app, const Frame& frame) {
+    const auto original_flame = app.navigation_flame_texture_;
+    if (std::getenv("GEM16_STUDIO_SHADER_PREVIEW_DIR"))
+      app.SetNavigationFlameTexture(ImTextureID(0x47454d16));
+    const auto original_size = ImGui::GetIO().DisplaySize;
+    const auto original_screen = app.screen_;
+    const bool original_theme = app.settings_.dark_theme;
+    const auto original_messages = app.messages_;
+    const auto original_expanded = app.expanded_reasoning_;
+    const bool original_reasoning = app.show_reasoning_;
+    const auto original_prompt_tokens = app.prompt_tokens_;
+    const auto original_completion_tokens = app.completion_tokens_;
+    app.settings_.dark_theme = true;
+    app.ApplyTheme();
+    const ImGuiStyle original_dark = ImGui::GetStyle();
+    ImGui::GetIO().DisplaySize = {1320, 1000};
+    app.messages_[1].reasoning = "I checked the local storage and its recovery behavior.";
+    app.messages_[1].content +=
+        "\n\n*Readable emphasis*, `inline code`, and a [link](https://example.com)."
+        "\n\n> A muted quote should still be easy to read.";
+    app.show_reasoning_ = true;
+    app.expanded_reasoning_.insert(1);
+    app.prompt_tokens_ = 3351;
+    app.completion_tokens_ = 2235;
+    for (bool dark : {false, true}) {
+      app.settings_.dark_theme = dark;
+      app.ApplyTheme();
+      if (!dark) {
+        const auto luminance = [](ImVec4 color) {
+          const auto linear = [](float c) {
+            return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f);
+          };
+          return 0.2126f * linear(color.x) + 0.7152f * linear(color.y) + 0.0722f * linear(color.z);
+        };
+        const auto readable = [&](ImVec4 text, ImVec4 background) {
+          const float a = luminance(text), b = luminance(background);
+          Require((std::max(a, b) + 0.05f) / (std::min(a, b) + 0.05f) >= 4.5f,
+                  "light theme text meets 4.5:1 contrast");
+        };
+        const auto& c = StudioColors();
+        const auto text = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+        for (const auto bg : {ThemeRgb(0xffffff), c.root_background,
+                              c.user_background, c.assistant_background,
+                              c.code_background, c.subtle_background}) {
+          readable(text, bg);
+          readable(c.muted, bg);
+          readable(c.accent, bg);
+        }
+        readable(c.field_text, ThemeRgb(0xffffff));
+        readable(c.code_text, c.code_background);
+        readable(c.reasoning_text, c.assistant_background);
+        readable(c.warning, ThemeRgb(0xffffff));
+        readable(c.error, c.error_background);
+      } else {
+        for (int i = 0; i < ImGuiCol_COUNT; ++i) {
+          const auto a = original_dark.Colors[i], b = ImGui::GetStyle().Colors[i];
+          Require(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w,
+                  "dark/light/dark restores every widget color");
+        }
+      }
+      for (const auto screen : {Screen::kChat, Screen::kServer, Screen::kSettings, Screen::kModels}) {
+        app.screen_ = screen;
+        for (int i = 0; i < 60; ++i) frame();
+        const char* name = screen == Screen::kChat ? "chat" : screen == Screen::kServer ? "server" : screen == Screen::kSettings ? "settings" : "models";
+        const std::string path = std::string("studio-") + (dark ? "dark-" : "light-") + name + ".bmp";
+        CaptureStudioScreenshot(path.c_str());
+      }
+    }
+    app.SetNavigationFlameTexture(original_flame);
+    app.messages_ = original_messages;
+    app.expanded_reasoning_ = original_expanded;
+    app.show_reasoning_ = original_reasoning;
+    app.prompt_tokens_ = original_prompt_tokens;
+    app.completion_tokens_ = original_completion_tokens;
+    app.settings_.dark_theme = original_theme;
+    app.ApplyTheme();
+    ImGui::GetIO().DisplaySize = original_size;
+    app.screen_ = original_screen;
+    for (int i = 0; i < 4; ++i) frame();
+  }
+
   static void CheckServerPopup(StudioApp& app) {
     auto& io = ImGui::GetIO();
     const auto original_size = io.DisplaySize;
@@ -126,6 +210,7 @@ struct StudioAppTestAccess {
     app.screen_ = Screen::kModels;
     for (int i = 0; i < 4; ++i) frame();
     CaptureStudioScreenshot("studio-models-preview.bmp");
+    CheckThemes(app, frame);
     Require(app.CanNavigateChats(), "idle navigation");
     CheckServerPopup(app);
     app.NewConversation(true);

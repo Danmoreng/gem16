@@ -712,6 +712,7 @@ bool TestModelCardLayoutAndProgress() {
 bool TestSelectableTextWidgetClipboard() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
+  ImGui::StyleColorsLight();
   ImGuiIO& io = ImGui::GetIO();
   io.IniFilename = nullptr;
   io.DisplaySize = {480.0f, 260.0f};
@@ -726,15 +727,20 @@ bool TestSelectableTextWidgetClipboard() {
   io.Fonts->GetTexDataAsRGBA32(&pixels, &atlas_width, &atlas_height);
 
   const std::string response = "A selectable wrapped Gem 16 response.";
-  const auto draw_frame = [&response] {
+  bool inherited_text_color = false;
+  const auto draw_frame = [&response, &inherited_text_color] {
     ImGui::NewFrame();
     ImGui::SetNextWindowPos({0.0f, 0.0f});
     ImGui::SetNextWindowSize({480.0f, 260.0f});
     ImGui::Begin("##selection-test", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
     ImGui::SetCursorScreenPos({24.0f, 24.0f});
+    auto* draw = ImGui::GetWindowDrawList();
+    const int vertex_begin = draw->VtxBuffer.Size;
     gem16::studio::selectable_text::Wrapped(
         "##selectable-response", response, {.width = 340.0f});
+    for (int i = vertex_begin; i < draw->VtxBuffer.Size; ++i)
+      inherited_text_color |= draw->VtxBuffer[i].col == ImGui::GetColorU32(ImGuiCol_Text);
     ImGui::End();
     ImGui::Render();
   };
@@ -754,7 +760,7 @@ bool TestSelectableTextWidgetClipboard() {
   io.AddKeyEvent(ImGuiKey_A, false);
   io.AddKeyEvent(ImGuiMod_Ctrl, false);
   ImGui::DestroyContext();
-  return clipboard == response;
+  return clipboard == response && inherited_text_color;
 }
 
 bool TestGroupedSelectableTextClipboard() {
