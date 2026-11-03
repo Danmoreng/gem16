@@ -164,6 +164,8 @@ network boundary; see [server operations](SERVER.md).
 
 After building the CUDA server, `scripts/package-studio.sh` or
 `scripts/package-studio.ps1` builds the platform archive. Models remain external.
+On Linux, `GEM16_PACKAGE_OUTPUT_DIR` overrides the archive destination (default:
+`build/packages`); the release build remains in `build/native-studio-package`.
 These are development previews: equal two-platform dependency, large-download
 and clean-machine qualification remains a release gate.
 

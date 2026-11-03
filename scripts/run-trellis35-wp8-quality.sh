@@ -4,7 +4,7 @@ set -euo pipefail
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo_root=$(cd -- "$script_dir/.." && pwd)
 quality_python=${QUALITY_PYTHON:-$repo_root/.venv-quality/bin/python}
-server=${GEM16_SERVER:-$repo_root/build/blackwell-release/bin/gem16-server}
+server=${GEM16_SERVER:-$repo_root/build/Linux/blackwell-release/bin/gem16-server}
 candidate=${GEM16_MODEL:-$repo_root/models/checkpoints/google-gemma-4-26b-a4b-it-trellis35-w4a8-wp2}
 control=${GEM16_CONTROL_MODEL:-$repo_root/artifacts/raw/m25/hf-qualified-checkpoints-final-test-2026-08-27/target}
 assistant=${GEM16_ASSISTANT_MODEL:-$repo_root/artifacts/raw/m25/hf-qualified-checkpoints-final-test-2026-08-27/assistant}
@@ -38,6 +38,20 @@ for required in "$candidate" "$control" "$assistant"; do
   fi
 done
 mkdir -p "$output_dir"
+# A resumed quality run must not mix answers from different server builds.
+server_hash=$(sha256sum "$server" | cut -d' ' -f1)
+identity_file=$output_dir/gem16-server.sha256
+if [[ -e $identity_file ]]; then
+  [[ $(cat "$identity_file") == "$server_hash" ]] || {
+    echo "error: existing quality results use a different server; choose a new OUTPUT_DIR" >&2
+    exit 2
+  }
+elif [[ -n $(find "$output_dir" -mindepth 1 -maxdepth 1 \( -name '*.json' -o -name '*.samples' \) -print -quit) ]]; then
+  echo "error: existing quality results have no recorded server identity; choose a new OUTPUT_DIR" >&2
+  exit 2
+else
+  printf '%s\n' "$server_hash" > "$identity_file"
+fi
 
 stop_server() {
   if [[ -n $server_pid ]] && kill -0 "$server_pid" 2>/dev/null; then
