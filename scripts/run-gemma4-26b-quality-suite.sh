@@ -19,7 +19,8 @@ engines/tasks and resume the interrupted engine at its next unfinished question.
 Environment overrides:
   OUTPUT_DIR            Stable suite result root (default: revision scoped)
   QUALITY_PYTHON        Existing Python 3.10-3.13 environment with sgl-eval
-  LLAMA_SERVER          Pinned llama-server executable
+  LLAMA_SERVER          Must resolve to the current central CUDA server
+  LLAMA_CPP_CENTRAL_ROOT  Shared llama.cpp root
   Q4_GGUF               Official Google QAT Q4_0 GGUF
   GEM16_SERVER          gem16-server executable
   GEM16_MODEL           Compiled gem16 26B Target directory
@@ -35,6 +36,9 @@ if [[ $# -ne 0 ]]; then
   exit 64
 fi
 
+source "$repo_root/scripts/central-llama.sh"
+LLAMA_SERVER=$(gem16_resolve_central_llama_server "${LLAMA_SERVER:-}")
+export LLAMA_SERVER
 revision=$(git -C "$repo_root" rev-parse --short=12 HEAD)
 suite_dir=${OUTPUT_DIR:-$repo_root/benchmarks/results/m19-quality-suite/$revision}
 mkdir -p "$suite_dir"

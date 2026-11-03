@@ -1,17 +1,28 @@
 # llama.cpp baseline
 
-The active source pin is upstream `master` at
-`23b0202a189c44a54625aadcb37a946dd1d6278d`, resolved on 2026-10-10:
-**0.6.0-dev, build 11552**. The Linux CUDA build is under
-`build/Linux/llama_cpp/current-release`, with SM120a and all Flash-Attention
-K/V quantization combinations enabled. `build.sh` reproduces this pin.
+Future benchmark runs use the shared central llama.cpp CUDA build at the
+latest official `master`, not a gem16-local build or a fixed revision. Run
+`benchmarks/baselines/llama_cpp/build.sh` to update the central CPU and CUDA
+builds, then run the benchmark. The benchmark checks upstream freshness and
+records the actual revision and executable; an offline or stale installation
+fails visibly. `LLAMA_CPP_CENTRAL_ROOT` overrides the central root.
 
-The sections below retain historical measurements and capability investigations
-at their named revisions. References to a "current" build within those records
-mean the build at the time of that investigation, not the active source pin.
-The prior active pin was build 10623,
-`f1357e49980f5462af9783164f3fdec407d90137` (2026-08-25).
-Updating the source pin does not relabel or requalify any historical result.
+The `commit.txt` pin remains solely for the historical Linux conversion recipes;
+it no longer chooses a benchmark executable. The sections below retain
+historical measurements and investigations at their named revisions. Updating
+llama.cpp does not relabel or requalify any historical result.
+
+On Windows, the existing `build.ps1` uses `LLAMA_CPP_HOME` (default
+`C:/llama.cpp`) and delegates to `update-central.ps1`, forwarding `-Jobs`.
+It fails if that shared updater is absent and creates no project-local build.
+The Windows converters also use that shared upstream source; historical
+conversion results retain their recorded revisions.
+
+Before publishing the November 3 repeat, run
+`python benchmarks/export_central_llama_repeat_evidence.py`, followed by
+`python benchmarks/render_central_llama_repeat_evidence.py`. The export preserves
+the original local record, replaces account paths and machine identifiers, and
+retains measured values, model/binary hashes and technical hardware information.
 
 ## 2026-10-11 Trellis35 D2 fix and completed comparison
 

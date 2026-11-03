@@ -37,7 +37,8 @@ Environment overrides:
   GEM16_MODEL                  Direct target checkpoint directory
   GEM16_ASSISTANT_MODEL        Direct assistant checkpoint directory
   VLLM_PYTHON                  Python containing the pinned patched vLLM
-  GEM16_LLAMA_SERVER           Pinned llama-server executable
+  GEM16_LLAMA_SERVER           Must resolve to the current central CUDA server
+  LLAMA_CPP_CENTRAL_ROOT       Shared llama.cpp root (default: ~/Development/_engines/llama.cpp)
   GEM16_LLAMA_GGUF             Patched target GGUF
   GEM16_LLAMA_ASSISTANT_GGUF   Official-assistant BF16 GGUF
 EOF
@@ -107,9 +108,12 @@ output_dir="$(realpath "$output_dir")"
 workload="$repo_root/benchmarks/prompts/wikipedia-summary-16k.json"
 gem16_run="$repo_root/build/Linux/blackwell-release/bin/gem16-run"
 vllm_python="${VLLM_PYTHON:-$repo_root/third_party/cache/vllm-0.26.0-env/bin/python}"
-llama_server="${GEM16_LLAMA_SERVER:-$repo_root/build/Linux/llama_cpp/current-release/bin/llama-server}"
-llama_gguf="${GEM16_LLAMA_GGUF:-$repo_root/build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf}"
-llama_assistant_gguf="${GEM16_LLAMA_ASSISTANT_GGUF:-$repo_root/build/Linux/llama_cpp/gemma4-12b-it-assistant-bf16.gguf}"
+source "$repo_root/scripts/central-llama.sh"
+llama_server="$(gem16_resolve_central_llama_server "${GEM16_LLAMA_SERVER:-}")"
+llama_source="$(cd -- "$(dirname -- "$llama_server")/../.." && pwd -P)"
+llama_cache="${HF_HOME:-${XDG_CACHE_HOME:-$HOME/.cache}/huggingface}/derived/gem16/gemma4-12b-llama-cpp"
+llama_gguf="${GEM16_LLAMA_GGUF:-$llama_cache/gemma4-12b-mixed-q8-nvfp4.gguf}"
+llama_assistant_gguf="${GEM16_LLAMA_ASSISTANT_GGUF:-$llama_cache/gemma4-12b-it-assistant-bf16.gguf}"
 
 for file in "$workload" "$gem16_run" "$vllm_python" "$llama_server" "$llama_gguf" "$llama_assistant_gguf"; do
   [[ -e "$file" ]] || { echo "error: required benchmark artifact is missing: $file" >&2; exit 2; }
@@ -172,11 +176,6 @@ if "for token_id in self._suppress_token_ids:" not in text:
     raise SystemExit("vLLM Gemma 4 graph-safe suppression patch is not applied")
 PY
 
-expected_llama_commit="$(tr -d '[:space:]' < benchmarks/baselines/llama_cpp/commit.txt)"
-"$llama_server" --version 2>&1 | grep -q "${expected_llama_commit:0:9}" || {
-  echo "error: llama-server is not the pinned ${expected_llama_commit} build" >&2
-  exit 2
-}
 printf '%s  %s\n' \
   '6f90177f6a2d42406d57cfa764eae890b262bfdf71d353bd4827e0488b099896' "$llama_gguf" \
   'b3ab76db11dd1cfbef51925d7dfd6e234325aa86ab3edd7dea42994edb093b65' "$llama_assistant_gguf" \
@@ -188,6 +187,11 @@ printf '%s  %s\n' \
 {
   echo "timestamp=$(date --iso-8601=seconds)"
   echo "git_commit=$commit"
+  echo "llama_commit=$(git -C "$llama_source" rev-parse HEAD)"
+  echo "llama_server=$llama_server"
+  echo "llama_server_sha256=$(sha256sum "$llama_server" | cut -d' ' -f1)"
+  echo "llama_runtime_sha256=$(gem16_central_llama_runtime_sha256 "$llama_server")"
+  echo "llama_version=$("$llama_server" --version 2>&1 | tr '\n' ' ')"
   echo "git_dirty_entries=$(git status --porcelain | wc -l)"
   echo "platform_profile=$(cat /sys/firmware/acpi/platform_profile 2>/dev/null || echo unavailable)"
   echo "nvidia_powerd=$(systemctl is-active nvidia-powerd.service 2>/dev/null || true)"
@@ -196,7 +200,7 @@ printf '%s  %s\n' \
   echo "vllm_max_jobs=$vllm_compile_jobs"
   echo "vllm_torchinductor_compile_threads=$vllm_compile_jobs"
   echo "vllm_flashinfer_nvcc_threads=$vllm_nvcc_threads"
-  nvidia-smi --query-gpu=name,uuid,driver_version,memory.total,temperature.gpu,utilization.gpu,pstate --format=csv,noheader
+  nvidia-smi --query-gpu=name,driver_version,memory.total,temperature.gpu,utilization.gpu,pstate --format=csv,noheader
   nvidia-smi -q -d POWER | grep -E 'Current Power Limit|Default Power Limit|Max Power Limit' | head -8
 } > "$output_dir/system.txt"
 printf 'invocation=' > "$output_dir/commands.txt"

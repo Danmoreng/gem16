@@ -63,6 +63,25 @@ class BenchmarkError(RuntimeError):
     pass
 
 
+def resolve_central_llama_server(requested: Path | None) -> Path:
+    """Apply the same current-upstream policy to direct benchmark invocations."""
+    helper = Path(__file__).resolve().parents[1] / "scripts" / "central-llama.sh"
+    try:
+        result = subprocess.run(
+            ["bash", "-c", 'source "$1"; gem16_resolve_central_llama_server "$2"',
+             "gem16-resolve", str(helper), str(requested) if requested else ""],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise BenchmarkError(f"cannot verify central llama.cpp: {error}") from error
+    if result.returncode:
+        raise BenchmarkError(result.stderr.strip() or "cannot verify central llama.cpp")
+    try:
+        return Path(result.stdout.strip()).resolve(strict=True)
+    except OSError as error:
+        raise BenchmarkError(f"invalid central llama-server: {error}") from error
+
+
 def positive_int(value: str) -> int:
     parsed = int(value)
     if parsed < 1:
@@ -90,7 +109,10 @@ def parse_args() -> argparse.Namespace:
         "--mtp-draft-tokens", type=int, choices=(0, 1, 2, 4), default=0
     )
     parser.add_argument("--mtp-adaptive", action="store_true")
-    parser.add_argument("--executable", type=Path)
+    parser.add_argument(
+        "--executable", type=Path,
+        help="gem16 executable; llama.cpp defaults to and must resolve to the current central CUDA server",
+    )
     parser.add_argument(
         "--gpu-telemetry-csv",
         type=Path,
@@ -1074,8 +1096,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
                 "convention; weights were not modified."
             )
     else:
-        if args.executable is None or args.gguf is None:
-            raise BenchmarkError("llama.cpp requires --executable and --gguf")
+        if args.gguf is None:
+            raise BenchmarkError("llama.cpp requires --gguf")
         if args.mtp_adaptive:
             raise BenchmarkError("llama.cpp does not expose gem16 --mtp-adaptive")
         allowed_spec_types = {"draft-mtp", "ngram-mod"}
@@ -1111,7 +1133,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             )
         if args.llama_ngram_mod_n_min > args.llama_ngram_mod_n_max:
             raise BenchmarkError("llama.cpp ngram-mod minimum exceeds maximum")
-        executable = args.executable.resolve(strict=True)
+        executable = resolve_central_llama_server(args.executable)
         gguf = args.gguf.resolve(strict=True)
         assistant_gguf = (
             args.assistant_model.resolve(strict=True)
@@ -1232,8 +1254,22 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
                 process.kill()
                 process.wait(timeout=10)
             log_file.close()
+        llama_commit = subprocess.check_output(
+            ["git", "-C", str(executable.parents[2]), "rev-parse", "HEAD"], text=True
+        ).strip()
+        runtime_hashes = {}
+        for path in sorted(executable.parent.iterdir()):
+            if path.is_symlink() or not path.is_file():
+                continue
+            if path.name != "llama-server" and not (path.name.startswith("lib") and ".so" in path.name):
+                continue
+            with path.open("rb") as runtime_file:
+                runtime_hashes[path.name] = hashlib.file_digest(runtime_file, "sha256").hexdigest()
         runtime = {
             "executable": str(executable),
+            "llama_cpp_commit": llama_commit,
+            "executable_sha256": runtime_hashes[executable.name],
+            "llama_runtime_file_sha256": runtime_hashes,
             "gguf": str(gguf),
             "assistant_gguf": (
                 str(assistant_gguf) if assistant_gguf is not None else None

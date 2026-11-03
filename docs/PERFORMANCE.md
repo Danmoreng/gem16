@@ -3,6 +3,29 @@
 These are retained measurements at the revisions named below, not a new benchmark of current HEAD.
 The public profiles and qualification limits are described in the [README](../README.md).
 
+<!-- CENTRAL-LLAMA-REPEAT-2026-11-03 -->
+## 2026-11-03 central llama.cpp repeat
+
+The **2026-11-03 central llama.cpp repeat** uses official master
+`7071ba378afa` (0.8.0-dev), resolved from the shared CUDA installation, against
+the retained October24 `3f03b17724ad` measurements. Each median combines two
+ten-run cohorts after three discarded warmups per cohort.
+
+| llama.cpp mode | Oct24 median tok/s | Nov3 median tok/s | Change | Bootstrap 95% |
+|---|---:|---:|---:|---|
+| ordinary | 143.294 | 143.873 | +0.404% | [+0.285%, +0.527%] |
+| d2 | 198.063 | 202.736 | +2.359% | [+2.046%, +2.622%] |
+
+The unchanged gem16 executable was remeasured as a machine control. The NVIDIA
+driver changed from 615.71.09 to 615.78.08 and clocks remain firmware-managed;
+the central build uses standard Flash Attention quant combinations, where the
+old build enabled all combinations. Generated streams also differ despite the
+same immutable GGUF files and effective sampling settings. These are measured
+changes for the recorded configurations, not exclusive source-code causality or
+a new quality-parity claim. See the
+[complete repeat, controls and raw evidence](evidence/gemma4_26b/central-llama-repeat-2026-11-03.md).
+<!-- /CENTRAL-LLAMA-REPEAT-2026-11-03 -->
+
 <!-- DECODE-FIVE-STEPS-FINAL-2026-10-24 -->
 ## 2026-10-24 final five-step / current llama.cpp comparison
 

@@ -8,6 +8,18 @@ The [pre-consolidation record](archive/ACTIVE_DECISIONS_2026-09-04_BEFORE_CONSOL
 preserves the complete decision history, including superseded intermediate stages.
 The existing numbered decisions retain their identities below.
 
+### Owner update: central current llama.cpp benchmarks (2026-11-03)
+
+Future gem16 comparison benchmarks use the shared central llama.cpp CUDA build
+at the latest official master, rather than a project-local build or a fixed
+llama.cpp commit. Verify the upstream revision before each run, record the
+actual executable and commit, and fail visibly when freshness cannot be
+verified. This supersedes earlier fixed-revision requirements for **future
+benchmark runs and benchmark builds**, not the immutable historical results
+or the separate pinned source recipe used for historical GGUF conversion.
+A changed reference revision requires a new quality result directory; do not
+resume a partially recorded reference with a different executable.
+
 ## Standing decisions
 
 1. **Equal platforms.** Windows x64 and Linux x86-64 are equal product

@@ -10,7 +10,7 @@ if [[ ${1:-} == "--help" ]]; then
 Run one paired Gemma 4 26B quality benchmark (20-question GSM8K smoke by
 default). The reference always runs first, followed by gem16.
 
-The script starts the pinned Google QAT Q4_0 reference in llama.cpp, runs the
+The script starts the Google QAT Q4_0 reference in current central llama.cpp, runs the
 quality harness, stops it, then repeats the same questions with gem16 and emits
 a paired comparison.
 
@@ -18,7 +18,8 @@ Environment overrides:
   OUTPUT_DIR            Result directory (default: date/revision scoped)
   QUALITY_PYTHON        Existing Python 3.10-3.13 environment with sgl-eval
   QUALITY_BOOTSTRAP_PYTHON  Python used to create .venv-quality
-  LLAMA_SERVER          Pinned llama-server executable
+  LLAMA_SERVER          Must resolve to the current central CUDA server
+  LLAMA_CPP_CENTRAL_ROOT  Shared llama.cpp root
   Q4_GGUF               Official Google QAT Q4_0 GGUF
   GEM16_SERVER          gem16-server executable
   GEM16_MODEL           Compiled gem16 26B Target directory
@@ -37,7 +38,9 @@ if [[ $# -ne 0 ]]; then
   exit 64
 fi
 
-llama_server=${LLAMA_SERVER:-$repo_root/build/Linux/llama_cpp/current-release/bin/llama-server}
+source "$repo_root/scripts/central-llama.sh"
+llama_server=$(gem16_resolve_central_llama_server "${LLAMA_SERVER:-}")
+llama_source=$(cd -- "$(dirname -- "$llama_server")/../.." && pwd -P)
 q4_gguf=${Q4_GGUF:-$repo_root/models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf}
 gem16_server=${GEM16_SERVER:-$repo_root/build/Linux/blackwell-release/bin/gem16-server}
 gem16_model=${GEM16_MODEL:-$repo_root/artifacts/raw/m08/qat-hybrid-clean-1}
@@ -108,10 +111,6 @@ if [[ ! -x $llama_server || ! -x $gem16_server ]]; then
   echo "error: server binaries must be executable" >&2
   exit 1
 fi
-if ! "$llama_server" --version 2>&1 | grep -q '0b14b87d7'; then
-  echo "error: LLAMA_SERVER is not the pinned M19 llama.cpp revision 0b14b87d7" >&2
-  exit 1
-fi
 
 quality_python=${QUALITY_PYTHON:-$repo_root/.venv-quality/bin/python}
 if [[ ! -x $quality_python ]]; then
@@ -119,7 +118,7 @@ if [[ ! -x $quality_python ]]; then
   if [[ -z $bootstrap_python ]]; then
     for candidate in \
       python3.13 python3.12 python3.11 python3.10 \
-      /home/sebastian/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3; do
+      "$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3"; do
       if command -v "$candidate" >/dev/null 2>&1; then
         bootstrap_python=$(command -v "$candidate")
         break
@@ -138,6 +137,24 @@ if [[ ! -x $quality_python ]]; then
 fi
 
 mkdir -p "$output_dir"
+# Resume only with the exact same reference executable: mixing revisions in a
+# partially journaled quality run would make the comparison invalid.
+llama_metadata=$(printf 'commit=%s\nserver=%s\nserver_sha256=%s\nruntime_sha256=%s\nversion=%s\n' \
+  "$(git -C "$llama_source" rev-parse HEAD)" "$llama_server" \
+  "$(sha256sum "$llama_server" | cut -d' ' -f1)" \
+  "$(gem16_central_llama_runtime_sha256 "$llama_server")" \
+  "$("$llama_server" --version 2>&1 | tr '\n' ' ')")
+metadata_file=$output_dir/llama-reference.txt
+if [[ -e $metadata_file ]]; then
+  [[ $(cat "$metadata_file") == "$llama_metadata" ]] || {
+    echo "error: existing result uses a different llama.cpp; choose a new OUTPUT_DIR" >&2; exit 2;
+  }
+elif [[ -e $reference_output || -e $candidate_output || -e $comparison_output || -e ${reference_output%.json}.samples || -e ${candidate_output%.json}.samples ]]; then
+  echo "error: existing results have no llama.cpp identity; choose a new OUTPUT_DIR" >&2
+  exit 2
+else
+  printf '%s\n' "$llama_metadata" > "$metadata_file"
+fi
 server_pid=
 
 stop_server() {
@@ -239,7 +256,7 @@ run_quality() {
 if ! result_complete "$reference_output"; then
   wait_for_port_release
   reference_log=$output_dir/reference-server-$(date -u +%H%M%S).log
-  echo "Starting pinned llama.cpp Q4 reference; log: $reference_log"
+  echo "Starting central llama.cpp Q4 reference; log: $reference_log"
   "$llama_server" \
     -m "$q4_gguf" \
     -ngl 99 \

@@ -14,6 +14,21 @@ SPEC.loader.exec_module(MODULE)
 
 
 class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
+    def test_direct_llama_benchmark_uses_verified_central_server(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            server = Path(directory) / "llama-server"
+            server.touch()
+            completed = MODULE.subprocess.CompletedProcess([], 0, str(server) + "\n", "")
+            with mock.patch.object(MODULE.subprocess, "run", return_value=completed) as run:
+                self.assertEqual(MODULE.resolve_central_llama_server(None), server.resolve())
+            self.assertIn("gem16_resolve_central_llama_server", run.call_args.args[0][2])
+
+    def test_direct_llama_benchmark_rejects_stale_or_noncentral_server(self) -> None:
+        completed = MODULE.subprocess.CompletedProcess([], 2, "", "error: central build is stale")
+        with mock.patch.object(MODULE.subprocess, "run", return_value=completed):
+            with self.assertRaisesRegex(MODULE.BenchmarkError, "central build is stale"):
+                MODULE.resolve_central_llama_server(Path("/some/other/llama-server"))
+
     def test_llama_tensor_overrides_are_repeatable(self) -> None:
         argv = [
             "benchmark_wikipedia_workload.py",
