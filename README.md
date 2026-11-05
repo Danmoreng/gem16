@@ -120,6 +120,15 @@ not publish a mirror or duplicate the payload bytes.
 
 ## Recorded performance
 
+<!-- CENTRAL-LLAMA-REPEAT-2026-11-05 -->
+**2026-11-05 central llama.cpp repeat:** On the same 16K text workload,
+gem16 `1d46cc5` reached **141.37 Ordinary / 199.60 D2 tok/s** and central
+llama.cpp `b1c902f` reached **143.58 / 202.38 tok/s**. The llama.cpp lead
+narrowed to **1.56% Ordinary / 1.39% D2**. Sampled peak VRAM was
+12,455 / 12,725 MiB for gem16 and 14,633 / 14,989 MiB for llama.cpp.
+[Method and results](docs/evidence/gemma4_26b/central-llama-repeat-2026-11-05.md)
+<!-- /CENTRAL-LLAMA-REPEAT-2026-11-05 -->
+
 <!-- ORDINARY-LOCAL-ATTENTION-2026-11-05 -->
 **2026-11-05 Trellis35 Ordinary local attention:** Asynchronous staging of
 the local FP8 value ring raised native 16K decode throughput from **138.99
