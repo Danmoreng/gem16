@@ -38,6 +38,21 @@ lifecycle parity passed. The in-flight cancellation probe reproduced the same
 pre-existing streaming status issue on both builds. See the
 [qualification evidence](evidence/gemma4_26b/n1-rope-qualification-2026-11-05.md).
 
+### Owner update: Ordinary local Attention and FP8 O Goal (2026-11-05)
+
+The owner authorizes the two sequential optimization experiments in the
+[task entry](plans/gemma4-26b/LOCAL_ATTENTION_O_GOAL_2026_11_05.md). This
+supersedes decision 7 only for these exact-scope candidates and their
+qualification. Preserve quantization, math, cache semantics and protected
+profiles. Earlier negative layout and generic prefetch trials remain closed.
+
+Qualification is complete. Keep the staged V split for Trellis35 Ordinary
+with a 1,024-slot local ring. The 16K native campaign measured +1.68%
+Ordinary with exact outputs and matched peak VRAM. D2 passed the
+−0.20% margin in both orders and the protected-profile checks passed.
+The FP8 O two-tile CTA missed its primary operator gate and is closed.
+See the [evidence](evidence/gemma4_26b/local-attention-o-2026-11-05.md).
+
 ## Standing decisions
 
 1. **Equal platforms.** Windows x64 and Linux x86-64 are equal product

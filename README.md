@@ -120,6 +120,16 @@ not publish a mirror or duplicate the payload bytes.
 
 ## Recorded performance
 
+<!-- ORDINARY-LOCAL-ATTENTION-2026-11-05 -->
+**2026-11-05 Trellis35 Ordinary local attention:** Asynchronous staging of
+the local FP8 value ring raised native 16K decode throughput from **138.99
+to 141.32 tok/s (+1.68%)** on an RTX 5080 Laptop GPU. All output IDs matched,
+sampled peak VRAM was 12,455 MiB on both builds, and Fixed-D2 passed its
+−0.20% non-inferiority gate in both orders. The separate FP8 O block geometry
+trial missed its operator gate.
+[Measurements and qualification](docs/evidence/gemma4_26b/local-attention-o-2026-11-05.md)
+<!-- /ORDINARY-LOCAL-ATTENTION-2026-11-05 -->
+
 <!-- N1-ROPE-QUALIFIED-2026-11-05 -->
 **2026-11-05 Trellis35 Fixed-D2 RoPE:** Preparing the local and global RoPE
 tables once per group raised native 16K decode throughput from **197.73 to

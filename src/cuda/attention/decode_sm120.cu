@@ -270,7 +270,7 @@ __device__ __forceinline__ float DecodeBlockSum(float value,
 
 template <int kHeadDimensionValue, int kKvHeadsValue,
           int kQueriesPerKv, int kQueryGroup, int kChunk, bool kDirect,
-          bool kVectorizedGlobal>
+          bool kVectorizedGlobal, bool kStageLocalValues = false>
 __launch_bounds__(kDecodeThreads, 1) __global__
 void SplitOnlineDecodeAttentionFp8Kernel(
     const float* __restrict__ query,
@@ -288,6 +288,12 @@ void SplitOnlineDecodeAttentionFp8Kernel(
   constexpr int kQueryGroups = kKvHeadsValue * kGroupsPerKv;
   constexpr int kQueryHeadsValue = kKvHeadsValue * kQueriesPerKv;
   __shared__ float scores[kQueryGroup * kChunk];
+  static_assert(!kStageLocalValues ||
+                (kHeadDimensionValue == kDecodeLocalHeadDimension &&
+                 kKvHeadsValue == kDecodeLocalKvHeads && !kVectorizedGlobal));
+  __shared__ __align__(16) std::uint8_t staged_values[
+      kStageLocalValues ? kChunk * kHeadDimensionValue : 1];
+
   __shared__ float reduction[kDecodeWarps];
 
   const int linear_block = static_cast<int>(blockIdx.x);
@@ -318,6 +324,28 @@ void SplitOnlineDecodeAttentionFp8Kernel(
       static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]));
   const float value_scale =
       static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
+
+  if constexpr (kStageLocalValues) {
+    // Overlap the local V read with QK while keeping token accumulation order.
+    constexpr int kCopyBytes = 16;
+    for (int byte = static_cast<int>(threadIdx.x) * kCopyBytes;
+         byte < split_tokens * kHeadDimensionValue;
+         byte += kDecodeThreads * kCopyBytes) {
+      const int token = byte / kHeadDimensionValue;
+      const int dimension = byte % kHeadDimensionValue;
+      const std::uint64_t unwrapped_slot =
+          first_slot + split_start + static_cast<std::uint64_t>(token);
+      const std::uint64_t cache_slot =
+          unwrapped_slot < cache_capacity ? unwrapped_slot
+                                          : unwrapped_slot - cache_capacity;
+      const auto* source =
+          value_cache +
+          (cache_slot * kKvHeadsValue + static_cast<std::uint64_t>(kv_head)) *
+              kHeadDimensionValue + dimension;
+      CopyAsync16(staged_values + byte, source, kCopyBytes);
+    }
+    CommitAsyncCopies();
+  }
 
   for (int token = warp; token < split_tokens; token += kDecodeWarps) {
     const std::uint64_t unwrapped_slot =
@@ -401,6 +429,11 @@ void SplitOnlineDecodeAttentionFp8Kernel(
     }
   }
 
+  if constexpr (kStageLocalValues) {
+    WaitForAsyncCopies();
+    __syncthreads();
+  }
+
   if constexpr (kVectorizedGlobal) {
     // Keep each output dimension's token accumulation order while processing
     // four contiguous V dimensions from one aligned cache word.
@@ -471,7 +504,11 @@ void SplitOnlineDecodeAttentionFp8Kernel(
              static_cast<std::uint64_t>(kv_head)) *
                 kHeadDimensionValue +
             dimension;
-        const float value = DecodeFp8(value_cache[value_offset], value_scale);
+        const std::uint8_t bits =
+            kStageLocalValues
+                ? staged_values[token * kHeadDimensionValue + dimension]
+                : value_cache[value_offset];
+        const float value = DecodeFp8(bits, value_scale);
 #pragma unroll
         for (int group = 0; group < kQueryGroup; ++group) {
           accumulator[group] =
@@ -499,11 +536,7 @@ void SplitOnlineDecodeAttentionFp8Kernel(
   }
 }
 
-// A fixed-D verifier evaluates consecutive causal rows. Local attention shifts
-// the same 1024-token window by one slot per row, so stage the 1023 historical
-// entries and the fixed speculative rows once per KV head/split.
-// Before the window fills, the same storage represents a growing prefix and
-// invalid split entries receive zero probability.
+
 template <int kRows>
 __launch_bounds__(kDecodeThreads, 1) __global__
 void SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel(
@@ -2141,7 +2174,8 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
     const std::uint16_t* value_scale_bf16, float* workspace, float* output,
     const DecodeControl* control, std::uint64_t query_heads,
     std::uint64_t kv_heads, std::uint64_t head_dimension,
-    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream) {
+    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream,
+    bool stage_local_values) {
   const bool local_shape =
       query_heads == kDecodeQueryHeads && kv_heads == kDecodeLocalKvHeads &&
       head_dimension == kDecodeLocalHeadDimension && sliding;
@@ -2198,6 +2232,14 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
           <<<blocks, kDecodeThreads, 0, stream>>>(
               query, key_cache, value_cache, key_scale_bf16,
               value_scale_bf16, workspace, nullptr, output, control,
+              cache_capacity, sliding, max_splits);
+    } else if (stage_local_values && cache_capacity == kDecodeLocalCapacity) {
+      SplitOnlineDecodeAttentionFp8Kernel<
+          kDecodeLocalHeadDimension, kDecodeLocalKvHeads, 2,
+          kDecodeLocalGroup, kDecodeLocalChunk, false, false, true>
+          <<<blocks, kDecodeThreads, 0, stream>>>(
+              query, key_cache, value_cache, key_scale_bf16,
+              value_scale_bf16, workspace, partial_lse, output, control,
               cache_capacity, sliding, max_splits);
     } else {
       SplitOnlineDecodeAttentionFp8Kernel<

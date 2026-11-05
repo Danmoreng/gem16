@@ -137,7 +137,7 @@ BindGemma4Moe26BAttentionReferenceWeights(
     const Gemma4Moe26BKvCacheView& cache,
     const Gemma4Moe26BAttentionReferenceWorkspace& workspace,
     const DecodeControl* control, float epsilon, cudaStream_t stream,
-    bool rotary_table_prepared = false);
+    bool rotary_table_prepared = false, bool stage_local_values = false);
 
 // Exact fixed-D Target verifier. It reuses the production 12B decode-attention
 // arithmetic because the 26B Target has the same local

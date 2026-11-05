@@ -66,7 +66,8 @@ struct DecodeControl;
     const std::uint16_t* value_scale_bf16, float* workspace, float* output,
     const DecodeControl* control, std::uint64_t query_heads,
     std::uint64_t kv_heads, std::uint64_t head_dimension,
-    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream);
+    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream,
+    bool stage_local_values = false);
 
 [[nodiscard]] Status LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(
     const float* query, const std::uint8_t* key_cache,

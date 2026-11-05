@@ -824,7 +824,7 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
     const Gemma4Moe26BKvCacheView& cache,
     const Gemma4Moe26BAttentionReferenceWorkspace& x,
     const DecodeControl* control, float epsilon, cudaStream_t stream,
-    bool rotary_table_prepared) {
+    bool rotary_table_prepared, bool stage_local_values) {
   const bool sliding =
       t.attention == Gemma4Moe26BAttentionType::kSliding;
   const std::uint64_t q_elements = t.query_heads * t.head_dimension;
@@ -897,7 +897,7 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
       x.query_normalized, cache.key, cache.value, w.key_cache_scale_bf16,
       w.value_cache_scale_bf16, x.scores, x.attention, control,
       t.query_heads, t.kv_heads, t.head_dimension, cache.capacity, sliding,
-      stream);
+      stream, stage_local_values);
   if (!status.ok()) return status;
   status = LaunchFp8ReferenceTokenQuantization(
       x.attention, x.output_fp8, x.output_scale, q_elements, stream);

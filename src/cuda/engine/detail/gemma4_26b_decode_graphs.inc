@@ -1,4 +1,5 @@
-Status Gemma4Moe26BReferenceEngine::Impl::LaunchControlledDecodeBody() {
+Status Gemma4Moe26BReferenceEngine::Impl::LaunchControlledDecodeBody(
+    bool stage_local_values) {
   if (decode_control == nullptr) {
     return Invalid("M17 decode graph control is not initialized");
   }
@@ -59,7 +60,7 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchControlledDecodeBody() {
     status = LaunchGemma4Moe26BAttentionReferenceControlledLayer(
         hidden_a, hidden_b, traits[layer], attention_weights[layer],
         caches[layer], layer_workspace, decode_control, 1.0e-6F, stream,
-        true);
+        true, stage_local_values);
     if (!status.ok()) return status;
     status = IsTrellis35RoutedExpertFormat(routed_expert_format)
                  ? LaunchGemma4MoeSm120Trellis35Layer(
@@ -116,7 +117,8 @@ Status Gemma4Moe26BReferenceEngine::Impl::PrepareDecodeGraph() {
   }
   error = cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal);
   if (error != cudaSuccess) return CudaFailure("begin M17 graph capture", error);
-  const Status body = LaunchControlledDecodeBody();
+  const Status body = LaunchControlledDecodeBody(
+      IsTrellis35RoutedExpertFormat(routed_expert_format));
   cudaGraph_t graph = nullptr;
   error = cudaStreamEndCapture(stream, &graph);
   if (!body.ok()) {

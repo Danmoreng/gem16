@@ -146,7 +146,7 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::vector<float> calibration_down_inputs;
   std::vector<std::uint32_t> calibration_expert_ids;
 
-  Status LaunchControlledDecodeBody();
+  Status LaunchControlledDecodeBody(bool stage_local_values = false);
   Status PrepareDecodeGraph();
   Status LaunchFixedMtpGraphBody(std::uint32_t draft_count,
                                  bool copy_transaction,

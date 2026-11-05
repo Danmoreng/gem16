@@ -695,12 +695,15 @@ void TestNativeLocalSlidingDecode() {
             reference_scores.get(), reference_output.get(), kPosition, 1U,
             kQueryHeads, kKvHeads, kHeadDimension, kCapacity, true, nullptr)
             .ok());
-  CHECK(gem16::internal::LaunchOnlineAttentionDecodeFp8Sm120(
-            query.get(), key_cache.get(), value_cache.get(), scales.get(),
-            scales.get() + 1U, native_workspace.get(), native_output.get(),
-            control.get(), kQueryHeads, kKvHeads, kHeadDimension, kCapacity,
-            true, nullptr)
-            .ok());
+  const auto launch_native = [&](bool stage_values) {
+    CHECK(gem16::internal::LaunchOnlineAttentionDecodeFp8Sm120(
+              query.get(), key_cache.get(), value_cache.get(), scales.get(),
+              scales.get() + 1U, native_workspace.get(), native_output.get(),
+              control.get(), kQueryHeads, kKvHeads, kHeadDimension, kCapacity,
+              true, nullptr, stage_values)
+              .ok());
+  };
+  launch_native(false);
   CHECK(CudaOk(cudaDeviceSynchronize(), "run M20 local sliding attention"));
   std::vector<float> reference(kQueryElements), native(kQueryElements);
   CHECK(CudaOk(cudaMemcpy(reference.data(), reference_output.get(),
@@ -725,6 +728,24 @@ void TestNativeLocalSlidingDecode() {
             << " cosine=" << cosine << '\n';
   CHECK(relative_l2 < 0.01);
   CHECK(cosine > 0.9999);
+
+  // Cover a partially filled split and both sides of the physical ring wrap.
+  std::vector<float> staged(kQueryElements);
+  for (const std::uint64_t position : {128U, 1023U, 1024U, 1100U}) {
+    const gem16::internal::DecodeControl row{0U, 0U, position, position};
+    CHECK(CudaOk(cudaMemcpy(control.get(), &row, sizeof(row),
+                            cudaMemcpyHostToDevice),
+                 "copy staged local control"));
+    launch_native(false);
+    CHECK(CudaOk(cudaMemcpy(native.data(), native_output.get(),
+                            native_output.bytes(), cudaMemcpyDeviceToHost),
+                 "copy unstaged local output"));
+    launch_native(true);
+    CHECK(CudaOk(cudaMemcpy(staged.data(), native_output.get(),
+                            native_output.bytes(), cudaMemcpyDeviceToHost),
+                 "copy staged local output"));
+    CHECK(std::memcmp(native.data(), staged.data(), native_output.bytes()) == 0);
+  }
 }
 
 void TestDirectKvEpilogue() {
