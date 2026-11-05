@@ -1,12 +1,13 @@
 #pragma once
 
+#include "../../src/util/environment.h"
+
 #include <algorithm>
 #include <array>
 #include <charconv>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -92,7 +93,8 @@ inline void LabSave(unsigned phase) {
 #endif
 }
 inline void LabFinish() {
-  const char* directory = std::getenv("GEM16_LAB_OUTPUT");
+  const char* directory =
+      gem16::internal::GetEnvironmentVariable("GEM16_LAB_OUTPUT");
   if (!directory) return;
 #if !defined(_WIN32)
   using Finish = int (*)(const char*);
