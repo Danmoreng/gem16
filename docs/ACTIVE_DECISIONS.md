@@ -20,6 +20,24 @@ or the separate pinned source recipe used for historical GGUF conversion.
 A changed reference revision requires a new quality result directory; do not
 resume a partially recorded reference with a different executable.
 
+### Owner update: qualify the Trellis35 Fixed-D2 RoPE candidate (2026-11-05)
+
+The owner authorizes qualifying the measured N1 candidate and publishing it
+on `main` if it passes. For this follow-up only, the lower 95% confidence
+bound for Ordinary throughput must exceed −0.20% in both orders. This
+supersedes the earlier additional requirement for nonnegative point estimates
+in both orders. The original experiment and its decision remain historical
+evidence. D2, prefill, TTFT, numerical, memory, lifecycle and protected-profile
+requirements still apply. This is a bounded exception to decision 7 for the
+measured Fixed-D2 RoPE patch.
+
+N1 passed qualification on Linux SM120a. The native 16K Fixed-D2 throughput
+rose from 197.73 to 200.62 tok/s (+1.46%). Both Ordinary confidence bounds
+passed the follow-up margin. GPU memory, protected profiles and parent/candidate
+lifecycle parity passed. The in-flight cancellation probe reproduced the same
+pre-existing streaming status issue on both builds. See the
+[qualification evidence](evidence/gemma4_26b/n1-rope-qualification-2026-11-05.md).
+
 ## Standing decisions
 
 1. **Equal platforms.** Windows x64 and Linux x86-64 are equal product

@@ -589,7 +589,8 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
     float* decode_attention_workspace, const DecodeControl* row_controls,
     std::uint32_t tokens, bool shared_fixed_attention, bool batched_output_tail,
     bool controlled_positions, float epsilon, cudaStream_t stream,
-    std::uint8_t* backup_key, std::uint8_t* backup_value) {
+    std::uint8_t* backup_key, std::uint8_t* backup_value,
+    bool rotary_table_prepared) {
   const bool sliding =
       t.attention == Gemma4Moe26BAttentionType::kSliding;
   const std::uint64_t q_elements = t.query_heads * t.head_dimension;
@@ -605,6 +606,7 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
       cache.key == cache.value || !ValidPointers(x) ||
       ((backup_key == nullptr) != (backup_value == nullptr)) ||
       (backup_key != nullptr && !controlled_positions) ||
+      (rotary_table_prepared && (!controlled_positions || tokens != 3U)) ||
       w.input_norm_bf16 == nullptr ||
       w.post_attention_norm_bf16 == nullptr ||
       w.query_norm_bf16 == nullptr || w.key_norm_bf16 == nullptr ||
@@ -652,26 +654,29 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
     }
   }
 
-  const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
-      t.rotary_factor * static_cast<double>(t.head_dimension / 2U));
-  if (controlled_positions) {
-    status = LaunchRotaryEmbeddingTableBatchControlled(
-        x.rotary_cosine, x.rotary_sine, tokens, rotating_pairs,
-        t.head_dimension, row_controls, t.rope_theta, t.rope_scaling_factor,
-        stream, true);
-  } else {
-    status = LaunchRotaryEmbeddingTableBatch(
-        x.rotary_cosine, x.rotary_sine, tokens, rotating_pairs,
-        t.head_dimension, start_position, t.rope_theta,
-        t.rope_scaling_factor, stream, true);
+  if (!rotary_table_prepared) {
+    const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
+        t.rotary_factor * static_cast<double>(t.head_dimension / 2U));
+    if (controlled_positions) {
+      status = LaunchRotaryEmbeddingTableBatchControlled(
+          x.rotary_cosine, x.rotary_sine, tokens, rotating_pairs,
+          t.head_dimension, row_controls, t.rope_theta, t.rope_scaling_factor,
+          stream, true);
+    } else {
+      status = LaunchRotaryEmbeddingTableBatch(
+          x.rotary_cosine, x.rotary_sine, tokens, rotating_pairs,
+          t.head_dimension, start_position, t.rope_theta,
+          t.rope_scaling_factor, stream, true);
+    }
+    if (!status.ok()) return status;
   }
-  if (!status.ok()) return status;
+  // A prepared table has completed in stream order before the layer loop.
   status = LaunchGemma4Moe26BMtpKvEpilogue(
       x.query_raw, w.query_norm_bf16, x.query_normalized, x.key_raw,
       w.key_norm_bf16, x.value_raw, x.rotary_cosine, x.rotary_sine,
       x.staged_key_fp8, x.staged_value_fp8, w.key_cache_scale_bf16,
       w.value_cache_scale_bf16, tokens, t.kv_heads, t.head_dimension,
-      t.rotary_factor, epsilon, stream, true);
+      t.rotary_factor, epsilon, stream, !rotary_table_prepared);
   if (!status.ok()) return status;
 
   const bool exact_shared_fixed_attention =

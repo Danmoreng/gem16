@@ -120,6 +120,14 @@ not publish a mirror or duplicate the payload bytes.
 
 ## Recorded performance
 
+<!-- N1-ROPE-QUALIFIED-2026-11-05 -->
+**2026-11-05 Trellis35 Fixed-D2 RoPE:** Preparing the local and global RoPE
+tables once per group raised native 16K decode throughput from **197.73 to
+200.62 tok/s (+1.46%)** on the RTX 5080 Laptop GPU. Output tokens and sampled
+peak VRAM matched. Ordinary passed the −0.20% non-inferiority margin in both
+orders. [Measurements and qualification](docs/evidence/gemma4_26b/n1-rope-qualification-2026-11-05.md)
+<!-- /N1-ROPE-QUALIFIED-2026-11-05 -->
+
 <!-- CENTRAL-LLAMA-REPEAT-2026-11-03 -->
 The **2026-11-03 central llama.cpp repeat** uses official master
 `7071ba378afa` (0.8.0-dev), resolved from the shared CUDA installation, against

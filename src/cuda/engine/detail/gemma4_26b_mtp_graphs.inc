@@ -125,6 +125,37 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
       control, drafts, draft_count, prefill_tokens, row_controls,
       suppressed_token_count, stream);
   if (!status.ok()) return status;
+  const bool prepare_rotary =
+      tokens == 3U && IsTrellis35RoutedExpertFormat(routed_expert_format);
+  if (prepare_rotary) {
+    const auto& local = traits[kSlidingLayer];
+    const auto& global = traits[kFullLayer];
+    for (const auto& trait : traits) {
+      const auto& profile =
+          trait.attention == Gemma4Moe26BAttentionType::kSliding ? local : global;
+      if (trait.head_dimension != profile.head_dimension ||
+          trait.rotary_factor != profile.rotary_factor ||
+          trait.rope_theta != profile.rope_theta ||
+          trait.rope_scaling_factor != profile.rope_scaling_factor) {
+        return Invalid("Trellis35 fixed-D2 attention classes do not share RoPE profiles");
+      }
+    }
+    // The four prefill tables occupy the persistent arena prefix and remain
+    // live across both attention and MoE scratch phases.
+    const auto launch_table = [&](const auto& profile, float* cosine, float* sine) {
+      const auto pairs = static_cast<std::uint64_t>(
+          profile.rotary_factor * static_cast<double>(profile.head_dimension / 2U));
+      return LaunchRotaryEmbeddingTableBatchControlled(
+          cosine, sine, tokens, pairs, profile.head_dimension, row_controls,
+          profile.rope_theta, profile.rope_scaling_factor, stream);
+    };
+    status = launch_table(local, prefill_local_rotary_cosine,
+                          prefill_local_rotary_sine);
+    if (!status.ok()) return status;
+    status = launch_table(global, prefill_attention_workspace.rotary_cosine,
+                          prefill_attention_workspace.rotary_sine);
+    if (!status.ok()) return status;
+  }
   cudaError_t error = cudaMemsetAsync(routing_finite, 1, sizeof(int), stream);
   if (error != cudaSuccess) {
     return CudaFailure("initialize M25 fixed graph router finite flag", error);
@@ -160,12 +191,18 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
     const bool shared_fixed_attention = tokens == 3U;
     {
       const NvtxRange range("gem16.mtp.target_attention");
+      auto attention = prefill_attention_workspace;
+      if (prepare_rotary &&
+          trait.attention == Gemma4Moe26BAttentionType::kSliding) {
+        attention.rotary_cosine = prefill_local_rotary_cosine;
+        attention.rotary_sine = prefill_local_rotary_sine;
+      }
       status = LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
           prefill_hidden_a, prefill_hidden_b, 0U, trait,
           attention_weights[layer], caches[layer],
-          prefill_attention_workspace, prefill_moe_workspace.shared_product,
+          attention, prefill_moe_workspace.shared_product,
           row_controls, tokens, shared_fixed_attention, true, true, 1.0e-6F,
-          stream, backup_key, backup_value);
+          stream, backup_key, backup_value, prepare_rotary);
     }
     if (!status.ok()) return status;
     auto* overlap = tokens != 3U || mtp_router_overlap.bytes() == 0U
