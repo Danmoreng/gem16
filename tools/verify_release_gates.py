@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed unless both platform artifacts have matching qualification evidence."""
+"""Optional full-campaign evidence verifier; not a release publication prerequisite."""
 
 import argparse
 import json

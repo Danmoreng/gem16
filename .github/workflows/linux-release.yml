@@ -90,5 +90,6 @@ jobs:
           path: build/release-artifacts/*
           if-no-files-found: error
 
-      # Publication is separate. The bounded development preview exception is
-      # recorded in docs/ACTIVE_DECISIONS.md; regular release gates remain open.
+      # Publication follows the owner's release instruction and the standing
+      # policy in docs/ACTIVE_DECISIONS.md; no full GPU/clean-machine campaign
+      # or qualification manifest is required.

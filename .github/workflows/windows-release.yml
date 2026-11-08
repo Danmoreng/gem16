@@ -152,8 +152,6 @@ jobs:
           path: build/release-artifacts/*
           if-no-files-found: error
 
-      # Candidate upload only. Tag creation cannot bypass the open two-platform,
-      # GPU and clean-machine gates. Publication requires separate explicit
-      # authorization. Regular releases also require tools/verify_release_gates.py;
-      # the explicitly authorized development preview exception is recorded in
-      # docs/ACTIVE_DECISIONS.md.
+      # Candidate upload only; publication follows the owner's release instruction.
+      # Full GPU/clean-machine campaigns and verify_release_gates.py are not
+      # publication prerequisites under docs/ACTIVE_DECISIONS.md.

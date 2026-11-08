@@ -239,8 +239,8 @@ The [benchmark contract](docs/BENCHMARKING.md) governs new claims.
 - 12B supports text, image and audio. Compact Vision supports text and images within context capacity, one resident slot,
   and its optional fixed-D2 Assistant. The internal NVFP4 profile is text-only.
 - Studio settings and non-temporary chats persist in SQLite; temporary chats are not retained.
-- Full Windows/Linux API qualification, packaging parity and clean-machine onboarding remain release gates.
-  Bounded Compact Vision P20 acceptance does not mean a release has shipped; extended QUAL01 was waived.
+- Releases include Windows/Linux packages, applicable build/host/Studio checks and archive verification.
+  Tests follow the change's risk; full GPU/clean-machine campaigns are not release prerequisites.
 - Video, durable server-side conversations and Responses branching are outside the current product.
 
 ## Documentation and development

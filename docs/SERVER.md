@@ -431,9 +431,11 @@ Windows uses `python tools/package_server.py --binary build/Windows/blackwell-re
 The archive is a development candidate with a fresh allowlist stage, binary/file
 hashes, VERSION, source revision/dirty status, pinned model-lock hashes and a
 toolchain-lock reference. No model payload or GUI dependency is included.
-Full platform dependency/notices and clean-machine qualification remain open.
+Release packages declare platform dependencies and include applicable notices.
+Full clean-machine qualification is not a release prerequisite.
 
 The Windows workflow uploads candidates and does not publish a GitHub release.
-`tools/verify_release_gates.py` checks a separate two-platform manifest against
-exact archive hashes and per-gate raw evidence hashes; integrity checks cannot
-replace reviewing the actual test evidence or owner publication authorization.
+`tools/verify_release_gates.py` is an optional verifier for a separately requested
+full two-platform qualification manifest. It is not a release prerequisite.
+Owner-authorized publication uses applicable builds/tests, archive integrity and
+honest reporting of the evidence under the standing release policy.

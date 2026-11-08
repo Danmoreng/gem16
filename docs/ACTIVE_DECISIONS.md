@@ -1,6 +1,6 @@
 # Active decisions
 
-**Updated:** 2026-11-08 · **Track:** productization · **Status:** v0.3.0 release preparation
+**Updated:** 2026-11-08 · **Track:** productization · **Status:** stable v0.3.0 publication authorized
 
 Permanent rules in [AGENTS.md](../AGENTS.md) remain binding. Read the
 [product contract](PRODUCT_CONTRACT.md) and the narrow task contract next.
@@ -8,18 +8,27 @@ The [pre-consolidation record](archive/ACTIVE_DECISIONS_2026-09-04_BEFORE_CONSOL
 preserves the complete decision history, including superseded intermediate stages.
 The existing numbered decisions retain their identities below.
 
-### Owner update: v0.3.0 release preparation (2026-11-08)
+### Owner update: standing release publication policy (2026-11-08)
 
-The owner requests pulling the current GitHub source, diagnosing the failed
-release builds and publishing a downloadable 0.3 release. Prepare `0.3.0`
-from the root `VERSION`, correct the Windows MSVC environment-lookup build
-failure and build both platform candidates at the immutable release tag.
-This instruction supersedes the earlier campaign-specific no-release scope
-for preparing this release. It does not declare the open two-platform GPU,
-clean-machine or full qualification-manifest gates passed, or extend the
-0.2.x publication exceptions to 0.3.0. Publication remains subject to those
-gates or a separately explicit bounded owner exception, with the actual
-evidence and limitations disclosed in the release notes.
+The owner authorizes publishing `v0.3.0` as a stable downloadable release.
+For this and future owner-requested versions, publication follows successful
+applicable build, host, Studio and archive-integrity checks plus tests
+proportional to the actual change. Report the checks run and known limitations.
+
+Full two-platform GPU/model/SDK/agent qualification, clean-machine and complete
+model-download campaigns, and a full `verify_release_gates.py` manifest are
+removed from the mandatory release process. They are not pending release
+blockers or automatically scheduled follow-up work. An owner instruction to
+publish a version requires no further qualification exception or confirmation.
+
+This permanently supersedes the former future publication requirements in
+standing decisions 1 and 10, the product contract's release boundary, roadmap
+C07/C08/C09 and workflow comments, including the restriction of earlier
+exceptions to 0.2.x. Proportional correctness/regression tests, truthful evidence,
+runtime integrity and performance-claim rules remain binding. Omitted campaigns
+are not reported as passed. The
+[previous decisions](archive/ACTIVE_DECISIONS_2026-11-08_BEFORE_RELEASE_POLICY.md)
+preserve the superseded requirements and historical publication authorizations.
 
 ### Owner update: central current llama.cpp benchmarks (2026-11-03)
 
@@ -69,8 +78,9 @@ See the [evidence](evidence/gemma4_26b/local-attention-o-2026-11-05.md).
 ## Standing decisions
 
 1. **Equal platforms.** Windows x64 and Linux x86-64 are equal product
-   platforms. A product release must pass the same applicable source, host,
-   GPU, API, Studio, packaging, and clean-machine gates on both.
+   platforms. Releases provide both platform packages with applicable build,
+   host, Studio and archive-integrity checks. Use proportional change-specific
+   tests under the standing release publication policy above.
 2. **Local single machine.** The initial deployment is one local user on one
    supported machine. Loopback is the default and the supported security
    boundary. Authentication/TLS and remote multi-user serving remain outside
@@ -118,15 +128,15 @@ See the [evidence](evidence/gemma4_26b/local-attention-o-2026-11-05.md).
    uploads the payload directly. It neither hashes nor repacks model weights.
    Same-size payload corruption is therefore an acquisition/install failure,
    not a second full-file runtime check.
-10. **Bounded P20 is accepted; release qualification remains separate.** The
+10. **Bounded P20 is accepted.** The
     owner's 2026-09-04 direction accepts Compact Vision as the second public
     product profile using the existing bounded V19 quality, capacity and
     lifecycle evidence. It expressly waives the larger QUAL01 text/Vision
     campaign for this P20 decision instead of claiming that campaign ran. It
     also supersedes P20's former dependency on REL01, two-platform packaging,
-    clean-machine smokes and live Windows SM120 execution. Those items remain
-    mandatory before a release claim, together with P21; promotion to `main`
-    does not itself imply a release. Evidence is
+    clean-machine smokes and live Windows SM120 execution. The standing release
+    publication policy now governs releases; promotion to `main` does not itself
+    publish a release. Evidence is
     `artifacts/vision/p20-owner-acceptance-2026-09-04.json`.
 11. **The consolidated 26B Hub layout is normalized in immutable revision
     `5a7a0225b3f23067e082c21312a4c38676cc237f`.** Existing published revisions
@@ -182,8 +192,9 @@ bounded probe or practical client use exposes a material problem.
 
 C05/C06 client session continuity, compaction, replay and tool behavior take priority
 after this bounded check; deferred C04 optimization/stress work must not block them.
-This is not a waiver of malformed-input safety, equal-platform applicable checks,
-everyday-context stability or the other release gates. Existing evidence is retained.
+Malformed-input safety, equal-platform applicable checks and proportional
+regressions remain required. Existing evidence is retained; publication follows
+the standing release policy.
 
 ### Owner update: neutral Chat penalty compatibility (2026-09-30)
 
@@ -380,63 +391,12 @@ short-context and 12B policies are unchanged. Context capacity must still be
 explicit and pass actual admission with Vision, Assistant and the desktop active.
 No weight offload, precision change or automatic context fallback is authorized.
 
-## Open product gates
+## Release publication
 
-### Owner update: stable v0.2.1 bugfix publication (2026-09-30)
-
-The owner explicitly authorizes committing and pushing today's native Studio
-Light theme fixes, creating `v0.2.1`, and publishing a stable patch release with
-the native Chat penalty/agent compatibility work already integrated on main.
-This supersedes the earlier native-penalty main-only publication restriction.
-For this bounded patch publication, the owner's release instruction also
-supersedes waiting for the still-open extended C07/C08 campaign under standing
-decisions 1 and 10 and the product contract. Those gates remain open and are
-not claimed as passed; this is not full Agent Core or clean-machine qualification.
-
-Retain the existing Windows penalty evidence and the added Linux operator,
-sanitizer, protected 12B, public-profile lifecycle and internal NVFP4 checks.
-Exact-tag Windows and Linux CI/build/archive integrity checks remain required
-before binary publication. Release notes identify the actual evidence, earlier
-model-check revisions and remaining media/everyday-context and platform limits.
-Model locks, precision, contexts and other runtime rules are unchanged.
-
-### Owner update: stable v0.2.0 publication (2026-09-21)
-
-The owner authorizes publication of `v0.2.0` as a normal stable GitHub release,
-not a prerelease and not a prototype, and explicitly directs that C07 and C08
-not block this release. For `v0.2.0` only, this supersedes standing decisions 1
-and 10, the two-platform candidate requirements in the product contract, and
-ROADMAP C09's dependency on completed C07/C08 evidence. It does not reclassify
-the omitted clean-machine, exact-candidate Windows GPU, provenance, everyday-
-context or full release-manifest checks as passed.
-
-The owner accepts post-publication Windows GPU verification and directs that a
-material Windows defect be corrected in `v0.2.1`. Exact-tag Linux and Windows
-build/archive integrity checks remain required before attaching binaries. Release
-notes must identify the evidence actually run and the known 12B small-image and
-Agent Core limitations. No precision, model, context, fallback or runtime rule is
-changed by this publication decision.
-
-### Owner update: Windows and Linux development preview (2026-09-09)
-
-The owner authorizes publication of the current 0.2.0-dev Windows and Linux
-development preview, with Studio/server archives and separate headless archives.
-For this clearly marked prerelease only, this supersedes the requirement in
-standing decisions 1 and 10 to finish all two-platform GPU, package and
-clean-machine gates before publication. Build checks, archive integrity and
-honest reporting of missing qualification remain required. It does not waive
-those gates for regular releases, claim new GPU qualification or change model
-behavior. The preview must not replace the latest stable release.
-
-- [Bounded Linux SDK and Pi development evidence](AGENT_COMPATIBILITY.md) covers
-  both public profiles. Full Agent Core v1 still needs Windows live execution and
-  the remaining contract/lifecycle gates; the bounded matrix is not a release waiver.
-- REL01/P21, live Windows SM120 Compact Vision, equal packages, full downloads
-  and clean-machine onboarding remain release gates. Native Studio has not
-  shipped as a fully qualified two-platform release.
-- `VERSION` is the shared version source; the 0.2.x development line alone is no release claim.
-- The [roadmap](ROADMAP.md) routes remaining work. Historical evidence is preserved;
-  no cleanup changes model precision, behavior, context, allocation or fallback rules.
+The standing owner policy above governs current and future releases. Former
+0.2.x publication exceptions and superseded full-campaign requirements are
+preserved only in the linked historical decision snapshot. They impose no
+future release tasks or publication restrictions.
 
 ### Owner update: server-first hardening and everyday context (2026-09-05)
 
@@ -455,8 +415,9 @@ still requires the existing 200 MiB long-context reserve; no automatic fallback.
 
 Implement practical OpenAI interoperability where semantics can be preserved;
 only substantial unsupported behavior remains an explicit limitation. The
-server-first backlog in ROADMAP.md tracks review C00–C09. Two-platform release
-gates and the existing QUAL01 waiver remain unchanged.
+server-first backlog in ROADMAP.md tracks review C00–C09. The standing release
+publication policy supersedes the former full release campaign; the existing
+QUAL01 waiver remains unchanged.
 
 ### Bounded Step4 FP8 projection experiments (2026-10-24)
 

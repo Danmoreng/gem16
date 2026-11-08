@@ -30,9 +30,9 @@ where practical; preserve model specialization and historical evidence.
 | C04 | Bounded single-user media check | Windows and Linux eight-request checks complete; server/cache checks and 26B colors passed, 12B small-image recall finding open; parallel stress/CPU cache deferred |
 | C05 | Pi affinity, cache reuse, new/fork/compaction behavior | Windows and Linux Pi new/fork/resume (including cold start), manual/automatic compaction passed for both profiles |
 | C06 | Responses replay, practical sampling/tool compatibility | Windows and Linux SDK replay, tool-error/Unicode and limit checks passed; reasoning replay, per-request sampling and constrained tool choice remain unsupported |
-| C07 | Fresh headless packages, provenance, fail-closed publish | Open for full qualification; explicitly waived by owner for stable v0.2.0 only |
-| C08 | Candidate GPU/SDK/agent/quality and two-platform evidence | Open for full qualification; explicitly waived by owner for stable v0.2.0 only |
-| C09 | Documentation consistency and release freeze | v0.2.0 publication explicitly authorized with C07/C08 open; later full qualification remains separate |
+| C07 | Fresh packages, provenance and archive integrity | v0.3.0 Windows/Linux tag builds and archive verification passed |
+| C08 | Full candidate GPU/SDK/agent/quality campaign | Removed from mandatory release work by standing owner policy, 2026-11-08 |
+| C09 | Documentation consistency and owner-authorized publication | Stable v0.3.0 publication authorized; proportional tests and archive integrity govern future releases |
 
 Implementation and bounded evidence: [server hardening checkpoint](evidence/server-hardening-2026-09-05.md)
 and [Linux C03-C06 minimum qualification](evidence/linux-c03-c06-2026-09-21.md).
@@ -44,12 +44,11 @@ separate manual compaction/new-session probes and the protected 12B product test
 passed. No portability fix was needed. Fresh headless ZIP integrity/version smoke
 passed on the development machine. C02 was subsequently completed in the
 separate lifecycle qualification below; the next implementation priority is C03.
-The baseline itself does not close long-prefill gates. Full Windows release and
-clean-machine qualification stay open.
-
-Windows GPU and clean-machine qualification must be recorded against the actual
-candidate. Missing evidence is open, never passed. The extended QUAL01 waiver
-remains unchanged. Studio lifecycle fixes remain in scope; GUI redesign does not.
+The baseline itself does not establish long-prefill behavior. Record actual
+test revisions and limitations without claiming omitted work passed. Full GPU
+and clean-machine campaigns are not release prerequisites under the standing
+owner policy of 2026-11-08. The extended QUAL01 waiver remains unchanged.
+Studio lifecycle fixes remain in scope; GUI redesign does not.
 
 The normalized 26B Hub layout still needs verified lock migration before use by
 the runtime. Existing pins remain valid and immutable.
@@ -298,67 +297,36 @@ are Python SDK 2.50.0, Node SDK 7.10.0 and Pi 0.85.0.
 **Done when:** every advertised capability is actually executed with the pinned
 clients, and remaining complex limitations are explicit before costly execution.
 
-### C07 — Finish package provenance and first-run integrity
+### C07/C09 — Package integrity and owner-authorized publication
 
-The owner explicitly waived completion of this gate for the stable `v0.2.0`
-publication on 2026-09-21. The unchecked items remain open and are not recorded
-as passed.
+The standing owner decision of 2026-11-08 removes the former mandatory C08
+full GPU/model/SDK/agent campaign, clean-machine and complete model-download
+campaigns, and full qualification manifest from release work. They are not
+pending blockers or automatic follow-up tasks. Earlier 0.2.x-only exceptions
+are superseded for future releases. The
+[previous roadmap](archive/ROADMAP_2026-11-08_BEFORE_RELEASE_POLICY.md)
+preserves the historical checklist without treating it as current instructions.
 
-- [ ] Complete actual compiler/CUDA/backend and dependency provenance and notices;
-  a toolchain-lock hash alone does not prove which toolchain built a binary.
-- [ ] Build fresh headless and optional Studio candidates for both platforms.
-  Confirm only intended files/dependencies ship and diagnostic targets remain
-  available to developers without unnecessarily entering the product package.
-- [ ] Test packages and complete locked downloads on clean target environments
-  without developer paths. Verify first server start, Pi tool task, stop/restart.
-- [ ] Resolve the internal NVFP4 shared-Hub-root/runtime-view mismatch without
-  weakening loader path/symlink/exact-file checks. Linux diagnostics succeeded
-  with verified same-filesystem hardlinks and an explicitly filtered packaging
-  descriptor; that workaround is not a production acquisition fix. The normalized
-  Hub revision still needs verified lock migration; do not change pins speculatively.
-- [ ] Bind release gate evidence to the exact candidate revision/version/archive
-  and raw sample hashes using `tools/verify_release_gates.py`. Keep publication
-  separate from candidate upload and fail closed for missing/stale evidence.
+For an owner-requested version:
 
-Fresh staging, `tools/package_server.py`, manifest hash tests and the gate verifier
-already exist. The Windows workflow uploads candidates and cannot publish a
-release merely because a tag exists. **Done when:** platform packages have verified
-provenance and clean-machine evidence; an old same-machine package smoke is insufficient.
+- Build Windows and Linux packages from the matching root VERSION and immutable
+  tag; run applicable host/Studio checks and proportional change-specific tests.
+- Verify archive contents, versions, source provenance, declared dependencies,
+  notices, manifests and hashes. Keep model weights external and preserve all
+  runtime/model/precision integrity rules.
+- Publish on the owner's release instruction, with the actual validation scope
+  and known limitations in the release notes. No further full-campaign exception
+  or confirmation is needed. Do not relabel omitted tests as passed.
 
-### C08/C09 — Candidate qualification and documentation finish
+v0.3.0 has passed both tag builds, host/Studio CI, archive verification and
+bounded Windows GPU checks. Full qualification campaigns are not required.
+`tools/verify_release_gates.py` remains an optional verifier for a separately
+requested full evidence campaign, outside the normal release process.
 
-The owner explicitly waived completion of C08 for the stable `v0.2.0`
-publication on 2026-09-21 and authorized C09 publication despite the remaining
-items. The unchecked qualification work remains open for a later release.
-
-- [ ] Record exact candidate/source hashes, GPU/driver/toolchain, model locks,
-  context, KV, sampling, D2 and image budgets before each run. A later relevant
-  source change requires new affected evidence, not relabeling an earlier binary.
-- [ ] Cover both public profiles on Windows and Linux, Compact Vision ordinary
-  and fixed-D2, text/image functions, multi-image continuation/fresh replay,
-  protected 12B audio and internal NVFP4 regression as applicable.
-- [ ] Separately qualify everyday context with desktop load, explicit VRAM
-  accounting and representative long prompts. Never silently lower context,
-  precision or use CPU weight offload to make a gate pass.
-- [ ] Close applicable CUDA memory/orchestration sanitizer gaps with bounded
-  probes. Preserve failures/timeouts; missing tools or hardware are open gates.
-- [ ] Freeze a small representative agent/media task set before measurement
-  (e.g. 8–12 read/edit/test, tool-error/retry, long-loop, screenshot/diagram and
-  multi-image cases). Record repetitions and failures; do not reopen extended
-  QUAL01 or claim general coding superiority from a smoke set.
-- [ ] Measure cold start/first token, warm TTFT, full Pi task time, cached/uncached
-  prefill, ordinary/D2 output and separate Vision phases with raw samples,
-  sample counts, peak VRAM/RSS and error rates. Disclose timing/semantic changes;
-  old decode throughput is not a current agent-performance result.
-- [ ] Check links, capability drift, VERSION/manifests and active docs. Freeze the
-  exact candidate only after applicable gates pass. Release notes must describe
-  measured scope and open limitations. Tags/publication require explicit approval.
-
-**Done when:** every claimed platform/profile gate has matching candidate evidence
-and clean-machine verification. Windows absence is never a pass; neither is the
-existing P20 acceptance a waiver of release gates. Unavailable platform testing
-must not block independent host implementation. Keep `studioApp/` retirement and
-GUI redesign outside this work unless their separate authorization/gates apply.
+The internal NVFP4 shared-Hub-root/runtime-view mismatch and normalized Hub-lock
+migration remain functional acquisition topics if separately scheduled; neither
+creates a mandatory release qualification campaign or authorizes weaker loader
+path/symlink/exact-file validation.
 
 ### Evidence and a copyable continuation request
 

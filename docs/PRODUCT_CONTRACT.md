@@ -27,9 +27,9 @@ are not recommended desktop defaults.
 
 ## Equal product platforms
 
-Windows x64 and Linux x86-64 are equal product platforms. A product release is
-not complete until both platforms satisfy the same applicable source, host,
-GPU, API, Studio, packaging, and clean-machine smoke gates.
+Windows x64 and Linux x86-64 are equal product platforms. Releases provide both
+platform packages with applicable build, host, Studio and archive-integrity
+checks. Tests remain proportional to the changed code.
 
 Platform-native implementation details may differ. Windows currently uses
 Win32 and Direct3D 11; Linux uses GLFW and OpenGL. Installer formats and system
@@ -81,22 +81,20 @@ blob store.
 Native Studio keeps a lock-derived component catalog for both public profiles
 and the internal NVFP4 rollback path, while presenting only the two public
 profiles on a neutral first run. Either public profile may be installed
-independently and both may coexist. Release qualification still requires complete large-download
-and clean-machine first-run evidence on Windows and Linux.
+independently and both may coexist. Full model-download and clean-machine
+campaigns are not part of the mandatory release process.
 
 Compact Vision is a distinct selectable product surface, not an implicit
 capability of the internal NVFP4 profile. Its stable profile
 identity does not change with decode mode: Ordinary and fixed-D2 are reported
 separately and fixed-D2 remains available only for the exact locked
-Target/Vision/Assistant combination. The bounded candidate and its release
-gates are defined in
+Target/Vision/Assistant combination. The bounded profile contract is defined in
 [`plans/gemma4-26b/PRODUCTION_26B_VISION_CONTRACT.md`](plans/gemma4-26b/PRODUCTION_26B_VISION_CONTRACT.md).
 
 The owner accepted bounded P20 on 2026-09-04 using the existing V19 evidence
-and waived the larger QUAL01 campaign for this profile decision. REL01,
-two-platform packaging and clean-machine qualification remain open release
-gates; `production_qualified` describes the locked profile, not a shipped
-0.2 release.
+and waived the larger QUAL01 campaign for this profile decision.
+`production_qualified` describes the locked profile. The standing owner release
+policy of 2026-11-08 supersedes former full qualification release dependencies.
 
 ## Local-machine boundary
 
@@ -144,15 +142,20 @@ A release candidate requires, on both Windows and Linux:
 
 1. a build from the central repository `VERSION` and an immutable source
    revision;
-2. successful host, native Studio, protected 12B, qualified 26B, server
-   lifecycle, and Agent Core v1 gates;
+2. successful applicable host and native Studio checks, plus correctness and
+   regression tests proportional to the actual change under AGENTS.md;
 3. a versioned package containing Studio, server, required runtime components
    or an exact declared system-dependency contract, licenses, notices, hashes,
    and a machine-readable manifest;
-4. a clean-machine first-run smoke for installing either model profile,
-   starting it, chatting, exercising a function tool, stopping, and restarting;
-5. explicit hardware, driver, model-lock, capability, context, and known-limit
+4. explicit hardware, driver, model-lock, capability, context, and known-limit
    reporting.
+
+An owner instruction to publish authorizes release publication after these
+checks. Full two-platform GPU/model/SDK/agent qualification, clean-machine and
+complete model-download campaigns, and a full qualification manifest are not
+release prerequisites or pending release blockers. No separate exception or
+confirmation is required. This is the standing owner policy of 2026-11-08;
+omitted tests are not claimed as passed.
 
 Code signing, native installers, update delivery, SBOM generation, and broader
 network deployment are follow-up release-hardening work unless promoted by a

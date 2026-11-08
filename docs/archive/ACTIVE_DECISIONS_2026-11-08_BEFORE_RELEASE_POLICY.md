@@ -1,0 +1,562 @@
+# Active decisions
+
+**Updated:** 2026-11-08 · **Track:** productization · **Status:** v0.3.0 release preparation
+
+Permanent rules in [AGENTS.md](../AGENTS.md) remain binding. Read the
+[product contract](PRODUCT_CONTRACT.md) and the narrow task contract next.
+The [pre-consolidation record](archive/ACTIVE_DECISIONS_2026-09-04_BEFORE_CONSOLIDATION.md)
+preserves the complete decision history, including superseded intermediate stages.
+The existing numbered decisions retain their identities below.
+
+### Owner update: v0.3.0 release preparation (2026-11-08)
+
+The owner requests pulling the current GitHub source, diagnosing the failed
+release builds and publishing a downloadable 0.3 release. Prepare `0.3.0`
+from the root `VERSION`, correct the Windows MSVC environment-lookup build
+failure and build both platform candidates at the immutable release tag.
+This instruction supersedes the earlier campaign-specific no-release scope
+for preparing this release. It does not declare the open two-platform GPU,
+clean-machine or full qualification-manifest gates passed, or extend the
+0.2.x publication exceptions to 0.3.0. Publication remains subject to those
+gates or a separately explicit bounded owner exception, with the actual
+evidence and limitations disclosed in the release notes.
+
+### Owner update: central current llama.cpp benchmarks (2026-11-03)
+
+Future gem16 comparison benchmarks use the shared central llama.cpp CUDA build
+at the latest official master, rather than a project-local build or a fixed
+llama.cpp commit. Verify the upstream revision before each run, record the
+actual executable and commit, and fail visibly when freshness cannot be
+verified. This supersedes earlier fixed-revision requirements for **future
+benchmark runs and benchmark builds**, not the immutable historical results
+or the separate pinned source recipe used for historical GGUF conversion.
+A changed reference revision requires a new quality result directory; do not
+resume a partially recorded reference with a different executable.
+
+### Owner update: qualify the Trellis35 Fixed-D2 RoPE candidate (2026-11-05)
+
+The owner authorizes qualifying the measured N1 candidate and publishing it
+on `main` if it passes. For this follow-up only, the lower 95% confidence
+bound for Ordinary throughput must exceed −0.20% in both orders. This
+supersedes the earlier additional requirement for nonnegative point estimates
+in both orders. The original experiment and its decision remain historical
+evidence. D2, prefill, TTFT, numerical, memory, lifecycle and protected-profile
+requirements still apply. This is a bounded exception to decision 7 for the
+measured Fixed-D2 RoPE patch.
+
+N1 passed qualification on Linux SM120a. The native 16K Fixed-D2 throughput
+rose from 197.73 to 200.62 tok/s (+1.46%). Both Ordinary confidence bounds
+passed the follow-up margin. GPU memory, protected profiles and parent/candidate
+lifecycle parity passed. The in-flight cancellation probe reproduced the same
+pre-existing streaming status issue on both builds. See the
+[qualification evidence](evidence/gemma4_26b/n1-rope-qualification-2026-11-05.md).
+
+### Owner update: Ordinary local Attention and FP8 O Goal (2026-11-05)
+
+The owner authorizes the two sequential optimization experiments in the
+[task entry](plans/gemma4-26b/LOCAL_ATTENTION_O_GOAL_2026_11_05.md). This
+supersedes decision 7 only for these exact-scope candidates and their
+qualification. Preserve quantization, math, cache semantics and protected
+profiles. Earlier negative layout and generic prefetch trials remain closed.
+
+Qualification is complete. Keep the staged V split for Trellis35 Ordinary
+with a 1,024-slot local ring. The 16K native campaign measured +1.68%
+Ordinary with exact outputs and matched peak VRAM. D2 passed the
+−0.20% margin in both orders and the protected-profile checks passed.
+The FP8 O two-tile CTA missed its primary operator gate and is closed.
+See the [evidence](evidence/gemma4_26b/local-attention-o-2026-11-05.md).
+
+## Standing decisions
+
+1. **Equal platforms.** Windows x64 and Linux x86-64 are equal product
+   platforms. A product release must pass the same applicable source, host,
+   GPU, API, Studio, packaging, and clean-machine gates on both.
+2. **Local single machine.** The initial deployment is one local user on one
+   supported machine. Loopback is the default and the supported security
+   boundary. Authentication/TLS and remote multi-user serving remain outside
+   this baseline.
+3. **Two equal public model profiles.** Gemma 4 12B Unified and Gemma 4 26B
+   A4B Compact Vision are the two user-selectable public profiles and may be
+   installed side by side. Neither is preferred. The 12B profile supports
+   qualified text, image and audio. Compact Vision is the exact Trellis35 text
+   Target plus FP8 Vision composite, accepts images within context capacity, is single-slot, and may
+   use its separately pinned fixed-D2 Assistant. The qualified text-only 26B
+   NVFP4 path remains implemented and regression-protected as an internal
+   rollback profile, but is not offered in the normal Studio selection. This
+   owner decision supersedes the earlier requirement that NVFP4 26B remain an
+   equal public Studio choice. Studio stores model files in the standard shared
+   Hugging Face Hub cache and must not create a second private model store. The
+   12B entries continue to reference the existing upstream Hugging Face
+   repositories; no GEM16 mirror or duplicate 12B weight repository is created.
+4. **One active GUI.** `nativeStudio/` is the only active GUI. `studioApp/` is
+   deprecated, receives no new product work, and remains temporarily as
+   read-only migration evidence.
+5. **Bounded OpenAI compatibility.** The product API is OpenAI Agent Core v1,
+   not full OpenAI platform emulation. Supported fields, events, state, tools,
+   exclusions, and qualification gates are versioned and fail visibly when a
+   request exceeds the contract.
+6. **One version source.** Repository, CMake builds, packaged server, native
+   Studio, and release automation consume the root `VERSION` file. Release tags
+   and manually supplied release versions must match it.
+7. **Productization first; tuning frozen.** The NVFP4 and Trellis35 performance
+   campaigns are closed after their accepted freezes; the 220/250 tok/s targets
+   remain closed. The later bounded K/V exception below remains accepted.
+   Earlier experimental-only Vision wording was superseded by decisions 8 and 10.
+8. **Compact Vision production gates authorized.** The 2026-09-02 owner decision
+   superseded the requirement to end Vision in an experimental V20 freeze and
+   authorized bounded PRD00/PERF13/PERF12/FMT01/PUB01/QUAL01/APP01/REL01/P20/P21
+   work. Decision 10 subsequently accepted bounded P20; the protected 12B and
+   internal NVFP4 paths remain unchanged.
+9. **Trellis35 device-image integrity is split between acquisition and
+   runtime.** The owner's 2026-09-02 direction for FMT01 supersedes any future
+   requirement to recompute the 12.2 GB `model.gem16` SHA-256 while loading the
+   model. The offline packager fully verifies the immutable v1 inputs and the
+   resulting v2 payload; download/install verification checks the published
+   payload hash. Runtime startup hashes only the small self-describing metadata
+   and lock files, validates the exact payload size, fixed arena layout, tensor
+   table, layer regions, rate maps and uploaded expert descriptors, then
+   uploads the payload directly. It neither hashes nor repacks model weights.
+   Same-size payload corruption is therefore an acquisition/install failure,
+   not a second full-file runtime check.
+10. **Bounded P20 is accepted; release qualification remains separate.** The
+    owner's 2026-09-04 direction accepts Compact Vision as the second public
+    product profile using the existing bounded V19 quality, capacity and
+    lifecycle evidence. It expressly waives the larger QUAL01 text/Vision
+    campaign for this P20 decision instead of claiming that campaign ran. It
+    also supersedes P20's former dependency on REL01, two-platform packaging,
+    clean-machine smokes and live Windows SM120 execution. Those items remain
+    mandatory before a release claim, together with P21; promotion to `main`
+    does not itself imply a release. Evidence is
+    `artifacts/vision/p20-owner-acceptance-2026-09-04.json`.
+11. **The consolidated 26B Hub layout is normalized in immutable revision
+    `5a7a0225b3f23067e082c21312a4c38676cc237f`.** Existing published revisions
+    were not rewritten. Payload names contain the full Gemma 4 26B A4B model
+    and actual quantization/storage format: Trellis35 W4A8 for the compact text
+    Target, FP8 E4M3FN for Vision, and hybrid NVFP4/FP8/BF16 for the Assistant
+    and internal Target. `profiles.json` exposes Compact Vision and classifies
+    NVFP4 as internal regression/rollback. Anonymous Hub metadata checks prove
+    all four copied payloads retain their prior LFS identities and byte sizes.
+    Current runtime locks remain on `6de2a057...` until the new remote-to-local
+    filename mapping has passed acquisition and loader verification; changing
+    the repository's default revision does not alter the pinned product.
+    Evidence is `artifacts/vision/hf-layout-normalization-2026-09-04.json`.
+
+### Owner update: multiple images and one Canvas conversation (2026-09-05)
+
+The owner explicitly removes the one-image-per-conversation restriction. This
+supersedes the single-image requirement in decision 3, AGENTS.md's profile wording,
+the product/API contracts and the earlier Vision production scope. Conversations
+may retain successive images and accept multiple images in a turn, bounded by
+context, validated request sizes and storage capacity, with no fixed image-count
+product limit. This is separate from the unchanged single execution slot.
+
+Canvas checks append the actual screenshot to the same conversation as a tool
+result. Images persist with non-temporary chats. No separate visual-review model
+call or session eviction is permitted. New image spans reuse the existing Vision
+workspace sequentially; historical image spans remain in the resident KV prefix.
+Document revisions belong in tool results, not a changing system prompt. Precision,
+per-image budgets, model locks and fixed-D2 semantics remain unchanged. Historical
+single-image qualification evidence is not reclassified as multi-image evidence;
+new multi-image evidence and platform limitations must be reported separately.
+
+### Owner update: single-user C04 scope and client priority (2026-09-12)
+
+The owner reconfirms one local user and normally one active conversation, including
+12B. Existing qualified two-slot support and queue/cancellation safeguards remain;
+this decision does not change runtime defaults, capacity or supported behavior.
+
+This supersedes ROADMAP C04's future requirement for a broad parallel-media and
+aggregate-concurrency RSS campaign in the initial single-user baseline. Keep the
+existing input validation, pixel/byte limits and bounded allocation rules. A single
+request can still contain oversized or multiple images, so retain a small sequential
+multi-image/replay check with process-memory observation. Reuse accepted C03
+interruption and recovery evidence rather than repeating its full matrix.
+
+Bound the remaining C04 probe to eight generation requests total across the two
+public profiles (1/2/4-image requests and one same-session continuation per profile),
+one qualified decode mode per profile and ten minutes wall time. Stop at the cap
+and report any unfinished case; these are test limits, not product image limits.
+No new model downloads, parallel-load campaign or extended stress runs are needed.
+Historical-image CPU caching is a deferred optimization, revisited only if the
+bounded probe or practical client use exposes a material problem.
+
+C05/C06 client session continuity, compaction, replay and tool behavior take priority
+after this bounded check; deferred C04 optimization/stress work must not block them.
+This is not a waiver of malformed-input safety, equal-platform applicable checks,
+everyday-context stability or the other release gates. Existing evidence is retained.
+
+### Owner update: neutral Chat penalty compatibility (2026-09-30)
+
+The owner authorizes Chat Completions to accept numeric zero values for
+`frequency_penalty` and `presence_penalty` without changing checkpoint sampling.
+This supersedes the blanket rejection of those two explicitly neutral fields
+in the existing API subset; it does not authorize ignoring active penalties.
+Non-zero values remain unsupported with a specific error, and invalid types or
+values outside `[-2, 2]` remain invalid requests. Responses and all other
+per-request sampling limitations are unchanged. Full native penalty/sampling
+support and its resident RNG/fixed-D2 qualification remain future work.
+
+### Owner update: native response penalties and graph changes (2026-09-30)
+
+The owner's follow-up authorizes real `frequency_penalty` and `presence_penalty`
+for Chat Completions, superseding the neutral-only restriction above for these
+fields. Both default to zero and accept finite FP32-representable values in
+`[-2, 2]`. They apply to emitted Target token counts within the current response,
+including reasoning and control tokens, before temperature/top-k/top-p/min-p.
+Prompt tokens, previous responses and rejected Assistant drafts are excluded.
+The existing multiplicative repetition history remains unchanged.
+
+Keep resident KV and RNG progress across parameter changes. Capture penalty
+coefficients by value; use the existing sampling kernels and graph topology
+when both are zero. Unchanged coefficients must not cause graph reconstruction.
+The owner explicitly accepts reconstruction costs when coefficients change.
+This bounded request-boundary graph executable replacement supersedes the
+no-recurring-allocation requirement only for CUDA graph infrastructure during
+that explicit reconfiguration; arenas and counters remain preallocated and
+no token loop allocates, repacks or recompiles. Active penalties may add count
+work; the zero path must be checked against the measured parent. Other sampling
+parameters remain startup/session configuration, and Responses remains unchanged.
+Windows evidence does not establish Linux qualification or a release claim.
+
+### Owner update: native penalty production-main integration (2026-09-30)
+
+The owner explicitly authorizes committing and pushing the native penalty change
+directly to production `main` using the bounded Windows evidence. For this change,
+this supersedes the requirement to finish the remaining Linux, internal NVFP4
+model and everyday-context/media qualification before main integration. The owner
+will boot the same machine into Linux, build from main and test there afterward.
+Outstanding checks remain documented and are not reclassified as passed. This
+decision does not authorize a new release tag, binary publication or a claim that
+the general two-platform release gates have passed.
+
+## Current model facts
+
+### Owner update: bounded Trellis35 decode optimization (2026-10-22)
+
+The owner authorizes the five follow-up experiments to the pinned decode audit:
+allowed-top1 host selection, test-internal sequence-controlled replay and real
+operator inputs, an isolated eight-warp M1 N128 candidate with separate T3
+qualification, counter-gated KVH2 staging, and GateUp transform/FP8 quantization
+fusion. This supersedes standing decision 7's tuning freeze only for these
+bounded experiments; it does not reopen the closed 220/250 tok/s targets or
+previously rejected generic prefetch/route-packing work. Keep numerical, memory,
+sampling, cache and protected-profile contracts. Retain and commit only correct
+production candidates with reproducible end-to-end benefit, preserving raw
+positive and negative evidence. The owner authorizes commits, not a push or
+release. The starting audit is
+`docs/evidence/gemma4_26b/trellis35-decode-cost-audit-2026-10-22.md`.
+
+### Owner update: bounded D2 follow-up (2026-10-23)
+
+The owner authorizes continuing the D2 optimization from the completed five-step
+follow-up. This extends the October 22 exception to standing decision 7 only for
+refreshing full fixed-D2 cost/acceptance accounting and one independently qualified
+T3 projection candidate sharing two N8 fragments across eight warps. GateUp and
+Down are screened separately using actual inputs and expert unions; no automatic
+transfer from the accepted M1 kernel is authorized as a performance claim. Keep
+all precision, accumulation, cache, sampling, graph/ring safety and protected
+profile gates. Only correct reproducible end-to-end gains may remain in production
+and be committed under the owner's existing instruction; no push or release.
+Rejected staging/fusion, generic prefetch and route-packing stay closed without
+new matching evidence. The 220/250 tok/s targets remain closed.
+
+### Owner update: T3 GateUp countercase follow-up (2026-10-23)
+
+The owner authorizes continuing from accepted T3 Down `6895ed2` with the
+GateUp countercase investigation. This extends standing decision 7's bounded
+exception only to actual-input GateUp counter/latency analysis and one candidate
+justified by that comparison. Keep the accepted Down/M1 and graph/ring fixes,
+precision, K accumulation, cache, sampling and protected profiles. Reopening
+any rejected mechanism requires new matching evidence and an explicit scoped
+record, not the historical task queue. The counter comparison opens only a paired-fragment codec word-window candidate:
+share circular word gathers across both N8 fragments to reduce warp shuffles,
+without changing decoded states or accumulation. It does not open generic
+prefetch, route packing, quantization fusion or KV staging. Retain/commit only
+numerically correct reproducible end-to-end benefit under the existing owner instruction. No push,
+release, or reopening of the closed 220/250 tok/s targets.
+
+### Owner update: bounded Down codec follow-up (2026-10-23)
+
+After accepted GateUp `629bbac`, the owner asks to continue toward the pinned
+llama reference. This extends standing decision 7's bounded exception only to
+actual-input counter/operator investigation of paired codec windows for T3 Down
+and, if justified, one separately qualified production candidate. It supersedes
+the GateUp-only boundary above for this Down experiment, preserving GateUp/M1,
+precision, accumulation, context, sampling, cache, graph/ring and protected gates.
+Retain/commit only correct reproducible end-to-end gains; no push or release.
+Generic prefetch/packing/fusion/staging and the closed 220/250 targets stay closed.
+
+The fresh actual-production layer0 Down countercase reports long-scoreboard
+0.9556 versus short-scoreboard0.1742 per active issue, with a four-block register
+occupancy limit. This opens one diagnostic refinement of the Down candidate:
+a fixed four-iteration register pipeline for the same resident payload words,
+using the existing M1 pipeline pattern while preserving the T3 K order. This
+supersedes the generic-prefetch closure only for that counter-backed Down test;
+it does not authorize wider prefetch, layout or runtime changes. No production
+promotion without separate numerical, memory and end-to-end evidence.
+
+### Owner update: five measured decode follow-ups (2026-10-24)
+
+The owner explicitly sets a Goal to carry out the five proposed steps after
+`26c6840`: M1 GateUp, T3 GateUp, local/global fixed-D2 attention, QKV/O projections
+for one/three rows, and Target/Assistant output heads. This supersedes standing
+decision 7's tuning freeze and the earlier GateUp/Down-only scope solely for
+these bounded investigations and counter-justified candidates. It does not
+reopen the old 220/250 targets or authorize generic framework changes. Prior
+negative evidence remains binding context; a rejected mechanism needs new
+matching dispatch/counter evidence and a narrow written rationale before retry.
+Preserve all precision, accumulation, format, sampling, context/cache, graph/ring,
+resident-weight, memory and protected-profile boundaries. Reassess costs after
+each accepted gain; keep/commit only correct reproducible end-to-end benefit.
+Retain positive and negative raw evidence and update README/results. No push or
+release. A fresh current-llama same-machine comparison is required before a
+new superiority claim. Work journal: `plans/gemma4-26b/DECODE_FIVE_STEPS_2026_10_24.md`.
+
+The October24 Step2 fresh actual T3 GateUp captures show long-scoreboard ratios
+0.8167/0.9589 versus short-scoreboard0.1809/0.1993 per active issue for late29
+and early5, with47registers. This opens only a fixed resident-payload register
+pipeline for T3 GateUp, bounded depths2 and4, preserving exact K order/codec/MMA.
+It supersedes the generic-prefetch closure solely for this matching counter-backed
+experiment; no wider prefetch, routing, packing, staging or fusion is opened.
+
+Step2's union24 countercase shows register occupancy limit5->4 with47->63
+registers, despite lower long-scoreboard ratio1.1063->0.5881. Both depth2/4
+screens regress and remain diagnostic. This supports one final bounded depth2
+variant with `__launch_bounds__(256,5)` to test register-pressure compensation.
+Keep the original countercases, require bit parity and the same all-case gate,
+and stop this pipeline experiment if it still fails; no production promotion
+based on its median operator gain alone.
+
+| Profile | Public selection | Input | Context policy / retained capacity | Slots |
+|---|---|---|---|---|
+| 12B Unified | Yes | Text, image, audio | Subject to configured capacity | Up to two |
+| 26B Compact Vision | Yes | Text, images, 70/140/280 soft tokens per image | Everyday: Linux 220,000 / Windows 170,000 (ordinary and D2) | One |
+| 26B NVFP4 | Internal only | Text | 98,304 / 86,016 | One |
+
+Compact Vision requires the exact locked Trellis35 Target + FP8 Vision and,
+for D2, the separately pinned Assistant. It reports `production_qualified` and
+`experimental=false` following bounded P20. This does not assert the waived
+extended QUAL01 or deferred release tests ran.
+
+All current 26B locks use `danmoreng/gemma-4-26B-A4B-it-GEM16` at
+`6de2a057f11332420819f8e6efd08e42d7a03bc7`: internal NVFP4 at the root,
+Compact Target under `trellis35/`, Vision under `vision/`, Assistant under `assistant/`.
+Use the current device images for runtime regression; do not reconstruct the
+old M08 shard layout. Locks retain exact hashes and source identities.
+
+Accepted evidence: [V19](../artifacts/vision/v19-acceptance.json),
+[P20](../artifacts/vision/p20-owner-acceptance-2026-09-04.json),
+[PUB01](../artifacts/trellis35/pub01-consolidated-publication.json),
+[normalized Hub layout](../artifacts/vision/hf-layout-normalization-2026-09-04.json).
+Prior numerical and performance records remain under `artifacts/` and `benchmarks/`.
+
+### Bounded 26B K/V epilogue optimization (owner direction 2026-09-04)
+
+The owner authorizes a bounded ordinary-decode 26B NVFP4/Trellis35 K/V
+epilogue fusion, with
+exact Q/output/cache-byte tests and parent/candidate performance measurements.
+This supersedes decision 7's prohibition on further NVFP4 tuning only for this
+experiment (including the frozen Trellis35 tuning restriction). The 220/250
+token/s targets remain closed. Prefill, T3 speculative cache visibility/rollback
+and 12B dispatch remain unchanged. Per follow-up owner direction, initial
+performance checks use one warmup and three measured runs per variant, beginning
+with ordinary decode. A further owner direction authorizes and, after the
+positive exact-output screen, accepts the corresponding fixed-D2/T3 staging
+fusion for NVFP4 and Trellis35. The speculative cache append, backup, rollback
+and per-row visibility remain separate and unchanged.
+The owner's follow-up accepts the positive small-sample result and integrates
+the exact-output ordinary fusion for both formats. It changes no product
+capability, checkpoint or quality claim; wider performance publication still
+requires the permanent benchmark contract.
+
+
+### Owner update: 26B long-context admission reserve (2026-09-05)
+
+Use 200 MiB (209,715,200 bytes) of free device memory for 26B long-context
+startup admission at 65,536 tokens and above, including the preliminary engine
+slot check. This supersedes the previous 400 MiB long-context requirement;
+the existing 200 MiB final fixed-D2 check remains consistent with it. The 700 MiB
+short-context and 12B policies are unchanged. Context capacity must still be
+explicit and pass actual admission with Vision, Assistant and the desktop active.
+No weight offload, precision change or automatic context fallback is authorized.
+
+## Open product gates
+
+### Owner update: stable v0.2.1 bugfix publication (2026-09-30)
+
+The owner explicitly authorizes committing and pushing today's native Studio
+Light theme fixes, creating `v0.2.1`, and publishing a stable patch release with
+the native Chat penalty/agent compatibility work already integrated on main.
+This supersedes the earlier native-penalty main-only publication restriction.
+For this bounded patch publication, the owner's release instruction also
+supersedes waiting for the still-open extended C07/C08 campaign under standing
+decisions 1 and 10 and the product contract. Those gates remain open and are
+not claimed as passed; this is not full Agent Core or clean-machine qualification.
+
+Retain the existing Windows penalty evidence and the added Linux operator,
+sanitizer, protected 12B, public-profile lifecycle and internal NVFP4 checks.
+Exact-tag Windows and Linux CI/build/archive integrity checks remain required
+before binary publication. Release notes identify the actual evidence, earlier
+model-check revisions and remaining media/everyday-context and platform limits.
+Model locks, precision, contexts and other runtime rules are unchanged.
+
+### Owner update: stable v0.2.0 publication (2026-09-21)
+
+The owner authorizes publication of `v0.2.0` as a normal stable GitHub release,
+not a prerelease and not a prototype, and explicitly directs that C07 and C08
+not block this release. For `v0.2.0` only, this supersedes standing decisions 1
+and 10, the two-platform candidate requirements in the product contract, and
+ROADMAP C09's dependency on completed C07/C08 evidence. It does not reclassify
+the omitted clean-machine, exact-candidate Windows GPU, provenance, everyday-
+context or full release-manifest checks as passed.
+
+The owner accepts post-publication Windows GPU verification and directs that a
+material Windows defect be corrected in `v0.2.1`. Exact-tag Linux and Windows
+build/archive integrity checks remain required before attaching binaries. Release
+notes must identify the evidence actually run and the known 12B small-image and
+Agent Core limitations. No precision, model, context, fallback or runtime rule is
+changed by this publication decision.
+
+### Owner update: Windows and Linux development preview (2026-09-09)
+
+The owner authorizes publication of the current 0.2.0-dev Windows and Linux
+development preview, with Studio/server archives and separate headless archives.
+For this clearly marked prerelease only, this supersedes the requirement in
+standing decisions 1 and 10 to finish all two-platform GPU, package and
+clean-machine gates before publication. Build checks, archive integrity and
+honest reporting of missing qualification remain required. It does not waive
+those gates for regular releases, claim new GPU qualification or change model
+behavior. The preview must not replace the latest stable release.
+
+- [Bounded Linux SDK and Pi development evidence](AGENT_COMPATIBILITY.md) covers
+  both public profiles. Full Agent Core v1 still needs Windows live execution and
+  the remaining contract/lifecycle gates; the bounded matrix is not a release waiver.
+- REL01/P21, live Windows SM120 Compact Vision, equal packages, full downloads
+  and clean-machine onboarding remain release gates. Native Studio has not
+  shipped as a fully qualified two-platform release.
+- `VERSION` is the shared version source; the 0.2.x development line alone is no release claim.
+- The [roadmap](ROADMAP.md) routes remaining work. Historical evidence is preserved;
+  no cleanup changes model precision, behavior, context, allocation or fallback rules.
+
+### Owner update: server-first hardening and everyday context (2026-09-05)
+
+Server/CLI and unmodified coding-agent operation are the primary entry and work
+priority; native Studio is optional. This supersedes the desktop-first entry
+requirement, not the equal public status of 12B Unified and 26B Compact Vision.
+Compact Vision (Trellis35 text plus FP8 Vision) is the public 26B agent target;
+NVFP4 remains internal regression/rollback, without public promotion.
+
+The public Compact Vision everyday context recommendation and new Studio profile
+default are 220,000 tokens on Linux and 170,000 on Windows, with or without D2.
+These owner-reported stable operating values supersede Linux's 229,120 default;
+they are not new independent GPU qualification. Saved explicit settings remain
+explicit. Historical capacity ceilings and evidence remain unchanged. Admission
+still requires the existing 200 MiB long-context reserve; no automatic fallback.
+
+Implement practical OpenAI interoperability where semantics can be preserved;
+only substantial unsupported behavior remains an explicit limitation. The
+server-first backlog in ROADMAP.md tracks review C00–C09. Two-platform release
+gates and the existing QUAL01 waiver remain unchanged.
+
+### Bounded Step4 FP8 projection experiments (2026-10-24)
+
+Within the owner's five-step Goal, fresh actual 85fc453 captures show M1
+long-scoreboard per-issue20.65 (local QKV),22.76 (global Q/K),12.53 (global O),
+versus short0.206/0.266/0.075; T3 math-pipe throttle7.04/7.89 (local/global QKV)
+and4.98 (global O), with three same-weight M16 MMAs per K iteration. Raw:
+`benchmarks/results/2026-10-24/85fc453/fp8-projections/`.
+This permits only (a) native M16 A-row packing for the three actual FP8 rows,
+following the existing matrix fragment map, and (b) one fixed two-entry register
+load pipeline for the actual M1 QKV/O FP8 fragments. The latter supersedes the
+prefetch closure solely for these counter-backed projection shapes; no generic
+staging, source-weight repack, K reordering, routing or precision change opens.
+Use production-matching RDC builds, all-case exact/output/resource screens and
+full numerical, memory, protected and end-to-end acceptance before promotion.
+Global layers project Q/K only and reuse raw K for V; retain that behavior.
+
+Step4's exact-input packed-QKV counter shows405,504 shared-load bank conflicts
+versus0 in the original; both execute608,256 shared-load wavefronts. This permits
+one32-byte padding trial between the three *ephemeral shared activation* rows,
+adding96bytes/CTA without changing any persistent tensor/weight layout. Require
+bit parity and a direct packed-versus-padded all-case gain before choosing it.
+Other staging/prefetch mechanisms remain closed.
+
+Step4 closes the M1 two-entry trial: every sampled case loses, despite bit
+parity; it stays test-only. The selected R3 packing/padding passes all numerical,
+memory/protected and actual-dispatch gates and yields a small +0.42–0.58% D2
+same-policy AB/BA gain, with differing Dynamic Boost clocks disclosed. No wider
+prefetch/staging scope is carried forward by that acceptance.
+
+### Bounded Step5 output-head experiments (2026-10-24)
+
+Fresh f6de38e actual-head windows execute Assistant proposals, not forced drafts.
+Target R3 NVFP4 head has106registers (112allocated), register block limit4,
+long-score17.72 and three same-weight M16 MMAs perK64; its DRAM utilization is
+91.55%. This opens one native M16 packing of the three actual A rows, using the
+existing matrix SF_A lane map, removing two accumulator sets/MMA instructions.
+Target M1 is already at93.63% DRAM and is left unchanged in this step.
+Assistant R1 head has56registers, long-score47.05/42.38 and95.52/95.59% DRAM.
+This permits one adjacent-two-N8-tiles-per-warp experiment sharing A/SF_A loads,
+with two ordered K64 chains. Keep the original64-token candidate partitions,
+all4096 candidate values/tokens, finite/BF16/divisor/mask/tie semantics exact;
+no weight repack, format change, speculative-depth change or new prefetch opens.
+High DRAM utilization bounds expectations; long-score alone is not proof of
+avoidable latency. First require exact diverse native-scale boundary tests and
+all actual outputs, positive operator medians in every sampled role/position and
+positive aggregate bootstrap lower bound before a full-model trial. Primary
+promotion still requires exact numerical/memory/protected/dispatch evidence,
+fresh AB/BA end-to-end confidence and ordinary non-regression. Failed variants
+stay offline. Raw: benchmarks/results/2026-10-24/f6de38e/output-heads/.
+
+
+Step5 closes both head variants. Assistant pairing loses all sampled operator
+cases and remains offline. The Target trial passes numerical/memory/protected/
+dispatch gates, but D2 AB+0.1647% and BA+0.1728% do not pass the predeclared
+both95lower>0 criterion (BA lower-0.0018%); slightly higher clocks are disclosed.
+The production source is restored exactly, loaded binary bytes match the
+accepted parent, and only non-loadable nvcc temporary-PID metadata differs.
+All raw data and the trial are retained in the negative output-head record.
+No new head prefetch/staging/pairing/packing search is opened by this result.
+
+The final five-step audit permits one build-mode verification of the existing
+Step2 depth2/depth4/register-bounded-depth2 variants, with production-matching
+compute_120a/sm_120a and RDC=true. The earlier non-RDC record remains valid for
+its stated diagnostic build but cannot establish the matched-build outcome.
+This is only a re-screen of those exact three existing sources and current
+actual-input/operator counters, not a new pipeline/depth/staging search. Keep
+the original all-real-GateUp-case>2% gate and exact codec/output boundaries;
+only a qualifying variant may enter the existing full production acceptance
+loop. Omit the unrelated old attention link derivative with a visible
+cudaErrorNotSupported diagnostic link stub, never executed in T3 projection mode.
+
+
+The build-mode audit is closed: all three current-source RDC variants remain
+exact but fail the unchanged all-case>2% gate. No production source change or
+new pipeline/staging search follows. Matched-build record and disassembly
+supplement preserve the result without rewriting the earlier non-RDC evidence.
+
+### Five-step decode campaign closeout (2026-10-24)
+
+All five bounded experiments are complete. Production retains M1 GateUp codec-window
+sharing, fixed-D2 attention normalization and native three-row FP8 QKV/O packing;
+the T3 GateUp pipelines and Target/Assistant head trials stay rejected diagnostics.
+The accepted runtime source remains `f6de38e`. Qualification and restoration
+evidence is checked against actual logs, outputs, source/binary hashes and retained
+positive and negative records, including the production-RDC re-screen.
+
+The final twelve-cohort day-start/final/current-llama comparison uses freshly built
+official llama.cpp b11866 at `3f03b17724ad8b69040825f45c43c59b092a0244`.
+Native cumulative gains are 1.22–1.93% ordinary and 1.72–1.79% fixed-D2 under the
+same Dynamic Boost policy. Both point estimates favor llama across engines;
+the reverse D2 gap interval includes zero. Formats, KV and generated streams
+differ, so this is a native-format/kernel baseline with no quality-equivalence or
+native-superiority claim. See
+[final evidence](evidence/gemma4_26b/decode-five-steps-final-2026-10-24.md) and
+the [frozen record](../artifacts/trellis35/decode-five-steps-final-2026-10-24.json).
+This closes the bounded exception; no broader tuning, push, Windows/media
+qualification or release is authorized by the closeout.
+
+The owner's subsequent October24 instruction explicitly authorizes pushing the
+current tested code and documentation to GitHub `main`. This supersedes the
+five-step Goal's no-push restriction for this completed campaign only; it does
+not authorize a new release tag, downloadable release packages or wider tuning.
