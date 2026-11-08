@@ -1,12 +1,25 @@
 # Active decisions
 
-**Updated:** 2026-10-24 · **Track:** productization · **Status:** v0.2.1 patch publication authorized
+**Updated:** 2026-11-08 · **Track:** productization · **Status:** v0.3.0 release preparation
 
 Permanent rules in [AGENTS.md](../AGENTS.md) remain binding. Read the
 [product contract](PRODUCT_CONTRACT.md) and the narrow task contract next.
 The [pre-consolidation record](archive/ACTIVE_DECISIONS_2026-09-04_BEFORE_CONSOLIDATION.md)
 preserves the complete decision history, including superseded intermediate stages.
 The existing numbered decisions retain their identities below.
+
+### Owner update: v0.3.0 release preparation (2026-11-08)
+
+The owner requests pulling the current GitHub source, diagnosing the failed
+release builds and publishing a downloadable 0.3 release. Prepare `0.3.0`
+from the root `VERSION`, correct the Windows MSVC environment-lookup build
+failure and build both platform candidates at the immutable release tag.
+This instruction supersedes the earlier campaign-specific no-release scope
+for preparing this release. It does not declare the open two-platform GPU,
+clean-machine or full qualification-manifest gates passed, or extend the
+0.2.x publication exceptions to 0.3.0. Publication remains subject to those
+gates or a separately explicit bounded owner exception, with the actual
+evidence and limitations disclosed in the release notes.
 
 ### Owner update: central current llama.cpp benchmarks (2026-11-03)
 

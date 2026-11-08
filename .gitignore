@@ -20,3 +20,4 @@ __pycache__/
 /tools/openai-sdk/node_modules/
 /tools/pi-agent/node_modules/
 /.venv-agent-core/
+/.ci-venv/

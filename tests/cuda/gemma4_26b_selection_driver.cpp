@@ -1,10 +1,10 @@
 #include "cuda/engine/gemma4_26b_reference.h"
+#include "util/environment.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
 #include <iostream>
 #include <numeric>
 #include <span>
@@ -46,7 +46,8 @@ void Start(Engine& engine, std::span<const std::uint32_t> mask,
 }  // namespace
 
 int main(int argc, char** argv) {
-  const char* model = std::getenv("GEM16_26B_SELECTION_MODEL");
+  const char* model =
+      gem16::internal::GetEnvironmentVariable("GEM16_26B_SELECTION_MODEL");
   if (argc == 3 && std::string_view(argv[1]) == "--model") model = argv[2];
   else if (argc != 1) return 2;
   if (model == nullptr || *model == '\0') {
