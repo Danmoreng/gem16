@@ -289,42 +289,50 @@
     if (!status.ok()) return status;
     status = LaunchFp8Projection(o_activation, o_scale, layer.o, projection, stream_);
     if (!status.ok()) return status;
-    status = LaunchRoundBf16(projection, kHidden, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
-      status = capture_hidden(capture->attention_output, projection,
-                              "copy attention output state");
-      if (!status.ok()) return status;
-    }
-    status = internal::LaunchRmsNormResidualBf16(
-        projection, layer.post_attention_norm, hidden_a, post_norm, hidden_b,
-        1U, kHidden, kEpsilon, nullptr, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
-      status = capture_hidden(capture->post_attention_norm, post_norm,
-                              "copy post-attention norm state");
-      if (!status.ok()) return status;
-      status = capture_hidden(capture->post_attention_residual, hidden_b,
-                              "copy post-attention residual state");
-      if (!status.ok()) return status;
-    }
-    if (capture == nullptr) {
-      status = internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
-          hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales, 1U, kHidden,
-          kEpsilon, layer.gate.input_divisor, stream_);
-    } else {
-      status = internal::LaunchRmsNormBf16(
-          hidden_b, layer.pre_mlp_norm, normalized, 1U, kHidden, kEpsilon,
+    if (capture == nullptr && kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
+      status = internal::LaunchTwelveBPostAttentionNvfp4Boundary(
+          projection, layer.post_attention_norm, hidden_a, post_norm, hidden_b,
+          layer.pre_mlp_norm, mlp_packed, mlp_scales, layer.gate.input_divisor,
           stream_);
       if (!status.ok()) return status;
-      status = capture_hidden(capture->pre_feedforward_norm, normalized,
-                              "copy pre-feedforward norm state");
+    } else {
+      status = LaunchRoundBf16(projection, kHidden, stream_);
       if (!status.ok()) return status;
-      status = internal::LaunchNvfp4ReferenceActivationQuantization(
-          normalized, mlp_packed, mlp_scales, kHidden,
-          layer.gate.input_divisor, stream_);
+      if (capture != nullptr) {
+        status = capture_hidden(capture->attention_output, projection,
+                                "copy attention output state");
+        if (!status.ok()) return status;
+      }
+      status = internal::LaunchRmsNormResidualBf16(
+          projection, layer.post_attention_norm, hidden_a, post_norm, hidden_b,
+          1U, kHidden, kEpsilon, nullptr, stream_);
+      if (!status.ok()) return status;
+      if (capture != nullptr) {
+        status = capture_hidden(capture->post_attention_norm, post_norm,
+                                "copy post-attention norm state");
+        if (!status.ok()) return status;
+        status = capture_hidden(capture->post_attention_residual, hidden_b,
+                                "copy post-attention residual state");
+        if (!status.ok()) return status;
+      }
+      if (capture == nullptr) {
+        status = internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
+            hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales, 1U, kHidden,
+            kEpsilon, layer.gate.input_divisor, stream_);
+      } else {
+        status = internal::LaunchRmsNormBf16(
+            hidden_b, layer.pre_mlp_norm, normalized, 1U, kHidden, kEpsilon,
+            stream_);
+        if (!status.ok()) return status;
+        status = capture_hidden(capture->pre_feedforward_norm, normalized,
+                                "copy pre-feedforward norm state");
+        if (!status.ok()) return status;
+        status = internal::LaunchNvfp4ReferenceActivationQuantization(
+            normalized, mlp_packed, mlp_scales, kHidden,
+            layer.gate.input_divisor, stream_);
+      }
+      if (!status.ok()) return status;
     }
-    if (!status.ok()) return status;
     status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.gate, gate,
                                    stream_);
     if (!status.ok()) return status;

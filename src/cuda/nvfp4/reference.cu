@@ -168,6 +168,8 @@ __global__ void RmsNormQuantizeActivationKernel(
   }
 }
 
+#include "cuda/nvfp4/detail/twelve_b_post_attention.cuh"
+
 template <typename Input>
 __device__ __forceinline__ float LoadBf16Boundary(Input value) {
   if constexpr (std::is_same_v<Input, std::uint16_t>) {
@@ -429,6 +431,24 @@ Status LaunchRmsNormNvfp4ActivationQuantizationBatch(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch fused RMSNorm NVFP4 quantization", error);
+}
+
+Status LaunchTwelveBPostAttentionNvfp4Boundary(
+    float* projection, const std::uint16_t* post_weight, const float* residual,
+    float* post_output, float* hidden_output, const std::uint16_t* pre_weight,
+    std::uint8_t* packed, std::uint8_t* scales, float divisor,
+    cudaStream_t stream) {
+  if (projection == nullptr || post_weight == nullptr || residual == nullptr ||
+      post_output == nullptr || hidden_output == nullptr || pre_weight == nullptr ||
+      packed == nullptr || scales == nullptr || !PositiveFinite(divisor)) {
+    return Invalid("12B post-attention boundary requires valid pointers/divisor");
+  }
+  TwelveBPostAttentionQuantizeKernel<<<1U, 256U, 0U, stream>>>(
+      projection, post_weight, residual, post_output, hidden_output, pre_weight,
+      packed, scales, divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess ? Status::Ok()
+                             : CudaFailure("launch 12B post-attention boundary", error);
 }
 
 Status LaunchRmsNormBf16Nvfp4ActivationQuantizationBatch(

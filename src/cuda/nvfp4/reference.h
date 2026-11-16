@@ -42,6 +42,13 @@ namespace gem16::internal {
     float global_divisor,
     cudaStream_t stream);
 
+// Specialized T1/H3840 boundary; caller selects12B checkpoint-FP8 decode only.
+[[nodiscard]] Status LaunchTwelveBPostAttentionNvfp4Boundary(
+    float* projection, const std::uint16_t* post_weight, const float* residual,
+    float* post_output, float* hidden_output, const std::uint16_t* pre_weight,
+    std::uint8_t* packed, std::uint8_t* scales, float divisor,
+    cudaStream_t stream);
+
 // Exact MTP final boundary: emit the BF16-rounded normalized hidden state and
 // its blockwise NVFP4 Head activation from the same RMS reduction.
 [[nodiscard]] Status LaunchRmsNormBf16Nvfp4ActivationQuantizationBatch(

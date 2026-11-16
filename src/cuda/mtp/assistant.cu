@@ -122,6 +122,51 @@ __global__ void Bf16GemvKernel(
   }
 }
 
+__global__ void Bf16GemvExactTreeKernel(
+    const float* input, const std::uint16_t* weight, float* output,
+    std::uint64_t rows, std::uint64_t contracting) {
+  const std::uint64_t row = blockIdx.x;
+  if (row >= rows) return;
+  float sum = 0.0F;
+  // Assistant matrix widths are even, and checkpoint tensors plus workspace
+  // regions are 256-byte aligned. Each BF16 row therefore remains aligned for
+  // packed loads while the FP32 input uses naturally aligned float2 loads.
+  const auto* input_pairs = reinterpret_cast<const float2*>(input);
+  const auto* weight_pairs = reinterpret_cast<const __nv_bfloat162*>(
+      weight + row * contracting);
+  const std::uint64_t contracting_pairs = contracting / 2U;
+  for (std::uint64_t column = threadIdx.x; column < contracting_pairs;
+       column += blockDim.x) {
+    const float2 inputs = input_pairs[column];
+    const float2 coefficients = __bfloat1622float2(weight_pairs[column]);
+    sum = fmaf(inputs.x, coefficients.x, sum);
+    sum = fmaf(inputs.y, coefficients.y, sum);
+  }
+  // Same stride128/64/32/16/8/4/2/1 tree as BlockSum256.
+  __shared__ float partial[kThreads];
+  partial[threadIdx.x] = sum;
+  __syncthreads();
+  float reduced = 0.0F;
+  if (threadIdx.x < 32U) {
+    const unsigned lane = threadIdx.x;
+    float s0 = partial[lane] + partial[lane + 128U];
+    const float s1 = partial[lane + 64U] + partial[lane + 192U];
+    float s2 = partial[lane + 32U] + partial[lane + 160U];
+    const float s3 = partial[lane + 96U] + partial[lane + 224U];
+    s0 += s1;
+    s2 += s3;
+    s0 += s2;
+    for (unsigned offset = 16U; offset != 0U; offset >>= 1U) {
+      s0 += __shfl_down_sync(0xFFFFFFFFU, s0, offset);
+    }
+    reduced = s0;
+  }
+  if (threadIdx.x == 0U) {
+    output[row] = static_cast<float>(__float2bfloat16_rn(reduced));
+  }
+}
+
+
 __global__ void SetAssistantAttentionPositionKernel(
     DecodeControl* control, std::uint64_t position) {
   if (blockIdx.x == 0U && threadIdx.x == 0U) control->position = position;
@@ -666,8 +711,17 @@ Status AssistantModel::GenerateDraftsDevice(
       return Error(StatusCode::kInvalidArgument,
                    "assistant BF16x2 GEMV requires an even contracting dimension");
     }
-    Bf16GemvKernel<<<static_cast<unsigned>(rows), kThreads, 0, stream>>>(
-        input, weight, output, rows, contracting);
+    const bool exact_tree_shape =
+        (contracting == 1024U &&
+         (rows == 4096U || rows == 8192U || rows == 3840U)) ||
+        (rows == 1024U && (contracting == 4096U || contracting == 8192U));
+    if (exact_tree_shape) {
+      Bf16GemvExactTreeKernel<<<static_cast<unsigned>(rows), kThreads, 0, stream>>>(
+          input, weight, output, rows, contracting);
+    } else {
+      Bf16GemvKernel<<<static_cast<unsigned>(rows), kThreads, 0, stream>>>(
+          input, weight, output, rows, contracting);
+    }
     const cudaError_t launch_error = cudaGetLastError();
     return launch_error == cudaSuccess
                ? Status::Ok()
