@@ -1,0 +1,11 @@
+{
+  "existing_mount": "/tmp",
+  "filesystem": "tmpfs",
+  "capacity_gib": 32,
+  "swap_total_bytes": 0,
+  "unit_tests": 6,
+  "actual_child_failure_status_preserved": true,
+  "actual_child_failure_cleaned_up": true,
+  "actual_ssd_override_refused_before_creation": true,
+  "production_inference_changed": false
+}

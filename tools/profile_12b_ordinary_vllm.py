@@ -10,12 +10,14 @@ import sys
 def main():
     import vllm
     import benchmark_wikipedia_workload as core
+    from experiment_scratch import check_ram_storage
 
     if '--engine' not in sys.argv or sys.argv[sys.argv.index('--engine')+1] != 'vllm':
         raise SystemExit('this diagnostic requires --engine vllm')
     if '--mtp-draft-tokens' in sys.argv and sys.argv[sys.argv.index('--mtp-draft-tokens')+1] != '0':
         raise SystemExit('Ordinary diagnostic requires zero speculative tokens')
     traces=Path(os.environ['GEM16_VLLM_TRACE_DIR']).resolve()
+    check_ram_storage(traces, expected_gib=1)
     traces.mkdir(parents=True,exist_ok=False)
     delay=int(os.environ.get('GEM16_VLLM_TRACE_DELAY','48'))
     limit=int(os.environ.get('GEM16_VLLM_TRACE_STEPS','16'))

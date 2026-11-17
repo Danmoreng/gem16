@@ -86,3 +86,22 @@ Disjoint temporary worktrees are allowed when file ownership and interfaces are 
 serialized at shared contracts and engine orchestration. Do not commit, push, rebase, reset, stash or change branches
 unless explicitly authorized. Do not edit generated files by hand; update their generator. Do not modify unrelated
 dirty files. Keep commits and patches narrow.
+
+## Temporary experiment storage (owner decision2026-11-17)
+
+Details and examples: `docs/EXPERIMENT_STORAGE.md`.
+
+- Place bulky temporary profiler traces, SQLite exports, tensor dumps and offline
+  diagnostic intermediates in RAM-backed `/tmp/gem16-experiments/`, not in SSD
+  result directories. `/tmp` is already tmpfs on the owner's64GB-RAM Linux PC.
+- Prefer `tools/experiment_scratch.py` or its context manager: verify tmpfs,
+  expected capacity and available RAM before starting; remove the owned run
+  directory after analysis. Keep GPU/pinned-host memory needs in the budget.
+  The helper's capacity checks are preflight checks, not a hard memory quota.
+- Keep compact primary samples, telemetry, correctness/dispatch summaries and
+  exact source/model/toolchain identities on SSD. Retain large raw traces only
+  when deliberately needed as non-regenerable evidence; prefer compact raw
+  reports or verified lossless compression over duplicate SQLite exports.
+- RAM scratch is ephemeral across reboot. Persist required evidence before
+  removing scratch or the daily shutdown deadline. Check SSD free space too;
+  do not start a run that cannot safely retain its small final results.
