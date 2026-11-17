@@ -1,0 +1,3755 @@
+{
+  "status": "experimental_opt_in_no_general_quality_qualification",
+  "base_commit": "73cf742327804028bfd560c5b2758408d060aff4",
+  "primary_stages": {
+    "paired": {
+      "primary_path": "benchmarks/results/2026-11-17/d3-fast-followup/paired/primary.json",
+      "sha256": "2d7c06f029d050336233bdc1ad3dfb136c6b725cd7f21374857d6ab66fc15bbd",
+      "throughput": {
+        "confidence_interval_95": [
+          110.5275220280976,
+          111.24442471792409
+        ],
+        "maximum": 111.0273456240148,
+        "mean": 110.88597337301084,
+        "median": 110.89163129999413,
+        "minimum": 110.7389431950236,
+        "sample_count": 3,
+        "samples": [
+          111.0273456240148,
+          110.89163129999413,
+          110.7389431950236
+        ],
+        "standard_deviation": 0.14428443909624458
+      },
+      "binary_sha256": {
+        "libgem16_core.a": "b3edc09ca044ac3b1ea3aac0a33a56ca1fa40496fe05fd45d58e947160602e40",
+        "gem16-run": "390227ec6cb4baf934ff38387a50212b564c08fcc50ec2d157a5a489bd39176a"
+      },
+      "configuration": {
+        "batch_size": 1,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 3,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 3,
+        "mtp_verification_mode": "batched_exact_target",
+        "primary_statistic": "median",
+        "warmups": 1
+      },
+      "runtime": {
+        "assistant_checkpoint": "/home/sebastian/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345",
+        "checkpoint": "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "executable": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/paired/gem16-run",
+        "prompt_token_file": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/paired/primary.prompt-token-ids.txt"
+      },
+      "command": [
+        "/usr/bin/python",
+        "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/paired/primary.json",
+        "--executable",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/paired/gem16-run",
+        "--fixed-output-tokens",
+        "1135",
+        "--mtp-draft-tokens",
+        "3",
+        "--warmups",
+        "1",
+        "--repetitions",
+        "3",
+        "--gpu-telemetry-csv",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/paired/telemetry.csv"
+      ],
+      "environment": {
+        "GEM16_12B_D3_ATTENTION": "fp8",
+        "GEM16_12B_ORDINARY_NORMS": "1",
+        "GEM16_12B_ORDINARY_OVERLAP": "1",
+        "GEM16_12B_ORDINARY_O": "1",
+        "GEM16_12B_ORDINARY_GLOBAL": "1"
+      },
+      "mtp": {
+        "acceptance_path": "gpu_accept_commit",
+        "accepted_tokens": 698,
+        "adaptive": false,
+        "d1_groups": 0,
+        "d2_attention_path": "inactive",
+        "d2_groups": 0,
+        "d2_output_head_path": "inactive",
+        "d3_groups": 433,
+        "d4_groups": 0,
+        "device_control": "host_gpu_transition_parity",
+        "draft_tokens": 3,
+        "enabled": true,
+        "group_execution": "gpu_chained_fixed_d3_conditional_graph",
+        "host_synchronizations_per_chain": 0,
+        "host_synchronizations_per_group": 0,
+        "mean_accepted_length": 1.61201,
+        "ordinary_fallback_tokens": 0,
+        "proposed_tokens": 1299,
+        "rejected_tokens": 601,
+        "short_batch_projection_path": "decode_order_fp8_qkv_nvfp4_down_t_le_5",
+        "streaming": "mapped_pinned_spsc_ring_256",
+        "target_batches": 436,
+        "target_forwards": 1735,
+        "verification_groups": 433,
+        "verification_mode": "batched_exact_target"
+      },
+      "whole_process_nvml": {
+        "sampling_ms": 200,
+        "peak_used_mib": 11775.0,
+        "median_sm_mhz_when_gpu_utilization_at_least_90pct": 2362.0,
+        "not_decode_only_window": true
+      },
+      "memory": {
+        "decode_graph_device_bytes": 31457280,
+        "kv_cache_bytes": 311287808,
+        "persistent_repack_bytes": 0,
+        "weight_arena_bytes": 9304895488,
+        "workspace_bytes": 1611421184
+      }
+    },
+    "assistant": {
+      "primary_path": "benchmarks/results/2026-11-17/d3-fast-followup/assistant/primary.json",
+      "sha256": "ae745113bc8da752001e12c0c4d86a715024c4ea767d951fe70e34564671042f",
+      "throughput": {
+        "confidence_interval_95": [
+          111.56762927179248,
+          111.59262725171526
+        ],
+        "maximum": 111.58451986184772,
+        "mean": 111.58012826175387,
+        "median": 111.58122601594017,
+        "minimum": 111.57463890747373,
+        "sample_count": 3,
+        "samples": [
+          111.57463890747373,
+          111.58451986184772,
+          111.58122601594017
+        ],
+        "standard_deviation": 0.005031114491383451
+      },
+      "binary_sha256": {
+        "libgem16_core.a": "6b448343e6a0f9b69dc9a15401b02ca4310b2a05f2dce0e72481696f18fba152",
+        "gem16-run": "9087bdf5641a70998c4c4489af9e76f561354fde6fd7ff0c0244c96fbac7eeb7"
+      },
+      "configuration": {
+        "batch_size": 1,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 3,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 3,
+        "mtp_verification_mode": "batched_exact_target",
+        "primary_statistic": "median",
+        "warmups": 1
+      },
+      "runtime": {
+        "assistant_checkpoint": "/home/sebastian/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345",
+        "checkpoint": "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "executable": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/assistant/gem16-run",
+        "prompt_token_file": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/assistant/primary.prompt-token-ids.txt"
+      },
+      "command": [
+        "/usr/bin/python",
+        "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/assistant/primary.json",
+        "--executable",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/assistant/gem16-run",
+        "--fixed-output-tokens",
+        "1135",
+        "--mtp-draft-tokens",
+        "3",
+        "--warmups",
+        "1",
+        "--repetitions",
+        "3",
+        "--gpu-telemetry-csv",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/assistant/telemetry.csv"
+      ],
+      "environment": {
+        "GEM16_12B_D3_ATTENTION": "fp8",
+        "GEM16_12B_ORDINARY_NORMS": "1",
+        "GEM16_12B_ORDINARY_OVERLAP": "1",
+        "GEM16_12B_ORDINARY_O": "1",
+        "GEM16_12B_ORDINARY_GLOBAL": "1"
+      },
+      "mtp": {
+        "acceptance_path": "gpu_accept_commit",
+        "accepted_tokens": 697,
+        "adaptive": false,
+        "d1_groups": 0,
+        "d2_attention_path": "inactive",
+        "d2_groups": 0,
+        "d2_output_head_path": "inactive",
+        "d3_groups": 434,
+        "d4_groups": 0,
+        "device_control": "host_gpu_transition_parity",
+        "draft_tokens": 3,
+        "enabled": true,
+        "group_execution": "gpu_chained_fixed_d3_conditional_graph",
+        "host_synchronizations_per_chain": 0,
+        "host_synchronizations_per_group": 0,
+        "mean_accepted_length": 1.60599,
+        "ordinary_fallback_tokens": 0,
+        "proposed_tokens": 1302,
+        "rejected_tokens": 605,
+        "short_batch_projection_path": "decode_order_fp8_qkv_nvfp4_down_t_le_5",
+        "streaming": "mapped_pinned_spsc_ring_256",
+        "target_batches": 437,
+        "target_forwards": 1739,
+        "verification_groups": 434,
+        "verification_mode": "batched_exact_target"
+      },
+      "whole_process_nvml": {
+        "sampling_ms": 200,
+        "peak_used_mib": 11775.0,
+        "median_sm_mhz_when_gpu_utilization_at_least_90pct": 2332.0,
+        "not_decode_only_window": true
+      },
+      "memory": {
+        "decode_graph_device_bytes": 31457280,
+        "kv_cache_bytes": 311287808,
+        "persistent_repack_bytes": 0,
+        "weight_arena_bytes": 9304895488,
+        "workspace_bytes": 1611421184
+      }
+    },
+    "local": {
+      "primary_path": "benchmarks/results/2026-11-17/d3-fast-followup/local/primary.json",
+      "sha256": "d6f4831547bd77adc2f26863cd304d6523c5b34a3e8036f9bb2f1931484c2527",
+      "throughput": {
+        "confidence_interval_95": [
+          111.99884667539125,
+          112.24480515917175
+        ],
+        "maximum": 112.1783774693587,
+        "mean": 112.1218259172815,
+        "median": 112.10075228106248,
+        "minimum": 112.08634800142332,
+        "sample_count": 3,
+        "samples": [
+          112.10075228106248,
+          112.1783774693587,
+          112.08634800142332
+        ],
+        "standard_deviation": 0.04950181158034141
+      },
+      "binary_sha256": {
+        "libgem16_core.a": "5aa2c88e48672bd2ccbee7b769d9e4730ffc79b8393ded20ee63ae8745c0b9e0",
+        "gem16-run": "1153040e90701da8a0de5d3addbcc046df9c8338802e40ad8d30707a8103e923"
+      },
+      "configuration": {
+        "batch_size": 1,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 3,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 3,
+        "mtp_verification_mode": "batched_exact_target",
+        "primary_statistic": "median",
+        "warmups": 1
+      },
+      "runtime": {
+        "assistant_checkpoint": "/home/sebastian/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345",
+        "checkpoint": "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "executable": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/local/gem16-run",
+        "prompt_token_file": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/local/primary.prompt-token-ids.txt"
+      },
+      "command": [
+        "/usr/bin/python",
+        "/home/sebastian/Development/gem16gb/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/local/primary.json",
+        "--executable",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/local/gem16-run",
+        "--fixed-output-tokens",
+        "1135",
+        "--mtp-draft-tokens",
+        "3",
+        "--warmups",
+        "1",
+        "--repetitions",
+        "3",
+        "--gpu-telemetry-csv",
+        "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/local/telemetry.csv"
+      ],
+      "environment": {
+        "GEM16_12B_D3_ATTENTION": "fp8",
+        "GEM16_12B_ORDINARY_NORMS": "1",
+        "GEM16_12B_ORDINARY_OVERLAP": "1",
+        "GEM16_12B_ORDINARY_O": "1",
+        "GEM16_12B_ORDINARY_GLOBAL": "1"
+      },
+      "mtp": {
+        "acceptance_path": "gpu_accept_commit",
+        "accepted_tokens": 690,
+        "adaptive": false,
+        "d1_groups": 0,
+        "d2_attention_path": "inactive",
+        "d2_groups": 0,
+        "d2_output_head_path": "inactive",
+        "d3_groups": 441,
+        "d4_groups": 0,
+        "device_control": "host_gpu_transition_parity",
+        "draft_tokens": 3,
+        "enabled": true,
+        "group_execution": "gpu_chained_fixed_d3_conditional_graph",
+        "host_synchronizations_per_chain": 0,
+        "host_synchronizations_per_group": 0,
+        "mean_accepted_length": 1.56463,
+        "ordinary_fallback_tokens": 0,
+        "proposed_tokens": 1323,
+        "rejected_tokens": 633,
+        "short_batch_projection_path": "decode_order_fp8_qkv_nvfp4_down_t_le_5",
+        "streaming": "mapped_pinned_spsc_ring_256",
+        "target_batches": 444,
+        "target_forwards": 1767,
+        "verification_groups": 441,
+        "verification_mode": "batched_exact_target"
+      },
+      "whole_process_nvml": {
+        "sampling_ms": 200,
+        "peak_used_mib": 11775.0,
+        "median_sm_mhz_when_gpu_utilization_at_least_90pct": 2287.0,
+        "not_decode_only_window": true
+      },
+      "memory": {
+        "decode_graph_device_bytes": 31457280,
+        "kv_cache_bytes": 311287808,
+        "persistent_repack_bytes": 0,
+        "weight_arena_bytes": 9304895488,
+        "workspace_bytes": 1611421184
+      }
+    }
+  },
+  "previous_experimental_throughput": {
+    "confidence_interval_95": [
+      107.01231965983109,
+      107.58241985601637
+    ],
+    "maximum": 107.38738056231594,
+    "mean": 107.29736975792373,
+    "median": 107.33655784721105,
+    "minimum": 107.1681708642442,
+    "sample_count": 3,
+    "samples": [
+      107.38738056231594,
+      107.33655784721105,
+      107.1681708642442
+    ],
+    "standard_deviation": 0.11473884559585219
+  },
+  "earlier_same_day_exact_throughput": {
+    "confidence_interval_95": [
+      100.12993392880107,
+      100.49169774637132
+    ],
+    "maximum": 100.38507502323729,
+    "mean": 100.31081583758619,
+    "median": 100.30782294873156,
+    "minimum": 100.23954954078972,
+    "sample_count": 3,
+    "samples": [
+      100.38507502323729,
+      100.30782294873156,
+      100.23954954078972
+    ],
+    "standard_deviation": 0.07280889058467693
+  },
+  "earlier_same_day_vllm_throughput": {
+    "confidence_interval_95": [
+      117.05776902825055,
+      117.19127969102705
+    ],
+    "maximum": 117.14665608380143,
+    "mean": 117.1245243596388,
+    "median": 117.13229097383301,
+    "minimum": 117.09462602128197,
+    "sample_count": 3,
+    "samples": [
+      117.14665608380143,
+      117.13229097383301,
+      117.09462602128197
+    ],
+    "standard_deviation": 0.02687046842680734
+  },
+  "gain_over_previous_experimental_percent": 4.438557122945053,
+  "gain_over_earlier_exact_percent": 11.75673939046451,
+  "throughput_fraction_of_vllm_percent": 95.70439658360772,
+  "remaining_speedup_to_vllm_percent": 4.488407606895706,
+  "output_facts": {
+    "exact_all1135_outputs_and1311_draft_ids_unchanged": true,
+    "assistant_stage_all1135_outputs_equal_paired_stage": true,
+    "final_first_different_index_vs_previous_experimental": 2,
+    "final_first_different_ids": [
+      5723,
+      1778
+    ],
+    "all_cohorts_deterministic_across_three": true
+  },
+  "quality_smoke_screen": {
+    "scope": "first32 pinned GSM8K test questions, greedy no thinking,512token cap; quality smoke screen only",
+    "exact_aggregate": {
+      "score": 0.90625,
+      "stop_rate": 0.90625,
+      "truncated_rate": 0.09375,
+      "error_rate": 0.0
+    },
+    "experimental_aggregate": {
+      "score": 0.96875,
+      "stop_rate": 0.96875,
+      "truncated_rate": 0.03125,
+      "error_rate": 0.0
+    },
+    "paired_exact_correct_fast_wrong": 0,
+    "paired_exact_wrong_fast_correct": 2,
+    "different_texts": 31,
+    "all_unscored_are_length_limited": true,
+    "general_quality_equivalence_established": false,
+    "pairs": [
+      {
+        "id": "gsm8k-0",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-1",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-2",
+        "exact_score": 0.0,
+        "fast_score": 1.0,
+        "exact_finish": "length",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-3",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-4",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-5",
+        "exact_score": 0.0,
+        "fast_score": 1.0,
+        "exact_finish": "length",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-6",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-7",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-8",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-9",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-10",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-11",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-12",
+        "exact_score": 0.0,
+        "fast_score": 0.0,
+        "exact_finish": "length",
+        "fast_finish": "length",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-13",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-14",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-15",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-16",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-17",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-18",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-19",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-20",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-21",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-22",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-23",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-24",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-25",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-26",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-27",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-28",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-29",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-30",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": false
+      },
+      {
+        "id": "gsm8k-31",
+        "exact_score": 1.0,
+        "fast_score": 1.0,
+        "exact_finish": "stop",
+        "fast_finish": "stop",
+        "same_text": true
+      }
+    ]
+  },
+  "quality_runtime_identity": {
+    "server_sha256": "03c5d62099237dbd729677960c7a227df2a48ac985d4396a42aaa002f1d40b8b",
+    "runtime": {
+      "assistant_checkpoint": "/home/sebastian/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345",
+      "checkpoint": "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+      "executable": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/local/gem16-run",
+      "prompt_token_file": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fast-followup/local/primary.prompt-token-ids.txt"
+    },
+    "dataset": "gsm8k first32 pinned test examples",
+    "generation": "greedy, no thinking, max512tokens, one answer per question",
+    "not_a_throughput_cohort": true,
+    "not_general_quality_equivalence": true
+  },
+  "final_actual_dispatch": {
+    "actual_expected_dispatch_counts": true,
+    "selected_groups": 13,
+    "whole_selected_chain_host_launch_correlations": 1,
+    "local_static_instruction_counts_not_dynamic": {
+      "QMMA": 16,
+      "HMMA": 0,
+      "FFMA": 58,
+      "BAR.SYNC": 10
+    },
+    "resource_usage_text": "\nResource usage:\n Common:\n  GLOBAL:11 CONSTANT[4]:8\n Function gem16_d3_local_fp8:\n  REG:236 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:992 TEXTURE:0 SURFACE:0 SAMPLER:0\n",
+    "embedded_local_cubin_sha256": "9b22b09e19736acde77e074ba0a6e1d894472a89b8841c6e29666ed90000a5ac"
+  },
+  "paired_actual_sass_proof": {
+    "actual_dispatched_mangled_name": "__nv_static_43__e310ac65_21_twelve_b_d3_paired_cu_17400027__ZN5gem168internal54_GLOBAL__N__e310ac65_21_twelve_b_d3_paired_cu_1740002734TwelveBD3PairedPostAttentionKernelEPfPKtPKfS2_S2_S4_PhS7_f",
+    "command": [
+      "/opt/cuda/bin/cuobjdump",
+      "--dump-sass",
+      "--function",
+      "__nv_static_43__e310ac65_21_twelve_b_d3_paired_cu_17400027__ZN5gem168internal54_GLOBAL__N__e310ac65_21_twelve_b_d3_paired_cu_1740002734TwelveBD3PairedPostAttentionKernelEPfPKtPKfS2_S2_S4_PhS7_f",
+      "benchmarks/results/2026-11-17/d3-fast-followup/local/gem16-run"
+    ],
+    "registers": 54,
+    "shared": 16,
+    "local_bytes_per_thread": 0,
+    "static_conversion_instruction_examples": [
+      "F2FP.F16.E4M3.UNPACK_B R0, R0 ",
+      "F2FP.F16.E4M3.UNPACK_B R11, R11 ",
+      "F2FP.F16.E4M3.UNPACK_B R12, R12 ",
+      "F2FP.F16.E4M3.UNPACK_B R14, R14 ",
+      "F2FP.F16.E4M3.UNPACK_B R2, R2 ",
+      "F2FP.F16.E4M3.UNPACK_B R4, R4 ",
+      "F2FP.SATFINITE.E2M1.F32.PACK_AB_MERGE_C R11, R11, R22, RZ ",
+      "F2FP.SATFINITE.E2M1.F32.PACK_AB_MERGE_C R11, R11, R24, RZ "
+    ]
+  },
+  "final_diagnostic": {
+    "diagnostic_only": true,
+    "selection": "same16414..16445 verifier context band",
+    "selected_groups": 13,
+    "actual_short_counts": {
+      "InitializeControlledAssistantKernel": 13,
+      "PreProjectionKernel": 39,
+      "RmsNormKernel": 1144,
+      "Bf16GemvExactTreeKernel": 819,
+      "ControlledRotaryKernel": 156,
+      "RoundBf16Kernel": 1092,
+      "SplitOnlineDecodeAttentionFp8Kernel": 117,
+      "MergeOnlineDecodeAttentionKernel": 117,
+      "RmsNormResidualBf16Kernel": 312,
+      "GeluTanhProductKernel": 156,
+      "gem16_d3_global_fp8": 143,
+      "MergeD3Fast16Kernel": 143,
+      "AssistantOutputCandidatesKernel": 39,
+      "AssistantOutputArgmaxKernel": 39,
+      "BuildControlledMtpInputsKernel": 13,
+      "EmbeddingBatchKernel": 13,
+      "TwelveBD3FastInputNormFp8Kernel": 624,
+      "TwelveBPackedFp8ProjectionKernel": 1248,
+      "ProjectionRmsNormRotaryBf16BatchControlledKernel": 624,
+      "QuantizeKvBatchKernel": 624,
+      "CopyCircularMtpKvControlledKernel": 1040,
+      "gem16_d3_local_fp8": 520,
+      "MergeD3Local4Kernel": 520,
+      "AppendKvBatchControlledKernel": 624,
+      "TwelveBD3FastAttentionQuantizeKernel": 624,
+      "TwelveBD3PairedPostAttentionKernel": 624,
+      "Sm120MatrixProjectionKernel": 624,
+      "QuantizeActivationReferenceKernel": 624,
+      "Sm120D3DownFixedShapeKernel": 624,
+      "TwelveBD3FastPostMlpKernel": 624,
+      "FusedOutputHeadFixedBatchCandidatesKernel": 13,
+      "OutputHeadArgmaxKernel": 13,
+      "AcceptMtpGroupKernel": 13,
+      "CommitMtpKvControlledD2Kernel": 624,
+      "CommitMtpHiddenKernel": 13,
+      "AdvanceMtpD2ChainKernel": 13,
+      "ContinueMtpChainKernel": 13
+    },
+    "no_hot_allocation_or_module_load_api": true,
+    "cost": {
+      "groups": 13,
+      "context_end_values": [
+        16414,
+        16418,
+        16422,
+        16423,
+        16427,
+        16428,
+        16429,
+        16431,
+        16434,
+        16438,
+        16442,
+        16443,
+        16445
+      ],
+      "group_indices": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "all_kernels": {
+        "count": 14625,
+        "count_per_group": 1125.0,
+        "sum_ms_per_group": 22.396312230766537,
+        "union_ms_per_group": 22.396312230766537
+      },
+      "mean_intragroup_span_ms": 22.790358153846114,
+      "mean_intragroup_no_kernel_ms": 0.3940459230795789,
+      "phases": {
+        "assistant": {
+          "count": 2860,
+          "count_per_group": 220.0,
+          "sum_ms_per_group": 4.49525269230842,
+          "union_ms_per_group": 4.49525269230842
+        },
+        "target backbone": {
+          "count": 11063,
+          "count_per_group": 851.0,
+          "sum_ms_per_group": 14.921725461534868,
+          "union_ms_per_group": 14.921725461534868
+        },
+        "head/sampling/control": {
+          "count": 702,
+          "count_per_group": 54.0,
+          "sum_ms_per_group": 2.979334076923246,
+          "union_ms_per_group": 2.979334076923246
+        }
+      },
+      "families": [
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "count": 858,
+          "count_per_group": 66.0,
+          "sum_ms_per_group": 1.6345721538465183,
+          "union_ms_per_group": 1.6345721538465183
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant head",
+          "count": 78,
+          "count_per_group": 6.0,
+          "sum_ms_per_group": 2.0632550000003897,
+          "union_ms_per_group": 2.0632550000003897
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "count": 78,
+          "count_per_group": 6.0,
+          "sum_ms_per_group": 0.1320619999997031,
+          "union_ms_per_group": 0.1320619999997031
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "count": 234,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 0.2903980769224178,
+          "union_ms_per_group": 0.2903980769224178
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "count": 1612,
+          "count_per_group": 124.0,
+          "sum_ms_per_group": 0.37496546153939114,
+          "union_ms_per_group": 0.37496546153939114
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "count": 702,
+          "count_per_group": 54.0,
+          "sum_ms_per_group": 2.979334076923246,
+          "union_ms_per_group": 2.979334076923246
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "count": 1248,
+          "count_per_group": 96.0,
+          "sum_ms_per_group": 3.7369069999970783,
+          "union_ms_per_group": 3.7369069999970783
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "count": 2288,
+          "count_per_group": 176.0,
+          "sum_ms_per_group": 0.3031923846155405,
+          "union_ms_per_group": 0.3031923846155405
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Down",
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 2.806271461537108,
+          "union_ms_per_group": 2.806271461537108
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Gate/Up",
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 4.497308769230659,
+          "union_ms_per_group": 4.497308769230659
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "count": 208,
+          "count_per_group": 16.0,
+          "sum_ms_per_group": 0.6899139999992286,
+          "union_ms_per_group": 0.6899139999992286
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "count": 1040,
+          "count_per_group": 80.0,
+          "sum_ms_per_group": 1.1319598461548583,
+          "union_ms_per_group": 1.1319598461548583
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "count": 5031,
+          "count_per_group": 387.0,
+          "sum_ms_per_group": 1.7561720000003966,
+          "union_ms_per_group": 1.7561720000003966
+        }
+      ],
+      "dispatches": [
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Gate/Up",
+          "name": "void gem16::internal::<unnamed>::Sm120MatrixProjectionKernel<(bool)1, (unsigned long)2, (unsigned int)2, (bool)0, float>(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, float *, float *, T5 *, unsigned long, unsigned long, unsigned long, float, float)",
+          "grid": [
+            960,
+            1,
+            1
+          ],
+          "block": [
+            64,
+            1,
+            1
+          ],
+          "registers": 64,
+          "shared": 0,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 4.497308769230659,
+          "union_ms_per_group": 4.497308769230659
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::FusedOutputHeadFixedBatchCandidatesKernel<(unsigned int)4>(const unsigned short *, const float *, const unsigned int *, unsigned int, gem16::internal::OutputHeadCandidate *, float *)",
+          "grid": [
+            4096,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 43,
+          "shared": 256,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 2.8752150769230838,
+          "union_ms_per_group": 2.8752150769230838
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Down",
+          "name": "gem16::internal::<unnamed>::Sm120D3DownFixedShapeKernel(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, unsigned short *, float)",
+          "grid": [
+            60,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 43,
+          "shared": 0,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 2.806271461537108,
+          "union_ms_per_group": 2.806271461537108
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant head",
+          "name": "gem16::internal::<unnamed>::AssistantOutputCandidatesKernel(const unsigned short *, const float *, gem16::internal::<unnamed>::ArgmaxValue *)",
+          "grid": [
+            4096,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 39,
+          "shared": 64,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 2.0526584615395045,
+          "union_ms_per_group": 2.0526584615395045
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            128,
+            1,
+            3
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 15488,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 1.9043483076899383,
+          "union_ms_per_group": 1.9043483076899383
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "name": "gem16_d3_local_fp8",
+          "grid": [
+            8,
+            4,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 236,
+          "shared": 16384,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 1.0709689230771304,
+          "union_ms_per_group": 1.0709689230771304
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            120,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 16512,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 1.0429473076911213,
+          "union_ms_per_group": 1.0429473076911213
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            8192,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 351,
+          "count_per_group": 27.0,
+          "sum_ms_per_group": 0.8688620769239676,
+          "union_ms_per_group": 0.8688620769239676
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::TwelveBD3PairedPostAttentionKernel(float *, const unsigned short *, const float *, float *, float *, const unsigned short *, unsigned char *, unsigned char *, float)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 54,
+          "shared": 16,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.7284088461546657,
+          "union_ms_per_group": 0.7284088461546657
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "name": "gem16_d3_global_fp8",
+          "grid": [
+            16,
+            4,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 145,
+          "shared": 74272,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.664321769230211,
+          "union_ms_per_group": 0.664321769230211
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            1024,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 312,
+          "count_per_group": 24.0,
+          "sum_ms_per_group": 0.46154676923098475,
+          "union_ms_per_group": 0.46154676923098475
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            256,
+            1,
+            2
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 15488,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.39699038461538466,
+          "union_ms_per_group": 0.39699038461538466
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            120,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 32896,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.3926210000006339,
+          "union_ms_per_group": 0.3926210000006339
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::TwelveBD3FastPostMlpKernel(const unsigned short *, const unsigned short *, const float *, float *, float *, const unsigned short *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 38,
+          "shared": 2048,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.39249499999717447,
+          "union_ms_per_group": 0.39249499999717447
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8Kernel<(int)256, (int)8, (int)2, (int)2, (int)128, (bool)0, (bool)0, (bool)0>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+          "grid": [
+            64,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 49,
+          "shared": 1056,
+          "count": 117,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.2733248461535057,
+          "union_ms_per_group": 0.2733248461535057
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::TwelveBD3FastInputNormFp8Kernel(const float *, const unsigned short *, unsigned char *, float *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 42,
+          "shared": 2048,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.1845978461551265,
+          "union_ms_per_group": 0.1845978461551265
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            4096,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 117,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.15070361538388982,
+          "union_ms_per_group": 0.15070361538388982
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "name": "gem16_d3_global_fp8",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 145,
+          "shared": 74272,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.12378884615362264,
+          "union_ms_per_group": 0.12378884615362264
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::PreProjectionKernel(const unsigned short *, const unsigned int *, const float *, const unsigned short *, float *)",
+          "grid": [
+            1024,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 48,
+          "shared": 1024,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.1068660000005307,
+          "union_ms_per_group": 0.1068660000005307
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormResidualBf16Kernel<float>(const T1 *, const unsigned short *, const float *, float *, float *, unsigned long, float, const unsigned short *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 28,
+          "shared": 1024,
+          "count": 312,
+          "count_per_group": 24.0,
+          "sum_ms_per_group": 0.10277461538478158,
+          "union_ms_per_group": 0.10277461538478158
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::QuantizeActivationReferenceKernel<float>(const T1 *, unsigned char *, unsigned char *, unsigned long, float)",
+          "grid": [
+            30,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 38,
+          "shared": 0,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.09853853846054811,
+          "union_ms_per_group": 0.09853853846054811
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ControlledRotaryKernel(float *, unsigned long, unsigned long, unsigned long, unsigned long, const gem16::internal::DecodeControl *, double, double, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 52,
+          "shared": 0,
+          "count": 117,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.0950646153847472,
+          "union_ms_per_group": 0.0950646153847472
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::CopyCircularMtpKvControlledKernel<unsigned char, (bool)0>(T1 *, T1 *, T1 *, T1 *, unsigned int, unsigned long, unsigned long, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.09440084615235145,
+          "union_ms_per_group": 0.09440084615235145
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ProjectionRmsNormRotaryBf16BatchControlledKernel(const float *, const unsigned short *, float *, const float *, const unsigned short *, float *, const float *, const float *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long, unsigned long, float)",
+          "grid": [
+            96,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 35,
+          "shared": 1024,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.09430230769314446,
+          "union_ms_per_group": 0.09430230769314446
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 351,
+          "count_per_group": 27.0,
+          "sum_ms_per_group": 0.0899669999996057,
+          "union_ms_per_group": 0.0899669999996057
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::TwelveBD3FastAttentionQuantizeKernel<(unsigned int)4096>(const float *, unsigned char *, float *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 1024,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.08140900000199101,
+          "union_ms_per_group": 0.08140900000199101
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::CommitMtpKvControlledD2Kernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, unsigned long, unsigned long, const gem16::internal::MtpGroupResult *, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            40,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.07262930769229738,
+          "union_ms_per_group": 0.07262930769229738
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::AppendKvBatchControlledKernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.06230761538560574,
+          "union_ms_per_group": 0.06230761538560574
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::CopyCircularMtpKvControlledKernel<unsigned char, (bool)1>(T1 *, T1 *, T1 *, T1 *, unsigned int, unsigned long, unsigned long, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.061540000001828264,
+          "union_ms_per_group": 0.061540000001828264
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "gem16::internal::<unnamed>::QuantizeKvBatchKernel(const float *, const float *, unsigned char *, unsigned char *, const unsigned short *, const unsigned short *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.06107984615303576,
+          "union_ms_per_group": 0.06107984615303576
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "name": "gem16::internal::<unnamed>::MergeD3Local4Kernel(const float *, const float *, float *)",
+          "grid": [
+            16,
+            4,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 28,
+          "shared": 20,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.06099092307772774,
+          "union_ms_per_group": 0.06099092307772774
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.06059200000089522,
+          "union_ms_per_group": 0.06059200000089522
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            3840,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.04659369230714555,
+          "union_ms_per_group": 0.04659369230714555
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.03756230769077173,
+          "union_ms_per_group": 0.03756230769077173
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ControlledRotaryKernel(float *, unsigned long, unsigned long, unsigned long, unsigned long, const gem16::internal::DecodeControl *, double, double, unsigned long)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 52,
+          "shared": 0,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.0312585384616485,
+          "union_ms_per_group": 0.0312585384616485
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "name": "gem16::internal::<unnamed>::MergeD3Fast16Kernel(const float *, const float *, float *)",
+          "grid": [
+            16,
+            4,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 68,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.02559223076901757,
+          "union_ms_per_group": 0.02559223076901757
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 117,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.023645307692197654,
+          "union_ms_per_group": 0.023645307692197654
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::TwelveBD3FastAttentionQuantizeKernel<(unsigned int)8192>(const float *, unsigned char *, float *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 56,
+          "shared": 1024,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.022313538461207198,
+          "union_ms_per_group": 0.022313538461207198
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ProjectionRmsNormRotaryBf16BatchControlledKernel(const float *, const unsigned short *, float *, const float *, const unsigned short *, float *, const float *, const float *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long, unsigned long, float)",
+          "grid": [
+            68,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 35,
+          "shared": 1024,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.02001700000020747,
+          "union_ms_per_group": 0.02001700000020747
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 156,
+          "count_per_group": 12.0,
+          "sum_ms_per_group": 0.019815000000481423,
+          "union_ms_per_group": 0.019815000000481423
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)256, (int)128>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 32,
+          "count": 117,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.017073230768912116,
+          "union_ms_per_group": 0.017073230768912116
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::CommitMtpKvControlledD2Kernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, unsigned long, unsigned long, const gem16::internal::MtpGroupResult *, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            10,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.014251846153432361,
+          "union_ms_per_group": 0.014251846153432361
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 234,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 0.013036076922399492,
+          "union_ms_per_group": 0.013036076922399492
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 234,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 0.012760538462406167,
+          "union_ms_per_group": 0.012760538462406167
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "gem16::internal::<unnamed>::QuantizeKvBatchKernel(const float *, const float *, unsigned char *, unsigned char *, const unsigned short *, const unsigned short *, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.012046615384089259,
+          "union_ms_per_group": 0.012046615384089259
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::AppendKvBatchControlledKernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.011817461538630036,
+          "union_ms_per_group": 0.011817461538630036
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant head",
+          "name": "gem16::internal::<unnamed>::AssistantOutputArgmaxKernel(const gem16::internal::<unnamed>::ArgmaxValue *, unsigned int *, unsigned int *, unsigned int)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 31,
+          "shared": 2048,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.010596538460885103,
+          "union_ms_per_group": 0.010596538460885103
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::GeluTanhProductKernel(const float *, const float *, float *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 156,
+          "count_per_group": 12.0,
+          "sum_ms_per_group": 0.00940053846156941,
+          "union_ms_per_group": 0.00940053846156941
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.00893276923049528,
+          "union_ms_per_group": 0.00893276923049528
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "name": "gem16::internal::<unnamed>::MergeD3Fast16Kernel(const float *, const float *, float *)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 68,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.008273153846080487,
+          "union_ms_per_group": 0.008273153846080487
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::AdvanceMtpD2ChainKernel(gem16::internal::MtpGroupTransaction *, gem16::internal::MtpChainResult *, unsigned int *, unsigned int *, gem16::internal::MtpStreamingRing *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 34,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.005897769231062669,
+          "union_ms_per_group": 0.005897769231062669
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::OutputHeadArgmaxKernel<(bool)1>(const gem16::internal::OutputHeadCandidate *, unsigned long, unsigned int *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 37,
+          "shared": 2048,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.004233769230831128,
+          "union_ms_per_group": 0.004233769230831128
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::AcceptMtpGroupKernel(const unsigned int *, const unsigned int *, unsigned int, const unsigned int *, unsigned int, gem16::internal::MtpGroupResult *, gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 26,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0038596153846726967,
+          "union_ms_per_group": 0.0038596153846726967
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::ContinueMtpChainKernel(const gem16::internal::MtpGroupTransaction *, const gem16::internal::MtpStreamingRing *, unsigned long long)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.002020923077200468,
+          "union_ms_per_group": 0.002020923077200468
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::<unnamed>::EmbeddingBatchKernel<float>(const unsigned short *, const unsigned int *, T1 *, unsigned long)",
+          "grid": [
+            60,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0017107692310729852,
+          "union_ms_per_group": 0.0017107692310729852
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::BuildControlledMtpInputsKernel(const gem16::internal::MtpDeviceControl *, const unsigned int *, unsigned int *, gem16::internal::DecodeControl *, unsigned int, unsigned int)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            4,
+            1,
+            1
+          ],
+          "registers": 18,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0016467692308987562,
+          "union_ms_per_group": 0.0016467692308987562
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::CommitMtpHiddenKernel(const float *, float *, unsigned long, const gem16::internal::MtpGroupResult *)",
+          "grid": [
+            15,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0012257692306660687,
+          "union_ms_per_group": 0.0012257692306660687
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::InitializeControlledAssistantKernel(const gem16::internal::MtpDeviceControl *, unsigned int *, gem16::internal::DecodeControl *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0008885384617516628,
+          "union_ms_per_group": 0.0008885384617516628
+        }
+      ],
+      "mean_adjacent_intergroup_gap_ms": 0.012389166666660458
+    }
+  },
+  "before_local_diagnostic": {
+    "diagnostic_only": true,
+    "selection": "same16414..16445 verifier context band",
+    "selected_groups": 13,
+    "actual_short_counts": {
+      "InitializeControlledAssistantKernel": 13,
+      "PreProjectionKernel": 39,
+      "RmsNormKernel": 1144,
+      "Bf16GemvExactTreeKernel": 819,
+      "ControlledRotaryKernel": 156,
+      "RoundBf16Kernel": 1092,
+      "SplitOnlineDecodeAttentionFp8Kernel": 117,
+      "MergeOnlineDecodeAttentionKernel": 117,
+      "RmsNormResidualBf16Kernel": 312,
+      "GeluTanhProductKernel": 156,
+      "gem16_d3_global_fp8": 143,
+      "MergeD3Fast16Kernel": 143,
+      "AssistantOutputCandidatesKernel": 39,
+      "AssistantOutputArgmaxKernel": 39,
+      "BuildControlledMtpInputsKernel": 13,
+      "EmbeddingBatchKernel": 13,
+      "TwelveBD3FastInputNormFp8Kernel": 624,
+      "TwelveBPackedFp8ProjectionKernel": 1248,
+      "ProjectionRmsNormRotaryBf16BatchControlledKernel": 624,
+      "QuantizeKvBatchKernel": 624,
+      "CopyCircularMtpKvControlledKernel": 1040,
+      "SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel": 520,
+      "MergeOnlineDecodeAttentionFp8LocalFixedKernel": 520,
+      "AppendKvBatchControlledKernel": 624,
+      "TwelveBD3FastAttentionQuantizeKernel": 624,
+      "TwelveBD3PairedPostAttentionKernel": 624,
+      "Sm120MatrixProjectionKernel": 624,
+      "QuantizeActivationReferenceKernel": 624,
+      "Sm120D3DownFixedShapeKernel": 624,
+      "TwelveBD3FastPostMlpKernel": 624,
+      "FusedOutputHeadFixedBatchCandidatesKernel": 13,
+      "OutputHeadArgmaxKernel": 13,
+      "AcceptMtpGroupKernel": 13,
+      "CommitMtpKvControlledD2Kernel": 624,
+      "CommitMtpHiddenKernel": 13,
+      "AdvanceMtpD2ChainKernel": 13,
+      "ContinueMtpChainKernel": 13
+    },
+    "no_hot_allocation_or_module_load_api": true,
+    "cost": {
+      "groups": 13,
+      "context_end_values": [
+        16414,
+        16418,
+        16422,
+        16423,
+        16427,
+        16428,
+        16429,
+        16433,
+        16434,
+        16438,
+        16439,
+        16443,
+        16445
+      ],
+      "group_indices": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "all_kernels": {
+        "count": 14625,
+        "count_per_group": 1125.0,
+        "sum_ms_per_group": 22.898860923084214,
+        "union_ms_per_group": 22.898860923084214
+      },
+      "mean_intragroup_span_ms": 23.28764915384596,
+      "mean_intragroup_no_kernel_ms": 0.38878823076174235,
+      "phases": {
+        "assistant": {
+          "count": 2860,
+          "count_per_group": 220.0,
+          "sum_ms_per_group": 4.426964307688463,
+          "union_ms_per_group": 4.426964307688463
+        },
+        "target backbone": {
+          "count": 11063,
+          "count_per_group": 851.0,
+          "sum_ms_per_group": 15.514663923086312,
+          "union_ms_per_group": 15.514663923086312
+        },
+        "head/sampling/control": {
+          "count": 702,
+          "count_per_group": 54.0,
+          "sum_ms_per_group": 2.9572326923094403,
+          "union_ms_per_group": 2.9572326923094403
+        }
+      },
+      "families": [
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "count": 858,
+          "count_per_group": 66.0,
+          "sum_ms_per_group": 1.6099427692285524,
+          "union_ms_per_group": 1.6099427692285524
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant head",
+          "count": 78,
+          "count_per_group": 6.0,
+          "sum_ms_per_group": 2.0326123846161823,
+          "union_ms_per_group": 2.0326123846161823
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "count": 78,
+          "count_per_group": 6.0,
+          "sum_ms_per_group": 0.12912523076869548,
+          "union_ms_per_group": 0.12912523076869548
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "count": 234,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 0.28692015384624786,
+          "union_ms_per_group": 0.28692015384624786
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "count": 1612,
+          "count_per_group": 124.0,
+          "sum_ms_per_group": 0.3683637692287851,
+          "union_ms_per_group": 0.3683637692287851
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "count": 702,
+          "count_per_group": 54.0,
+          "sum_ms_per_group": 2.9572326923094403,
+          "union_ms_per_group": 2.9572326923094403
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "count": 1248,
+          "count_per_group": 96.0,
+          "sum_ms_per_group": 3.706720230771515,
+          "union_ms_per_group": 3.706720230771515
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "count": 2288,
+          "count_per_group": 176.0,
+          "sum_ms_per_group": 0.2854502307686668,
+          "union_ms_per_group": 0.2854502307686668
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Down",
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 2.7867249230772546,
+          "union_ms_per_group": 2.7867249230772546
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Gate/Up",
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 4.473284153843155,
+          "union_ms_per_group": 4.473284153843155
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "count": 208,
+          "count_per_group": 16.0,
+          "sum_ms_per_group": 0.6805453076921404,
+          "union_ms_per_group": 0.6805453076921404
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "count": 1040,
+          "count_per_group": 80.0,
+          "sum_ms_per_group": 1.8306815384639283,
+          "union_ms_per_group": 1.8306815384639283
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "count": 5031,
+          "count_per_group": 387.0,
+          "sum_ms_per_group": 1.7512575384696516,
+          "union_ms_per_group": 1.7512575384696516
+        }
+      ],
+      "dispatches": [
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Gate/Up",
+          "name": "void gem16::internal::<unnamed>::Sm120MatrixProjectionKernel<(bool)1, (unsigned long)2, (unsigned int)2, (bool)0, float>(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, float *, float *, T5 *, unsigned long, unsigned long, unsigned long, float, float)",
+          "grid": [
+            960,
+            1,
+            1
+          ],
+          "block": [
+            64,
+            1,
+            1
+          ],
+          "registers": 64,
+          "shared": 0,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 4.473284153843155,
+          "union_ms_per_group": 4.473284153843155
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::FusedOutputHeadFixedBatchCandidatesKernel<(unsigned int)4>(const unsigned short *, const float *, const unsigned int *, unsigned int, gem16::internal::OutputHeadCandidate *, float *)",
+          "grid": [
+            4096,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 43,
+          "shared": 256,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 2.854489615384489,
+          "union_ms_per_group": 2.854489615384489
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Down",
+          "name": "gem16::internal::<unnamed>::Sm120D3DownFixedShapeKernel(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, unsigned short *, float)",
+          "grid": [
+            60,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 43,
+          "shared": 0,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 2.7867249230772546,
+          "union_ms_per_group": 2.7867249230772546
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant head",
+          "name": "gem16::internal::<unnamed>::AssistantOutputCandidatesKernel(const unsigned short *, const float *, gem16::internal::<unnamed>::ArgmaxValue *)",
+          "grid": [
+            4096,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 39,
+          "shared": 64,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 2.0221856153845215,
+          "union_ms_per_group": 2.0221856153845215
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            128,
+            1,
+            3
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 15488,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 1.8864621538468278,
+          "union_ms_per_group": 1.8864621538468278
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel<(int)4, (bool)0>(const float *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, const gem16::internal::DecodeControl *, int)",
+          "grid": [
+            64,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 127,
+          "shared": 37664,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 1.7349833846155267,
+          "union_ms_per_group": 1.7349833846155267
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            120,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 16512,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 1.0378632307708835,
+          "union_ms_per_group": 1.0378632307708835
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            8192,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 351,
+          "count_per_group": 27.0,
+          "sum_ms_per_group": 0.8553807692299955,
+          "union_ms_per_group": 0.8553807692299955
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::TwelveBD3PairedPostAttentionKernel(float *, const unsigned short *, const float *, float *, float *, const unsigned short *, unsigned char *, unsigned char *, float)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 54,
+          "shared": 16,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.7273980000036268,
+          "union_ms_per_group": 0.7273980000036268
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "name": "gem16_d3_global_fp8",
+          "grid": [
+            16,
+            4,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 145,
+          "shared": 74272,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.6551845384606948,
+          "union_ms_per_group": 0.6551845384606948
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            1024,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 312,
+          "count_per_group": 24.0,
+          "sum_ms_per_group": 0.4543949999992664,
+          "union_ms_per_group": 0.4543949999992664
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            256,
+            1,
+            2
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 15488,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.39314799999961486,
+          "union_ms_per_group": 0.39314799999961486
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::TwelveBD3FastPostMlpKernel(const unsigned short *, const unsigned short *, const float *, float *, float *, const unsigned short *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 38,
+          "shared": 2048,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.3915305384596667,
+          "union_ms_per_group": 0.3915305384596667
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            120,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 32896,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.38924684615418886,
+          "union_ms_per_group": 0.38924684615418886
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8Kernel<(int)256, (int)8, (int)2, (int)2, (int)128, (bool)0, (bool)0, (bool)0>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+          "grid": [
+            64,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 49,
+          "shared": 1056,
+          "count": 117,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.2701869230769001,
+          "union_ms_per_group": 0.2701869230769001
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::TwelveBD3FastInputNormFp8Kernel(const float *, const unsigned short *, unsigned char *, float *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 42,
+          "shared": 2048,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.1843689230796523,
+          "union_ms_per_group": 0.1843689230796523
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            4096,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 117,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.14847199999970886,
+          "union_ms_per_group": 0.14847199999970886
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "name": "gem16_d3_global_fp8",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 145,
+          "shared": 74272,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.12147007692333024,
+          "union_ms_per_group": 0.12147007692333024
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::PreProjectionKernel(const unsigned short *, const unsigned int *, const float *, const unsigned short *, float *)",
+          "grid": [
+            1024,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 48,
+          "shared": 1024,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.10567484615356304,
+          "union_ms_per_group": 0.10567484615356304
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormResidualBf16Kernel<float>(const T1 *, const unsigned short *, const float *, float *, float *, unsigned long, float, const unsigned short *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 28,
+          "shared": 1024,
+          "count": 312,
+          "count_per_group": 24.0,
+          "sum_ms_per_group": 0.10088192307590864,
+          "union_ms_per_group": 0.10088192307590864
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::QuantizeActivationReferenceKernel<float>(const T1 *, unsigned char *, unsigned char *, unsigned long, float)",
+          "grid": [
+            30,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 38,
+          "shared": 0,
+          "count": 624,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.09716761538386345,
+          "union_ms_per_group": 0.09716761538386345
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "name": "gem16::internal::<unnamed>::MergeOnlineDecodeAttentionFp8LocalFixedKernel(const float *, const float *, float *, int)",
+          "grid": [
+            16,
+            4,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 54,
+          "shared": 32,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.09569815384840163,
+          "union_ms_per_group": 0.09569815384840163
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::CopyCircularMtpKvControlledKernel<unsigned char, (bool)0>(T1 *, T1 *, T1 *, T1 *, unsigned int, unsigned long, unsigned long, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.0942854615402623,
+          "union_ms_per_group": 0.0942854615402623
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ProjectionRmsNormRotaryBf16BatchControlledKernel(const float *, const unsigned short *, float *, const float *, const unsigned short *, float *, const float *, const float *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long, unsigned long, float)",
+          "grid": [
+            96,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 35,
+          "shared": 1024,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.0937093076922286,
+          "union_ms_per_group": 0.0937093076922286
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ControlledRotaryKernel(float *, unsigned long, unsigned long, unsigned long, unsigned long, const gem16::internal::DecodeControl *, double, double, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 52,
+          "shared": 0,
+          "count": 117,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.09341661538513235,
+          "union_ms_per_group": 0.09341661538513235
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 351,
+          "count_per_group": 27.0,
+          "sum_ms_per_group": 0.08838792307646229,
+          "union_ms_per_group": 0.08838792307646229
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::TwelveBD3FastAttentionQuantizeKernel<(unsigned int)4096>(const float *, unsigned char *, float *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 1024,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.08032869230812559,
+          "union_ms_per_group": 0.08032869230812559
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::CommitMtpKvControlledD2Kernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, unsigned long, unsigned long, const gem16::internal::MtpGroupResult *, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            40,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.07151169230860586,
+          "union_ms_per_group": 0.07151169230860586
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::CopyCircularMtpKvControlledKernel<unsigned char, (bool)1>(T1 *, T1 *, T1 *, T1 *, unsigned int, unsigned long, unsigned long, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.06200276922878738,
+          "union_ms_per_group": 0.06200276922878738
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.06090199999998395,
+          "union_ms_per_group": 0.06090199999998395
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::AppendKvBatchControlledKernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.058214230767666145,
+          "union_ms_per_group": 0.058214230767666145
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "gem16::internal::<unnamed>::QuantizeKvBatchKernel(const float *, const float *, unsigned char *, unsigned char *, const unsigned short *, const unsigned short *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.0488999999997994,
+          "union_ms_per_group": 0.0488999999997994
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            3840,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.04602015384601859,
+          "union_ms_per_group": 0.04602015384601859
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 520,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.03760176923340903,
+          "union_ms_per_group": 0.03760176923340903
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ControlledRotaryKernel(float *, unsigned long, unsigned long, unsigned long, unsigned long, const gem16::internal::DecodeControl *, double, double, unsigned long)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 52,
+          "shared": 0,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.03064330769186983,
+          "union_ms_per_group": 0.03064330769186983
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "name": "gem16::internal::<unnamed>::MergeD3Fast16Kernel(const float *, const float *, float *)",
+          "grid": [
+            16,
+            4,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 68,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.025360769231445514,
+          "union_ms_per_group": 0.025360769231445514
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 117,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.02366484615450295,
+          "union_ms_per_group": 0.02366484615450295
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::TwelveBD3FastAttentionQuantizeKernel<(unsigned int)8192>(const float *, unsigned char *, float *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 56,
+          "shared": 1024,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.022003307692993145,
+          "union_ms_per_group": 0.022003307692993145
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ProjectionRmsNormRotaryBf16BatchControlledKernel(const float *, const unsigned short *, float *, const float *, const unsigned short *, float *, const float *, const float *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long, unsigned long, float)",
+          "grid": [
+            68,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 35,
+          "shared": 1024,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.020240846153348684,
+          "union_ms_per_group": 0.020240846153348684
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 156,
+          "count_per_group": 12.0,
+          "sum_ms_per_group": 0.019490000000080235,
+          "union_ms_per_group": 0.019490000000080235
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)256, (int)128>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 32,
+          "count": 117,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.016733230769347684,
+          "union_ms_per_group": 0.016733230769347684
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::CommitMtpKvControlledD2Kernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, unsigned long, unsigned long, const gem16::internal::MtpGroupResult *, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            10,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.014197846155183819,
+          "union_ms_per_group": 0.014197846155183819
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 234,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 0.012804846152663231,
+          "union_ms_per_group": 0.012804846152663231
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 234,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 0.012568384615274576,
+          "union_ms_per_group": 0.012568384615274576
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::AppendKvBatchControlledKernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.011650230770070966,
+          "union_ms_per_group": 0.011650230770070966
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant head",
+          "name": "gem16::internal::<unnamed>::AssistantOutputArgmaxKernel(const gem16::internal::<unnamed>::ArgmaxValue *, unsigned int *, unsigned int *, unsigned int)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 31,
+          "shared": 2048,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.010426769231661009,
+          "union_ms_per_group": 0.010426769231661009
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "gem16::internal::<unnamed>::QuantizeKvBatchKernel(const float *, const float *, unsigned char *, unsigned char *, const unsigned short *, const unsigned short *, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.010397538462080634,
+          "union_ms_per_group": 0.010397538462080634
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::GeluTanhProductKernel(const float *, const float *, float *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 156,
+          "count_per_group": 12.0,
+          "sum_ms_per_group": 0.009240307693154766,
+          "union_ms_per_group": 0.009240307693154766
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 104,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.008940000000624703,
+          "union_ms_per_group": 0.008940000000624703
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "name": "gem16::internal::<unnamed>::MergeD3Fast16Kernel(const float *, const float *, float *)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 68,
+          "count": 39,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.0076551538453652306,
+          "union_ms_per_group": 0.0076551538453652306
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::AdvanceMtpD2ChainKernel(gem16::internal::MtpGroupTransaction *, gem16::internal::MtpChainResult *, unsigned int *, unsigned int *, gem16::internal::MtpStreamingRing *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 34,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.005892692307726695,
+          "union_ms_per_group": 0.005892692307726695
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::OutputHeadArgmaxKernel<(bool)1>(const gem16::internal::OutputHeadCandidate *, unsigned long, unsigned int *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 37,
+          "shared": 2048,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.004128000000061897,
+          "union_ms_per_group": 0.004128000000061897
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::AcceptMtpGroupKernel(const unsigned int *, const unsigned int *, unsigned int, const unsigned int *, unsigned int, gem16::internal::MtpGroupResult *, gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 26,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.003768615384371235,
+          "union_ms_per_group": 0.003768615384371235
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::ContinueMtpChainKernel(const gem16::internal::MtpGroupTransaction *, const gem16::internal::MtpStreamingRing *, unsigned long long)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0020356923075249564,
+          "union_ms_per_group": 0.0020356923075249564
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::<unnamed>::EmbeddingBatchKernel<float>(const unsigned short *, const unsigned int *, T1 *, unsigned long)",
+          "grid": [
+            60,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0017229230769265156,
+          "union_ms_per_group": 0.0017229230769265156
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::BuildControlledMtpInputsKernel(const gem16::internal::MtpDeviceControl *, const unsigned int *, unsigned int *, gem16::internal::DecodeControl *, unsigned int, unsigned int)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            4,
+            1,
+            1
+          ],
+          "registers": 18,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0016787692306993098,
+          "union_ms_per_group": 0.0016787692306993098
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::CommitMtpHiddenKernel(const float *, float *, unsigned long, const gem16::internal::MtpGroupResult *)",
+          "grid": [
+            15,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0012085384614765643,
+          "union_ms_per_group": 0.0012085384614765643
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::InitializeControlledAssistantKernel(const gem16::internal::MtpDeviceControl *, unsigned int *, gem16::internal::DecodeControl *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 13,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0009304615382391674,
+          "union_ms_per_group": 0.0009304615382391674
+        }
+      ],
+      "mean_adjacent_intergroup_gap_ms": 0.01230933333359038
+    }
+  },
+  "local_offline_artifact_provenance": {
+    "status": "experimental_unqualified_changed_local_attention_math",
+    "inputs": {
+      "src/cuda/attention/twelve_b_d3_local_triton.py": "4a85aced5dacfd2468395b4d52278a1cb86b3673f6398d3776b8f68c4e98536b",
+      "tools/compile_12b_d3_local_attention.py": "3c8797f584f1e32aec3da56cacfd763e39d6209893a6806d3aca84a552cc72cd"
+    },
+    "triton_version": "3.8.0",
+    "ptxas": {
+      "path": "/home/sebastian/Development/gem16gb/third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/triton/backends/nvidia/bin/ptxas-blackwell",
+      "version": "ptxas-blackwell: NVIDIA (R) Ptx optimizing assembler\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Fri_Apr_24_07:22:02_PM_PDT_2026\nCuda compilation tools, release 13.3, V13.3.33\nBuild cuda_13.3.r13.3/compiler.37862127_0\n",
+      "sha256": "7fdd01a4cf50e30746da98989c9272a907f491e6fd7fecfda14642e4375f88fb"
+    },
+    "metadata": {
+      "allowed_dot_input_precisions": [
+        "tf32",
+        "tf32x3",
+        "ieee",
+        "bf16x3",
+        "bf16x6"
+      ],
+      "arch": "sm120",
+      "backend_name": "cuda",
+      "debug": false,
+      "default_dot_input_precision": "tf32",
+      "deprecated_fp8_dot_operand_dtypes": [
+        "fp8e4b15"
+      ],
+      "enable_fp_fusion": true,
+      "enable_reflect_ftz": true,
+      "extern_libs": [
+        [
+          "libdevice",
+          "/home/sebastian/Development/gem16gb/third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/triton/backends/nvidia/lib/libdevice.10.bc"
+        ]
+      ],
+      "global_scratch_align": 1,
+      "global_scratch_size": 0,
+      "hash": "76dde07f2c9cb80606c741b0ffa6498bb4161a229c46721c86c897b35ed58e88",
+      "instrumentation_mode": "",
+      "ir_override": null,
+      "launch_cooperative_grid": false,
+      "launch_pdl": false,
+      "max_num_imprecise_acc_default": 0,
+      "maxnreg": null,
+      "name": "gem16_d3_local_fp8",
+      "num_ctas": 1,
+      "num_stages": 3,
+      "num_warps": 4,
+      "profile_scratch_align": 1,
+      "profile_scratch_size": 0,
+      "ptx_options": null,
+      "ptx_version": null,
+      "sanitize_overflow": true,
+      "shared": 16384,
+      "supported_fp8_dtypes": [
+        "fp8e4b15",
+        "fp8e4nv",
+        "fp8e5"
+      ],
+      "target": "GPUTarget(backend='cuda', arch=120, warp_size=32)",
+      "tensordesc_meta": [],
+      "tmem_size": 0,
+      "triton_version": "3.8.0",
+      "warp_size": 32
+    },
+    "tile": 32,
+    "scope": "12B D3 T4 QH16/KVH8/H256;1024 native ring plus4 speculative rows;4segments; FP8 Q/P TensorCore QK/PV",
+    "outputs": {
+      "twelve_b_d3_local_embedded.cuh": "bbc903cbed70d436043bac77436ab0b713ea00e1144d3076885c48586735a4b5",
+      "local.ptx": "8cabbb7d788037393e190c7a546b4d1b3775e00d15314ec6ab24ed3902667fe0",
+      "local.cubin": "9b22b09e19736acde77e074ba0a6e1d894472a89b8841c6e29666ed90000a5ac"
+    }
+  },
+  "cold_reproduction": {
+    "cold_offline_local_header_byte_exact": true,
+    "cold_cubin_sha256": "9b22b09e19736acde77e074ba0a6e1d894472a89b8841c6e29666ed90000a5ac",
+    "no_runtime_compiler_invocation": true,
+    "existing_global_embedded_header_sha256": "fcc495bca592caa5620567e2380b83c7e48ee5432d3afbf27d73e07c0dcda2cf"
+  },
+  "source_sha256": {
+    "CMakeLists.txt": "3f061a39a756462f88c2d62c8a56a785dc12e3a6824f9e6f8ff2f07656deabbb",
+    "include/gem16/engine.h": "6d8d61cbacfa35ab3e9d372c5b1b689ad50c769dab0701134159ce2f6b2cd482",
+    "src/cuda/attention/detail/twelve_b_d3_fast_embedded.cuh": "fcc495bca592caa5620567e2380b83c7e48ee5432d3afbf27d73e07c0dcda2cf",
+    "src/cuda/attention/detail/twelve_b_d3_fast_embedded.provenance.json": "fb1707dd20af501f7eef412f943b8cf9d6f18fb50d4825e042ae6deea729bdc2",
+    "src/cuda/attention/detail/twelve_b_d3_local_embedded.cuh": "bbc903cbed70d436043bac77436ab0b713ea00e1144d3076885c48586735a4b5",
+    "src/cuda/attention/detail/twelve_b_d3_local_embedded.provenance.json": "68996e1897d115443d5fd6570e56cec1707771fde2de039a2fce4db12e93f142",
+    "src/cuda/attention/twelve_b_d3_fast.cu": "1b25d26d39654263512467428e6507bca39e9f43bd837950ef5ed5c5822b1f8d",
+    "src/cuda/attention/twelve_b_d3_fast.h": "94a6ef2b98f1b24e8692b0bb597b54d4c9bc6666643d49798104d1a2ad485278",
+    "src/cuda/attention/twelve_b_d3_fast_triton.py": "01d1c379dd01d39c393e99f52f0d00d3f61573470c7841a12969e7d9566ceb90",
+    "src/cuda/attention/twelve_b_d3_local.cu": "a613ade4008a119cdb727117b94d6311024bab035711d8801414719fb15bcf78",
+    "src/cuda/attention/twelve_b_d3_local.h": "8aefeb0c84528b0ef0722513020aaa175d2266ba81b7e41ec6cc466d2347516a",
+    "src/cuda/attention/twelve_b_d3_local_triton.py": "4a85aced5dacfd2468395b4d52278a1cb86b3673f6398d3776b8f68c4e98536b",
+    "src/cuda/engine/inference_engine.cu": "8f22ffe45d4c8314ffa05a57a77b250e8ddaf17da5343cdca7958ed3f3b41699",
+    "src/cuda/engine/inference_engine.h": "4e4d73e39ad7099ec7cbd2c49c39eeeec0e71537dbee643f53a9d4ad3c526047",
+    "src/cuda/engine/inference_engine_decode_graphs.cuh": "43bf3f161f80d4d1d1ce82e382b18e63a20fc620523085f5351a77dfe89aeede",
+    "src/cuda/engine/inference_engine_initialize.cuh": "b0a7ad8b346c5150b25240c628cb24fb5f0b044aa9aa860fdfa8b4755443b891",
+    "src/cuda/engine/inference_engine_mtp.cuh": "6f84aebffa7e1acfe8047f20e9559dde1b6a00325f42b3415c1779b72707b95d",
+    "src/cuda/engine/inference_engine_prefill_layers.cuh": "2e09b10950c9e972fefa56756d474ed15d1abcae97cabe4ff206a6d7b2dd1e75",
+    "src/cuda/inference.cu": "f78bad273444e4592540bcd83f842af8ae6a46f6bb891b656105931341349261",
+    "src/cuda/inference_session.cuh": "7095eb4002c3d1720e9b3b7bb1f990717165f025749e3a0f6e42f62a32f81fb1",
+    "src/cuda/mtp/assistant.cu": "d7e46b4ec083b2d3ff81de7df8b9df3b558227752a3b7038842fa5acc62bf5c6",
+    "src/cuda/mtp/assistant.h": "29e3dd1e9a8acd8fd091d2dc661e88763d93e78d1bca19a26683819bdc6e6cf2",
+    "src/cuda/norm/twelve_b_d3_fast.cu": "34369a2a8aa5f1a71853f749ee3dc0f50c9e4d941c5451b8f3b934ca23a31f65",
+    "src/cuda/norm/twelve_b_d3_fast.h": "62df7ff0483296101f400e835e6f3c9a8dee389bfdaca702130f3ec3e561aa72",
+    "src/cuda/norm/twelve_b_d3_fast.provenance.json": "a108b522116904e5c2e731969b6d3ccec12318e75579bb77c389aceef3247478",
+    "src/cuda/norm/twelve_b_d3_paired.cu": "a5a5d237786b9e0718f6b6c17b31e57847e96b63bbcb564b23b09fa7956d0def",
+    "src/cuda/norm/twelve_b_d3_paired.h": "13add56236f07213e6ee475447dfe055d2cb869d39554af05074f18cb63ec460",
+    "src/runtime/result_json.cpp": "486e9df13e7413aa8db14b136a8be6a4df225706963cd0e548d3a35685fc4a39",
+    "tests/cuda/twelve_b_d3_fast_attention_checks.cu": "4718bbaa15221c53f82be710b05547884b2a0e17110f8e9a6e6d23915e2fb59d",
+    "tests/cuda/twelve_b_d3_fast_norm_checks.cu": "940c6feca35df1485fbecf03fefca43d650b76aeab619d354dcb071a2e120802",
+    "tests/cuda/twelve_b_d3_local_checks.cu": "d3e49e8202a88d7a9c3643880fa15dd8ad46d2de65bbdeb4017e154de21568bb",
+    "tests/cuda/twelve_b_d3_paired_checks.cu": "0c0c71123e5a5c2de4bfa7f2c7121fa4634d27f84eec6b4e5a5ddece2133e0a7",
+    "tests/python/test_d3_path_accounting.py": "a4dcf6d2e4b6456eff101407b5e1af72efa2fe03f42b4bbfdb8f4ef94eb3c9d2",
+    "tools/analyze_12b_d3_paths.py": "30b5e18c2bcbe1ea53b4f857f9c179b4ebb7bcbbdd602ed5d3825180a0cb32ff",
+    "tools/compare_12b_d3_paths.py": "d8fa7392db1b82a8ace68a45ed0bb0c90ef14c7b030cf9a48d436d191b237f95",
+    "tools/compile_12b_d3_fast_attention.py": "35e03f3179a2ff6beb7f9393ef1c3259b1689f6fc06363aca119f9425ddc4f5c",
+    "tools/compile_12b_d3_local_attention.py": "3c8797f584f1e32aec3da56cacfd763e39d6209893a6806d3aca84a552cc72cd",
+    "tools/generate_12b_d3_fast_norms.py": "285f8116de4956ec7f42addead2caf5cc66c011a2da4a5766e8d2ad7a7185696",
+    "tools/profile_12b_mtp_vllm.py": "64a05740cf213918f085bf1aef4c6b53d34a70a0f88b0ae41c5c118e3efbc1a6"
+  },
+  "runtime_sources_match_immutable_measured_snapshot": true,
+  "source_snapshot": {
+    "path": "artifacts/gemma4_12b/d3-fast-followup-2026-11-17-source.json.gz",
+    "sha256": "7c2d8286f85322c403748bbb4880ba7d78692461a5ca788ea1e0e3d556c61c6b",
+    "bytes": 231530
+  },
+  "raw_evidence": {
+    "path": "artifacts/gemma4_12b/d3-fast-followup-2026-11-17-raw.json.gz",
+    "sha256": "a78948e6308b26e8cd7b30a8fab55559224f1b10122aed1a22dbd542be991db4",
+    "bytes": 1100246
+  },
+  "storage": {
+    "sql_intermediates_ram_only_removed": true,
+    "records": [
+      {
+        "stage": "assistant",
+        "original_bytes": 96396948,
+        "lossless_gzip_bytes": 45461833,
+        "original_sha256": "b66485f75942f590de8c70a18aeafb3ef803d591d047b5bfb7630249b0e46c97",
+        "compressed_path": "benchmarks/results/2026-11-17/d3-fast-followup/assistant/profile/bounded.nsys-rep.gz",
+        "uncompressed_removed_after_verified_roundtrip": true
+      },
+      {
+        "stage": "local",
+        "original_bytes": 92117739,
+        "lossless_gzip_bytes": 43401557,
+        "original_sha256": "79164f75dbee6a6f13e86784c940b349396ab191e8b0453dc7c3d3e363f2c58b",
+        "compressed_path": "benchmarks/results/2026-11-17/d3-fast-followup/local/profile/bounded.nsys-rep.gz",
+        "uncompressed_removed_after_verified_roundtrip": true
+      }
+    ]
+  },
+  "limitations": [
+    "Primary cohorts are1warmup+3samples, one workload/device, no locked clocks or AB/BA campaign.",
+    "Changed output/acceptance contributes to throughput; no attribution solely to kernel latency.",
+    "Profiler captures differ in values, token streams and clocks; costs are diagnostic, not additive guarantees.",
+    "32 GSM8K questions at512tokens are a quality smoke screen; all unscored responses are truncated. No general quality equivalence.",
+    "Scoped operator sanitizers pass; no full-model sanitizer/Windows/26B/media qualification.",
+    "Exact default unchanged; experimental requires12B D3/FP8 KV/SM120/capacity17519.",
+    "No commit or push performed."
+  ]
+}

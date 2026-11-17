@@ -1,4 +1,7 @@
   [[nodiscard]] std::uint64_t weight_bytes() const { return model_.weight_bytes(); }
+  [[nodiscard]] bool experimental_d3_fp8_attention() const { return fast_d3_attention_; }
+  [[nodiscard]] const char* mtp_math_policy() const { return mtp_math_.policy; }
+  [[nodiscard]] const char* mtp_math_selection_reason() const { return mtp_math_.reason; }
   [[nodiscard]] bool assistant_loaded() const { return assistant_.loaded(); }
   [[nodiscard]] std::uint64_t assistant_source_bytes() const {
     return assistant_.source_bytes();
@@ -62,6 +65,13 @@
     context.target_hidden = latest_target_hidden_;
     context.sliding_kv = make_view(sliding);
     context.full_kv = make_view(full);
+    if (fast_d3_attention_) {
+      context.experimental_global_attention = &fast_d3_global_;
+      context.experimental_attention_workspace = Pointer<float>(
+          mtp_workspace_, mtp_offsets_.attention_workspace);
+      context.experimental_attention_workspace_elements =
+          internal::DecodeAttentionFixedWorkspaceElements(max_context_, 4U);
+    }
     context.input_token = input_token;
     context.position = processed_position;
     return assistant_.GenerateDraftsDevice(context, draft_count, stream_);
@@ -338,6 +348,13 @@
     assistant_context.target_hidden = latest_target_hidden_;
     assistant_context.sliding_kv = make_view(sliding);
     assistant_context.full_kv = make_view(full);
+    if (fast_d3_attention_) {
+      assistant_context.experimental_global_attention = &fast_d3_global_;
+      assistant_context.experimental_attention_workspace = Pointer<float>(
+          mtp_workspace_, mtp_offsets_.attention_workspace);
+      assistant_context.experimental_attention_workspace_elements =
+          internal::DecodeAttentionFixedWorkspaceElements(max_context_, 4U);
+    }
     Status status = assistant_.GenerateDraftsDevice(
         assistant_context, kProposalCount, stream_, device_control);
     if (!status.ok()) return status;

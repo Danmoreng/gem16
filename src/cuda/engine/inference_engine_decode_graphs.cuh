@@ -527,6 +527,11 @@
 
   internal::LoadedTargetModel model_;
   internal::AssistantModel assistant_;
+  // Declared before graph resources so graphs are destroyed before the library.
+  internal::TwelveBD3FastGlobalAttention fast_d3_global_;
+  internal::TwelveBD3FastLocalAttention fast_d3_local_;
+  bool fast_d3_attention_ = false;
+  internal::TwelveBD3MathSelection mtp_math_{};
   DeviceAllocation cache_;
   DeviceAllocation workspace_;
   DeviceAllocation prefill_workspace_;

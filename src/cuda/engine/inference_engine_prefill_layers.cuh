@@ -49,7 +49,10 @@
         prefill_workspace_, prefill_offsets_.cutlass_workspace);
     constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
     Status status =
-        physical_hidden
+        fast_d3_attention_ && mtp_verification && tokens == 4U
+            ? internal::LaunchTwelveBD3FastInputNormFp8(hidden_a, layer.input_norm,
+                  fp8, fp8_scales, stream_)
+        : physical_hidden
             ? internal::LaunchRmsNormFp8TokenQuantizationBf16Batch(
                   hidden_a_bf16, layer.input_norm, fp8, fp8_scales, tokens,
                   kHidden, kEpsilon, stream_)
@@ -225,7 +228,14 @@
         if (!layer.global && controlled_mtp &&
             capacity == kSlidingWindow &&
             (tokens >= 3U && tokens <= 5U)) {
-          status = internal::LaunchOnlineAttentionDecodeFp8LocalFixed12BControlledSm120(
+          status = fast_d3_attention_ && tokens == 4U
+              ? fast_d3_local_.Launch(q_norm, layer.key_cache_fp8,
+                    layer.value_cache_fp8, k_fp8, v_fp8, layer.k_cache_scale,
+                    layer.v_cache_scale,
+                    Pointer<float>(mtp_workspace_, mtp_offsets_.attention_workspace),
+                    internal::DecodeAttentionFixedWorkspaceElements(max_context_, 4U),
+                    attention, mtp_row_controls, stream_)
+              : internal::LaunchOnlineAttentionDecodeFp8LocalFixed12BControlledSm120(
               q_norm, layer.key_cache_fp8, layer.value_cache_fp8, k_fp8,
               v_fp8, layer.k_cache_scale, layer.v_cache_scale,
               Pointer<float>(mtp_workspace_, mtp_offsets_.attention_workspace),
@@ -238,7 +248,13 @@
           if (!status.ok()) return status;
         } else if (layer.global && capacity > 512U &&
                    (tokens == 3U || (controlled_mtp && (tokens == 4U || tokens == 5U)))) {
-          status = controlled_mtp
+          status = fast_d3_attention_ && controlled_mtp && tokens == 4U && layer.kv_heads == 1U
+                       ? fast_d3_global_.Launch(q_norm, layer.key_cache_fp8,
+                             layer.value_cache_fp8, layer.k_cache_scale, layer.v_cache_scale,
+                             Pointer<float>(mtp_workspace_, mtp_offsets_.attention_workspace),
+                             internal::DecodeAttentionFixedWorkspaceElements(max_context_, 4U),
+                             attention, mtp_row_controls, capacity, stream_)
+                       : controlled_mtp
                        ? internal::LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(
                              q_norm, layer.key_cache_fp8,
                              layer.value_cache_fp8, layer.k_cache_scale,
@@ -480,6 +496,9 @@
       status = internal::LaunchFp8ReferenceTokenQuantizationBf16Batch(
           attention_bf16, o_activation, o_scales, tokens,
           layer.query_elements, stream_);
+    } else if (fast_d3_attention_ && mtp_verification && tokens == 4U) {
+      status = internal::LaunchTwelveBD3FastAttentionQuantize(
+          attention, o_activation, o_scales, layer.query_elements, stream_);
     } else {
       status =
           LaunchRoundBf16(attention, tokens * layer.query_elements, stream_);
@@ -510,7 +529,12 @@
           ? internal::LaunchTwelveBPostAttentionNvfp4BoundaryT3
           : tokens == 4U ? internal::LaunchTwelveBPostAttentionNvfp4BoundaryT4
                          : internal::LaunchTwelveBPostAttentionNvfp4BoundaryT5;
-      status = launch(
+      status = fast_d3_attention_ && tokens == 4U
+          ? internal::LaunchTwelveBD3PairedPostAttention(
+                projection, layer.post_attention_norm, hidden_a, nullptr, hidden_b,
+                layer.pre_mlp_norm, mlp_packed, mlp_scales,
+                layer.gate.input_divisor, stream_)
+          : launch(
           projection, layer.post_attention_norm, hidden_a, nullptr, hidden_b,
           layer.pre_mlp_norm, mlp_packed, mlp_scales,
           layer.gate.input_divisor, stream_);
@@ -622,6 +646,10 @@
           layer.down.weight_divisor, stream_);
     }
     if (!status.ok()) return status;
+    if (fast_d3_attention_ && mtp_verification && tokens == 4U) {
+      return internal::LaunchTwelveBD3FastPostMlp(down_bf16, layer.post_mlp_norm,
+          hidden_b, nullptr, hidden_a, layer.layer_scalar, stream_);
+    }
     return physical_hidden
                ? internal::LaunchRmsNormResidualPhysicalBf16(
                      down_bf16, layer.post_mlp_norm, hidden_b_bf16,

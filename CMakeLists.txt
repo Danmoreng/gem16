@@ -331,6 +331,8 @@ if(GEM16_ENABLE_CUDA)
   gem16_set_project_warnings(gem16-trellis35-load-probe)
   target_sources(gem16_core PRIVATE
     src/cuda/attention/decode_sm120.cu
+    src/cuda/attention/twelve_b_d3_fast.cu
+    src/cuda/attention/twelve_b_d3_local.cu
     src/cuda/attention/gemma4_26b_reference.cu
     src/cuda/attention/prefill_local_sm120.cu
     src/cuda/attention/prefill_global_sm120.cu
@@ -352,6 +354,8 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/kv_cache/reference.cu
     src/cuda/norm/reference.cu
     src/cuda/norm/twelve_b_ordinary.cu
+    src/cuda/norm/twelve_b_d3_fast.cu
+    src/cuda/norm/twelve_b_d3_paired.cu
     src/cuda/rope/reference.cu
     src/cuda/vision/gemma4_26b.cu
     src/cuda/layer/checkpoint_probe.cu
@@ -779,6 +783,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/layer_test.cpp
     tests/unit/memory_plan_test.cpp
     tests/unit/mtp_scheduler_test.cpp
+    tests/unit/twelve_b_d3_math_test.cpp
     tests/unit/nvfp4_test.cpp
     tests/unit/nvfp4_batch_encoder_test.cpp
     tests/unit/nvfp4_head_test.cpp

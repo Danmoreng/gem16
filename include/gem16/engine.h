@@ -197,6 +197,9 @@ struct GreedyInferenceResult {
   bool mtp_enabled = false;
   bool mtp_adaptive = false;
   bool mtp_fixed_d2_graph = false;
+  bool experimental_d3_fp8_attention = false;
+  const char* mtp_math_policy = "profile_native";
+  const char* mtp_math_selection_reason = "profile_native";
   bool mtp_gpu_chained = false;
   bool reasoning_enabled = false;
   bool reasoning_budget_forced = false;

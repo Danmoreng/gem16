@@ -104,7 +104,9 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "\",\n"
          << "  \"projection_path\": \"native_sm120\",\n"
          << "  \"decode_attention_path\": \""
-         << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+         << (result.experimental_d3_fp8_attention
+                 ? "optimized_d3_target_and_assistant_fp8_tensor_core_attention"
+                 : result.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
                      result.max_context_tokens >= 65536U
                  ? "fp8_online_split_global_gqa_shared_fp8x4"
                  : result.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
@@ -114,6 +116,17 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
                                  result.max_context_tokens > 512U
                              ? "fp8_online_split_gqa"
                        : "score_softmax_value_reference")
+         << "\",\n"
+         << "  \"mtp_math_mode\": \""
+         << (!result.mtp_enabled ? "disabled"
+                 : result.experimental_d3_fp8_attention ? "optimized" : "reference")
+         << "\",\n"
+         << "  \"mtp_math_policy\": \"" << result.mtp_math_policy << "\",\n"
+         << "  \"mtp_math_selection_reason\": \""
+         << result.mtp_math_selection_reason << "\",\n"
+         << "  \"mtp_math_quality_state\": \""
+         << (result.experimental_d3_fp8_attention ? "initial_quality_screen_only"
+                                                 : "native_reference")
          << "\",\n"
          << "  \"kv_cache_mode\": \""
          << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8
@@ -244,6 +257,8 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << ",\"attention_path\":\""
          << (!result.mtp_enabled
                  ? "disabled"
+                 : result.experimental_d3_fp8_attention
+                       ? "fp8_tensor_core_global_reference_local"
                  : result.kv_cache_mode == KvCacheMode::kCheckpointFp8
                        ? "fp8_online_split_long_reference_short"
                        : "bf16_score_softmax_value_reference")

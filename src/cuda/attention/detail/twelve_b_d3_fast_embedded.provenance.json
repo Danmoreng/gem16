@@ -1,0 +1,86 @@
+{
+  "status": "experimental_unqualified_changed_attention_math",
+  "inputs": {
+    "src/cuda/attention/twelve_b_d3_fast_triton.py": "01d1c379dd01d39c393e99f52f0d00d3f61573470c7841a12969e7d9566ceb90",
+    "tools/compile_12b_d3_fast_attention.py": "35e03f3179a2ff6beb7f9393ef1c3259b1689f6fc06363aca119f9425ddc4f5c"
+  },
+  "triton_version": "3.8.0",
+  "target": "sm120",
+  "ptxas": {
+    "path": "/home/sebastian/Development/gem16gb/third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/triton/backends/nvidia/bin/ptxas-blackwell",
+    "version": "ptxas-blackwell: NVIDIA (R) Ptx optimizing assembler\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Fri_Apr_24_07:22:02_PM_PDT_2026\nCuda compilation tools, release 13.3, V13.3.33\nBuild cuda_13.3.r13.3/compiler.37862127_0\n",
+    "sha256": "7fdd01a4cf50e30746da98989c9272a907f491e6fd7fecfda14642e4375f88fb"
+  },
+  "options": {
+    "num_warps": 4,
+    "num_stages": 3
+  },
+  "tma_kv_loads": true,
+  "supported_capacity": 17519,
+  "native_kv_layout_and_scales_preserved": true,
+  "changed_operators": [
+    "global D3 queries rounded/clamped to E4M3 (scale1)",
+    "QK and PV use FP8 Tensor Core dot with FP32 accumulation",
+    "online softmax tiles rounded to E4M3 after scaling256",
+    "16 dynamic segments /32-token online softmax tiles"
+  ],
+  "metadata": {
+    "allowed_dot_input_precisions": [
+      "tf32",
+      "tf32x3",
+      "ieee",
+      "bf16x3",
+      "bf16x6"
+    ],
+    "arch": "sm120",
+    "backend_name": "cuda",
+    "debug": false,
+    "default_dot_input_precision": "tf32",
+    "deprecated_fp8_dot_operand_dtypes": [
+      "fp8e4b15"
+    ],
+    "enable_fp_fusion": true,
+    "enable_reflect_ftz": true,
+    "extern_libs": [
+      [
+        "libdevice",
+        "/home/sebastian/Development/gem16gb/third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/triton/backends/nvidia/lib/libdevice.10.bc"
+      ]
+    ],
+    "global_scratch_align": 128,
+    "global_scratch_size": 256,
+    "hash": "bad9571bd12652624e11cc641c4a02f073666787a6d7404336f88ac8228bb007",
+    "instrumentation_mode": "",
+    "ir_override": null,
+    "launch_cooperative_grid": false,
+    "launch_pdl": false,
+    "max_num_imprecise_acc_default": 0,
+    "maxnreg": null,
+    "name": "gem16_d3_global_fp8",
+    "num_ctas": 1,
+    "num_stages": 3,
+    "num_warps": 4,
+    "profile_scratch_align": 1,
+    "profile_scratch_size": 0,
+    "ptx_options": null,
+    "ptx_version": null,
+    "sanitize_overflow": true,
+    "shared": 74272,
+    "supported_fp8_dtypes": [
+      "fp8e4b15",
+      "fp8e4nv",
+      "fp8e5"
+    ],
+    "target": "GPUTarget(backend='cuda', arch=120, warp_size=32)",
+    "tensordesc_meta": [],
+    "tmem_size": 0,
+    "triton_version": "3.8.0",
+    "warp_size": 32
+  },
+  "nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Tue_Sep_01_08:45:21_PDT_2026\nCuda compilation tools, release 13.4, V13.4.92\nBuild cuda_13.4.r13.4/compiler.38855100_0\n",
+  "outputs": {
+    "twelve_b_d3_fast_embedded.cuh": "fcc495bca592caa5620567e2380b83c7e48ee5432d3afbf27d73e07c0dcda2cf",
+    "attention.ptx": "59ed5b49d2ef286405ec965bcb015f9688270bf9b1969466698faf209ee394ed",
+    "attention.cubin": "03370092695a3de1298c57339af4762d8ffb0d5aaeb274cbd56e9274d9525369"
+  }
+}

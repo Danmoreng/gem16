@@ -4,6 +4,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <limits>
@@ -24,6 +25,7 @@
 #include "gem16/tokenizer.h"
 #include "model/config.h"
 #include "model/model_variant.h"
+#include "numeric/twelve_b_d3_math.h"
 #include "server/http_streaming.h"
 #include "server/test_fault.h"
 #include "server/observability.h"
@@ -1118,6 +1120,24 @@ int ServerMain(int argc, char** argv) {
   session_options.sampling.seed = options.value().sampling_seed;
   session_options.mtp_draft_tokens = options.value().mtp_draft_tokens;
   session_options.mtp_adaptive = options.value().mtp_adaptive;
+  gem16::internal::TwelveBD3MathSelection math_selection;
+  if (!moe26b) {
+    const auto selected = gem16::internal::SelectTwelveBD3Math(
+        std::getenv("GEM16_12B_D3_ATTENTION"), session_options.mtp_draft_tokens,
+        session_options.kv_cache_mode, session_options.max_context_tokens,
+        session_options.sampling.enabled, session_options.mtp_adaptive);
+    if (!selected.ok()) {
+      logger.Log(LogLevel::kError, "mtp_math_selection_failed",
+                 {{"error", selected.status().message()}});
+      return 2;
+    }
+    math_selection = selected.value();
+    logger.Log(LogLevel::kInfo, "mtp_math_selected",
+               {{"policy", math_selection.policy},
+                {"mode", session_options.mtp_draft_tokens == 0U
+                             ? "disabled" : math_selection.mode()},
+                {"reason", math_selection.reason}});
+  }
   auto runtime = gem16::ModelRuntime::Load(
       {options.value().model_directory,
        options.value().assistant_model_directory,
@@ -1173,6 +1193,12 @@ int ServerMain(int argc, char** argv) {
                     session_options, options.value().max_sessions,
                     options.value().max_queued_requests);
   state.planned_slot_device_bytes = slot_plan.value().slot_bytes;
+  state.mtp_math_mode = session_options.mtp_draft_tokens == 0U ? "disabled"
+                            : moe26b ? "profile_native" : math_selection.mode();
+  if (!moe26b) {
+    state.mtp_math_policy = math_selection.policy;
+    state.mtp_math_selection_reason = math_selection.reason;
+  }
   state.configured_slot_device_bytes =
       slot_plan.value().configured_slot_bytes;
   state.device_total_bytes = slot_plan.value().device.total_bytes;
@@ -1250,6 +1276,16 @@ int ServerMain(int argc, char** argv) {
                            state.session_options.mtp_draft_tokens == 0U
                                ? "ordinary"
                                : ("fixed-d" + std::to_string(state.session_options.mtp_draft_tokens))) +
+                       ",\"mtp_math_mode\":" +
+                       gem16::json::Quote(state.mtp_math_mode) +
+                       ",\"mtp_math_policy\":" +
+                       gem16::json::Quote(state.mtp_math_policy) +
+                       ",\"mtp_math_selection_reason\":" +
+                       gem16::json::Quote(state.mtp_math_selection_reason) +
+                       ",\"mtp_math_quality_state\":" +
+                       gem16::json::Quote(
+                           std::string_view(state.mtp_math_mode) == "optimized"
+                               ? "initial_quality_screen_only" : "native_reference") +
                        ",\"text_artifact_profile\":" +
                        gem16::json::Quote(
                            state.runtime->text_artifact_profile()) +

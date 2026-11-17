@@ -1,0 +1,9 @@
+{
+  "inputs": {
+    "src/cuda/norm/twelve_b_ordinary.cu": "cc6add72e1fcd35e88f213b7b9c35c8d8d9bc42d3f2bf039f4494194ba96ae56",
+    "tools/generate_12b_d3_fast_norms.py": "285f8116de4956ec7f42addead2caf5cc66c011a2da4a5766e8d2ad7a7185696"
+  },
+  "output_sha256": "34369a2a8aa5f1a71853f749ee3dc0f50c9e4d941c5451b8f3b934ca23a31f65",
+  "scope": "fixed T4 cached exact-tree norm/quant boundaries; BF16 physical Down input; experimental D3 path only",
+  "weights_precision_layout_reduction_rounding_unchanged": true
+}

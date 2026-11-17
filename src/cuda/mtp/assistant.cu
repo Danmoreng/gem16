@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "cuda/attention/sm120.h"
+#include "cuda/attention/twelve_b_d3_fast.h"
 #include "cuda/layer/reference.h"
 #include "cuda/mtp/verify.h"
 #include "cuda/nvfp4/mlp.h"
@@ -666,6 +667,15 @@ Status AssistantModel::GenerateDraftsDevice(
     return Error(StatusCode::kInvalidArgument,
                  "assistant shared-KV modes disagree");
   }
+  if (context.experimental_global_attention != nullptr &&
+      (draft_count != 3U || impl_->max_context != 17519U ||
+       context.full_kv.mode != AssistantKvCacheMode::kCheckpointFp8 ||
+       context.experimental_attention_workspace == nullptr ||
+       context.experimental_attention_workspace_elements <
+           TwelveBD3FastGlobalAttention::WorkspaceElements())) {
+    return Error(StatusCode::kUnsupported,
+                 "experimental Assistant FP8 attention requires fixed12B D3 resources");
+  }
   if (control != nullptr &&
       context.sliding_kv.mode != AssistantKvCacheMode::kCheckpointFp8) {
     return Error(StatusCode::kInvalidArgument,
@@ -800,7 +810,13 @@ Status AssistantModel::GenerateDraftsDevice(
       if (!status.ok()) return status;
       status = round_bf16(normalized_query, layer.query_elements);
       if (!status.ok()) return status;
-      if (kv.mode == AssistantKvCacheMode::kCheckpointFp8 &&
+      if (layer.global && context.experimental_global_attention != nullptr) {
+        status = context.experimental_global_attention->Launch(normalized_query,
+            kv.key_fp8, kv.value_fp8, kv.key_scale_bf16, kv.value_scale_bf16,
+            context.experimental_attention_workspace,
+            context.experimental_attention_workspace_elements, attention,
+            attention_control, kv.capacity, stream, 1U);
+      } else if (kv.mode == AssistantKvCacheMode::kCheckpointFp8 &&
           (control != nullptr || kv.tokens > 512U)) {
         status = LaunchOnlineAttentionDecodeFp8Sm120(
             normalized_query, kv.key_fp8, kv.value_fp8, kv.key_scale_bf16,

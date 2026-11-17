@@ -8,6 +8,39 @@ The [pre-consolidation record](archive/ACTIVE_DECISIONS_2026-09-04_BEFORE_CONSOL
 preserves the complete decision history, including superseded intermediate stages.
 The existing numbered decisions retain their identities below.
 
+### Owner update: optimized12B D3 default; reference retained (2026-11-17)
+
+The owner selects the fastest measured12B D3 path as default, retains reference
+arithmetic as an explicit choice, and authorizes committing/pushing implementation,
+diagnosis and evidence. This supersedes the earlier exact-default, opt-in-only
+and no-commit/no-push restrictions for these completed12B D3 slices. It does not
+authorize a release or change26B. The [math-mode contract](MTP_MATH_MODES.md)
+defines automatic optimized selection for supported fixed-D3/FP8-KV/greedy/
+capacity17519, visible native reference selection elsewhere, and visible failure
+for unsupported forced optimized mode. Target acceptance/cache semantics stay
+intact. The32-question quality screen and numerical differences do not prove
+reference-distribution identity or general quality equivalence.
+
+### Historical owner update: separate exact and experimental12B D3 math (2026-11-17)
+
+The owner now authorizes a separate, explicitly selected 12B D3 path with
+changed arithmetic/rounding and potentially different output IDs, aiming to
+approach vLLM speed. This supersedes earlier identical-output restrictions only
+for this experimental path; the exact default and other profiles stay intact.
+The [bounded task](plans/gemma4-12b/D3_FAST_ATTENTION_2026_11_17.md) follows the
+[kernel diagnosis](plans/gemma4-12b/D3_PATH_DIAGNOSIS_2026_11_17.md).
+This is experimental performance work, not quality qualification or public
+profile promotion. No new commit, push or release is authorized.
+
+The owner subsequently requests continuing with the next measured kernels and
+an initial quality comparison. This supersedes the completed-first-slice boundary
+for the [bounded follow-up](plans/gemma4-12b/D3_FAST_FOLLOWUP_2026_11_17.md): paired
+T4 norm/FP4, Assistant global FP8 and local Target FP8. It reaches112.10tok/s
+versus107.34 previously and117.13 vLLM. Exact outputs/drafts remain unchanged;
+the experimental32-question GSM8K screen scores31/32 versus29/32 exact, with
+all unscored answers truncated. This is not general quality equivalence or a
+promotion. [Evidence](evidence/gemma4_12b/d3-fast-followup-2026-11-17.md).
+
 ### Owner update: close and publish the reviewed working tree (2026-11-17)
 
 The owner authorizes retaining final useful measurements/qualification/tools,

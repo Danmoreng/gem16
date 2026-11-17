@@ -13,6 +13,7 @@
 namespace gem16::internal {
 
 struct MtpDeviceControl;
+class TwelveBD3FastGlobalAttention;
 
 struct AssistantLayerBinding {
   bool global = false;
@@ -65,6 +66,11 @@ struct AssistantProposalContext {
   AssistantSharedKvView full_kv;
   std::uint32_t input_token = 0;
   std::uint64_t position = 0;
+  // Optional experimental12B D3 resources. Owned by the slot; proposals and
+  // Target verification use this arena sequentially on the same stream.
+  const TwelveBD3FastGlobalAttention* experimental_global_attention = nullptr;
+  float* experimental_attention_workspace = nullptr;
+  std::uint64_t experimental_attention_workspace_elements = 0;
 };
 
 // Owns the official BF16 MTP assistant in one independent, fixed-address

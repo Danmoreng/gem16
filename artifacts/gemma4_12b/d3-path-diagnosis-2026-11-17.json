@@ -1,0 +1,4015 @@
+{
+  "comparison": {
+    "status": "diagnostic_only_not_primary_throughput",
+    "selection": {
+      "rule": "exclude first/last two vLLM capture iterations; native groups in same verifier context band",
+      "context_band": [
+        16414,
+        16445
+      ],
+      "same_tensor_values_across_engines": false
+    },
+    "native": {
+      "groups": 12,
+      "context_end_values": [
+        16415,
+        16419,
+        16423,
+        16427,
+        16428,
+        16429,
+        16431,
+        16435,
+        16438,
+        16442,
+        16443,
+        16445
+      ],
+      "group_indices": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "all_kernels": {
+        "count": 14076,
+        "count_per_group": 1173.0,
+        "sum_ms_per_group": 25.3212390000072,
+        "union_ms_per_group": 25.3212390000072
+      },
+      "mean_intragroup_span_ms": 25.692107583333428,
+      "mean_intragroup_no_kernel_ms": 0.37086858332622796,
+      "phases": {
+        "assistant": {
+          "count": 2640,
+          "count_per_group": 220.0,
+          "sum_ms_per_group": 4.556628499995451,
+          "union_ms_per_group": 4.556628499995451
+        },
+        "target backbone": {
+          "count": 10788,
+          "count_per_group": 899.0,
+          "sum_ms_per_group": 17.841024000010453,
+          "union_ms_per_group": 17.841024000010453
+        },
+        "head/sampling/control": {
+          "count": 648,
+          "count_per_group": 54.0,
+          "sum_ms_per_group": 2.923586500001295,
+          "union_ms_per_group": 2.923586500001295
+        }
+      },
+      "families": [
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "count": 792,
+          "count_per_group": 66.0,
+          "sum_ms_per_group": 1.5173531666671236,
+          "union_ms_per_group": 1.5173531666671236
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant head",
+          "count": 72,
+          "count_per_group": 6.0,
+          "sum_ms_per_group": 1.9047764166660297,
+          "union_ms_per_group": 1.9047764166660297
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "count": 72,
+          "count_per_group": 6.0,
+          "sum_ms_per_group": 0.5155568333339566,
+          "union_ms_per_group": 0.5155568333339566
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "count": 216,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 0.2733104166655491,
+          "union_ms_per_group": 0.2733104166655491
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "count": 1488,
+          "count_per_group": 124.0,
+          "sum_ms_per_group": 0.3456316666627924,
+          "union_ms_per_group": 0.3456316666627924
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "count": 648,
+          "count_per_group": 54.0,
+          "sum_ms_per_group": 2.923586500001295,
+          "union_ms_per_group": 2.923586500001295
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "count": 1152,
+          "count_per_group": 96.0,
+          "sum_ms_per_group": 3.529683083334472,
+          "union_ms_per_group": 3.529683083334472
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "count": 2112,
+          "count_per_group": 176.0,
+          "sum_ms_per_group": 0.2861234166701324,
+          "union_ms_per_group": 0.2861234166701324
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Down",
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 2.6826542500018453,
+          "union_ms_per_group": 2.6826542500018453
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Gate/Up",
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 4.163397999998492,
+          "union_ms_per_group": 4.163397999998492
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "count": 192,
+          "count_per_group": 16.0,
+          "sum_ms_per_group": 3.2561435833334302,
+          "union_ms_per_group": 3.2561435833334302
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "count": 960,
+          "count_per_group": 80.0,
+          "sum_ms_per_group": 1.7097265000012702,
+          "union_ms_per_group": 1.7097265000012702
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "count": 5220,
+          "count_per_group": 435.0,
+          "sum_ms_per_group": 2.2132951666708105,
+          "union_ms_per_group": 2.2132951666708105
+        }
+      ],
+      "dispatches": [
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Gate/Up",
+          "name": "void gem16::internal::<unnamed>::Sm120MatrixProjectionKernel<(bool)1, (unsigned long)2, (unsigned int)2, (bool)0, float>(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, float *, float *, T5 *, unsigned long, unsigned long, unsigned long, float, float)",
+          "grid": [
+            960,
+            1,
+            1
+          ],
+          "block": [
+            64,
+            1,
+            1
+          ],
+          "registers": 64,
+          "shared": 0,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 4.163397999998492,
+          "union_ms_per_group": 4.163397999998492
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8GlobalGqaKernel<(bool)0, (bool)1, (bool)1>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, const gem16::internal::DecodeControl *, unsigned long, int)",
+          "grid": [
+            35,
+            4,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 64,
+          "shared": 41056,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 3.222499083333649,
+          "union_ms_per_group": 3.222499083333649
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::FusedOutputHeadFixedBatchCandidatesKernel<(unsigned int)4>(const unsigned short *, const float *, const unsigned int *, unsigned int, gem16::internal::OutputHeadCandidate *, float *)",
+          "grid": [
+            4096,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 43,
+          "shared": 256,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 2.8252199166667027,
+          "union_ms_per_group": 2.8252199166667027
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Down",
+          "name": "gem16::internal::<unnamed>::Sm120D3DownFixedShapeKernel(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, unsigned short *, float)",
+          "grid": [
+            60,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 43,
+          "shared": 0,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 2.6826542500018453,
+          "union_ms_per_group": 2.6826542500018453
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant head",
+          "name": "gem16::internal::<unnamed>::AssistantOutputCandidatesKernel(const unsigned short *, const float *, gem16::internal::<unnamed>::ArgmaxValue *)",
+          "grid": [
+            4096,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 39,
+          "shared": 64,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 1.8949234166659106,
+          "union_ms_per_group": 1.8949234166659106
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            128,
+            1,
+            3
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 15488,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 1.7762717500018577,
+          "union_ms_per_group": 1.7762717500018577
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel<(int)4, (bool)0>(const float *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, const gem16::internal::DecodeControl *, int)",
+          "grid": [
+            64,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 127,
+          "shared": 37664,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 1.6206054999995976,
+          "union_ms_per_group": 1.6206054999995976
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            120,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 16512,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 1.0166259999998535,
+          "union_ms_per_group": 1.0166259999998535
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            8192,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 324,
+          "count_per_group": 27.0,
+          "sum_ms_per_group": 0.8099229166683121,
+          "union_ms_per_group": 0.8099229166683121
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::TwelveBPostAttentionQuantizeT4Kernel(float *, const unsigned short *, const float *, float *, float *, const unsigned short *, unsigned char *, unsigned char *, float)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 64,
+          "shared": 1024,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.5707532499988253,
+          "union_ms_per_group": 0.5707532499988253
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormQuantizeTokenKernel<float>(const T1 *, const unsigned short *, unsigned char *, float *, unsigned long, float)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 32,
+          "shared": 1024,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.540741249998721,
+          "union_ms_per_group": 0.540741249998721
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8GlobalGqaKernel<(bool)0, (bool)0, (bool)1>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, const gem16::internal::DecodeControl *, unsigned long, int)",
+          "grid": [
+            35,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 64,
+          "shared": 41056,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.5044157500003155,
+          "union_ms_per_group": 0.5044157500003155
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormResidualBf16Kernel<unsigned short>(const T1 *, const unsigned short *, const float *, float *, float *, unsigned long, float, const unsigned short *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 26,
+          "shared": 1024,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.4907764166666505,
+          "union_ms_per_group": 0.4907764166666505
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            1024,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 288,
+          "count_per_group": 24.0,
+          "sum_ms_per_group": 0.42195758333352085,
+          "union_ms_per_group": 0.42195758333352085
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            256,
+            1,
+            2
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 15488,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.36909524999931453,
+          "union_ms_per_group": 0.36909524999931453
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+          "grid": [
+            120,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 32896,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.3676900833334463,
+          "union_ms_per_group": 0.3676900833334463
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8Kernel<(int)256, (int)8, (int)2, (int)2, (int)128, (bool)0, (bool)0, (bool)0>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+          "grid": [
+            64,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 49,
+          "shared": 1056,
+          "count": 108,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.25781191666657105,
+          "union_ms_per_group": 0.25781191666657105
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::QuantizeTokenReferenceKernel<float>(const T1 *, unsigned char *, float *, unsigned long)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 32,
+          "shared": 1024,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.23751024999748915,
+          "union_ms_per_group": 0.23751024999748915
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            4096,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 108,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.14040308333312473,
+          "union_ms_per_group": 0.14040308333312473
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ProjectionRmsNormRotaryBf16BatchControlledKernel(const float *, const unsigned short *, float *, const float *, const unsigned short *, float *, const float *, const float *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long, unsigned long, float)",
+          "grid": [
+            96,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 35,
+          "shared": 1024,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.10304116667046521,
+          "union_ms_per_group": 0.10304116667046521
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::PreProjectionKernel(const unsigned short *, const unsigned int *, const float *, const unsigned short *, float *)",
+          "grid": [
+            1024,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 48,
+          "shared": 1024,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.10132916666629414,
+          "union_ms_per_group": 0.10132916666629414
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::QuantizeActivationReferenceKernel<float>(const T1 *, unsigned char *, unsigned char *, unsigned long, float)",
+          "grid": [
+            30,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 38,
+          "shared": 0,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.09572900000168011,
+          "union_ms_per_group": 0.09572900000168011
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormResidualBf16Kernel<float>(const T1 *, const unsigned short *, const float *, float *, float *, unsigned long, float, const unsigned short *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 28,
+          "shared": 1024,
+          "count": 288,
+          "count_per_group": 24.0,
+          "sum_ms_per_group": 0.09527341666646923,
+          "union_ms_per_group": 0.09527341666646923
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::CopyCircularMtpKvControlledKernel<unsigned char, (bool)0>(T1 *, T1 *, T1 *, T1 *, unsigned int, unsigned long, unsigned long, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.09133983333548532,
+          "union_ms_per_group": 0.09133983333548532
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "name": "gem16::internal::<unnamed>::MergeOnlineDecodeAttentionFp8LocalFixedKernel(const float *, const float *, float *, int)",
+          "grid": [
+            16,
+            4,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 54,
+          "shared": 32,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.08912100000167265,
+          "union_ms_per_group": 0.08912100000167265
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ControlledRotaryKernel(float *, unsigned long, unsigned long, unsigned long, unsigned long, const gem16::internal::DecodeControl *, double, double, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 52,
+          "shared": 0,
+          "count": 108,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.08653149999988576,
+          "union_ms_per_group": 0.08653149999988576
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 324,
+          "count_per_group": 27.0,
+          "sum_ms_per_group": 0.08372674999913822,
+          "union_ms_per_group": 0.08372674999913822
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::CommitMtpKvControlledD2Kernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, unsigned long, unsigned long, const gem16::internal::MtpGroupResult *, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            40,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.06858566666798045,
+          "union_ms_per_group": 0.06858566666798045
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::CopyCircularMtpKvControlledKernel<unsigned char, (bool)1>(T1 *, T1 *, T1 *, T1 *, unsigned int, unsigned long, unsigned long, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.05835908333227659,
+          "union_ms_per_group": 0.05835908333227659
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::AppendKvBatchControlledKernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.058327000000203647,
+          "union_ms_per_group": 0.058327000000203647
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "gem16::internal::<unnamed>::QuantizeKvBatchKernel(const float *, const float *, unsigned char *, unsigned char *, const unsigned short *, const unsigned short *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.05569783333549276,
+          "union_ms_per_group": 0.05569783333549276
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.05359883333245913,
+          "union_ms_per_group": 0.05359883333245913
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections",
+          "name": "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+          "grid": [
+            3840,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 1024,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.04374041666587194,
+          "union_ms_per_group": 0.04374041666587194
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            64,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.03365850000378365,
+          "union_ms_per_group": 0.03365850000378365
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionGlobalBatchKernel<(int)4, (int)512>(const float *, float *, float *, unsigned long, const gem16::internal::DecodeControl *, int)",
+          "grid": [
+            16,
+            4,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 54,
+          "shared": 32,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.03364449999978145,
+          "union_ms_per_group": 0.03364449999978145
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ControlledRotaryKernel(float *, unsigned long, unsigned long, unsigned long, unsigned long, const gem16::internal::DecodeControl *, double, double, unsigned long)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 52,
+          "shared": 0,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.028604750000095616,
+          "union_ms_per_group": 0.028604750000095616
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.026850083333595346,
+          "union_ms_per_group": 0.026850083333595346
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 108,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.02282108333396415,
+          "union_ms_per_group": 0.02282108333396415
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::ProjectionRmsNormRotaryBf16BatchControlledKernel(const float *, const unsigned short *, float *, const float *, const unsigned short *, float *, const float *, const float *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long, unsigned long, float)",
+          "grid": [
+            68,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 35,
+          "shared": 1024,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.022103499999890724,
+          "union_ms_per_group": 0.022103499999890724
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 1024,
+          "count": 144,
+          "count_per_group": 12.0,
+          "sum_ms_per_group": 0.018221083333715797,
+          "union_ms_per_group": 0.018221083333715797
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)256, (int)128>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 32,
+          "count": 108,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.015498499998978028,
+          "union_ms_per_group": 0.015498499998978028
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::CommitMtpKvControlledD2Kernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, unsigned long, unsigned long, const gem16::internal::MtpGroupResult *, const gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            10,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.013359833333330849,
+          "union_ms_per_group": 0.013359833333330849
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 216,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 0.011999916665100804,
+          "union_ms_per_group": 0.011999916665100804
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 216,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 0.011645166664384305,
+          "union_ms_per_group": 0.011645166664384305
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "gem16::internal::<unnamed>::QuantizeKvBatchKernel(const float *, const float *, unsigned char *, unsigned char *, const unsigned short *, const unsigned short *, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.011487833333356927,
+          "union_ms_per_group": 0.011487833333356927
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)512, (int)512>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 39,
+          "shared": 32,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.011141083333641291,
+          "union_ms_per_group": 0.011141083333641291
+        },
+        {
+          "phase": "target backbone",
+          "family": "KV/transaction",
+          "name": "void gem16::internal::<unnamed>::AppendKvBatchControlledKernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.01091183333331719,
+          "union_ms_per_group": 0.01091183333331719
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant head",
+          "name": "gem16::internal::<unnamed>::AssistantOutputArgmaxKernel(const gem16::internal::<unnamed>::ArgmaxValue *, unsigned int *, unsigned int *, unsigned int)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 31,
+          "shared": 2048,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.009853000000119209,
+          "union_ms_per_group": 0.009853000000119209
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::GeluTanhProductKernel(const float *, const float *, float *, unsigned long)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 144,
+          "count_per_group": 12.0,
+          "sum_ms_per_group": 0.008615750000346452,
+          "union_ms_per_group": 0.008615750000346452
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.007085166666346292,
+          "union_ms_per_group": 0.007085166666346292
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::AdvanceMtpD2ChainKernel(gem16::internal::MtpGroupTransaction *, gem16::internal::MtpChainResult *, unsigned int *, unsigned int *, gem16::internal::MtpStreamingRing *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 34,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.005679916666665424,
+          "union_ms_per_group": 0.005679916666665424
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+          "grid": [
+            128,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.0053733333330601455,
+          "union_ms_per_group": 0.0053733333330601455
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void gem16::internal::<unnamed>::OutputHeadArgmaxKernel<(bool)1>(const gem16::internal::OutputHeadCandidate *, unsigned long, unsigned int *)",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 37,
+          "shared": 2048,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.003954583333494762,
+          "union_ms_per_group": 0.003954583333494762
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::AcceptMtpGroupKernel(const unsigned int *, const unsigned int *, unsigned int, const unsigned int *, unsigned int, gem16::internal::MtpGroupResult *, gem16::internal::MtpDeviceControl *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 26,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.003695916666494062,
+          "union_ms_per_group": 0.003695916666494062
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::ContinueMtpChainKernel(const gem16::internal::MtpGroupTransaction *, const gem16::internal::MtpStreamingRing *, unsigned long long)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.001930666666633139,
+          "union_ms_per_group": 0.001930666666633139
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void gem16::<unnamed>::EmbeddingBatchKernel<float>(const unsigned short *, const unsigned int *, T1 *, unsigned long)",
+          "grid": [
+            60,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0016400000002856057,
+          "union_ms_per_group": 0.0016400000002856057
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::BuildControlledMtpInputsKernel(const gem16::internal::MtpDeviceControl *, const unsigned int *, unsigned int *, gem16::internal::DecodeControl *, unsigned int, unsigned int)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            4,
+            1,
+            1
+          ],
+          "registers": 18,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0016133333335941035,
+          "union_ms_per_group": 0.0016133333335941035
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "gem16::internal::<unnamed>::CommitMtpHiddenKernel(const float *, float *, unsigned long, const gem16::internal::MtpGroupResult *)",
+          "grid": [
+            15,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0011599999999937912,
+          "union_ms_per_group": 0.0011599999999937912
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "gem16::internal::<unnamed>::InitializeControlledAssistantKernel(const gem16::internal::MtpDeviceControl *, unsigned int *, gem16::internal::DecodeControl *)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            1,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0010133333336561918,
+          "union_ms_per_group": 0.0010133333336561918
+        }
+      ],
+      "mean_adjacent_intergroup_gap_ms": 0.011435363636267456
+    },
+    "vllm": {
+      "groups": 12,
+      "context_end_values": [
+        16414,
+        16418,
+        16422,
+        16425,
+        16429,
+        16430,
+        16431,
+        16435,
+        16437,
+        16440,
+        16441,
+        16445
+      ],
+      "group_indices": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "all_kernels": {
+        "count": 11510,
+        "count_per_group": 959.1666666666666,
+        "sum_ms_per_group": 21.540214233398437,
+        "union_ms_per_group": 21.45685725911458
+      },
+      "mean_intragroup_span_ms": 21.59487658691406,
+      "mean_intragroup_no_kernel_ms": 0.13801932779947915,
+      "phases": {
+        "target backbone": {
+          "count": 9314,
+          "count_per_group": 776.1666666666666,
+          "sum_ms_per_group": 14.469525675455728,
+          "union_ms_per_group": 14.386168701171876
+        },
+        "head/sampling/control": {
+          "count": 216,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 2.752693359375,
+          "union_ms_per_group": 2.752693359375
+        },
+        "assistant": {
+          "count": 1980,
+          "count_per_group": 165.0,
+          "sum_ms_per_group": 4.317995198567708,
+          "union_ms_per_group": 4.317995198567708
+        }
+      },
+      "families": [
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "count": 684,
+          "count_per_group": 57.0,
+          "sum_ms_per_group": 3.5771588134765624,
+          "union_ms_per_group": 3.5771588134765624
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "count": 72,
+          "count_per_group": 6.0,
+          "sum_ms_per_group": 0.24765218098958333,
+          "union_ms_per_group": 0.24765218098958333
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "count": 216,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 0.3251203206380208,
+          "union_ms_per_group": 0.3251203206380208
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "count": 1008,
+          "count_per_group": 84.0,
+          "sum_ms_per_group": 0.16806388346354165,
+          "union_ms_per_group": 0.16806388346354165
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "count": 216,
+          "count_per_group": 18.0,
+          "sum_ms_per_group": 2.752693359375,
+          "union_ms_per_group": 2.752693359375
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "count": 1152,
+          "count_per_group": 96.0,
+          "sum_ms_per_group": 3.9325804443359376,
+          "union_ms_per_group": 3.9325804443359376
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Down",
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 2.362404825846354,
+          "union_ms_per_group": 2.362404825846354
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Gate/Up",
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 4.649627034505208,
+          "union_ms_per_group": 4.649627034505208
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "count": 192,
+          "count_per_group": 16.0,
+          "sum_ms_per_group": 0.8275147705078125,
+          "union_ms_per_group": 0.8275147705078125
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "count": 960,
+          "count_per_group": 80.0,
+          "sum_ms_per_group": 1.5377451578776042,
+          "union_ms_per_group": 1.5377451578776042
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "count": 5858,
+          "count_per_group": 488.1666666666667,
+          "sum_ms_per_group": 1.1596534423828124,
+          "union_ms_per_group": 1.1364068196614583
+        }
+      ],
+      "dispatches": [
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Gate/Up",
+          "name": "_ZN7cutlass13device_kernelINS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS1_10collective13CollectiveMmaINS1_42MainloopSm120TmaWarpSpecializedBlockScaledILi7ELi3ENS5_IJNS4_1CILi1EEESB_SB_EEENS1_51KernelTmaWarpSpecializedCooperativeBlockScaledSm120ILi3EEEEENS5_IJNSA_ILi128EEENSA_ILi32EEESG_EEENS5_IJNS_12float_e2m1_tENS_13float_ue4m3_tEEEENS5_IJNS5_IJlSB_lEEENS4_6LayoutINS5_IJNS5_IJNS5_IJSH_NSA_ILi4EEEEEEiEEENS5_IJNS5_IJNSA_ILi16EEESO_EEEiEEENS5_IJSB_iEEEEEENS5_IJST_NS5_IJNS5_IJNSA_ILi0EEESB_EEENSA_ILi512EEEEEENS5_IJSW_iEEEEEEEEEEESL_S13_NS4_8TiledMMAINS4_8MMA_AtomIJNS4_5SM12011BLOCKSCALED19SM120_16x8x64_TN_VSISJ_SJ_fSK_Li16EEEEEENSN_INS5_IJSO_NSA_ILi2EEESB_EEENS5_IJSB_SO_SW_EEEEENS5_IJSG_NSN_INS5_IJNSA_ILi8EEES1B_S1B_EEENS5_IJSB_SR_S1F_EEEEENSA_ILi64EEEEEEEENS5_IJNS4_13SM90_TMA_LOADES1M_EEENS5_IJNS4_14ComposedLayoutINS4_7SwizzleILi2ELi4ELi3EEENS4_18smem_ptr_flag_bitsILi4EEENSN_INS5_IJS1F_SG_EEENS5_IJSG_SB_EEEEEEENSN_INS5_IJNS5_IJSP_SB_EEENS5_IJSS_SB_S1B_EEEEEENS5_IJNS5_IJSS_SY_EEENS5_IJSX_SO_SY_EEEEEEEEEEENS5_IJNS4_9Copy_AtomIJNS4_17SM75_U32x4_LDSM_NENS_15integer_subbyteILi4ELb0EEEEEENS25_IJNS4_13UniversalCopyISK_SK_EESK_EEEEEENS4_8identityES1N_S24_S2D_S2E_EENS_8epilogue10collective18CollectiveEpilogueINS2G_22Sm90TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEEJSI_NS5_IJS1J_SH_EEEvNS5_IJSB_llEEENS_10bfloat16_tES2M_NS2G_6fusion15FusionCallbacksINS2G_23Sm120TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEENS2O_17LinearCombinationIS2N_fvfLNS_15FloatRoundStyleE2EEESI_S2L_JEEES1M_NS1O_INS1P_ILi3ELi4ELi3EEENS1R_ILi16EEENSN_INS5_IJS1J_S1F_EEENS5_IJSB_S1J_EEEEEEENS4_17SM75_U16x4_LDSM_TENS4_14SM90_TMA_STOREES31_NS4_17SM90_U16x4_STSM_TENS25_IJNS4_17SM90_U32x2_STSM_NENS_6half_tEEEEvEEENS1_16StreamKSchedulerEvEEEEvNT_6ParamsE",
+          "grid": [
+            240,
+            1,
+            1
+          ],
+          "block": [
+            384,
+            1,
+            1
+          ],
+          "registers": 168,
+          "shared": 96256,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 4.649627034505208,
+          "union_ms_per_group": 4.649627034505208
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x1_tn_align8>(cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x1_tn_align8::Params)",
+          "grid": [
+            8,
+            2048,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 96,
+          "shared": 8704,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 2.6896671549479163,
+          "union_ms_per_group": 2.6896671549479163
+        },
+        {
+          "phase": "target backbone",
+          "family": "NVFP4 Down",
+          "name": "_ZN7cutlass13device_kernelINS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS1_10collective13CollectiveMmaINS1_42MainloopSm120TmaWarpSpecializedBlockScaledILi3ELi3ENS5_IJNS4_1CILi1EEESB_SB_EEENS1_51KernelTmaWarpSpecializedCooperativeBlockScaledSm120ILi3EEEEENS5_IJNSA_ILi128EEENSA_ILi32EEENSA_ILi256EEEEEENS5_IJNS_12float_e2m1_tENS_13float_ue4m3_tEEEENS5_IJNS5_IJlSB_lEEENS4_6LayoutINS5_IJNS5_IJNS5_IJSH_NSA_ILi4EEEEEEiEEENS5_IJNS5_IJNSA_ILi16EEESP_EEEiEEENS5_IJSB_iEEEEEENS5_IJSU_NS5_IJNS5_IJNSA_ILi0EEESB_EEENSA_ILi512EEEEEENS5_IJSX_iEEEEEEEEEEESM_S14_NS4_8TiledMMAINS4_8MMA_AtomIJNS4_5SM12011BLOCKSCALED19SM120_16x8x64_TN_VSISK_SK_fSL_Li16EEEEEENSO_INS5_IJSP_NSA_ILi2EEESB_EEENS5_IJSB_SP_SX_EEEEENS5_IJSG_NSO_INS5_IJNSA_ILi8EEES1C_S1C_EEENS5_IJSB_SS_S1G_EEEEENSA_ILi64EEEEEEEENS5_IJNS4_13SM90_TMA_LOADES1N_EEENS5_IJNS4_14ComposedLayoutINS4_7SwizzleILi3ELi4ELi3EEENS4_18smem_ptr_flag_bitsILi4EEENSO_INS5_IJS1G_SI_EEENS5_IJSI_SB_EEEEEEENSO_INS5_IJNS5_IJSQ_SB_EEENS5_IJST_SB_SP_EEEEEENS5_IJNS5_IJST_SZ_EEENS5_IJSY_SP_SZ_EEEEEEEEEEENS5_IJNS4_9Copy_AtomIJNS4_17SM75_U32x4_LDSM_NENS_15integer_subbyteILi4ELb0EEEEEENS26_IJNS4_13UniversalCopyISL_SL_EESL_EEEEEENS4_8identityES1O_S25_S2E_S2F_EENS_8epilogue10collective18CollectiveEpilogueINS2H_22Sm90TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEEJSJ_NS5_IJS1K_SH_EEEvNS5_IJSB_llEEENS_10bfloat16_tES2N_NS2H_6fusion15FusionCallbacksINS2H_23Sm120TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEENS2P_17LinearCombinationIS2O_fvfLNS_15FloatRoundStyleE2EEESJ_S2M_JEEES1N_NS1P_IS1R_NS1S_ILi16EEENSO_INS5_IJS1K_S1G_EEENS5_IJSB_S1K_EEEEEEENS4_17SM75_U16x4_LDSM_TENS4_14SM90_TMA_STOREES31_NS4_17SM90_U16x4_STSM_TENS26_IJNS4_17SM90_U32x2_STSM_NENS_6half_tEEEEvEEENS1_25StaticPersistentSchedulerEvEEEEvNT_6ParamsE",
+          "grid": [
+            1,
+            30,
+            1
+          ],
+          "block": [
+            384,
+            1,
+            1
+          ],
+          "registers": 168,
+          "shared": 83968,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 2.362404825846354,
+          "union_ms_per_group": 2.362404825846354
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, false, true, true, false, 6, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>)",
+          "grid": [
+            32768,
+            1,
+            1
+          ],
+          "block": [
+            8,
+            8,
+            1
+          ],
+          "registers": 164,
+          "shared": 288,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 2.1689453125,
+          "union_ms_per_group": 2.1689453125
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "_ZN7cutlass13device_kernelI19enable_sm120_familyINS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS2_10collective13CollectiveMmaINS2_31MainloopSm120TmaWarpSpecializedILi9ELi2ENS6_IJNS5_1CILi1EEESC_SC_EEENS2_37KernelTmaWarpSpecializedPingpongSm120ILi2EEEEENS6_IJNSB_ILi16EEENSB_ILi64EEENSB_ILi128EEEEEENS_12float_e4m3_tENS6_IJlSC_lEEESL_SM_NS5_8TiledMMAINS5_8MMA_AtomIJNS5_16SM120_16x8x32_TNISL_SL_fEEEEENS5_6LayoutINS6_IJNSB_ILi2EEEST_SC_EEENS6_IJSC_ST_NSB_ILi0EEEEEEEENS6_IJSH_NSB_ILi32EEESY_EEEEENS5_13SM90_TMA_LOADENS5_14ComposedLayoutINS5_7SwizzleILi3ELi4ELi3EEENS5_18smem_ptr_flag_bitsILi8EEENSS_INS6_IJNSB_ILi8EEESJ_EEENS6_IJSJ_SC_EEEEEEENS5_9Copy_AtomIJNS5_17SM75_U32x4_LDSM_NEhEEENS5_8identityES11_S1B_S1E_S1F_EENS_8epilogue10collective18CollectiveEpilogueINS1H_22Sm90TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEEJSK_NS6_IJSH_SY_EEEvSM_NS_10bfloat16_tESM_NS1H_6fusion15Sm90TreeVisitorINS1O_11Sm90ComputeINS_10multipliesES1N_fLNS_15FloatRoundStyleE2EvEEJNS1O_24Sm90ColOrScalarBroadcastILi0ESK_fNS6_IJSC_SV_SV_EEELi4EEENS1P_INS1Q_IS1R_ffLS1S_2EvEEJNS1O_24Sm90RowOrScalarBroadcastILi0ESK_fNS6_IJSV_SC_SV_EEELi4EEENS1O_12Sm90AccFetchEEEEEEES11_NS12_INS13_ILi2ELi4ELi3EEENS15_ILi16EEENSS_INS6_IJS17_SY_EEENS6_IJSY_SC_EEEEEEENS5_17SM75_U32x2_LDSM_NENS5_14SM90_TMA_STOREES29_NS5_17SM90_U32x2_STSM_NENS1C_IJS2C_NS_6half_tEEEEvEEEvvEEEEEvNT_6ParamsE",
+          "grid": [
+            1,
+            128,
+            1
+          ],
+          "block": [
+            384,
+            1,
+            1
+          ],
+          "registers": 168,
+          "shared": 96256,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 2.076800537109375,
+          "union_ms_per_group": 2.076800537109375
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "name": "kernel_unified_attention",
+          "grid": [
+            1,
+            8,
+            16
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 192,
+          "shared": 29440,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 1.4428549397786457,
+          "union_ms_per_group": 1.4428549397786457
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "_ZN7cutlass13device_kernelI19enable_sm120_familyINS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS2_10collective13CollectiveMmaINS2_31MainloopSm120TmaWarpSpecializedILi9ELi2ENS6_IJNS5_1CILi1EEESC_SC_EEENS2_37KernelTmaWarpSpecializedPingpongSm120ILi2EEEEENS6_IJNSB_ILi16EEENSB_ILi64EEENSB_ILi128EEEEEENS_12float_e4m3_tENS6_IJlSC_lEEESL_SM_NS5_8TiledMMAINS5_8MMA_AtomIJNS5_16SM120_16x8x32_TNISL_SL_fEEEEENS5_6LayoutINS6_IJNSB_ILi2EEEST_SC_EEENS6_IJSC_ST_NSB_ILi0EEEEEEEENS6_IJSH_NSB_ILi32EEESY_EEEEENS5_13SM90_TMA_LOADENS5_14ComposedLayoutINS5_7SwizzleILi3ELi4ELi3EEENS5_18smem_ptr_flag_bitsILi8EEENSS_INS6_IJNSB_ILi8EEESJ_EEENS6_IJSJ_SC_EEEEEEENS5_9Copy_AtomIJNS5_17SM75_U32x4_LDSM_NEhEEENS5_8identityES11_S1B_S1E_S1F_EENS_8epilogue10collective18CollectiveEpilogueINS1H_22Sm90TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEEJSK_NS6_IJSH_SY_EEEvSM_NS_10bfloat16_tESM_NS1H_6fusion15Sm90TreeVisitorINS1O_11Sm90ComputeINS_10multipliesES1N_fLNS_15FloatRoundStyleE2EvEEJNS1O_24Sm90ColOrScalarBroadcastILi0ESK_fNS6_IJSC_SV_SV_EEELi4EEENS1P_INS1Q_IS1R_ffLS1S_2EvEEJNS1O_24Sm90RowOrScalarBroadcastILi0ESK_fNS6_IJSV_SC_SV_EEELi4EEENS1O_12Sm90AccFetchEEEEEEES11_NS12_INS13_ILi2ELi4ELi3EEENS15_ILi16EEENSS_INS6_IJS17_SY_EEENS6_IJSY_SC_EEEEEEENS5_17SM75_U32x2_LDSM_NENS5_14SM90_TMA_STOREES29_NS5_17SM90_U32x2_STSM_NENS1C_IJS2C_NS_6half_tEEEEvEEEvvEEEEEvNT_6ParamsE",
+          "grid": [
+            1,
+            60,
+            1
+          ],
+          "block": [
+            384,
+            1,
+            1
+          ],
+          "registers": 168,
+          "shared": 96256,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 1.4306082356770833,
+          "union_ms_per_group": 1.4306082356770833
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "name": "kernel_unified_attention",
+          "grid": [
+            5,
+            1,
+            16
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 254,
+          "shared": 41728,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.802514404296875,
+          "union_ms_per_group": 0.802514404296875
+        },
+        {
+          "phase": "target backbone",
+          "family": "FP8 QKV/O",
+          "name": "_ZN7cutlass13device_kernelI19enable_sm120_familyINS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS2_10collective13CollectiveMmaINS2_31MainloopSm120TmaWarpSpecializedILi9ELi2ENS6_IJNS5_1CILi1EEESC_SC_EEENS2_37KernelTmaWarpSpecializedPingpongSm120ILi2EEEEENS6_IJNSB_ILi16EEENSB_ILi64EEENSB_ILi128EEEEEENS_12float_e4m3_tENS6_IJlSC_lEEESL_SM_NS5_8TiledMMAINS5_8MMA_AtomIJNS5_16SM120_16x8x32_TNISL_SL_fEEEEENS5_6LayoutINS6_IJNSB_ILi2EEEST_SC_EEENS6_IJSC_ST_NSB_ILi0EEEEEEEENS6_IJSH_NSB_ILi32EEESY_EEEEENS5_13SM90_TMA_LOADENS5_14ComposedLayoutINS5_7SwizzleILi3ELi4ELi3EEENS5_18smem_ptr_flag_bitsILi8EEENSS_INS6_IJNSB_ILi8EEESJ_EEENS6_IJSJ_SC_EEEEEEENS5_9Copy_AtomIJNS5_17SM75_U32x4_LDSM_NEhEEENS5_8identityES11_S1B_S1E_S1F_EENS_8epilogue10collective18CollectiveEpilogueINS1H_22Sm90TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEEJSK_NS6_IJSH_SY_EEEvSM_NS_10bfloat16_tESM_NS1H_6fusion15Sm90TreeVisitorINS1O_11Sm90ComputeINS_10multipliesES1N_fLNS_15FloatRoundStyleE2EvEEJNS1O_24Sm90ColOrScalarBroadcastILi0ESK_fNS6_IJSC_SV_SV_EEELi4EEENS1P_INS1Q_IS1R_ffLS1S_2EvEEJNS1O_24Sm90RowOrScalarBroadcastILi0ESK_fNS6_IJSV_SC_SV_EEELi4EEENS1O_12Sm90AccFetchEEEEEEES11_NS12_INS13_ILi2ELi4ELi3EEENS15_ILi16EEENSS_INS6_IJS17_SY_EEENS6_IJSY_SC_EEEEEEENS5_17SM75_U32x2_LDSM_NENS5_14SM90_TMA_STOREES29_NS5_17SM90_U32x2_STSM_NENS1C_IJS2C_NS_6half_tEEEEvEEEvvEEEEEvNT_6ParamsE",
+          "grid": [
+            1,
+            144,
+            1
+          ],
+          "block": [
+            384,
+            1,
+            1
+          ],
+          "registers": 168,
+          "shared": 96256,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.4251716715494792,
+          "union_ms_per_group": 0.4251716715494792
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, false, true, true, false, 6, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>)",
+          "grid": [
+            4096,
+            1,
+            1
+          ],
+          "block": [
+            16,
+            4,
+            1
+          ],
+          "registers": 164,
+          "shared": 272,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.3848363444010417,
+          "union_ms_per_group": 0.3848363444010417
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "name": "kernel_unified_attention",
+          "grid": [
+            1,
+            8,
+            16
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 192,
+          "shared": 29440,
+          "count": 108,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.3051901448567708,
+          "union_ms_per_group": 0.3051901448567708
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, false, true, true, false, 7, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>)",
+          "grid": [
+            256,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            4,
+            1
+          ],
+          "registers": 164,
+          "shared": 528,
+          "count": 144,
+          "count_per_group": 12.0,
+          "sum_ms_per_group": 0.2945155436197917,
+          "union_ms_per_group": 0.2945155436197917
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_red_fused__to_copy_abs_add_amax_clamp_cutlass_scaled_mm_div_mul_reciprocal_rms_norm_unsqueeze_3",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 32,
+          "count": 564,
+          "count_per_group": 47.0,
+          "sum_ms_per_group": 0.2202755126953125,
+          "union_ms_per_group": 0.2202755126953125
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_red_fused_add_rms_norm_scaled_fp4_quant_1",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 32,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.2045450439453125,
+          "union_ms_per_group": 0.2045450439453125
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8>(cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8::Params)",
+          "grid": [
+            8,
+            128,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 124,
+          "shared": 16896,
+          "count": 48,
+          "count_per_group": 4.0,
+          "sum_ms_per_group": 0.20400439453125,
+          "union_ms_per_group": 0.20400439453125
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8>(cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8::Params)",
+          "grid": [
+            8,
+            8,
+            16
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 124,
+          "shared": 16896,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.178397216796875,
+          "union_ms_per_group": 0.178397216796875
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "name": "kernel_unified_attention",
+          "grid": [
+            2,
+            1,
+            16
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 254,
+          "shared": 41728,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.13867488606770834,
+          "union_ms_per_group": 0.13867488606770834
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void vllm::cvt_fp16_to_fp4<__nv_bfloat16, false, false>(int, int, int, int, __nv_bfloat16 const*, float const*, unsigned int*, unsigned int*)",
+          "grid": [
+            90,
+            2,
+            1
+          ],
+          "block": [
+            512,
+            1,
+            1
+          ],
+          "registers": 34,
+          "shared": 0,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.1122642822265625,
+          "union_ms_per_group": 0.1122642822265625
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "name": "kernel_unified_attention",
+          "grid": [
+            5,
+            1,
+            16
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 254,
+          "shared": 41728,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.10047062174479167,
+          "union_ms_per_group": 0.10047062174479167
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_split_with_sizes_sub_unsqueeze_view_4",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 168,
+          "shared": 0,
+          "count": 468,
+          "count_per_group": 39.0,
+          "sum_ms_per_group": 0.09492451985677083,
+          "union_ms_per_group": 0.09492451985677083
+        },
+        {
+          "phase": "target backbone",
+          "family": "local attention",
+          "name": "reduce_segments",
+          "grid": [
+            4,
+            16,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 48,
+          "shared": 2048,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.09489021809895833,
+          "union_ms_per_group": 0.09489021809895833
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_add_cat_index_select_mul_rms_norm_split_split_with_sizes_sub_unsqueeze_view_5",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 168,
+          "shared": 0,
+          "count": 468,
+          "count_per_group": 39.0,
+          "sum_ms_per_group": 0.0937333984375,
+          "union_ms_per_group": 0.0937333984375
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, false, true, true, false, 6, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>)",
+          "grid": [
+            256,
+            1,
+            1
+          ],
+          "block": [
+            16,
+            4,
+            1
+          ],
+          "registers": 164,
+          "shared": 272,
+          "count": 72,
+          "count_per_group": 6.0,
+          "sum_ms_per_group": 0.08495052083333333,
+          "union_ms_per_group": 0.08495052083333333
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void vllm::cvt_fp16_to_fp4<__nv_bfloat16, false, false>(int, int, int, int, __nv_bfloat16 const*, float const*, unsigned int*, unsigned int*)",
+          "grid": [
+            128,
+            1,
+            1
+          ],
+          "block": [
+            240,
+            1,
+            1
+          ],
+          "registers": 34,
+          "shared": 0,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.08342692057291667,
+          "union_ms_per_group": 0.08342692057291667
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_poi_fused_gelu_mul_scaled_fp4_quant_slice_2",
+          "grid": [
+            60,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 0,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.08293693033854167,
+          "union_ms_per_group": 0.08293693033854167
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "reshape_and_cache_kernel_flash",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            512,
+            1,
+            1
+          ],
+          "registers": 18,
+          "shared": 0,
+          "count": 576,
+          "count_per_group": 48.0,
+          "sum_ms_per_group": 0.08232295735677082,
+          "union_ms_per_group": 0.08232295735677082
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, false, true, true, false, 6, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>)",
+          "grid": [
+            1024,
+            1,
+            1
+          ],
+          "block": [
+            16,
+            4,
+            1
+          ],
+          "registers": 164,
+          "shared": 272,
+          "count": 72,
+          "count_per_group": 6.0,
+          "sum_ms_per_group": 0.08110774739583333,
+          "union_ms_per_group": 0.08110774739583333
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_red_fused__to_copy_abs_amax_clamp_cutlass_scaled_mm_div_mul_reciprocal_unsqueeze_view_0",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 23,
+          "shared": 32,
+          "count": 480,
+          "count_per_group": 40.0,
+          "sum_ms_per_group": 0.052205729166666666,
+          "union_ms_per_group": 0.052205729166666666
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, false, true, true, false, 6, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>)",
+          "grid": [
+            2048,
+            1,
+            1
+          ],
+          "block": [
+            16,
+            4,
+            1
+          ],
+          "registers": 164,
+          "shared": 272,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.051204549153645834,
+          "union_ms_per_group": 0.051204549153645834
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8>(cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8::Params)",
+          "grid": [
+            8,
+            32,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 124,
+          "shared": 16896,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.043353841145833336,
+          "union_ms_per_group": 0.043353841145833336
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_rms_norm_split_with_sizes_view_6",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 52,
+          "shared": 0,
+          "count": 468,
+          "count_per_group": 39.0,
+          "sum_ms_per_group": 0.04290865071614584,
+          "union_ms_per_group": 0.04290865071614584
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8>(cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8::Params)",
+          "grid": [
+            8,
+            64,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 124,
+          "shared": 16896,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.02604219563802083,
+          "union_ms_per_group": 0.02604219563802083
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8>(cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8::Params)",
+          "grid": [
+            8,
+            8,
+            15
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 124,
+          "shared": 16896,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.02585546875,
+          "union_ms_per_group": 0.02585546875
+        },
+        {
+          "phase": "target backbone",
+          "family": "global attention",
+          "name": "reduce_segments",
+          "grid": [
+            4,
+            16,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 64,
+          "shared": 0,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.0250003662109375,
+          "union_ms_per_group": 0.0250003662109375
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, false, true, true, false, 6, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>)",
+          "grid": [
+            960,
+            1,
+            1
+          ],
+          "block": [
+            16,
+            4,
+            1
+          ],
+          "registers": 164,
+          "shared": 272,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.02096732584635417,
+          "union_ms_per_group": 0.02096732584635417
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_split_with_sizes_sub_unsqueeze_view_4",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 168,
+          "shared": 0,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.02071907552083333,
+          "union_ms_per_group": 0.02071907552083333
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<c10::BFloat16, at::native::ArgMaxOps<float>, unsigned int, long, 4, 4> >(at::native::ReduceOp<c10::BFloat16, at::native::ArgMaxOps<float>, unsigned int, long, 4, 4>)",
+          "grid": [
+            1,
+            32,
+            1
+          ],
+          "block": [
+            512,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 8208,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.018084676106770833,
+          "union_ms_per_group": 0.018084676106770833
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_add_cat_index_select_mul_rms_norm_split_split_with_sizes_sub_unsqueeze_view_5",
+          "grid": [
+            2,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 125,
+          "shared": 4096,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.017106038411458333,
+          "union_ms_per_group": 0.017106038411458333
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_red_fused__to_copy_abs_amax_clamp_cutlass_scaled_mm_div_mul_reciprocal_unsqueeze_view_0",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            512,
+            1,
+            1
+          ],
+          "registers": 33,
+          "shared": 64,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.014231892903645835,
+          "union_ms_per_group": 0.014231892903645835
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_add_mul_rms_norm_2",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 84,
+          "shared": 0,
+          "count": 72,
+          "count_per_group": 6.0,
+          "sum_ms_per_group": 0.013903971354166666,
+          "union_ms_per_group": 0.013903971354166666
+        },
+        {
+          "phase": "assistant",
+          "family": "assistant BF16 projections/head",
+          "name": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8>(cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8::Params)",
+          "grid": [
+            8,
+            30,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 124,
+          "shared": 16896,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.012978352864583334,
+          "union_ms_per_group": 0.012978352864583334
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "name": "reduce_segments",
+          "grid": [
+            1,
+            16,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 48,
+          "shared": 2048,
+          "count": 72,
+          "count_per_group": 6.0,
+          "sum_ms_per_group": 0.012865966796875,
+          "union_ms_per_group": 0.012865966796875
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_add_rms_norm_0",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 80,
+          "shared": 0,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.0126873779296875,
+          "union_ms_per_group": 0.0126873779296875
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            16,
+            1
+          ],
+          "registers": 42,
+          "shared": 0,
+          "count": 108,
+          "count_per_group": 9.0,
+          "sum_ms_per_group": 0.012289876302083334,
+          "union_ms_per_group": 0.012289876302083334
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_poi_fused_gelu_mul_slice_1",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 38,
+          "shared": 0,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.0117763671875,
+          "union_ms_per_group": 0.0117763671875
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_add_mul_rms_norm_2",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 84,
+          "shared": 0,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.00960546875,
+          "union_ms_per_group": 0.00960546875
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_sub_unsqueeze_view_3",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 178,
+          "shared": 0,
+          "count": 48,
+          "count_per_group": 4.0,
+          "sum_ms_per_group": 0.008648274739583335,
+          "union_ms_per_group": 0.008648274739583335
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_rms_norm_split_with_sizes_view_6",
+          "grid": [
+            2,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 53,
+          "shared": 0,
+          "count": 96,
+          "count_per_group": 8.0,
+          "sum_ms_per_group": 0.008594441731770834,
+          "union_ms_per_group": 0.008594441731770834
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "_compute_local_logits_stats_kernel",
+          "grid": [
+            4,
+            32,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 80,
+          "shared": 32,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.008039835611979166,
+          "union_ms_per_group": 0.008039835611979166
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_add_rms_norm_0",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 80,
+          "shared": 0,
+          "count": 48,
+          "count_per_group": 4.0,
+          "sum_ms_per_group": 0.007999918619791668,
+          "union_ms_per_group": 0.007999918619791668
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "_resample_kernel",
+          "grid": [
+            1,
+            256,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 32,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.007834513346354167,
+          "union_ms_per_group": 0.007834513346354167
+        },
+        {
+          "phase": "assistant",
+          "family": "local attention",
+          "name": "reduce_segments",
+          "grid": [
+            4,
+            16,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 48,
+          "shared": 2048,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.007064208984375,
+          "union_ms_per_group": 0.007064208984375
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+          "grid": [
+            2048,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 31,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.006839925130208333,
+          "union_ms_per_group": 0.006839925130208333
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_poi_fused_gelu_mul_slice_1",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 38,
+          "shared": 0,
+          "count": 48,
+          "count_per_group": 4.0,
+          "sum_ms_per_group": 0.005754720052083333,
+          "union_ms_per_group": 0.005754720052083333
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+          "grid": [
+            2,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 48,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.005495930989583333,
+          "union_ms_per_group": 0.005495930989583333
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_red_fused_add_mul_rms_norm_3",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 32,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.005442586263020833,
+          "union_ms_per_group": 0.005442586263020833
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "name": "reduce_segments",
+          "grid": [
+            1,
+            16,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 64,
+          "shared": 0,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.005386881510416667,
+          "union_ms_per_group": 0.005386881510416667
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "_bad_words_kernel",
+          "grid": [
+            4,
+            5,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 22,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.005151936848958333,
+          "union_ms_per_group": 0.005151936848958333
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_sub_unsqueeze_view_3",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 178,
+          "shared": 0,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.004919881184895833,
+          "union_ms_per_group": 0.004919881184895833
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_sub_unsqueeze_view_3",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 178,
+          "shared": 0,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.004426228841145833,
+          "union_ms_per_group": 0.004426228841145833
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_sub_unsqueeze_view_2",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 178,
+          "shared": 0,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.004405476888020833,
+          "union_ms_per_group": 0.004405476888020833
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_add_mul_rms_norm_2",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 88,
+          "shared": 0,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.004242594401041667,
+          "union_ms_per_group": 0.004242594401041667
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::BUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>, false>(int, at::native::BUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>)",
+          "grid": [
+            1024,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.004207926432291667,
+          "union_ms_per_group": 0.004207926432291667
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_red_fused__to_copy_abs_amax_clamp_cutlass_scaled_mm_div_embedding_mul_reciprocal_rms_norm_unsqueeze_0",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 37,
+          "shared": 32,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.004191935221354167,
+          "union_ms_per_group": 0.004191935221354167
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void at::native::index_elementwise_kernel<128, 4, at::native::index_fill_kernel_impl<at::native::OpaqueType<2> >(at::TensorIterator&, long, long, long, at::native::OpaqueType<2>)::{lambda(int)#1}>(long, at::native::index_fill_kernel_impl<at::native::OpaqueType<2> >(at::TensorIterator&, long, long, long, at::native::OpaqueType<2>)::{lambda(int)#1})",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 28,
+          "shared": 0,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.003997314453125,
+          "union_ms_per_group": 0.003997314453125
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "_rejection_kernel",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 60,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.003831787109375,
+          "union_ms_per_group": 0.003831787109375
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "_post_update_kernel",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 30,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0037174072265625,
+          "union_ms_per_group": 0.0037174072265625
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "_gather_block_tables_kernel",
+          "grid": [
+            6,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0035226643880208333,
+          "union_ms_per_group": 0.0035226643880208333
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 48,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0034798583984375,
+          "union_ms_per_group": 0.0034798583984375
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "memcpy32_post",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 36,
+          "count_per_group": 3.0,
+          "sum_ms_per_group": 0.0032851969401041666,
+          "union_ms_per_group": 0.0032851969401041666
+        },
+        {
+          "phase": "assistant",
+          "family": "global attention",
+          "name": "reduce_segments",
+          "grid": [
+            4,
+            16,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 64,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0031197916666666665,
+          "union_ms_per_group": 0.0031197916666666665
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "_gather_draft_sampled_kernel",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 56,
+          "shared": 4096,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0030934651692708336,
+          "union_ms_per_group": 0.0030934651692708336
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "_compute_slot_mappings_kernel",
+          "grid": [
+            6,
+            2,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 56,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0030797932942708333,
+          "union_ms_per_group": 0.0030797932942708333
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_add_mul_rms_norm_2",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 88,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0030345052083333335,
+          "union_ms_per_group": 0.0030345052083333335
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::tanh_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>, false>(int, at::native::tanh_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)",
+          "grid": [
+            1024,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 38,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0029892171223958337,
+          "union_ms_per_group": 0.0029892171223958337
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_split_with_sizes_sub_unsqueeze_view_1",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 168,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0029038899739583335,
+          "union_ms_per_group": 0.0029038899739583335
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 48,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0028773193359375,
+          "union_ms_per_group": 0.0028773193359375
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "_update_draft_inputs_kernel",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 0,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.0027948404947916667,
+          "union_ms_per_group": 0.0027948404947916667
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>, false>(int, at::native::AUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>)",
+          "grid": [
+            1024,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0027652994791666666,
+          "union_ms_per_group": 0.0027652994791666666
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_poi_fused__to_copy_cat_embedding_mul_0",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.0026934000651041667,
+          "union_ms_per_group": 0.0026934000651041667
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_add_cat_index_select_mul_rms_norm_split_split_with_sizes_sub_unsqueeze_view_2",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 168,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.002687744140625,
+          "union_ms_per_group": 0.002687744140625
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_sub_unsqueeze_view_2",
+          "grid": [
+            16,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 178,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0026266276041666667,
+          "union_ms_per_group": 0.0026266276041666667
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_rms_norm_1",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 79,
+          "shared": 0,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.0025251057942708333,
+          "union_ms_per_group": 0.0025251057942708333
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_sub_unsqueeze_view_3",
+          "grid": [
+            32,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 178,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0024772542317708333,
+          "union_ms_per_group": 0.0024772542317708333
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 48,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0024505615234375,
+          "union_ms_per_group": 0.0024505615234375
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_put_kernel_impl<at::native::OpaqueType<8> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_put_kernel_impl<at::native::OpaqueType<8> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_put_kernel_impl<at::native::OpaqueType<8> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_put_kernel_impl<at::native::OpaqueType<8> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 48,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0023653564453125,
+          "union_ms_per_group": 0.0023653564453125
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "_combine_sampled_and_draft_tokens_kernel",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0023651529947916667,
+          "union_ms_per_group": 0.0023651529947916667
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "_compute_slot_mappings_kernel",
+          "grid": [
+            6,
+            2,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 56,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0022587890625,
+          "union_ms_per_group": 0.0022587890625
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "_insert_resampled_kernel",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 18,
+          "shared": 32,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0021121419270833334,
+          "union_ms_per_group": 0.0021121419270833334
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void at::native::index_elementwise_kernel<128, 4, at::native::index_fill_kernel_impl<at::native::OpaqueType<2> >(at::TensorIterator&, long, long, long, at::native::OpaqueType<2>)::{lambda(int)#1}>(long, at::native::index_fill_kernel_impl<at::native::OpaqueType<2> >(at::TensorIterator&, long, long, long, at::native::OpaqueType<2>)::{lambda(int)#1})",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 28,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.00207470703125,
+          "union_ms_per_group": 0.00207470703125
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "_prepare_decode_inputs_kernel",
+          "grid": [
+            2,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 18,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0019386800130208332,
+          "union_ms_per_group": 0.0019386800130208332
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "_get_num_sampled_and_rejected_kernel",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0019307861328125,
+          "union_ms_per_group": 0.0019307861328125
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>, false>(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 36,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0018747965494791668,
+          "union_ms_per_group": 0.0018747965494791668
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void at::native::vectorized_elementwise_kernel<2, at::native::FillFunctor<long>, std::array<char*, 1ul>, false>(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 22,
+          "shared": 0,
+          "count": 24,
+          "count_per_group": 2.0,
+          "sum_ms_per_group": 0.0018372802734375,
+          "union_ms_per_group": 0.0018372802734375
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_poi_fused__to_copy_cat_embedding_mul_0",
+          "grid": [
+            30,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0017733561197916668,
+          "union_ms_per_group": 0.0017733561197916668
+        },
+        {
+          "phase": "head/sampling/control",
+          "family": "target head/sampling/control",
+          "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)",
+          "grid": [
+            4,
+            2,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 24,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0017465413411458333,
+          "union_ms_per_group": 0.0017465413411458333
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "_prepare_prefill_inputs_kernel",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0016026611328125,
+          "union_ms_per_group": 0.0016026611328125
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_rms_norm_1",
+          "grid": [
+            4,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 79,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0015040690104166667,
+          "union_ms_per_group": 0.0015040690104166667
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void at::native::vectorized_elementwise_kernel<2, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul>, false>(int, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul>)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 40,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0014372965494791668,
+          "union_ms_per_group": 0.0014372965494791668
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "_prepare_pos_seq_lens_kernel",
+          "grid": [
+            2,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 29,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0013893636067708332,
+          "union_ms_per_group": 0.0013893636067708332
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "triton_per_fused_rms_norm_split_with_sizes_view_3",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            32,
+            1,
+            1
+          ],
+          "registers": 52,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0012827962239583333,
+          "union_ms_per_group": 0.0012827962239583333
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "_expand_idx_mapping_kernel",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0011598714192708334,
+          "union_ms_per_group": 0.0011598714192708334
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<bool>, std::array<char*, 1ul>, false>(int, at::native::FillFunctor<bool>, std::array<char*, 1ul>)",
+          "grid": [
+            1,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0009600423177083334,
+          "union_ms_per_group": 0.0009600423177083334
+        },
+        {
+          "phase": "assistant",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "memcpy32_post",
+          "grid": [
+            8,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0008585611979166667,
+          "union_ms_per_group": 0.0008585611979166667
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "memcpy32_post",
+          "grid": [
+            30,
+            1,
+            1
+          ],
+          "block": [
+            256,
+            1,
+            1
+          ],
+          "registers": 16,
+          "shared": 0,
+          "count": 12,
+          "count_per_group": 1.0,
+          "sum_ms_per_group": 0.0008398844401041666,
+          "union_ms_per_group": 0.0008398844401041666
+        },
+        {
+          "phase": "target backbone",
+          "family": "norm/quant/rotary/elementwise",
+          "name": "_apply_write_kernel",
+          "grid": [
+            5,
+            1,
+            1
+          ],
+          "block": [
+            128,
+            1,
+            1
+          ],
+          "registers": 30,
+          "shared": 0,
+          "count": 2,
+          "count_per_group": 0.16666666666666666,
+          "sum_ms_per_group": 0.00045332845052083333,
+          "union_ms_per_group": 0.00045332845052083333
+        }
+      ],
+      "mean_adjacent_intergroup_gap_ms": 0.0005729758522727273
+    },
+    "native_source_acceptance_validated": true,
+    "vllm_all_kernel_launch_correlations_resolved": true,
+    "timing_limits": "Different profilers and numerical/output paths; GPU unions, host APIs and concurrent sums must not be added. No projected primary gain is measured here."
+  },
+  "outputs": {
+    "source_files": {
+      "native_d3": {
+        "path": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d3-primary.json",
+        "sha256": "a1dbe3d559070ad59521be52d7bdee85ce2373e0a344c990066cf60a9d6dbe41"
+      },
+      "native_ordinary": {
+        "path": "benchmarks/results/2026-11-17/ordinary-o-global/combined.json",
+        "sha256": "aa3d9c448b1ca371a7da3456db6b70549ddc124e77d2b27756615ed14c1a1933"
+      },
+      "vllm_d3": {
+        "path": "benchmarks/results/2026-11-17/d3-path-diagnosis/vllm-d3-primary.json",
+        "sha256": "0c7eb6ca168758f81f76477e4f8b91fbcd23cdfaac7c75e714c0141f8a83a0ec"
+      },
+      "vllm_ordinary": {
+        "path": "benchmarks/results/2026-11-17/ordinary-kernel-comparison/vllm.json",
+        "sha256": "3ba06e7ab2012c62af47bd66aa4a1a15e6fa8f5b54a0c91095d6104384709912"
+      },
+      "vllm_old_d3": {
+        "path": "artifacts/dflash/2026-11-16/vllm-mtp-3.json",
+        "sha256": "3afc475990953f83e3052ab4f9ced64d485d087ffd8fb1d3a06ccb86c9359498"
+      }
+    },
+    "pairs": {
+      "native_d3_vs_native_ordinary": {
+        "all_ids_equal": true,
+        "common_prefix_tokens": 1135,
+        "first_different_output_index_zero_based": null,
+        "first_different_ids": null,
+        "lengths": [
+          1135,
+          1135
+        ]
+      },
+      "vllm_d3_vs_vllm_ordinary": {
+        "all_ids_equal": false,
+        "common_prefix_tokens": 516,
+        "first_different_output_index_zero_based": 516,
+        "first_different_ids": [
+          9593,
+          8582
+        ],
+        "lengths": [
+          1135,
+          1135
+        ]
+      },
+      "vllm_d3_vs_vllm_old_d3": {
+        "all_ids_equal": true,
+        "common_prefix_tokens": 1135,
+        "first_different_output_index_zero_based": null,
+        "first_different_ids": null,
+        "lengths": [
+          1135,
+          1135
+        ]
+      },
+      "native_d3_vs_vllm_d3": {
+        "all_ids_equal": false,
+        "common_prefix_tokens": 21,
+        "first_different_output_index_zero_based": 21,
+        "first_different_ids": [
+          5213,
+          649
+        ],
+        "lengths": [
+          1135,
+          1135
+        ]
+      }
+    },
+    "vllm_d3_tps": {
+      "confidence_interval_95": [
+        117.05776902825055,
+        117.19127969102705
+      ],
+      "maximum": 117.14665608380143,
+      "mean": 117.1245243596388,
+      "median": 117.13229097383301,
+      "minimum": 117.09462602128197,
+      "sample_count": 3,
+      "samples": [
+        117.14665608380143,
+        117.13229097383301,
+        117.09462602128197
+      ],
+      "standard_deviation": 0.02687046842680734
+    },
+    "native_d3_tps": {
+      "confidence_interval_95": [
+        99.75413777024909,
+        100.52995176168858
+      ],
+      "maximum": 100.27855153203343,
+      "mean": 100.14204476596883,
+      "median": 100.17579350005742,
+      "minimum": 99.97178926581563,
+      "sample_count": 3,
+      "samples": [
+        100.27855153203343,
+        100.17579350005742,
+        99.97178926581563
+      ],
+      "standard_deviation": 0.15614097727120668
+    },
+    "native_verification": 437,
+    "vllm_verification": 445
+  },
+  "graph_boundaries": {
+    "native_selected_kernel_launch_correlation_count": 1,
+    "vllm_graph_launches_each_group": [
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3
+    ],
+    "vllm_fused_multistep_annotations": 16,
+    "native_all_kernel_streams": [
+      163,
+      164
+    ]
+  },
+  "native_actual_instructions": {
+    "actual_dispatched_mangled_name": "__nv_static_37__7c8b3686_15_decode_sm120_cu_0b78d427__ZN5gem168internal48_GLOBAL__N__7c8b3686_15_decode_sm120_cu_0b78d42744SplitOnlineDecodeAttentionFp8GlobalGqaKernelILb0ELb1ELb1EEEvPKfPKhS6_PKtS8_PfS9_S9_PKNS0_13DecodeControlEmSC_mi",
+    "command": [
+      "/opt/cuda/bin/cuobjdump",
+      "--dump-sass",
+      "--function",
+      "__nv_static_37__7c8b3686_15_decode_sm120_cu_0b78d427__ZN5gem168internal48_GLOBAL__N__7c8b3686_15_decode_sm120_cu_0b78d42744SplitOnlineDecodeAttentionFp8GlobalGqaKernelILb0ELb1ELb1EEEvPKfPKhS6_PKtS8_PfS9_S9_PKNS0_13DecodeControlEmSC_mi",
+      "build/Linux/blackwell-release/bin/gem16-run"
+    ],
+    "binary_sha256": "4ea22a29324d7e45fda0dfe21df636702f85205bd41aa691b5c5a6ea0d214f2d",
+    "static_instruction_mnemonic_counts": {
+      "FFMA": 82,
+      "HMMA": 0,
+      "QMMA": 0,
+      "BAR.SYNC": 11,
+      "LDGSTS": 2
+    },
+    "not_dynamic_instruction_counts": true
+  },
+  "vllm_cache_instruction_limits": {
+    "scope": "cached variants matching actual kernel name, registers, shared bytes and threads; not exact runtime module identification",
+    "candidates": [
+      {
+        "cache_metadata": "/home/sebastian/.triton/cache/UMTVYPCMH7HHD7TRUDUC4NDDM5772XQO5EDQQQCH77QI7LSVL4RA/kernel_unified_attention.json",
+        "cubin_sha256": "c9603463a65a418022aa63e210a2a43925394124a45f7de72c6a404d54d898cd",
+        "metadata_hash": "a3275c3c4c3fce71fe71a0e82e3463677ffd5e0ee907084047ffe08fae555f22",
+        "registers": [
+          "254"
+        ],
+        "shared": 41728,
+        "mma_ptx_types": [
+          "mma.sync.aligned.m16n8k32.row.col.f32.e4m3.e4m3.f32"
+        ],
+        "static_mnemonic_counts": {
+          "FFMA": 70,
+          "HMMA": 0,
+          "QMMA": 32,
+          "BAR.SYNC": 13
+        },
+        "exact_dispatched_module_identity_not_captured": true
+      },
+      {
+        "cache_metadata": "/home/sebastian/.triton/cache/ALLHN3MUXNY2NJEWVXSGMSULCYG4GXCN3IIDJZ3KYIQL6P3WZIBQ/kernel_unified_attention.json",
+        "cubin_sha256": "9fd2ea041cb56e15b414f867a83d35091b29a31541e226c839c8e26193d43f2b",
+        "metadata_hash": "02d676ed94bb71a6a496ade4664a8b160dc35c4dda1034e76ac220bf3f76ca03",
+        "registers": [
+          "254"
+        ],
+        "shared": 41728,
+        "mma_ptx_types": [
+          "mma.sync.aligned.m16n8k32.row.col.f32.e4m3.e4m3.f32"
+        ],
+        "static_mnemonic_counts": {
+          "FFMA": 70,
+          "HMMA": 0,
+          "QMMA": 32,
+          "BAR.SYNC": 11
+        },
+        "exact_dispatched_module_identity_not_captured": true
+      }
+    ]
+  },
+  "vllm_source_sha256": {
+    "third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/vllm/model_executor/layers/attention/attention.py": "3914b60f5407d193cfd1cbe75c6689a6da71f89e37d177a04bb0d95b3244ea44",
+    "third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/vllm/v1/attention/backends/triton_attn.py": "53b221f99c54b6bc21580d7e3e96a12c5eb1de7397bb4bfafb9d0cb6129cb223",
+    "third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/vllm/v1/attention/ops/triton_unified_attention.py": "c1cf2300c99f5dc1fb297d7e556620842ab53c64c5ecda4c6ba89fb8e16215da",
+    "third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/vllm/v1/worker/gpu/spec_decode/target_dependent_ar/speculator.py": "511b337a201d4ef8f82a2c406f1d771dd00052d7424d2658c6fd3655da2ce318"
+  },
+  "raw_evidence_pack": {
+    "path": "artifacts/gemma4_12b/d3-paths-2026-11-17-raw.json.gz",
+    "sha256": "a194a23895ebfcaa3619ce0229e91915485d168feeb64dc56cc271cfa2bf2543",
+    "bytes": 374189
+  },
+  "large_ignored_capture_sha256": {
+    "benchmarks/results/2026-11-17/d3-path-diagnosis/native-bounded.nsys-rep": "b552bc8e34b5358c25e54587d4dafd4649ede50b6bc48eccb1a3b58e70536fcb",
+    "benchmarks/results/2026-11-17/d3-path-diagnosis/native-kernel-events.json.gz": "e4bcb70570491729f3b9ca833e6879dc6718d70f02e3cc146565debda4c1336a",
+    "benchmarks/results/2026-11-17/d3-path-diagnosis/vllm-bounded-trace.json.gz": "43b3fe178537b25adebda48d5fecac5bcabce3f0678c19c266839acbcfe8e3e3",
+    "benchmarks/results/2026-11-17/d3-fast-attention/profile-final/bounded.nsys-rep": "f6924dfc733980515bd2025c26c6589977a7de59a0fddb168418db9f2a744914",
+    "benchmarks/results/2026-11-17/d3-fast-attention/profile-final/native-kernel-events.json.gz": "a303f2cf858742d9b39e4b44533ed23149366952b483fa0f96ecd2de2d2266dd"
+  }
+}

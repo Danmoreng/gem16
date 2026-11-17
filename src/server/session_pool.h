@@ -124,6 +124,9 @@ struct ServerState {
   GemmaChatProcessor processor;
   std::shared_ptr<ModelRuntime> runtime;
   ChatSessionOptions session_options;
+  const char* mtp_math_mode = "profile_native";
+  const char* mtp_math_policy = "profile_native";
+  const char* mtp_math_selection_reason = "different_model_profile";
   std::uint32_t max_sessions = 2U;
   RequestQueue request_queue;
   std::uint64_t planned_slot_device_bytes = 0U;

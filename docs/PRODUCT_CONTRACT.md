@@ -38,6 +38,12 @@ best-effort port.
 
 ## Public model profiles
 
+For12B D3, the [arithmetic policy](MTP_MATH_MODES.md) prefers the supported
+optimized kernels and retains explicit reference arithmetic. Runtime diagnostics
+report the selected mode and its quality scope separately from model-profile
+qualification. Token/distribution identity to Ordinary is not claimed for the
+optimized arithmetic; unsupported forced selections fail visibly.
+
 Gemma 4 12B Unified and Gemma 4 26B A4B Compact Vision are the two equal,
 user-selectable public product profiles. Studio must present both without
 labeling one as preferred or default, and users may install either or both.

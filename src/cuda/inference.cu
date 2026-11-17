@@ -358,6 +358,9 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.mtp_enabled = mtp_enabled;
   result.mtp_adaptive = options.mtp_adaptive;
   result.mtp_draft_tokens = options.mtp_draft_tokens;
+  result.experimental_d3_fp8_attention = engine.experimental_d3_fp8_attention();
+  result.mtp_math_policy = engine.mtp_math_policy();
+  result.mtp_math_selection_reason = engine.mtp_math_selection_reason();
   result.kv_cache_bytes = engine.cache_bytes();
   result.workspace_bytes = engine.workspace_bytes();
   result.decode_graph_device_bytes = engine.decode_graph_device_bytes();

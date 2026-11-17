@@ -1,0 +1,73 @@
+{
+  "status": "experimental_unqualified_changed_local_attention_math",
+  "inputs": {
+    "src/cuda/attention/twelve_b_d3_local_triton.py": "4a85aced5dacfd2468395b4d52278a1cb86b3673f6398d3776b8f68c4e98536b",
+    "tools/compile_12b_d3_local_attention.py": "3c8797f584f1e32aec3da56cacfd763e39d6209893a6806d3aca84a552cc72cd"
+  },
+  "triton_version": "3.8.0",
+  "ptxas": {
+    "path": "/home/sebastian/Development/gem16gb/third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/triton/backends/nvidia/bin/ptxas-blackwell",
+    "version": "ptxas-blackwell: NVIDIA (R) Ptx optimizing assembler\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Fri_Apr_24_07:22:02_PM_PDT_2026\nCuda compilation tools, release 13.3, V13.3.33\nBuild cuda_13.3.r13.3/compiler.37862127_0\n",
+    "sha256": "7fdd01a4cf50e30746da98989c9272a907f491e6fd7fecfda14642e4375f88fb"
+  },
+  "metadata": {
+    "allowed_dot_input_precisions": [
+      "tf32",
+      "tf32x3",
+      "ieee",
+      "bf16x3",
+      "bf16x6"
+    ],
+    "arch": "sm120",
+    "backend_name": "cuda",
+    "debug": false,
+    "default_dot_input_precision": "tf32",
+    "deprecated_fp8_dot_operand_dtypes": [
+      "fp8e4b15"
+    ],
+    "enable_fp_fusion": true,
+    "enable_reflect_ftz": true,
+    "extern_libs": [
+      [
+        "libdevice",
+        "/home/sebastian/Development/gem16gb/third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/triton/backends/nvidia/lib/libdevice.10.bc"
+      ]
+    ],
+    "global_scratch_align": 1,
+    "global_scratch_size": 0,
+    "hash": "76dde07f2c9cb80606c741b0ffa6498bb4161a229c46721c86c897b35ed58e88",
+    "instrumentation_mode": "",
+    "ir_override": null,
+    "launch_cooperative_grid": false,
+    "launch_pdl": false,
+    "max_num_imprecise_acc_default": 0,
+    "maxnreg": null,
+    "name": "gem16_d3_local_fp8",
+    "num_ctas": 1,
+    "num_stages": 3,
+    "num_warps": 4,
+    "profile_scratch_align": 1,
+    "profile_scratch_size": 0,
+    "ptx_options": null,
+    "ptx_version": null,
+    "sanitize_overflow": true,
+    "shared": 16384,
+    "supported_fp8_dtypes": [
+      "fp8e4b15",
+      "fp8e4nv",
+      "fp8e5"
+    ],
+    "target": "GPUTarget(backend='cuda', arch=120, warp_size=32)",
+    "tensordesc_meta": [],
+    "tmem_size": 0,
+    "triton_version": "3.8.0",
+    "warp_size": 32
+  },
+  "tile": 32,
+  "scope": "12B D3 T4 QH16/KVH8/H256;1024 native ring plus4 speculative rows;4segments; FP8 Q/P TensorCore QK/PV",
+  "outputs": {
+    "twelve_b_d3_local_embedded.cuh": "bbc903cbed70d436043bac77436ab0b713ea00e1144d3076885c48586735a4b5",
+    "local.ptx": "8cabbb7d788037393e190c7a546b4d1b3775e00d15314ec6ab24ed3902667fe0",
+    "local.cubin": "9b22b09e19736acde77e074ba0a6e1d894472a89b8841c6e29666ed90000a5ac"
+  }
+}

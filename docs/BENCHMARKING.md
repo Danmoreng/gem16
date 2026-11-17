@@ -18,6 +18,12 @@ still return `not_implemented` and a non-zero exit code.
 
 ## Permanent benchmark contract
 
+New12B D3 runs follow the [math-mode policy](MTP_MATH_MODES.md): automatic
+selection prefers supported optimized arithmetic; use
+`GEM16_12B_D3_ATTENTION=exact` for reference reproductions. Record actual mode,
+selection reason and environment. Older exact-default evidence remains unchanged;
+its absent override describes its original code revision, not today's default.
+
 A promoted comparison uses the same GPU, power policy, prompt token IDs, output-token count, context, batch size,
 sampling controls, template, cache state, and timing boundary. Any necessary difference in checkpoint, tensor
 format, K/V precision, runtime feature support, or output semantics is stated beside the result. CPU weight offload,

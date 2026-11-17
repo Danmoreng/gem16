@@ -36,6 +36,11 @@ silently ignored or translated into different model behavior.
 
 ## Chat Completions request subset
 
+`/health` additionally reports startup-selected `mtp_math_mode`,
+`mtp_math_policy`, `mtp_math_selection_reason` and `mtp_math_quality_state`.
+These diagnostic fields describe [12B math selection](MTP_MATH_MODES.md);
+they do not change Chat Completions/Responses request semantics.
+
 Supported top-level fields:
 
 - `model`;

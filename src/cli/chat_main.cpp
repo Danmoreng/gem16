@@ -619,6 +619,8 @@ void PrintTurnStats(const gem16::GreedyInferenceResult& inference) {
             << inference.decode_tokens_per_second << " tok/s";
   if (inference.mtp_enabled) {
     std::cerr << ", MTP D" << inference.mtp_draft_tokens
+              << ", math " << (inference.experimental_d3_fp8_attention
+                                   ? "optimized" : "reference")
               << ", proposed " << inference.mtp_proposed_tokens
               << ", accepted " << inference.mtp_accepted_tokens
               << ", rejected " << inference.mtp_rejected_tokens

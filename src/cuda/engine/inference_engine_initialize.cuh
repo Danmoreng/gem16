@@ -103,6 +103,18 @@
 
   [[nodiscard]] Status InitializeSlot(std::uint32_t mtp_draft_tokens) {
     mtp_draft_tokens_ = mtp_draft_tokens;
+    const auto math = internal::SelectTwelveBD3Math(
+        std::getenv("GEM16_12B_D3_ATTENTION"), mtp_draft_tokens,
+        kv_cache_mode_, max_context_, sampling_.enabled);
+    if (!math.ok()) return math.status();
+    mtp_math_ = math.value();
+    fast_d3_attention_ = mtp_math_.optimized;
+    if (fast_d3_attention_) {
+      const auto prepare_fast = fast_d3_global_.Initialize();
+      if (!prepare_fast.ok()) return prepare_fast;
+      const auto prepare_local = fast_d3_local_.Initialize();
+      if (!prepare_local.ok()) return prepare_local;
+    }
     // Ablation controls are read once, before any graph capture. Never inspect
     // environment or create streams/events in recurring inference.
     const auto flag = [](const char* name, bool* value) -> Status {

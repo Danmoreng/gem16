@@ -19,6 +19,7 @@ void RunDecodeReplayTests();
 void RunImageTests();
 void RunMemoryPlanTests();
 void RunMtpSchedulerTests();
+void RunTwelveBD3MathTests();
 void RunNvfp4Tests();
 void RunNvfp4BatchEncoderTests();
 void RunNvfp4HeadTests();
@@ -50,6 +51,7 @@ int main() {
   RunImageTests();
   RunMemoryPlanTests();
   RunMtpSchedulerTests();
+  RunTwelveBD3MathTests();
   RunNvfp4Tests();
   RunNvfp4BatchEncoderTests();
   RunNvfp4HeadTests();

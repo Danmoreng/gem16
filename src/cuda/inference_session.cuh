@@ -1139,6 +1139,9 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   result.decode_graph_device_bytes =
       impl_->engine.decode_graph_device_bytes();
   result.prefill_chunk_tokens = impl_->engine.prefill_chunk_tokens();
+  result.experimental_d3_fp8_attention = impl_->engine.experimental_d3_fp8_attention();
+  result.mtp_math_policy = impl_->engine.mtp_math_policy();
+  result.mtp_math_selection_reason = impl_->engine.mtp_math_selection_reason();
   result.max_context_tokens = impl_->max_context_tokens;
   result.packed_weight_source_layout_direct = false;
   result.token_loop_allocations = false;
