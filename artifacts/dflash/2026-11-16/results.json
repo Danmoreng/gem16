@@ -1,0 +1,1078 @@
+{
+  "rows": [
+    {
+      "cohort": "llama-cpp-dflash-15",
+      "engine": "llama-cpp",
+      "method": "dflash",
+      "draft_tokens": 15,
+      "warmups": 3,
+      "samples": 3,
+      "decode_median": 66.50227975562113,
+      "reference_d2_median": 97.20144305586211,
+      "delta_vs_engine_d2_percent": -31.58303244798334,
+      "delta_vs_gem16_d2_nov15_percent": -28.872175933481582,
+      "peak_total_device_mib": 12675.0,
+      "deterministic": true,
+      "output_hashes": [
+        "911127b840fe7a2bd9406edf2306f4618f722b51ddaaf46c7350abd20632d543"
+      ],
+      "matches_historical_d2_output": false,
+      "common_prefix_with_historical_d2": 2,
+      "speculative_summary": {
+        "proposed_tokens": {
+          "sample_count": 3,
+          "mean": 8680.0,
+          "median": 8680.0,
+          "standard_deviation": 0.0,
+          "minimum": 8680.0,
+          "maximum": 8680.0,
+          "confidence_interval_95": [
+            8680.0,
+            8680.0
+          ],
+          "samples": [
+            8680.0,
+            8680.0,
+            8680.0
+          ]
+        },
+        "accepted_tokens": {
+          "sample_count": 3,
+          "mean": 549.0,
+          "median": 549.0,
+          "standard_deviation": 0.0,
+          "minimum": 549.0,
+          "maximum": 549.0,
+          "confidence_interval_95": [
+            549.0,
+            549.0
+          ],
+          "samples": [
+            549.0,
+            549.0,
+            549.0
+          ]
+        },
+        "rejected_tokens": {
+          "sample_count": 3,
+          "mean": 8131.0,
+          "median": 8131.0,
+          "standard_deviation": 0.0,
+          "minimum": 8131.0,
+          "maximum": 8131.0,
+          "confidence_interval_95": [
+            8131.0,
+            8131.0
+          ],
+          "samples": [
+            8131.0,
+            8131.0,
+            8131.0
+          ]
+        },
+        "mean_accepted_length": {
+          "sample_count": 3,
+          "mean": 0.9384615384615385,
+          "median": 0.9384615384615385,
+          "standard_deviation": 0.0,
+          "minimum": 0.9384615384615385,
+          "maximum": 0.9384615384615385,
+          "confidence_interval_95": [
+            0.9384615384615385,
+            0.9384615384615385
+          ],
+          "samples": [
+            0.9384615384615385,
+            0.9384615384615385,
+            0.9384615384615385
+          ]
+        },
+        "target_batches": {
+          "sample_count": 3,
+          "mean": 585.0,
+          "median": 585.0,
+          "standard_deviation": 0.0,
+          "minimum": 585.0,
+          "maximum": 585.0,
+          "confidence_interval_95": [
+            585.0,
+            585.0
+          ],
+          "samples": [
+            585.0,
+            585.0,
+            585.0
+          ]
+        },
+        "d1_groups": null,
+        "d2_groups": null,
+        "d4_groups": null,
+        "ordinary_fallback_tokens": null,
+        "acceptance_rate": {
+          "sample_count": 3,
+          "mean": 0.06324884792626728,
+          "median": 0.06324884792626728,
+          "standard_deviation": 0.0,
+          "minimum": 0.06324884792626728,
+          "maximum": 0.06324884792626728,
+          "confidence_interval_95": [
+            0.06324884792626728,
+            0.06324884792626728
+          ],
+          "samples": [
+            0.06324884792626728,
+            0.06324884792626728,
+            0.06324884792626728
+          ]
+        }
+      },
+      "raw_result": "artifacts/dflash/2026-11-16/llama-cpp-dflash-15.json",
+      "raw_result_sha256": "738934e5573cbd11eb26da084f5cc01bdf6541b7f28b7e6f20166991e98da7cf"
+    },
+    {
+      "cohort": "llama-cpp-dflash-8",
+      "engine": "llama-cpp",
+      "method": "dflash",
+      "draft_tokens": 8,
+      "warmups": 1,
+      "samples": 3,
+      "decode_median": 72.48922633667833,
+      "reference_d2_median": 97.20144305586211,
+      "delta_vs_engine_d2_percent": -25.423713827974304,
+      "delta_vs_gem16_d2_nov15_percent": -22.46880924172413,
+      "peak_total_device_mib": 12675.0,
+      "deterministic": true,
+      "output_hashes": [
+        "8a26599a0c6cc2c7798284c634ee9ca2393f9868f00a9981ac38083dccd6c71e"
+      ],
+      "matches_historical_d2_output": false,
+      "common_prefix_with_historical_d2": 2,
+      "speculative_summary": {
+        "proposed_tokens": {
+          "sample_count": 3,
+          "mean": 4422.0,
+          "median": 4422.0,
+          "standard_deviation": 0.0,
+          "minimum": 4422.0,
+          "maximum": 4422.0,
+          "confidence_interval_95": [
+            4422.0,
+            4422.0
+          ],
+          "samples": [
+            4422.0,
+            4422.0,
+            4422.0
+          ]
+        },
+        "accepted_tokens": {
+          "sample_count": 3,
+          "mean": 580.0,
+          "median": 580.0,
+          "standard_deviation": 0.0,
+          "minimum": 580.0,
+          "maximum": 580.0,
+          "confidence_interval_95": [
+            580.0,
+            580.0
+          ],
+          "samples": [
+            580.0,
+            580.0,
+            580.0
+          ]
+        },
+        "rejected_tokens": {
+          "sample_count": 3,
+          "mean": 3842.0,
+          "median": 3842.0,
+          "standard_deviation": 0.0,
+          "minimum": 3842.0,
+          "maximum": 3842.0,
+          "confidence_interval_95": [
+            3842.0,
+            3842.0
+          ],
+          "samples": [
+            3842.0,
+            3842.0,
+            3842.0
+          ]
+        },
+        "mean_accepted_length": {
+          "sample_count": 3,
+          "mean": 1.0469314079422383,
+          "median": 1.0469314079422383,
+          "standard_deviation": 0.0,
+          "minimum": 1.0469314079422383,
+          "maximum": 1.0469314079422383,
+          "confidence_interval_95": [
+            1.0469314079422383,
+            1.0469314079422383
+          ],
+          "samples": [
+            1.0469314079422383,
+            1.0469314079422383,
+            1.0469314079422383
+          ]
+        },
+        "target_batches": {
+          "sample_count": 3,
+          "mean": 554.0,
+          "median": 554.0,
+          "standard_deviation": 0.0,
+          "minimum": 554.0,
+          "maximum": 554.0,
+          "confidence_interval_95": [
+            554.0,
+            554.0
+          ],
+          "samples": [
+            554.0,
+            554.0,
+            554.0
+          ]
+        },
+        "d1_groups": null,
+        "d2_groups": null,
+        "d4_groups": null,
+        "ordinary_fallback_tokens": null,
+        "acceptance_rate": {
+          "sample_count": 3,
+          "mean": 0.13116236996834013,
+          "median": 0.13116236996834013,
+          "standard_deviation": 0.0,
+          "minimum": 0.13116236996834013,
+          "maximum": 0.13116236996834013,
+          "confidence_interval_95": [
+            0.13116236996834013,
+            0.13116236996834013
+          ],
+          "samples": [
+            0.13116236996834013,
+            0.13116236996834013,
+            0.13116236996834013
+          ]
+        }
+      },
+      "raw_result": "artifacts/dflash/2026-11-16/llama-cpp-dflash-8.json",
+      "raw_result_sha256": "bfbca4dcee667ad3a523eaa9832c092db4742aa8261c3cd75a2bac002ce070ca"
+    },
+    {
+      "cohort": "llama-cpp-mtp-3",
+      "engine": "llama-cpp",
+      "method": "mtp",
+      "draft_tokens": 3,
+      "warmups": 1,
+      "samples": 3,
+      "decode_median": 101.25769377655392,
+      "reference_d2_median": 97.20144305586211,
+      "delta_vs_engine_d2_percent": 4.173035495327637,
+      "delta_vs_gem16_d2_nov15_percent": 8.30063953877238,
+      "peak_total_device_mib": 10703.0,
+      "deterministic": true,
+      "output_hashes": [
+        "c1a26f36bed8791a24e71f77041414d995f7cc0fd6054129ac8c7e733b785a01"
+      ],
+      "matches_historical_d2_output": false,
+      "common_prefix_with_historical_d2": 527,
+      "speculative_summary": {
+        "proposed_tokens": {
+          "sample_count": 3,
+          "mean": 1308.0,
+          "median": 1308.0,
+          "standard_deviation": 0.0,
+          "minimum": 1308.0,
+          "maximum": 1308.0,
+          "confidence_interval_95": [
+            1308.0,
+            1308.0
+          ],
+          "samples": [
+            1308.0,
+            1308.0,
+            1308.0
+          ]
+        },
+        "accepted_tokens": {
+          "sample_count": 3,
+          "mean": 697.0,
+          "median": 697.0,
+          "standard_deviation": 0.0,
+          "minimum": 697.0,
+          "maximum": 697.0,
+          "confidence_interval_95": [
+            697.0,
+            697.0
+          ],
+          "samples": [
+            697.0,
+            697.0,
+            697.0
+          ]
+        },
+        "rejected_tokens": {
+          "sample_count": 3,
+          "mean": 611.0,
+          "median": 611.0,
+          "standard_deviation": 0.0,
+          "minimum": 611.0,
+          "maximum": 611.0,
+          "confidence_interval_95": [
+            611.0,
+            611.0
+          ],
+          "samples": [
+            611.0,
+            611.0,
+            611.0
+          ]
+        },
+        "mean_accepted_length": {
+          "sample_count": 3,
+          "mean": 1.5949656750572083,
+          "median": 1.5949656750572083,
+          "standard_deviation": 0.0,
+          "minimum": 1.5949656750572083,
+          "maximum": 1.5949656750572083,
+          "confidence_interval_95": [
+            1.5949656750572083,
+            1.5949656750572083
+          ],
+          "samples": [
+            1.5949656750572083,
+            1.5949656750572083,
+            1.5949656750572083
+          ]
+        },
+        "target_batches": {
+          "sample_count": 3,
+          "mean": 437.0,
+          "median": 437.0,
+          "standard_deviation": 0.0,
+          "minimum": 437.0,
+          "maximum": 437.0,
+          "confidence_interval_95": [
+            437.0,
+            437.0
+          ],
+          "samples": [
+            437.0,
+            437.0,
+            437.0
+          ]
+        },
+        "d1_groups": null,
+        "d2_groups": null,
+        "d4_groups": null,
+        "ordinary_fallback_tokens": null,
+        "acceptance_rate": {
+          "sample_count": 3,
+          "mean": 0.5328746177370031,
+          "median": 0.5328746177370031,
+          "standard_deviation": 0.0,
+          "minimum": 0.5328746177370031,
+          "maximum": 0.5328746177370031,
+          "confidence_interval_95": [
+            0.5328746177370031,
+            0.5328746177370031
+          ],
+          "samples": [
+            0.5328746177370031,
+            0.5328746177370031,
+            0.5328746177370031
+          ]
+        }
+      },
+      "raw_result": "artifacts/dflash/2026-11-16/llama-cpp-mtp-3.json",
+      "raw_result_sha256": "3cb23443cbc975376880e6551b2b14ddfa0747a78790fb2892e971238b771da4"
+    },
+    {
+      "cohort": "llama-cpp-mtp-4",
+      "engine": "llama-cpp",
+      "method": "mtp",
+      "draft_tokens": 4,
+      "warmups": 1,
+      "samples": 3,
+      "decode_median": 103.10161291290423,
+      "reference_d2_median": 97.20144305586211,
+      "delta_vs_engine_d2_percent": 6.070043480374321,
+      "delta_vs_gem16_d2_nov15_percent": 10.272811867377785,
+      "peak_total_device_mib": 10703.0,
+      "deterministic": true,
+      "output_hashes": [
+        "baaa2c19913b5fb56e8671faaf8855309cd73a0fa1f3b4dfd8d5e03989814a02"
+      ],
+      "matches_historical_d2_output": false,
+      "common_prefix_with_historical_d2": 98,
+      "speculative_summary": {
+        "proposed_tokens": {
+          "sample_count": 3,
+          "mean": 1569.0,
+          "median": 1569.0,
+          "standard_deviation": 0.0,
+          "minimum": 1569.0,
+          "maximum": 1569.0,
+          "confidence_interval_95": [
+            1569.0,
+            1569.0
+          ],
+          "samples": [
+            1569.0,
+            1569.0,
+            1569.0
+          ]
+        },
+        "accepted_tokens": {
+          "sample_count": 3,
+          "mean": 740.0,
+          "median": 740.0,
+          "standard_deviation": 0.0,
+          "minimum": 740.0,
+          "maximum": 740.0,
+          "confidence_interval_95": [
+            740.0,
+            740.0
+          ],
+          "samples": [
+            740.0,
+            740.0,
+            740.0
+          ]
+        },
+        "rejected_tokens": {
+          "sample_count": 3,
+          "mean": 829.0,
+          "median": 829.0,
+          "standard_deviation": 0.0,
+          "minimum": 829.0,
+          "maximum": 829.0,
+          "confidence_interval_95": [
+            829.0,
+            829.0
+          ],
+          "samples": [
+            829.0,
+            829.0,
+            829.0
+          ]
+        },
+        "mean_accepted_length": {
+          "sample_count": 3,
+          "mean": 1.8781725888324874,
+          "median": 1.8781725888324874,
+          "standard_deviation": 0.0,
+          "minimum": 1.8781725888324874,
+          "maximum": 1.8781725888324874,
+          "confidence_interval_95": [
+            1.8781725888324874,
+            1.8781725888324874
+          ],
+          "samples": [
+            1.8781725888324874,
+            1.8781725888324874,
+            1.8781725888324874
+          ]
+        },
+        "target_batches": {
+          "sample_count": 3,
+          "mean": 394.0,
+          "median": 394.0,
+          "standard_deviation": 0.0,
+          "minimum": 394.0,
+          "maximum": 394.0,
+          "confidence_interval_95": [
+            394.0,
+            394.0
+          ],
+          "samples": [
+            394.0,
+            394.0,
+            394.0
+          ]
+        },
+        "d1_groups": null,
+        "d2_groups": null,
+        "d4_groups": null,
+        "ordinary_fallback_tokens": null,
+        "acceptance_rate": {
+          "sample_count": 3,
+          "mean": 0.4716379859783301,
+          "median": 0.4716379859783301,
+          "standard_deviation": 0.0,
+          "minimum": 0.4716379859783301,
+          "maximum": 0.4716379859783301,
+          "confidence_interval_95": [
+            0.4716379859783301,
+            0.4716379859783301
+          ],
+          "samples": [
+            0.4716379859783301,
+            0.4716379859783301,
+            0.4716379859783301
+          ]
+        }
+      },
+      "raw_result": "artifacts/dflash/2026-11-16/llama-cpp-mtp-4.json",
+      "raw_result_sha256": "72a5958eaf5fd080897a9433cb6421a82188212e79625383094b25b88b5ffde9"
+    },
+    {
+      "cohort": "vllm-dflash-15-kv1g",
+      "engine": "vllm",
+      "method": "dflash",
+      "draft_tokens": 15,
+      "warmups": 3,
+      "samples": 10,
+      "decode_median": 78.50628740677328,
+      "reference_d2_median": 112.82628932579722,
+      "delta_vs_engine_d2_percent": -30.41844425098612,
+      "delta_vs_gem16_d2_nov15_percent": -16.033233457496433,
+      "peak_total_device_mib": 15391.0,
+      "deterministic": true,
+      "output_hashes": [
+        "36022a19d73342f80fcd93a76bfe09e3079c31c27aa81adaa416a79ad3e78a27"
+      ],
+      "matches_historical_d2_output": false,
+      "common_prefix_with_historical_d2": 2,
+      "speculative_summary": {
+        "proposed_tokens": {
+          "sample_count": 10,
+          "mean": 7857.0,
+          "median": 7857.0,
+          "standard_deviation": 0.0,
+          "minimum": 7857.0,
+          "maximum": 7857.0,
+          "confidence_interval_95": [
+            7857.0,
+            7857.0
+          ],
+          "samples": [
+            7857.0,
+            7857.0,
+            7857.0,
+            7857.0,
+            7857.0,
+            7857.0,
+            7857.0,
+            7857.0,
+            7857.0,
+            7857.0
+          ]
+        },
+        "accepted_tokens": {
+          "sample_count": 10,
+          "mean": 597.0,
+          "median": 597.0,
+          "standard_deviation": 0.0,
+          "minimum": 597.0,
+          "maximum": 597.0,
+          "confidence_interval_95": [
+            597.0,
+            597.0
+          ],
+          "samples": [
+            597.0,
+            597.0,
+            597.0,
+            597.0,
+            597.0,
+            597.0,
+            597.0,
+            597.0,
+            597.0,
+            597.0
+          ]
+        },
+        "rejected_tokens": {
+          "sample_count": 10,
+          "mean": 7260.0,
+          "median": 7260.0,
+          "standard_deviation": 0.0,
+          "minimum": 7260.0,
+          "maximum": 7260.0,
+          "confidence_interval_95": [
+            7260.0,
+            7260.0
+          ],
+          "samples": [
+            7260.0,
+            7260.0,
+            7260.0,
+            7260.0,
+            7260.0,
+            7260.0,
+            7260.0,
+            7260.0,
+            7260.0,
+            7260.0
+          ]
+        },
+        "mean_accepted_length": {
+          "sample_count": 10,
+          "mean": 1.1158878504672898,
+          "median": 1.1158878504672898,
+          "standard_deviation": 0.0,
+          "minimum": 1.1158878504672898,
+          "maximum": 1.1158878504672898,
+          "confidence_interval_95": [
+            1.1158878504672898,
+            1.1158878504672898
+          ],
+          "samples": [
+            1.1158878504672898,
+            1.1158878504672898,
+            1.1158878504672898,
+            1.1158878504672898,
+            1.1158878504672898,
+            1.1158878504672898,
+            1.1158878504672898,
+            1.1158878504672898,
+            1.1158878504672898,
+            1.1158878504672898
+          ]
+        },
+        "target_batches": {
+          "sample_count": 10,
+          "mean": 535.0,
+          "median": 535.0,
+          "standard_deviation": 0.0,
+          "minimum": 535.0,
+          "maximum": 535.0,
+          "confidence_interval_95": [
+            535.0,
+            535.0
+          ],
+          "samples": [
+            535.0,
+            535.0,
+            535.0,
+            535.0,
+            535.0,
+            535.0,
+            535.0,
+            535.0,
+            535.0,
+            535.0
+          ]
+        },
+        "d1_groups": null,
+        "d2_groups": null,
+        "d4_groups": null,
+        "ordinary_fallback_tokens": null,
+        "acceptance_rate": {
+          "sample_count": 10,
+          "mean": 0.0759831996945399,
+          "median": 0.0759831996945399,
+          "standard_deviation": 0.0,
+          "minimum": 0.0759831996945399,
+          "maximum": 0.0759831996945399,
+          "confidence_interval_95": [
+            0.0759831996945399,
+            0.0759831996945399
+          ],
+          "samples": [
+            0.0759831996945399,
+            0.0759831996945399,
+            0.0759831996945399,
+            0.0759831996945399,
+            0.0759831996945399,
+            0.0759831996945399,
+            0.0759831996945399,
+            0.0759831996945399,
+            0.0759831996945399,
+            0.0759831996945399
+          ]
+        }
+      },
+      "raw_result": "artifacts/dflash/2026-11-16/vllm-dflash-15-kv1g.json",
+      "raw_result_sha256": "1fb2e4e521de0aa452fc8de9e4dda1781b29bb9361a243502e6085478c381286"
+    },
+    {
+      "cohort": "vllm-dflash-8-kv1g",
+      "engine": "vllm",
+      "method": "dflash",
+      "draft_tokens": 8,
+      "warmups": 1,
+      "samples": 3,
+      "decode_median": 80.02960865735135,
+      "reference_d2_median": 112.82628932579722,
+      "delta_vs_engine_d2_percent": -29.06829681665961,
+      "delta_vs_gem16_d2_nov15_percent": -14.403958095718373,
+      "peak_total_device_mib": 15527.0,
+      "deterministic": true,
+      "output_hashes": [
+        "36022a19d73342f80fcd93a76bfe09e3079c31c27aa81adaa416a79ad3e78a27"
+      ],
+      "matches_historical_d2_output": false,
+      "common_prefix_with_historical_d2": 2,
+      "speculative_summary": {
+        "proposed_tokens": {
+          "sample_count": 3,
+          "mean": 4233.0,
+          "median": 4233.0,
+          "standard_deviation": 0.0,
+          "minimum": 4233.0,
+          "maximum": 4233.0,
+          "confidence_interval_95": [
+            4233.0,
+            4233.0
+          ],
+          "samples": [
+            4233.0,
+            4233.0,
+            4233.0
+          ]
+        },
+        "accepted_tokens": {
+          "sample_count": 3,
+          "mean": 597.0,
+          "median": 597.0,
+          "standard_deviation": 0.0,
+          "minimum": 597.0,
+          "maximum": 597.0,
+          "confidence_interval_95": [
+            597.0,
+            597.0
+          ],
+          "samples": [
+            597.0,
+            597.0,
+            597.0
+          ]
+        },
+        "rejected_tokens": {
+          "sample_count": 3,
+          "mean": 3636.0,
+          "median": 3636.0,
+          "standard_deviation": 0.0,
+          "minimum": 3636.0,
+          "maximum": 3636.0,
+          "confidence_interval_95": [
+            3636.0,
+            3636.0
+          ],
+          "samples": [
+            3636.0,
+            3636.0,
+            3636.0
+          ]
+        },
+        "mean_accepted_length": {
+          "sample_count": 3,
+          "mean": 1.1158878504672898,
+          "median": 1.1158878504672898,
+          "standard_deviation": 0.0,
+          "minimum": 1.1158878504672898,
+          "maximum": 1.1158878504672898,
+          "confidence_interval_95": [
+            1.1158878504672898,
+            1.1158878504672898
+          ],
+          "samples": [
+            1.1158878504672898,
+            1.1158878504672898,
+            1.1158878504672898
+          ]
+        },
+        "target_batches": {
+          "sample_count": 3,
+          "mean": 535.0,
+          "median": 535.0,
+          "standard_deviation": 0.0,
+          "minimum": 535.0,
+          "maximum": 535.0,
+          "confidence_interval_95": [
+            535.0,
+            535.0
+          ],
+          "samples": [
+            535.0,
+            535.0,
+            535.0
+          ]
+        },
+        "d1_groups": null,
+        "d2_groups": null,
+        "d4_groups": null,
+        "ordinary_fallback_tokens": null,
+        "acceptance_rate": {
+          "sample_count": 3,
+          "mean": 0.1410347271438696,
+          "median": 0.1410347271438696,
+          "standard_deviation": 0.0,
+          "minimum": 0.1410347271438696,
+          "maximum": 0.1410347271438696,
+          "confidence_interval_95": [
+            0.1410347271438696,
+            0.1410347271438696
+          ],
+          "samples": [
+            0.1410347271438696,
+            0.1410347271438696,
+            0.1410347271438696
+          ]
+        }
+      },
+      "raw_result": "artifacts/dflash/2026-11-16/vllm-dflash-8-kv1g.json",
+      "raw_result_sha256": "5f04542f7486867c7a679bbc71b8d4b8b4a40837cf9e111c99fe6c2617393896"
+    },
+    {
+      "cohort": "vllm-mtp-3",
+      "engine": "vllm",
+      "method": "mtp",
+      "draft_tokens": 3,
+      "warmups": 1,
+      "samples": 3,
+      "decode_median": 117.40999854767722,
+      "reference_d2_median": 112.82628932579722,
+      "delta_vs_engine_d2_percent": 4.062625164108757,
+      "delta_vs_gem16_d2_nov15_percent": 25.57641258371277,
+      "peak_total_device_mib": 13553.0,
+      "deterministic": true,
+      "output_hashes": [
+        "c6d0230e7cff25721fce4610bfa6cdb517ca545dbb982a153a50932119300c77"
+      ],
+      "matches_historical_d2_output": false,
+      "common_prefix_with_historical_d2": 546,
+      "speculative_summary": {
+        "proposed_tokens": {
+          "sample_count": 3,
+          "mean": 1335.0,
+          "median": 1335.0,
+          "standard_deviation": 0.0,
+          "minimum": 1335.0,
+          "maximum": 1335.0,
+          "confidence_interval_95": [
+            1335.0,
+            1335.0
+          ],
+          "samples": [
+            1335.0,
+            1335.0,
+            1335.0
+          ]
+        },
+        "accepted_tokens": {
+          "sample_count": 3,
+          "mean": 689.0,
+          "median": 689.0,
+          "standard_deviation": 0.0,
+          "minimum": 689.0,
+          "maximum": 689.0,
+          "confidence_interval_95": [
+            689.0,
+            689.0
+          ],
+          "samples": [
+            689.0,
+            689.0,
+            689.0
+          ]
+        },
+        "rejected_tokens": {
+          "sample_count": 3,
+          "mean": 646.0,
+          "median": 646.0,
+          "standard_deviation": 0.0,
+          "minimum": 646.0,
+          "maximum": 646.0,
+          "confidence_interval_95": [
+            646.0,
+            646.0
+          ],
+          "samples": [
+            646.0,
+            646.0,
+            646.0
+          ]
+        },
+        "mean_accepted_length": {
+          "sample_count": 3,
+          "mean": 1.548314606741573,
+          "median": 1.548314606741573,
+          "standard_deviation": 0.0,
+          "minimum": 1.548314606741573,
+          "maximum": 1.548314606741573,
+          "confidence_interval_95": [
+            1.548314606741573,
+            1.548314606741573
+          ],
+          "samples": [
+            1.548314606741573,
+            1.548314606741573,
+            1.548314606741573
+          ]
+        },
+        "target_batches": {
+          "sample_count": 3,
+          "mean": 445.0,
+          "median": 445.0,
+          "standard_deviation": 0.0,
+          "minimum": 445.0,
+          "maximum": 445.0,
+          "confidence_interval_95": [
+            445.0,
+            445.0
+          ],
+          "samples": [
+            445.0,
+            445.0,
+            445.0
+          ]
+        },
+        "d1_groups": null,
+        "d2_groups": null,
+        "d4_groups": null,
+        "ordinary_fallback_tokens": null,
+        "acceptance_rate": {
+          "sample_count": 3,
+          "mean": 0.5161048689138577,
+          "median": 0.5161048689138577,
+          "standard_deviation": 0.0,
+          "minimum": 0.5161048689138577,
+          "maximum": 0.5161048689138577,
+          "confidence_interval_95": [
+            0.5161048689138577,
+            0.5161048689138577
+          ],
+          "samples": [
+            0.5161048689138577,
+            0.5161048689138577,
+            0.5161048689138577
+          ]
+        }
+      },
+      "raw_result": "artifacts/dflash/2026-11-16/vllm-mtp-3.json",
+      "raw_result_sha256": "3afc475990953f83e3052ab4f9ced64d485d087ffd8fb1d3a06ccb86c9359498"
+    },
+    {
+      "cohort": "vllm-mtp-4",
+      "engine": "vllm",
+      "method": "mtp",
+      "draft_tokens": 4,
+      "warmups": 1,
+      "samples": 3,
+      "decode_median": 117.28501189188697,
+      "reference_d2_median": 112.82628932579722,
+      "delta_vs_engine_d2_percent": 3.9518472093101886,
+      "delta_vs_gem16_d2_nov15_percent": 25.442732521970825,
+      "peak_total_device_mib": 13553.0,
+      "deterministic": true,
+      "output_hashes": [
+        "28ff0545d715ecb29f6c30416cbafc2c503118f9e06aacf425a0be4df90043f7"
+      ],
+      "matches_historical_d2_output": false,
+      "common_prefix_with_historical_d2": 534,
+      "speculative_summary": {
+        "proposed_tokens": {
+          "sample_count": 3,
+          "mean": 1657.0,
+          "median": 1657.0,
+          "standard_deviation": 0.0,
+          "minimum": 1657.0,
+          "maximum": 1657.0,
+          "confidence_interval_95": [
+            1657.0,
+            1657.0
+          ],
+          "samples": [
+            1657.0,
+            1657.0,
+            1657.0
+          ]
+        },
+        "accepted_tokens": {
+          "sample_count": 3,
+          "mean": 718.0,
+          "median": 718.0,
+          "standard_deviation": 0.0,
+          "minimum": 718.0,
+          "maximum": 718.0,
+          "confidence_interval_95": [
+            718.0,
+            718.0
+          ],
+          "samples": [
+            718.0,
+            718.0,
+            718.0
+          ]
+        },
+        "rejected_tokens": {
+          "sample_count": 3,
+          "mean": 939.0,
+          "median": 939.0,
+          "standard_deviation": 0.0,
+          "minimum": 939.0,
+          "maximum": 939.0,
+          "confidence_interval_95": [
+            939.0,
+            939.0
+          ],
+          "samples": [
+            939.0,
+            939.0,
+            939.0
+          ]
+        },
+        "mean_accepted_length": {
+          "sample_count": 3,
+          "mean": 1.730120481927711,
+          "median": 1.730120481927711,
+          "standard_deviation": 0.0,
+          "minimum": 1.730120481927711,
+          "maximum": 1.730120481927711,
+          "confidence_interval_95": [
+            1.730120481927711,
+            1.730120481927711
+          ],
+          "samples": [
+            1.730120481927711,
+            1.730120481927711,
+            1.730120481927711
+          ]
+        },
+        "target_batches": {
+          "sample_count": 3,
+          "mean": 415.0,
+          "median": 415.0,
+          "standard_deviation": 0.0,
+          "minimum": 415.0,
+          "maximum": 415.0,
+          "confidence_interval_95": [
+            415.0,
+            415.0
+          ],
+          "samples": [
+            415.0,
+            415.0,
+            415.0
+          ]
+        },
+        "d1_groups": null,
+        "d2_groups": null,
+        "d4_groups": null,
+        "ordinary_fallback_tokens": null,
+        "acceptance_rate": {
+          "sample_count": 3,
+          "mean": 0.4333132166566083,
+          "median": 0.4333132166566083,
+          "standard_deviation": 0.0,
+          "minimum": 0.4333132166566083,
+          "maximum": 0.4333132166566083,
+          "confidence_interval_95": [
+            0.4333132166566083,
+            0.4333132166566083
+          ],
+          "samples": [
+            0.4333132166566083,
+            0.4333132166566083,
+            0.4333132166566083
+          ]
+        }
+      },
+      "raw_result": "artifacts/dflash/2026-11-16/vllm-mtp-4.json",
+      "raw_result_sha256": "80b63add5c16216ac5ffef54005902c35e2b5a31fd0cd80b0b169b46eff1465e"
+    }
+  ]
+}

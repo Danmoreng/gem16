@@ -1,0 +1,69 @@
+{
+  "checks": [
+    {
+      "cohort": "llama-cpp-dflash-15",
+      "passed": true,
+      "warmups": 3,
+      "samples": 3,
+      "raw_samples_preserved": 6,
+      "post_warmup_jit_warnings": []
+    },
+    {
+      "cohort": "llama-cpp-dflash-8",
+      "passed": true,
+      "warmups": 1,
+      "samples": 3,
+      "raw_samples_preserved": 3,
+      "post_warmup_jit_warnings": []
+    },
+    {
+      "cohort": "vllm-dflash-15-kv1g",
+      "passed": true,
+      "warmups": 3,
+      "samples": 10,
+      "raw_samples_preserved": 10,
+      "post_warmup_jit_warnings": []
+    },
+    {
+      "cohort": "vllm-dflash-8-kv1g",
+      "passed": true,
+      "warmups": 1,
+      "samples": 3,
+      "raw_samples_preserved": 3,
+      "post_warmup_jit_warnings": []
+    },
+    {
+      "cohort": "llama-cpp-mtp-3",
+      "passed": true,
+      "warmups": 1,
+      "samples": 3,
+      "raw_samples_preserved": 3,
+      "post_warmup_jit_warnings": []
+    },
+    {
+      "cohort": "llama-cpp-mtp-4",
+      "passed": true,
+      "warmups": 1,
+      "samples": 3,
+      "raw_samples_preserved": 3,
+      "post_warmup_jit_warnings": []
+    },
+    {
+      "cohort": "vllm-mtp-3",
+      "passed": true,
+      "warmups": 1,
+      "samples": 3,
+      "raw_samples_preserved": 3,
+      "post_warmup_jit_warnings": []
+    },
+    {
+      "cohort": "vllm-mtp-4",
+      "passed": true,
+      "warmups": 1,
+      "samples": 3,
+      "raw_samples_preserved": 3,
+      "post_warmup_jit_warnings": []
+    }
+  ],
+  "passed": true
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "path": "/home/sebastian/.cache/huggingface/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+    "bytes": 9366658208,
+    "sha256": "6f90177f6a2d42406d57cfa764eae890b262bfdf71d353bd4827e0488b099896",
+    "matches_historical_reference": true
+  },
+  {
+    "path": "/home/sebastian/.cache/huggingface/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-it-assistant-bf16.gguf",
+    "bytes": 861520128,
+    "sha256": "b3ab76db11dd1cfbef51925d7dfd6e234325aa86ab3edd7dea42994edb093b65",
+    "matches_historical_reference": true
+  },
+  {
+    "path": "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4/model.safetensors",
+    "bytes": 9304966064,
+    "sha256": "7c2ee23298e7c3a9247e8947597dca5a38f8b791a0322487466d2bfad8ce704b",
+    "matches_historical_reference": true
+  },
+  {
+    "path": "/home/sebastian/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345/model.safetensors",
+    "bytes": 845719296,
+    "sha256": "3279c173daddd7186e79d652ad94022415736d3a1370625696c898429b06d6df",
+    "matches_historical_reference": true
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "source": "explicit owner reply to question moving0.5% minimum from individual trials to combined package",
+  "owner_reply": "Ja, 0,5 % f\u00fcr das Gesamtpaket",
+  "scope": "only five current experiments; no reopening older negatives",
+  "new_decision": "positive pooled primary component may remain after full exactness/runtime/margin/protected gates; final direct package versus original parent remains required",
+  "old_protocols_immutable": true,
+  "no_cross_mode_percentage_addition": true,
+  "all_existing_correctness_and_loss_margins_preserved": true,
+  "no_git_publication": true
+}

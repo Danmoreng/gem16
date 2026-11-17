@@ -1,0 +1,6 @@
+{
+  "reason": "Owner requests three measured requests instead of ten; interrupt current cohort and use its first three retained samples. Additional already completed samples stay in raw JSONL.",
+  "signalled_python_pids": [
+    28247
+  ]
+}

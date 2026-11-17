@@ -1,0 +1,9 @@
+commit=e8fbcad855c5d8c315aa1dde231836ae472f5779
+built_utc=2026-11-16T21:32:16+00:00
+cmake=cmake version 4.5.0
+cpu_flags=GGML_NATIVE=ON,GGML_CUDA=OFF
+cuda_flags=GGML_NATIVE=OFF,GGML_CUDA=ON,CMAKE_CUDA_ARCHITECTURES=120a-real
+cpu version: version: 1.0.0-dev (build 1, commit e8fbcad) built with GNU 16.2.1 for Linux x86_64 
+21e98552db93ac833e22e80a1dc0cc0200d3df57a3729055bd62a7ee3464a262  /home/sebastian/Development/_engines/llama.cpp/versions/master-e8fbcad855c5d8c315aa1dde231836ae472f5779/source/build-central-cpu/bin/llama-server
+cuda version: version: 1.0.0-dev (build 1, commit e8fbcad) built with GNU 16.2.1 for Linux x86_64 
+ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925  /home/sebastian/Development/_engines/llama.cpp/versions/master-e8fbcad855c5d8c315aa1dde231836ae472f5779/source/build-central-cuda/bin/llama-server

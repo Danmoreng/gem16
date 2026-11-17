@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-15",
+  "parent": {
+    "base_commit": "58febf4d66bb028a35f6f7f9528d2206cfab2475",
+    "runner": {
+      "path": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-pro-followup/parent/gem16-run",
+      "bytes": 12741576,
+      "sha256": "234376fd62acebbe19e2cfb1b6ac3ef3c0ae5e4e8ca1fab31cc72ea579a1d599"
+    },
+    "cuda_tests": {
+      "path": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-pro-followup/parent/gem16-cuda-tests",
+      "bytes": 12988544,
+      "sha256": "d30e7f3efff36427ca6cd2f47fe865472abcb78a34a7d6ddf6135e44b6a4a40c"
+    },
+    "helper": {
+      "path": "$ROOT/tools/benchmark_wikipedia_workload.py",
+      "bytes": 56717,
+      "sha256": "e82a4fccbd17bd65fc5b66deb2c701f1d89d2d20f8b6ff92631598e5bcf7fc4e"
+    },
+    "models": {
+      "--model": {
+        "path": "$HOME/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4/model.safetensors",
+        "bytes": 9304966064,
+        "sha256": "7c2ee23298e7c3a9247e8947597dca5a38f8b791a0322487466d2bfad8ce704b"
+      },
+      "--assistant-model": {
+        "path": "$HOME/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345/model.safetensors",
+        "bytes": 845719296,
+        "sha256": "3279c173daddd7186e79d652ad94022415736d3a1370625696c898429b06d6df"
+      }
+    },
+    "scope": "native-only fresh restored-parent baseline; no external-reference rerun; no profiler/preload"
+  },
+  "candidate": {
+    "parent": {
+      "path": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-pro-followup/parent/gem16-run",
+      "bytes": 12741576,
+      "sha256": "234376fd62acebbe19e2cfb1b6ac3ef3c0ae5e4e8ca1fab31cc72ea579a1d599"
+    },
+    "candidate": {
+      "path": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-pro-followup/e1/candidate-run",
+      "bytes": 12788784,
+      "sha256": "a84263d591ac740b34ec398b0f23429ae71131820c72b3119e7c392aba8bb333"
+    },
+    "helper": {
+      "path": "$ROOT/tools/benchmark_wikipedia_workload.py",
+      "bytes": 56717,
+      "sha256": "e82a4fccbd17bd65fc5b66deb2c701f1d89d2d20f8b6ff92631598e5bcf7fc4e"
+    },
+    "owner_amendment": "full Decode despite isolated operator lower CI -0.63%; confidence lower bound may extend to -2% overall Decode loss; old positive lower gate superseded",
+    "primary_minimum_measured_gain": 0.005,
+    "confidence_lower_margin": -0.02,
+    "sources": {
+      "src/cuda/nvfp4/reference.cu": {
+        "path": "$ROOT/src/cuda/nvfp4/reference.cu",
+        "bytes": 31663,
+        "sha256": "c19d7e401a5b190c836ce09fce98744c598acfc7d7ae88767c62653b1ab56d07"
+      },
+      "src/cuda/nvfp4/reference.h": {
+        "path": "$ROOT/src/cuda/nvfp4/reference.h",
+        "bytes": 5139,
+        "sha256": "e82a70d746f9585b80240293295183e4d72f4a5f56ab1c480f8765856535e124"
+      },
+      "src/cuda/engine/inference_engine_decode_graphs.cuh": {
+        "path": "$ROOT/src/cuda/engine/inference_engine_decode_graphs.cuh",
+        "bytes": 24822,
+        "sha256": "a9b0651b630ebc65084a20584edbae659d9994eeccba7037d4337012af13b6b3"
+      },
+      "src/cuda/nvfp4/detail/twelve_b_post_attention.cuh": {
+        "path": "$ROOT/src/cuda/nvfp4/detail/twelve_b_post_attention.cuh",
+        "bytes": 3543,
+        "sha256": "de30b16ea2f0842f57f19d40ed56ef3c5d7a50b5bd09a56da9e64b2253a75252"
+      }
+    }
+  },
+  "scope_audit": {
+    "changed_existing_runtime_files": [
+      "src/cuda/engine/inference_engine_decode_graphs.cuh",
+      "src/cuda/nvfp4/reference.cu",
+      "src/cuda/nvfp4/reference.h"
+    ],
+    "new_runtime_file": "src/cuda/nvfp4/detail/twelve_b_post_attention.cuh",
+    "all_other_src_include_exact_to_initial_snapshot": true,
+    "pinned_target_assistant_hashes_match": true,
+    "runtime_state": "candidate under qualification; no promotion/publication"
+  },
+  "restoration": {
+    "reason": "primary may pass but adjacent secondary/protected/KV/remaining acceptance are incomplete; quarantine candidate before daily shutdown, not a rejection of measured gain",
+    "candidate_binary_sha256": "a84263d591ac740b34ec398b0f23429ae71131820c72b3119e7c392aba8bb333",
+    "candidate_sources_preserved": true,
+    "restored_sources": [
+      "src/cuda/nvfp4/reference.cu",
+      "src/cuda/nvfp4/reference.h",
+      "src/cuda/engine/inference_engine_decode_graphs.cuh",
+      "src/cuda/nvfp4/detail/twelve_b_post_attention.cuh"
+    ],
+    "rebuild_attempted": true,
+    "rebuild_returncode": 0,
+    "rebuilt_gem16-run_equals_pinned_parent": false,
+    "rebuilt_gem16-cuda-tests_equals_pinned_parent": false,
+    "canonical_runner_and_cuda_tests_exact_parent": true,
+    "all_initial_src_include_exact": true
+  },
+  "build_flags": "Production Release-O3/C++20/SM120a/RDC=true; CMAKE_CXX_SCAN_FOR_MODULES=OFF; fullCache and compile_commands retained in raw parent directory",
+  "source_of_benchmark": "Pinned parent and candidate binaries; rebuilt restoration binaries were not byte-identical, so canonical runner/test were explicitly replaced with the original pinned parent. New builds require their own identities/baseline; no silent pooling.",
+  "evidence_hashes": {
+    "model-primary-stats.json": "05f7217c29e0e7adaf724dcbee87b21793a73008bc78249f7fc517630a45207a",
+    "screen-stats.json": "985a519c70c795c7ad4cffad36fed9d7bf0221700d9d94d71bcb998d414c90b6",
+    "fixture-alignment.json": "8a95cbf299af559dcecc9900d18d397533aa7fb9b0639e92ef5184bb1c89c417",
+    "production-dispatch-facts.json": "d763e9a9927d52c48cfa8786959a05964d883785d4c4eb38f2da496a8ba17cc3",
+    "launch-resource-comparison.json": "2226a0db0e3ce4e05925da54b57e47a7cc23fa6d36977dba997583abad7710da",
+    "memcheck.stdout.log": "7c70c09efea462a6446339b32ce2a057e058346743a839267719c0fb24f15b93",
+    "synccheck.stdout.log": "7c70c09efea462a6446339b32ce2a057e058346743a839267719c0fb24f15b93",
+    "racecheck.stdout.log": "362aacb628fb6a3c38cd09e66371921ed4e2d5bb399b15933b84eaf7753a4957"
+  }
+}

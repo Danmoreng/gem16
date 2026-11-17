@@ -1,0 +1,14 @@
+{
+  "test_files": [
+    "test_decode_ap1_publication.py",
+    "test_decode_cost_accounting.py",
+    "test_llama_replay_provenance.py",
+    "test_llama_speculative_accounting.py",
+    "test_mtp_group_cost.py",
+    "test_validate_mtp_groups.py"
+  ],
+  "tests": 22,
+  "failures": 0,
+  "errors": 0,
+  "skips": 0
+}

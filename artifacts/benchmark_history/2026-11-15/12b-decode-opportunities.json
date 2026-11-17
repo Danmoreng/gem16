@@ -1,0 +1,507 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-15",
+  "status": "assessment_only_no_runtime_candidate_or_speedup",
+  "primary_reference": "artifacts/benchmark_history/2026-11-15/current-12b.json",
+  "ordinary": {
+    "nvtx_ranges": 1134,
+    "cpu_range_ms": 22489.206702,
+    "gpu_kernel_sum_ms": 22229.044849,
+    "gpu_busy_union_ms": 22229.044849,
+    "uncovered_cpu_span_pct": 1.1568298359624363,
+    "kernels": [
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120DirectProjectionKernel<(bool)0, (int)0>(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned int *, const gem16::internal::Gemma4MoePrefillAssignment *, const unsigned int *, unsigned int, unsigned int, float *, unsigned long, unsigned long, unsigned long, float)",
+        "calls": 163296,
+        "ms": 7565.501993,
+        "gpu_sum_pct": 34.034309815791936
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120DirectProjectionKernel<(bool)0>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long, unsigned long)",
+        "calls": 108864,
+        "ms": 5675.862079,
+        "gpu_sum_pct": 25.53354009385309
+      },
+      {
+        "name": "gem16::internal::<unnamed>::FusedOutputHeadCandidatesKernel(const unsigned short *, const float *, const unsigned int *, unsigned int, const gem16::internal::DecodeControl *, gem16::internal::OutputHeadCandidate *, float *)",
+        "calls": 1134,
+        "ms": 2742.05925,
+        "gpu_sum_pct": 12.335479408254262
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormResidualBf16Kernel<float>(const T1 *, const unsigned short *, const float *, float *, float *, unsigned long, float, const unsigned short *)",
+        "calls": 108864,
+        "ms": 1662.721468,
+        "gpu_sum_pct": 7.479950125139089
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8GlobalGqaKernel<(bool)0, (bool)0, (bool)1>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, const gem16::internal::DecodeControl *, unsigned long, int)",
+        "calls": 9072,
+        "ms": 1575.870437,
+        "gpu_sum_pct": 7.0892404406251055
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8Kernel<(int)256, (int)8, (int)2, (int)2, (int)128, (bool)0, (bool)0, (bool)0>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+        "calls": 45360,
+        "ms": 1304.13295,
+        "gpu_sum_pct": 5.8667970614970795
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormQuantizeTokenKernel<float>(const T1 *, const unsigned short *, unsigned char *, float *, unsigned long, float)",
+        "calls": 54432,
+        "ms": 585.585111,
+        "gpu_sum_pct": 2.634324214008427
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::QuantizeTokenReferenceKernel<float>(const T1 *, unsigned char *, float *, unsigned long)",
+        "calls": 54432,
+        "ms": 256.784573,
+        "gpu_sum_pct": 1.1551759184630543
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormQuantizeActivationKernel<float>(const T1 *, const unsigned short *, float *, unsigned char *, unsigned char *, unsigned long, float, float)",
+        "calls": 54432,
+        "ms": 243.768339,
+        "gpu_sum_pct": 1.0966208429372357
+      },
+      {
+        "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+        "calls": 217728,
+        "ms": 164.229464,
+        "gpu_sum_pct": 0.7388057611813584
+      },
+      {
+        "name": "gem16::internal::<unnamed>::ProjectionRmsNormRotaryBf16ControlledKernel(const float *, const unsigned short *, float *, const float *, const unsigned short *, float *, const float *, const float *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long, unsigned long, float, bool)",
+        "calls": 54432,
+        "ms": 108.600553,
+        "gpu_sum_pct": 0.4885524939902468
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)256, (int)128>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+        "calls": 45360,
+        "ms": 85.855343,
+        "gpu_sum_pct": 0.38623046371631353
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::ControlledAppendKvKernel<unsigned char, (bool)1>(const float *, const float *, T1 *, T1 *, const unsigned short *, const unsigned short *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, bool)",
+        "calls": 54432,
+        "ms": 84.237094,
+        "gpu_sum_pct": 0.3789505782736747
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+        "calls": 55566,
+        "ms": 75.763138,
+        "gpu_sum_pct": 0.3408294801447948
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::GatedGeluQuantizeActivationKernel<float>(const T1 *, const T1 *, unsigned char *, unsigned char *, unsigned long, float)",
+        "calls": 54432,
+        "ms": 56.102292,
+        "gpu_sum_pct": 0.2523828278772123
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)512, (int)512>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+        "calls": 9072,
+        "ms": 36.208179,
+        "gpu_sum_pct": 0.1628867962881854
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::OutputHeadArgmaxKernel<(bool)0>(const gem16::internal::OutputHeadCandidate *, unsigned long, unsigned int *)",
+        "calls": 1134,
+        "ms": 4.267639,
+        "gpu_sum_pct": 0.0191984812167581
+      },
+      {
+        "name": "gem16::<unnamed>::ControlledEmbeddingKernel(const unsigned short *, const gem16::internal::DecodeControl *, float *)",
+        "calls": 1134,
+        "ms": 1.494947,
+        "gpu_sum_pct": 0.006725196742167947
+      }
+    ]
+  },
+  "d2": {
+    "nvtx_ranges": 1,
+    "cpu_range_ms": 12069.716357,
+    "gpu_kernel_sum_ms": 11871.158464,
+    "gpu_busy_union_ms": 11871.158464,
+    "uncovered_cpu_span_pct": 1.6450916254120873,
+    "kernels": [
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120MatrixProjectionKernel<(bool)1, (unsigned long)2, (unsigned int)2, (bool)0, float>(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, float *, float *, T5 *, unsigned long, unsigned long, unsigned long, float, float)",
+        "calls": 24336,
+        "ms": 2090.129354,
+        "gpu_sum_pct": 17.606785052515665
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120MatrixProjectionKernel<(bool)0, (unsigned long)1, (unsigned int)8, (bool)0, unsigned short>(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, float *, float *, T5 *, unsigned long, unsigned long, unsigned long, float, float)",
+        "calls": 24336,
+        "ms": 2082.453035,
+        "gpu_sum_pct": 17.54212144766801
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120DirectProjectionFixedBatchKernel<(unsigned int)3>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+        "calls": 48672,
+        "ms": 1737.468184,
+        "gpu_sum_pct": 14.63604575129695
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::FusedOutputHeadFixedBatchCandidatesKernel<(unsigned int)3>(const unsigned short *, const float *, const unsigned int *, unsigned int, gem16::internal::OutputHeadCandidate *, float *)",
+        "calls": 507,
+        "ms": 1266.200086,
+        "gpu_sum_pct": 10.66618805434893
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8GlobalGqaKernel<(bool)0, (bool)1, (bool)1>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, const gem16::internal::DecodeControl *, unsigned long, int)",
+        "calls": 4056,
+        "ms": 977.068514,
+        "gpu_sum_pct": 8.230607964361852
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel<(int)3>(const float *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, const gem16::internal::DecodeControl *, int)",
+        "calls": 20280,
+        "ms": 643.446561,
+        "gpu_sum_pct": 5.420250794825883
+      },
+      {
+        "name": "gem16::internal::<unnamed>::AssistantOutputCandidatesKernel(const unsigned short *, const float *, gem16::internal::<unnamed>::ArgmaxValue *)",
+        "calls": 1014,
+        "ms": 636.459815,
+        "gpu_sum_pct": 5.3613959996415055
+      },
+      {
+        "name": "gem16::internal::<unnamed>::Bf16GemvKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+        "calls": 21294,
+        "ms": 554.927835,
+        "gpu_sum_pct": 4.674588724283749
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormResidualBf16Kernel<float>(const T1 *, const unsigned short *, const float *, float *, float *, unsigned long, float, const unsigned short *)",
+        "calls": 32544,
+        "ms": 272.79126,
+        "gpu_sum_pct": 2.2979329340708903
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormQuantizeTokenKernel<float>(const T1 *, const unsigned short *, unsigned char *, float *, unsigned long, float)",
+        "calls": 24384,
+        "ms": 272.638602,
+        "gpu_sum_pct": 2.2966469770140203
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormResidualBf16Kernel<unsigned short>(const T1 *, const unsigned short *, const float *, float *, float *, unsigned long, float, const unsigned short *)",
+        "calls": 24336,
+        "ms": 247.184241,
+        "gpu_sum_pct": 2.082225098330555
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8GlobalGqaKernel<(bool)0, (bool)0, (bool)1>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, const gem16::internal::DecodeControl *, unsigned long, int)",
+        "calls": 1022,
+        "ms": 169.831286,
+        "gpu_sum_pct": 1.430621000595886
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::QuantizeTokenReferenceKernel<float>(const T1 *, unsigned char *, float *, unsigned long)",
+        "calls": 24384,
+        "ms": 118.666172,
+        "gpu_sum_pct": 0.9996174540156488
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormQuantizeActivationKernel<float>(const T1 *, const unsigned short *, float *, unsigned char *, unsigned char *, unsigned long, float, float)",
+        "calls": 24384,
+        "ms": 116.550426,
+        "gpu_sum_pct": 0.9817948800316849
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8Kernel<(int)256, (int)8, (int)2, (int)2, (int)128, (bool)0, (bool)0, (bool)0>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+        "calls": 3082,
+        "ms": 87.50418,
+        "gpu_sum_pct": 0.7371157605667692
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+        "calls": 38074,
+        "ms": 75.659582,
+        "gpu_sum_pct": 0.6373395000112434
+      },
+      {
+        "name": "gem16::internal::<unnamed>::ProjectionRmsNormRotaryBf16BatchControlledKernel(const float *, const unsigned short *, float *, const float *, const unsigned short *, float *, const float *, const float *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long, unsigned long, float)",
+        "calls": 24336,
+        "ms": 57.581932,
+        "gpu_sum_pct": 0.48505739498483375
+      },
+      {
+        "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+        "calls": 73200,
+        "ms": 48.721617,
+        "gpu_sum_pct": 0.41042007102972494
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::CopyCircularMtpKvControlledKernel<unsigned char, (bool)0>(T1 *, T1 *, T1 *, T1 *, unsigned int, unsigned long, unsigned long, const gem16::internal::MtpDeviceControl *)",
+        "calls": 20280,
+        "ms": 46.592488,
+        "gpu_sum_pct": 0.3924847616287367
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::QuantizeActivationReferenceKernel<float>(const T1 *, unsigned char *, unsigned char *, unsigned long, float)",
+        "calls": 24336,
+        "ms": 45.546002,
+        "gpu_sum_pct": 0.38366939619348
+      },
+      {
+        "name": "gem16::internal::<unnamed>::MergeOnlineDecodeAttentionFp8LocalFixedKernel(const float *, const float *, float *, int)",
+        "calls": 20280,
+        "ms": 44.420708,
+        "gpu_sum_pct": 0.3741901696848581
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::CommitMtpKvControlledD2Kernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, unsigned long, unsigned long, const gem16::internal::MtpGroupResult *, const gem16::internal::MtpDeviceControl *)",
+        "calls": 24336,
+        "ms": 41.572624,
+        "gpu_sum_pct": 0.3501985431840664
+      },
+      {
+        "name": "gem16::internal::<unnamed>::ControlledRotaryKernel(float *, unsigned long, unsigned long, unsigned long, unsigned long, const gem16::internal::DecodeControl *, double, double, unsigned long)",
+        "calls": 4056,
+        "ms": 38.737807,
+        "gpu_sum_pct": 0.3263186749420852
+      },
+      {
+        "name": "gem16::internal::<unnamed>::QuantizeKvBatchKernel(const float *, const float *, unsigned char *, unsigned char *, const unsigned short *, const unsigned short *, unsigned long)",
+        "calls": 24336,
+        "ms": 35.987934,
+        "gpu_sum_pct": 0.3031543560734664
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::AppendKvBatchControlledKernel<unsigned char>(const T1 *, const T1 *, T1 *, T1 *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long)",
+        "calls": 24336,
+        "ms": 35.025654,
+        "gpu_sum_pct": 0.2950483232636259
+      },
+      {
+        "name": "gem16::internal::<unnamed>::PreProjectionKernel(const unsigned short *, const unsigned int *, const float *, const unsigned short *, float *)",
+        "calls": 1014,
+        "ms": 34.063391,
+        "gpu_sum_pct": 0.2869424336580063
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::CopyCircularMtpKvControlledKernel<unsigned char, (bool)1>(T1 *, T1 *, T1 *, T1 *, unsigned int, unsigned long, unsigned long, const gem16::internal::MtpDeviceControl *)",
+        "calls": 20280,
+        "ms": 29.235309,
+        "gpu_sum_pct": 0.2462717441491311
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionGlobalBatchKernel<(int)3, (int)512>(const float *, float *, float *, unsigned long, const gem16::internal::DecodeControl *, int)",
+        "calls": 4056,
+        "ms": 16.386048,
+        "gpu_sum_pct": 0.13803242581329928
+      },
+      {
+        "name": "gem16::internal::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+        "calls": 12168,
+        "ms": 7.923866,
+        "gpu_sum_pct": 0.06674888574716276
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120DirectProjectionKernel<(bool)0, (int)0>(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned int *, const gem16::internal::Gemma4MoePrefillAssignment *, const unsigned int *, unsigned int, unsigned int, float *, unsigned long, unsigned long, unsigned long, float)",
+        "calls": 144,
+        "ms": 6.543074,
+        "gpu_sum_pct": 0.05511740088250245
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)256, (int)128>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+        "calls": 3082,
+        "ms": 5.385645,
+        "gpu_sum_pct": 0.04536747627733462
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120DirectProjectionKernel<(bool)0>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long, unsigned long)",
+        "calls": 96,
+        "ms": 5.000893,
+        "gpu_sum_pct": 0.04212641095783118
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)512, (int)512>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+        "calls": 1022,
+        "ms": 4.008404,
+        "gpu_sum_pct": 0.0337659042473043
+      },
+      {
+        "name": "gem16::internal::<unnamed>::AssistantOutputArgmaxKernel(const gem16::internal::<unnamed>::ArgmaxValue *, unsigned int *, unsigned int *, unsigned int)",
+        "calls": 1014,
+        "ms": 3.07323,
+        "gpu_sum_pct": 0.02588820635593194
+      },
+      {
+        "name": "gem16::internal::<unnamed>::GeluTanhProductKernel(const float *, const float *, float *, unsigned long)",
+        "calls": 4056,
+        "ms": 3.049726,
+        "gpu_sum_pct": 0.025690213884756716
+      },
+      {
+        "name": "gem16::internal::<unnamed>::AdvanceMtpD2ChainKernel(gem16::internal::MtpGroupTransaction *, gem16::internal::MtpChainResult *, unsigned int *, unsigned int *, gem16::internal::MtpStreamingRing *)",
+        "calls": 507,
+        "ms": 2.896065,
+        "gpu_sum_pct": 0.02439580777884897
+      },
+      {
+        "name": "gem16::internal::<unnamed>::FusedOutputHeadCandidatesKernel(const unsigned short *, const float *, const unsigned int *, unsigned int, const gem16::internal::DecodeControl *, gem16::internal::OutputHeadCandidate *, float *)",
+        "calls": 1,
+        "ms": 2.394448,
+        "gpu_sum_pct": 0.020170297677866128
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::OutputHeadArgmaxKernel<(bool)1>(const gem16::internal::OutputHeadCandidate *, unsigned long, unsigned int *)",
+        "calls": 507,
+        "ms": 2.019672,
+        "gpu_sum_pct": 0.01701326796474646
+      },
+      {
+        "name": "gem16::internal::<unnamed>::AcceptMtpGroupKernel(const unsigned int *, const unsigned int *, unsigned int, const unsigned int *, unsigned int, gem16::internal::MtpGroupResult *, gem16::internal::MtpDeviceControl *)",
+        "calls": 507,
+        "ms": 1.670166,
+        "gpu_sum_pct": 0.014069107114228815
+      },
+      {
+        "name": "gem16::internal::<unnamed>::ContinueMtpChainKernel(const gem16::internal::MtpGroupTransaction *, const gem16::internal::MtpStreamingRing *, unsigned long long)",
+        "calls": 508,
+        "ms": 0.959174,
+        "gpu_sum_pct": 0.008079868556289201
+      },
+      {
+        "name": "gem16::internal::<unnamed>::BuildControlledMtpInputsKernel(const gem16::internal::MtpDeviceControl *, const unsigned int *, unsigned int *, gem16::internal::DecodeControl *, unsigned int, unsigned int)",
+        "calls": 507,
+        "ms": 0.831822,
+        "gpu_sum_pct": 0.007007083618018831
+      },
+      {
+        "name": "void gem16::<unnamed>::EmbeddingBatchKernel<float>(const unsigned short *, const unsigned int *, T1 *, unsigned long)",
+        "calls": 507,
+        "ms": 0.820141,
+        "gpu_sum_pct": 0.006908685470648267
+      },
+      {
+        "name": "gem16::internal::<unnamed>::CommitMtpHiddenKernel(const float *, float *, unsigned long, const gem16::internal::MtpGroupResult *)",
+        "calls": 507,
+        "ms": 0.569749,
+        "gpu_sum_pct": 0.004799438923570922
+      },
+      {
+        "name": "gem16::internal::<unnamed>::SelectMtpChainBranchKernel(const gem16::internal::MtpGroupTransaction *, unsigned long long, unsigned long long)",
+        "calls": 508,
+        "ms": 0.531162,
+        "gpu_sum_pct": 0.004474390613273174
+      },
+      {
+        "name": "gem16::internal::<unnamed>::InitializeControlledAssistantKernel(const gem16::internal::MtpDeviceControl *, unsigned int *, gem16::internal::DecodeControl *)",
+        "calls": 507,
+        "ms": 0.40524,
+        "gpu_sum_pct": 0.003413651677120768
+      },
+      {
+        "name": "gem16::internal::<unnamed>::ProjectionRmsNormRotaryBf16ControlledKernel(const float *, const unsigned short *, float *, const float *, const unsigned short *, float *, const float *, const float *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long, unsigned long, float, bool)",
+        "calls": 48,
+        "ms": 0.092575,
+        "gpu_sum_pct": 0.0007798312210281688
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::ControlledAppendKvKernel<unsigned char, (bool)1>(const float *, const float *, T1 *, T1 *, const unsigned short *, const unsigned short *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, bool)",
+        "calls": 48,
+        "ms": 0.072286,
+        "gpu_sum_pct": 0.0006089211951740989
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::GatedGeluQuantizeActivationKernel<float>(const T1 *, const T1 *, unsigned char *, unsigned char *, unsigned long, float)",
+        "calls": 48,
+        "ms": 0.048863,
+        "gpu_sum_pct": 0.0004116110499929722
+      },
+      {
+        "name": "gem16::internal::<unnamed>::FinalizeMtpOrdinaryTailKernel(const unsigned int *, const unsigned int *, unsigned int, gem16::internal::MtpGroupTransaction *, gem16::internal::MtpChainResult *, unsigned int *, gem16::internal::MtpStreamingRing *)",
+        "calls": 1,
+        "ms": 0.005216,
+        "gpu_sum_pct": 4.393842450859226e-05
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::OutputHeadArgmaxKernel<(bool)0>(const gem16::internal::OutputHeadCandidate *, unsigned long, unsigned int *)",
+        "calls": 1,
+        "ms": 0.003968,
+        "gpu_sum_pct": 3.342554993291681e-05
+      },
+      {
+        "name": "gem16::<unnamed>::ControlledEmbeddingKernel(const unsigned short *, const gem16::internal::DecodeControl *, float *)",
+        "calls": 1,
+        "ms": 0.0016,
+        "gpu_sum_pct": 1.3478044327789036e-05
+      },
+      {
+        "name": "gem16::internal::<unnamed>::InitializeMtpOrdinaryTailKernel(const gem16::internal::MtpGroupTransaction *, gem16::internal::DecodeControl *, unsigned int)",
+        "calls": 1,
+        "ms": 0.000832,
+        "gpu_sum_pct": 7.008583050450298e-06
+      }
+    ]
+  },
+  "scope": "One diagnostic Ordinary trace and one diagnostic D2 trace. Shares describe profiled kernel budgets, not predicted speedups. Exact existing primary output retained for each.",
+  "observations": [
+    "D2 executes NVFP4 fused GateUp Sm120MatrixProjectionKernel<true,2,2,false,float>: two M16 tiles for3 actual rows. Source calls MMA for both tiles; a single-tile specialization is untested.",
+    "D2 FP8 uses Sm120DirectProjectionFixedBatchKernel<3>: weights reused but three separate MMA calls. PackedT3 dispatch is currently guarded to26B dimensions, excluding12B K3840.",
+    "Ordinary is already a full CUDA Graph; D2 already chains the generation on device. Host launch replacement is not the first target.",
+    "Target BF16 head already reuses weights across3 verifier rows; historical T3 WMMA head and several attention/warp probes were rejected. Do not repeat without new evidence.",
+    "Native and vLLM use the same12B mixed FP8/NVFP4 source, but differ in output arithmetic/streams; acceptance alone is not an explanation for the full gap."
+  ],
+  "priority": [
+    "12B-only D2 NVFP4 GateUp single M16 tile",
+    "12B FP8 PackedT3 QKV/O dispatch",
+    "Ordinary FP8 memory/instruction diagnosis and one bounded kernel candidate",
+    "12B normalization/residual/quantization fusion preserving all BF16 rounds",
+    "Assistant BF16 GEMV/head diagnosis preserving Assistant weights"
+  ],
+  "source_identities": {
+    "src/cuda/nvfp4/sm120.cu": {
+      "bytes": 121629,
+      "sha256": "cbe2878efcf6b1c06ce9bff0a703e07022b6992e95329dfa098e3c394fa6b98c"
+    },
+    "src/cuda/fp8/sm120.cu": {
+      "bytes": 56012,
+      "sha256": "859c4d1f9f28ce05b496dbc0ec787980542ce9343beba0cb3294ada5c7cff7ef"
+    },
+    "src/cuda/engine/inference_engine_decode_graphs.cuh": {
+      "bytes": 24367,
+      "sha256": "761df3d2e490b64970fec90cc248fa3efe6c5acc8e4c1cfc0a1f1ec32bda96d1"
+    },
+    "src/cuda/output_head.cu": {
+      "bytes": 17100,
+      "sha256": "777343fb0dceba70d0046c49ae13570282278041c02c324631524ff9fe1608a4"
+    },
+    "src/cuda/engine/inference_engine_mtp.cuh": {
+      "bytes": 44764,
+      "sha256": "ab91d1a15e26e826d40760b94c65a124ae3b59ea6e1ca1d1740b523b4c8999de"
+    }
+  },
+  "raw_identities": {
+    "benchmarks/results/2026-11-15/58febf4/history-and-12b/dispatch-gem16-ordinary.sqlite": {
+      "bytes": 114806784,
+      "sha256": "95a9af50b15a05ba315a6e00888ace1fbc7b95bb435c4b49004ffd900fb64b51"
+    },
+    "benchmarks/results/2026-11-15/58febf4/12b-decode-opportunities/native-d2-dispatch.sqlite": {
+      "bytes": 1557045248,
+      "sha256": "4e23829d02546dce1075c21684a2b5cb3cb11b4fcb3317a7756594633ee9bbb4"
+    },
+    "benchmarks/results/2026-11-15/58febf4/12b-decode-opportunities/native-d2-dispatch.json": {
+      "bytes": 65925,
+      "sha256": "971ef6ca8b3e5fc7b69c6574abebe8d55c0971d597ba85ee1937b18e869f8799"
+    },
+    "benchmarks/results/2026-11-15/58febf4/12b-decode-opportunities/native-d2-dispatch.command.json": {
+      "bytes": 1175,
+      "sha256": "88420a201f7ef71e6c07379c9996aec7c64e30866065a256d58b2ece3fabac49"
+    },
+    "benchmarks/results/2026-11-15/58febf4/12b-decode-opportunities/profile_d2.py": {
+      "bytes": 1038,
+      "sha256": "c404b5aaf6bb4cd42e169aa47abe32724c737a6b193295ddd20c4898bc6ca25e"
+    },
+    "benchmarks/results/2026-11-15/58febf4/12b-decode-opportunities/analyze.py": {
+      "bytes": 7226,
+      "sha256": "260bb15a0fca5e472f76640ed51ab664d1999f587edc3c50890297c72ca12a2d"
+    }
+  }
+}

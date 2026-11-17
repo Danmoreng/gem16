@@ -1,0 +1,4335 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-15",
+  "scope": "confirmed12B Prefill chunk curve; no Decode speed claim",
+  "protocol": {
+    "prompt_tokens": 16384,
+    "requested_context": 17519,
+    "requested_output_tokens": 1,
+    "warmups": 3,
+    "retained_per_point": 10,
+    "sequences": 1,
+    "prefix_reuse": false,
+    "metric": "prompt processing through first selected token, initialization excluded; engine timing boundaries retain their documented differences",
+    "uncertainty": "median bootstrap percentile95%,10000 resamples,seed121115; same-day single-GPU cohorts, not hardware-general confidence"
+  },
+  "inputs": {
+    "base_commit": "58febf4d66bb028a35f6f7f9528d2206cfab2475",
+    "central_commit": "18b74fa41dcac1f55ae1371fe58153f7225941f6",
+    "server": {
+      "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+      "bytes": 15976,
+      "sha256": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925"
+    },
+    "native": {
+      "path": "$ROOT/build/Linux/blackwell-release/bin/gem16-run",
+      "bytes": 12741576,
+      "sha256": "58a96fc83131212a679be24a37b66b41778936e649f1481b73e93a08993c4feb"
+    },
+    "sources": {
+      "src/cuda/engine/inference_engine.cu": {
+        "path": "$ROOT/src/cuda/engine/inference_engine.cu",
+        "bytes": 26933,
+        "sha256": "b39f4f8cef104caee6bae78b30a92e0e82619723868903277dfb475a2ee16c47"
+      },
+      "src/cuda/engine/inference_engine_initialize.cuh": {
+        "path": "$ROOT/src/cuda/engine/inference_engine_initialize.cuh",
+        "bytes": 7894,
+        "sha256": "381cd9fee8f9b2b9f45e88ee909c727282782186bd19ea6688a41f5f64c7e5fc"
+      },
+      "src/cuda/engine/prefill_chunk_plan.h": {
+        "path": "$ROOT/src/cuda/engine/prefill_chunk_plan.h",
+        "bytes": 1446,
+        "sha256": "6088fdc6f6c98f288605a0bb8f1f846f7a3a4678a1ee44c071aa1607378c25e3"
+      },
+      "tools/benchmark_wikipedia_workload.py": {
+        "path": "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "bytes": 56717,
+        "sha256": "e82a4fccbd17bd65fc5b66deb2c701f1d89d2d20f8b6ff92631598e5bcf7fc4e"
+      },
+      "tests/python/test_benchmark_wikipedia_workload.py": {
+        "path": "$ROOT/tests/python/test_benchmark_wikipedia_workload.py",
+        "bytes": 26531,
+        "sha256": "e0431a8c89f4ae3d92a12ea4b10a58a9f8cbe949a2deece054748f5f5ba03194"
+      },
+      "tests/cuda/twelve_b_prefill_chunk_plan_host.cpp": {
+        "path": "$ROOT/tests/cuda/twelve_b_prefill_chunk_plan_host.cpp",
+        "bytes": 1464,
+        "sha256": "1a171eeecdd1b2a9136f32cffb11a2e02d109c5bb5bf9096ba4ad9f8d4115355"
+      }
+    },
+    "central_libraries": {
+      "libggml-base.so": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml-base.so.1.0.0",
+        "bytes": 994792,
+        "sha256": "05b1d25d6f3d0b4a758851d8f632c85c724403c751f479e110a4c24273be26c2"
+      },
+      "libggml-base.so.1": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml-base.so.1.0.0",
+        "bytes": 994792,
+        "sha256": "05b1d25d6f3d0b4a758851d8f632c85c724403c751f479e110a4c24273be26c2"
+      },
+      "libggml-base.so.1.0.0": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml-base.so.1.0.0",
+        "bytes": 994792,
+        "sha256": "05b1d25d6f3d0b4a758851d8f632c85c724403c751f479e110a4c24273be26c2"
+      },
+      "libggml-cpu.so": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml-cpu.so.1.0.0",
+        "bytes": 1486248,
+        "sha256": "7b59c6d5cdd8526023a3a6427bd6b19c30c9ee171da574c405a5829593fb75fd"
+      },
+      "libggml-cpu.so.1": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml-cpu.so.1.0.0",
+        "bytes": 1486248,
+        "sha256": "7b59c6d5cdd8526023a3a6427bd6b19c30c9ee171da574c405a5829593fb75fd"
+      },
+      "libggml-cpu.so.1.0.0": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml-cpu.so.1.0.0",
+        "bytes": 1486248,
+        "sha256": "7b59c6d5cdd8526023a3a6427bd6b19c30c9ee171da574c405a5829593fb75fd"
+      },
+      "libggml-cuda.so": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml-cuda.so.1.0.0",
+        "bytes": 57073920,
+        "sha256": "db584de88492d867af386ad8449a6b4b3495b0cb6dc536418b6cbd41485a3027"
+      },
+      "libggml-cuda.so.1": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml-cuda.so.1.0.0",
+        "bytes": 57073920,
+        "sha256": "db584de88492d867af386ad8449a6b4b3495b0cb6dc536418b6cbd41485a3027"
+      },
+      "libggml-cuda.so.1.0.0": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml-cuda.so.1.0.0",
+        "bytes": 57073920,
+        "sha256": "db584de88492d867af386ad8449a6b4b3495b0cb6dc536418b6cbd41485a3027"
+      },
+      "libggml.so": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml.so.1.0.0",
+        "bytes": 55320,
+        "sha256": "593e10482496be6633c088101470f96897c714ba4aa921959ef665bdf7ae0d7a"
+      },
+      "libggml.so.1": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml.so.1.0.0",
+        "bytes": 55320,
+        "sha256": "593e10482496be6633c088101470f96897c714ba4aa921959ef665bdf7ae0d7a"
+      },
+      "libggml.so.1.0.0": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libggml.so.1.0.0",
+        "bytes": 55320,
+        "sha256": "593e10482496be6633c088101470f96897c714ba4aa921959ef665bdf7ae0d7a"
+      },
+      "libllama-bench-impl.so": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libllama-bench-impl.so",
+        "bytes": 489904,
+        "sha256": "4076de9bf0d7ac6aa6d4ecee43bc8b6e355adde4f6398f44e61bf2654d093433"
+      },
+      "libllama-cli-impl.so": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libllama-cli-impl.so",
+        "bytes": 250024,
+        "sha256": "bac7d7ed88347342bb5ab1d284ad1c3649af686cc6b654ee3b2cc6873cb4a853"
+      },
+      "libllama-common.so": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libllama-common.so.1.0.0",
+        "bytes": 7267584,
+        "sha256": "c24ee8a940288386d90f55d62bcadcb4a3f25613a25fa4906dfd1c069b6c03b1"
+      },
+      "libllama-common.so.1": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libllama-common.so.1.0.0",
+        "bytes": 7267584,
+        "sha256": "c24ee8a940288386d90f55d62bcadcb4a3f25613a25fa4906dfd1c069b6c03b1"
+      },
+      "libllama-common.so.1.0.0": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libllama-common.so.1.0.0",
+        "bytes": 7267584,
+        "sha256": "c24ee8a940288386d90f55d62bcadcb4a3f25613a25fa4906dfd1c069b6c03b1"
+      },
+      "libllama-quantize-impl.so": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libllama-quantize-impl.so",
+        "bytes": 87592,
+        "sha256": "7e76cfbf42bda769c24819f09a775947f825a51d3969d6d1fc35821f7a66019f"
+      },
+      "libllama-server-impl.so": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libllama-server-impl.so",
+        "bytes": 8457912,
+        "sha256": "a39661d1035bde9a4649411ef58e34070e92bcc05f65bae2242c11d877b83f86"
+      },
+      "libllama.so": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libllama.so.1.0.0",
+        "bytes": 5636928,
+        "sha256": "88c8c688511c2ee917b118fb0302cdbe7a90d1cdf54b6259199dd67632e8e12d"
+      },
+      "libllama.so.1": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libllama.so.1.0.0",
+        "bytes": 5636928,
+        "sha256": "88c8c688511c2ee917b118fb0302cdbe7a90d1cdf54b6259199dd67632e8e12d"
+      },
+      "libllama.so.1.0.0": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libllama.so.1.0.0",
+        "bytes": 5636928,
+        "sha256": "88c8c688511c2ee917b118fb0302cdbe7a90d1cdf54b6259199dd67632e8e12d"
+      },
+      "libmtmd.so": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libmtmd.so.1.0.0",
+        "bytes": 2553680,
+        "sha256": "5df97a837620eb89d3ea8f192327b88099d2489274d8adf0f3d95d71d2955e33"
+      },
+      "libmtmd.so.1": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libmtmd.so.1.0.0",
+        "bytes": 2553680,
+        "sha256": "5df97a837620eb89d3ea8f192327b88099d2489274d8adf0f3d95d71d2955e33"
+      },
+      "libmtmd.so.1.0.0": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/libmtmd.so.1.0.0",
+        "bytes": 2553680,
+        "sha256": "5df97a837620eb89d3ea8f192327b88099d2489274d8adf0f3d95d71d2955e33"
+      }
+    },
+    "models": {
+      "$ROOT/build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf": {
+        "path": "$ROOT/build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+        "bytes": 9366658208,
+        "sha256": "6f90177f6a2d42406d57cfa764eae890b262bfdf71d353bd4827e0488b099896"
+      },
+      "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4/model.safetensors": {
+        "path": "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4/model.safetensors",
+        "bytes": 9304966064,
+        "sha256": "7c2ee23298e7c3a9247e8947597dca5a38f8b791a0322487466d2bfad8ce704b"
+      },
+      "$HF_CACHE/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345/model.safetensors": {
+        "path": "$HF_CACHE/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345/model.safetensors",
+        "bytes": 845719296,
+        "sha256": "3279c173daddd7186e79d652ad94022415736d3a1370625696c898429b06d6df"
+      }
+    },
+    "gpu_environment": "NVIDIA GeForce RTX 5080 Laptop GPU, 620.70.06, 16303 MiB, [N/A]\n",
+    "platform_profile": "max-power",
+    "powerd": "active",
+    "old_helper_snapshot": {
+      "path": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/parents/tools/benchmark_wikipedia_workload.py",
+      "bytes": 54558,
+      "sha256": "700ad4232b80e1024a30dea6fd31e06791367492f09671b48d147093aecedad1"
+    },
+    "initial_screen_reference": {
+      "central_commit": "75fd7f9ec95b64aef628a709c18cbd4fcbd732cf",
+      "server": {
+        "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/llama-server",
+        "bytes": 15976,
+        "sha256": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925"
+      },
+      "central_libraries": {
+        "libggml-base.so": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml-base.so.1.0.0",
+          "bytes": 994792,
+          "sha256": "51050b53b1e81161666ce4a1da63e2da343b5950080adb7ffac0c4eefdc4787d"
+        },
+        "libggml-base.so.1": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml-base.so.1.0.0",
+          "bytes": 994792,
+          "sha256": "51050b53b1e81161666ce4a1da63e2da343b5950080adb7ffac0c4eefdc4787d"
+        },
+        "libggml-base.so.1.0.0": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml-base.so.1.0.0",
+          "bytes": 994792,
+          "sha256": "51050b53b1e81161666ce4a1da63e2da343b5950080adb7ffac0c4eefdc4787d"
+        },
+        "libggml-cpu.so": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml-cpu.so.1.0.0",
+          "bytes": 1486248,
+          "sha256": "fddebfa990664332bb73cb6abd3d6d35964b4f02f1aa56c2083e88fcb6c66c74"
+        },
+        "libggml-cpu.so.1": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml-cpu.so.1.0.0",
+          "bytes": 1486248,
+          "sha256": "fddebfa990664332bb73cb6abd3d6d35964b4f02f1aa56c2083e88fcb6c66c74"
+        },
+        "libggml-cpu.so.1.0.0": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml-cpu.so.1.0.0",
+          "bytes": 1486248,
+          "sha256": "fddebfa990664332bb73cb6abd3d6d35964b4f02f1aa56c2083e88fcb6c66c74"
+        },
+        "libggml-cuda.so": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml-cuda.so.1.0.0",
+          "bytes": 57073920,
+          "sha256": "2998c1a5debf1484c2b2c24c50e391000a912c53422d6c67590dd741bed82e9f"
+        },
+        "libggml-cuda.so.1": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml-cuda.so.1.0.0",
+          "bytes": 57073920,
+          "sha256": "2998c1a5debf1484c2b2c24c50e391000a912c53422d6c67590dd741bed82e9f"
+        },
+        "libggml-cuda.so.1.0.0": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml-cuda.so.1.0.0",
+          "bytes": 57073920,
+          "sha256": "2998c1a5debf1484c2b2c24c50e391000a912c53422d6c67590dd741bed82e9f"
+        },
+        "libggml.so": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml.so.1.0.0",
+          "bytes": 55320,
+          "sha256": "0bf585010805b16efc4ba5e409e52603d95e390657863ec180d0ae093ad35b0f"
+        },
+        "libggml.so.1": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml.so.1.0.0",
+          "bytes": 55320,
+          "sha256": "0bf585010805b16efc4ba5e409e52603d95e390657863ec180d0ae093ad35b0f"
+        },
+        "libggml.so.1.0.0": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libggml.so.1.0.0",
+          "bytes": 55320,
+          "sha256": "0bf585010805b16efc4ba5e409e52603d95e390657863ec180d0ae093ad35b0f"
+        },
+        "libllama-bench-impl.so": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libllama-bench-impl.so",
+          "bytes": 489904,
+          "sha256": "367c6c5b06588c9ac6696da755b102c96acf2479aa67f7d11d65bb30da3c278b"
+        },
+        "libllama-cli-impl.so": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libllama-cli-impl.so",
+          "bytes": 250024,
+          "sha256": "bac7d7ed88347342bb5ab1d284ad1c3649af686cc6b654ee3b2cc6873cb4a853"
+        },
+        "libllama-common.so": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libllama-common.so.1.0.0",
+          "bytes": 7267584,
+          "sha256": "5c0d9defb0198ab1021c927039853b9982d3145ad51c485013351ca158e1eda5"
+        },
+        "libllama-common.so.1": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libllama-common.so.1.0.0",
+          "bytes": 7267584,
+          "sha256": "5c0d9defb0198ab1021c927039853b9982d3145ad51c485013351ca158e1eda5"
+        },
+        "libllama-common.so.1.0.0": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libllama-common.so.1.0.0",
+          "bytes": 7267584,
+          "sha256": "5c0d9defb0198ab1021c927039853b9982d3145ad51c485013351ca158e1eda5"
+        },
+        "libllama-quantize-impl.so": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libllama-quantize-impl.so",
+          "bytes": 87592,
+          "sha256": "7e76cfbf42bda769c24819f09a775947f825a51d3969d6d1fc35821f7a66019f"
+        },
+        "libllama-server-impl.so": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libllama-server-impl.so",
+          "bytes": 8457912,
+          "sha256": "9b5141b5bf48723510f12aa71a4f4dc4480a6d7baf9706ccfbb031bbcf899318"
+        },
+        "libllama.so": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libllama.so.1.0.0",
+          "bytes": 5626680,
+          "sha256": "f984b637f87b1327bb4133e05b1637b5baa72ad389ce187e633abce58f6e4332"
+        },
+        "libllama.so.1": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libllama.so.1.0.0",
+          "bytes": 5626680,
+          "sha256": "f984b637f87b1327bb4133e05b1637b5baa72ad389ce187e633abce58f6e4332"
+        },
+        "libllama.so.1.0.0": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libllama.so.1.0.0",
+          "bytes": 5626680,
+          "sha256": "f984b637f87b1327bb4133e05b1637b5baa72ad389ce187e633abce58f6e4332"
+        },
+        "libmtmd.so": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libmtmd.so.1.0.0",
+          "bytes": 2411480,
+          "sha256": "9860661c017b027f3d83f53b28ad5d73274caf69a856322efa9fd5a9dd347cf6"
+        },
+        "libmtmd.so.1": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libmtmd.so.1.0.0",
+          "bytes": 2411480,
+          "sha256": "9860661c017b027f3d83f53b28ad5d73274caf69a856322efa9fd5a9dd347cf6"
+        },
+        "libmtmd.so.1.0.0": {
+          "path": "$CENTRAL_LLAMA_CPP/versions/master-75fd7f9ec95b64aef628a709c18cbd4fcbd732cf/source/build-central-cuda/bin/libmtmd.so.1.0.0",
+          "bytes": 2411480,
+          "sha256": "9860661c017b027f3d83f53b28ad5d73274caf69a856322efa9fd5a9dd347cf6"
+        }
+      }
+    }
+  },
+  "records": [
+    {
+      "engine": "gem16",
+      "chunk": 512,
+      "median_prefill_tokens_per_second": 4490.656686557744,
+      "median_bootstrap_95": [
+        4485.167684650462,
+        4497.406070590649
+      ],
+      "median_prefill_ms": 3648.465,
+      "configuration": {
+        "batch_size": 1,
+        "context_tokens_requested": 17519,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 0,
+        "mtp_verification_mode": "disabled",
+        "prefill_chunk_tokens_requested": 512,
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "runtime": {
+        "assistant_checkpoint": null,
+        "checkpoint": "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "executable": "$ROOT/build/Linux/blackwell-release/bin/gem16-run",
+        "prompt_token_file": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-gem16-512.prompt-token-ids.txt"
+      },
+      "samples": [
+        {
+          "prompt_ms": 3639.07,
+          "prompt_tokens_per_second": 4502.249201032132,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3640.91,
+          "prompt_tokens_per_second": 4499.973907621996,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3643.45,
+          "prompt_tokens_per_second": 4496.836789306839,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3645.07,
+          "prompt_tokens_per_second": 4494.8382335593005,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3646.72,
+          "prompt_tokens_per_second": 4492.804492804493,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3650.21,
+          "prompt_tokens_per_second": 4488.508880310996,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3651.22,
+          "prompt_tokens_per_second": 4487.267269570171,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3651.92,
+          "prompt_tokens_per_second": 4486.407150211396,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3654.64,
+          "prompt_tokens_per_second": 4483.068099730754,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3655.45,
+          "prompt_tokens_per_second": 4482.074710363977,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 9623.0,
+        "active_median_power_w": 170.82,
+        "active_median_sm_clock_mhz": 2572.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 67.09
+      },
+      "raw_result": {
+        "bytes": 67958,
+        "sha256": "69d417debfd5ff65fadd26f64535370dca390f6aab660d139ff50c3f33a8da37"
+      },
+      "command_template": [
+        "/usr/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-gem16-512.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--executable",
+        "$ROOT/build/Linux/blackwell-release/bin/gem16-run",
+        "--context-tokens",
+        "17519",
+        "--gem16-prefill-chunk-tokens",
+        "512"
+      ],
+      "native_plan": {
+        "prefill_chunk_tokens": 512,
+        "weight_arena_bytes": 9304895488,
+        "workspace_bytes": 199509760,
+        "kv_cache_bytes": 311287808,
+        "precision": "bf16_state_fp8_attention_nvfp4_mlp",
+        "kv_cache_storage": "uint8_e4m3fn",
+        "fp8_prefill_tile": "cutlass_m128n128k64",
+        "fp8_prefill_schedule": "cutlass_auto",
+        "nvfp4_gate_up_prefill_tile": "cutlass_m128n128k128",
+        "nvfp4_down_prefill_tile": "cutlass_m128n128k128"
+      }
+    },
+    {
+      "engine": "gem16",
+      "chunk": 1024,
+      "median_prefill_tokens_per_second": 5246.93493306287,
+      "median_bootstrap_95": [
+        5242.208997248352,
+        5254.414490689963
+      ],
+      "median_prefill_ms": 3122.585,
+      "configuration": {
+        "batch_size": 1,
+        "context_tokens_requested": 17519,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 0,
+        "mtp_verification_mode": "disabled",
+        "prefill_chunk_tokens_requested": 1024,
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "runtime": {
+        "assistant_checkpoint": null,
+        "checkpoint": "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "executable": "$ROOT/build/Linux/blackwell-release/bin/gem16-run",
+        "prompt_token_file": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-gem16-1024.prompt-token-ids.txt"
+      },
+      "samples": [
+        {
+          "prompt_ms": 3113.94,
+          "prompt_tokens_per_second": 5261.501506130497,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3116.18,
+          "prompt_tokens_per_second": 5257.719387198429,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3118.14,
+          "prompt_tokens_per_second": 5254.414490689963,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3119.4,
+          "prompt_tokens_per_second": 5252.292107456562,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3122.15,
+          "prompt_tokens_per_second": 5247.665871274602,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3123.02,
+          "prompt_tokens_per_second": 5246.203994851137,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3124.02,
+          "prompt_tokens_per_second": 5244.5246829405705,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3125.4,
+          "prompt_tokens_per_second": 5242.208997248352,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3126.24,
+          "prompt_tokens_per_second": 5240.800450381289,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3127.9,
+          "prompt_tokens_per_second": 5238.019118258257,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 9707.0,
+        "active_median_power_w": 170.905,
+        "active_median_sm_clock_mhz": 2497.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 67.38
+      },
+      "raw_result": {
+        "bytes": 67903,
+        "sha256": "ad5d50e261706b1248d03db8549019a57201b927996dc6ffc8a86c377ebdc02b"
+      },
+      "command_template": [
+        "/usr/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-gem16-1024.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--executable",
+        "$ROOT/build/Linux/blackwell-release/bin/gem16-run",
+        "--context-tokens",
+        "17519",
+        "--gem16-prefill-chunk-tokens",
+        "1024"
+      ],
+      "native_plan": {
+        "prefill_chunk_tokens": 1024,
+        "weight_arena_bytes": 9304895488,
+        "workspace_bytes": 288866048,
+        "kv_cache_bytes": 311287808,
+        "precision": "bf16_state_fp8_attention_nvfp4_mlp",
+        "kv_cache_storage": "uint8_e4m3fn",
+        "fp8_prefill_tile": "cutlass_m128n128k64",
+        "fp8_prefill_schedule": "cutlass_auto",
+        "nvfp4_gate_up_prefill_tile": "cutlass_m128n128k128",
+        "nvfp4_down_prefill_tile": "cutlass_m128n128k128"
+      }
+    },
+    {
+      "engine": "gem16",
+      "chunk": 2048,
+      "median_prefill_tokens_per_second": 5685.987284579669,
+      "median_bootstrap_95": [
+        5682.072744175114,
+        5695.574930591874
+      ],
+      "median_prefill_ms": 2881.4700000000003,
+      "configuration": {
+        "batch_size": 1,
+        "context_tokens_requested": 17519,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 0,
+        "mtp_verification_mode": "disabled",
+        "prefill_chunk_tokens_requested": 2048,
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "runtime": {
+        "assistant_checkpoint": null,
+        "checkpoint": "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "executable": "$ROOT/build/Linux/blackwell-release/bin/gem16-run",
+        "prompt_token_file": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-gem16-2048.prompt-token-ids.txt"
+      },
+      "samples": [
+        {
+          "prompt_ms": 2873.98,
+          "prompt_tokens_per_second": 5700.805155220287,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2875.07,
+          "prompt_tokens_per_second": 5698.643859106039,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2876.82,
+          "prompt_tokens_per_second": 5695.1773138395865,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2878.17,
+          "prompt_tokens_per_second": 5692.506002077709,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2880.52,
+          "prompt_tokens_per_second": 5687.861913821116,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2882.42,
+          "prompt_tokens_per_second": 5684.112655338223,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2882.8,
+          "prompt_tokens_per_second": 5683.363396697655,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2882.72,
+          "prompt_tokens_per_second": 5683.52111894322,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2884.19,
+          "prompt_tokens_per_second": 5680.624369407008,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2886.01,
+          "prompt_tokens_per_second": 5677.042006091455,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 9883.0,
+        "active_median_power_w": 170.49,
+        "active_median_sm_clock_mhz": 2452.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 66.75
+      },
+      "raw_result": {
+        "bytes": 67993,
+        "sha256": "6fa3938aa00f651d675b853bc7821314158b17405812aa20575bdf0f534d87bc"
+      },
+      "command_template": [
+        "/usr/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-gem16-2048.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--executable",
+        "$ROOT/build/Linux/blackwell-release/bin/gem16-run",
+        "--context-tokens",
+        "17519",
+        "--gem16-prefill-chunk-tokens",
+        "2048"
+      ],
+      "native_plan": {
+        "prefill_chunk_tokens": 2048,
+        "weight_arena_bytes": 9304895488,
+        "workspace_bytes": 471787264,
+        "kv_cache_bytes": 311287808,
+        "precision": "bf16_state_fp8_attention_nvfp4_mlp",
+        "kv_cache_storage": "uint8_e4m3fn",
+        "fp8_prefill_tile": "cutlass_m128n128k64",
+        "fp8_prefill_schedule": "cutlass_auto",
+        "nvfp4_gate_up_prefill_tile": "cutlass_m128n128k128",
+        "nvfp4_down_prefill_tile": "cutlass_m128n128k128"
+      }
+    },
+    {
+      "engine": "gem16",
+      "chunk": 4096,
+      "median_prefill_tokens_per_second": 5847.8891616475485,
+      "median_bootstrap_95": [
+        5843.143828214996,
+        5856.280918475309
+      ],
+      "median_prefill_ms": 2801.695,
+      "configuration": {
+        "batch_size": 1,
+        "context_tokens_requested": 17519,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 0,
+        "mtp_verification_mode": "disabled",
+        "prefill_chunk_tokens_requested": 4096,
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "runtime": {
+        "assistant_checkpoint": null,
+        "checkpoint": "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "executable": "$ROOT/build/Linux/blackwell-release/bin/gem16-run",
+        "prompt_token_file": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-gem16-4096.prompt-token-ids.txt"
+      },
+      "samples": [
+        {
+          "prompt_ms": 2793.8,
+          "prompt_tokens_per_second": 5864.414059703629,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2796.72,
+          "prompt_tokens_per_second": 5858.291141050946,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2797.68,
+          "prompt_tokens_per_second": 5856.280918475309,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2800.76,
+          "prompt_tokens_per_second": 5849.840757508676,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2799.81,
+          "prompt_tokens_per_second": 5851.82565959833,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2803.11,
+          "prompt_tokens_per_second": 5844.936516940113,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2802.63,
+          "prompt_tokens_per_second": 5845.937565786422,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2803.97,
+          "prompt_tokens_per_second": 5843.143828214996,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2804.93,
+          "prompt_tokens_per_second": 5841.143985767916,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2805.94,
+          "prompt_tokens_per_second": 5839.041462041241,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 10239.0,
+        "active_median_power_w": 170.57,
+        "active_median_sm_clock_mhz": 2475.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 67.03
+      },
+      "raw_result": {
+        "bytes": 67996,
+        "sha256": "f892324eaa32fc6515d7dcdf6b0a3c0e6bf245e54719364305cad8dbb442e7e6"
+      },
+      "command_template": [
+        "/usr/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-gem16-4096.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--executable",
+        "$ROOT/build/Linux/blackwell-release/bin/gem16-run",
+        "--context-tokens",
+        "17519",
+        "--gem16-prefill-chunk-tokens",
+        "4096"
+      ],
+      "native_plan": {
+        "prefill_chunk_tokens": 4096,
+        "weight_arena_bytes": 9304895488,
+        "workspace_bytes": 844941056,
+        "kv_cache_bytes": 311287808,
+        "precision": "bf16_state_fp8_attention_nvfp4_mlp",
+        "kv_cache_storage": "uint8_e4m3fn",
+        "fp8_prefill_tile": "cutlass_m128n128k64",
+        "fp8_prefill_schedule": "cutlass_auto",
+        "nvfp4_gate_up_prefill_tile": "cutlass_m128n128k128",
+        "nvfp4_down_prefill_tile": "cutlass_m128n128k128"
+      }
+    },
+    {
+      "engine": "gem16",
+      "chunk": 8192,
+      "median_prefill_tokens_per_second": 5965.280570710667,
+      "median_bootstrap_95": [
+        5958.186506074921,
+        5971.846592358777
+      ],
+      "median_prefill_ms": 2746.56,
+      "configuration": {
+        "batch_size": 1,
+        "context_tokens_requested": 17519,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 0,
+        "mtp_verification_mode": "disabled",
+        "prefill_chunk_tokens_requested": 8192,
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "runtime": {
+        "assistant_checkpoint": null,
+        "checkpoint": "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "executable": "$ROOT/build/Linux/blackwell-release/bin/gem16-run",
+        "prompt_token_file": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-gem16-8192.prompt-token-ids.txt"
+      },
+      "samples": [
+        {
+          "prompt_ms": 2741.07,
+          "prompt_tokens_per_second": 5977.227870867945,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2741.74,
+          "prompt_tokens_per_second": 5975.767213521341,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2743.54,
+          "prompt_tokens_per_second": 5971.846592358777,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2745.79,
+          "prompt_tokens_per_second": 5966.9530444790025,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2745.88,
+          "prompt_tokens_per_second": 5966.757469372295,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2748.2,
+          "prompt_tokens_per_second": 5961.720398806492,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2747.24,
+          "prompt_tokens_per_second": 5963.803672049039,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2749.96,
+          "prompt_tokens_per_second": 5957.904842252251,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2751.8,
+          "prompt_tokens_per_second": 5953.921069845192,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2749.83,
+          "prompt_tokens_per_second": 5958.186506074921,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 10949.0,
+        "active_median_power_w": 171.95,
+        "active_median_sm_clock_mhz": 2467.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 67.5
+      },
+      "raw_result": {
+        "bytes": 68035,
+        "sha256": "7df5c350693f6c9bbfa93102fe7bd6fecd47df05fde40e3ebc31172a9d52e234"
+      },
+      "command_template": [
+        "/usr/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-gem16-8192.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--executable",
+        "$ROOT/build/Linux/blackwell-release/bin/gem16-run",
+        "--context-tokens",
+        "17519",
+        "--gem16-prefill-chunk-tokens",
+        "8192"
+      ],
+      "native_plan": {
+        "prefill_chunk_tokens": 8192,
+        "weight_arena_bytes": 9304895488,
+        "workspace_bytes": 1591248640,
+        "kv_cache_bytes": 311287808,
+        "precision": "bf16_state_fp8_attention_nvfp4_mlp",
+        "kv_cache_storage": "uint8_e4m3fn",
+        "fp8_prefill_tile": "cutlass_m128n128k64",
+        "fp8_prefill_schedule": "cutlass_auto",
+        "nvfp4_gate_up_prefill_tile": "cutlass_m128n128k128",
+        "nvfp4_down_prefill_tile": "cutlass_m128n128k128"
+      }
+    },
+    {
+      "engine": "llama-cpp",
+      "chunk": 512,
+      "median_prefill_tokens_per_second": 4735.679447153547,
+      "median_bootstrap_95": [
+        4727.005411178145,
+        4748.702053372334
+      ],
+      "median_prefill_ms": 3459.6945,
+      "configuration": {
+        "batch_size": 512,
+        "cache_prompt": false,
+        "context_checkpoints": 0,
+        "context_tokens_requested": 17519,
+        "draft_tensor_overrides": [],
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "log_verbosity": 4,
+        "maximum_draft_tokens": 0,
+        "measured_repetitions": 10,
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "prompt_cache_ram_mib": 0,
+        "speculative_types": [],
+        "tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "threads": 8,
+        "ubatch_size": 512,
+        "warmups": 3
+      },
+      "runtime": {
+        "assistant_gguf": null,
+        "command": [
+          "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+          "--model",
+          "$HF_CACHE/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+          "--ctx-size",
+          "17519",
+          "--n-gpu-layers",
+          "all",
+          "--split-mode",
+          "none",
+          "--flash-attn",
+          "on",
+          "--cache-type-k",
+          "q8_0",
+          "--cache-type-v",
+          "q8_0",
+          "--parallel",
+          "1",
+          "--cache-ram",
+          "0",
+          "--ctx-checkpoints",
+          "0",
+          "--threads",
+          "8",
+          "--poll",
+          "100",
+          "--prio",
+          "0",
+          "--verbosity",
+          "4",
+          "--batch-size",
+          "512",
+          "--ubatch-size",
+          "512",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8097",
+          "--no-webui",
+          "--offline",
+          "--override-tensor",
+          "token_embd.weight=CUDA0"
+        ],
+        "executable": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+        "executable_sha256": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925",
+        "gguf": "$HF_CACHE/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+        "llama_cpp_commit": "18b74fa41dcac1f55ae1371fe58153f7225941f6",
+        "llama_runtime_file_sha256": {
+          "libggml-base.so.1.0.0": "05b1d25d6f3d0b4a758851d8f632c85c724403c751f479e110a4c24273be26c2",
+          "libggml-cpu.so.1.0.0": "7b59c6d5cdd8526023a3a6427bd6b19c30c9ee171da574c405a5829593fb75fd",
+          "libggml-cuda.so.1.0.0": "db584de88492d867af386ad8449a6b4b3495b0cb6dc536418b6cbd41485a3027",
+          "libggml.so.1.0.0": "593e10482496be6633c088101470f96897c714ba4aa921959ef665bdf7ae0d7a",
+          "libllama-bench-impl.so": "4076de9bf0d7ac6aa6d4ecee43bc8b6e355adde4f6398f44e61bf2654d093433",
+          "libllama-cli-impl.so": "bac7d7ed88347342bb5ab1d284ad1c3649af686cc6b654ee3b2cc6873cb4a853",
+          "libllama-common.so.1.0.0": "c24ee8a940288386d90f55d62bcadcb4a3f25613a25fa4906dfd1c069b6c03b1",
+          "libllama-quantize-impl.so": "7e76cfbf42bda769c24819f09a775947f825a51d3969d6d1fc35821f7a66019f",
+          "libllama-server-impl.so": "a39661d1035bde9a4649411ef58e34070e92bcc05f65bae2242c11d877b83f86",
+          "libllama.so.1.0.0": "88c8c688511c2ee917b118fb0302cdbe7a90d1cdf54b6259199dd67632e8e12d",
+          "libmtmd.so.1.0.0": "5df97a837620eb89d3ea8f192327b88099d2489274d8adf0f3d95d71d2955e33",
+          "llama-server": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925"
+        },
+        "server_log": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/llama-18b74fa41dca/confirm-llama-cpp-512.server.log"
+      },
+      "samples": [
+        {
+          "prompt_ms": 3441.85,
+          "prompt_tokens_per_second": 4760.230689890611,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3445.829,
+          "prompt_tokens_per_second": 4754.733911636358,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3452.104,
+          "prompt_tokens_per_second": 4746.091079527152,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3454.594,
+          "prompt_tokens_per_second": 4742.6701951083105,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3457.956,
+          "prompt_tokens_per_second": 4738.059130885413,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3461.433,
+          "prompt_tokens_per_second": 4733.299763421681,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3463.512,
+          "prompt_tokens_per_second": 4730.458563446582,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3465.783,
+          "prompt_tokens_per_second": 4727.358868111477,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3468.576,
+          "prompt_tokens_per_second": 4723.552258909708,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3470.826,
+          "prompt_tokens_per_second": 4720.490165741527,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 9825.0,
+        "active_median_power_w": 173.71,
+        "active_median_sm_clock_mhz": 2332.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 68.91
+      },
+      "raw_result": {
+        "bytes": 888228,
+        "sha256": "bd373c6b7b662fccbb27056c7c957df385381cf30524057bf653895353fe905b"
+      },
+      "command_template": [
+        "/usr/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "llama-cpp",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/llama-18b74fa41dca/confirm-llama-cpp-512.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--gguf",
+        "$ROOT/build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+        "--executable",
+        "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+        "--context-tokens",
+        "17519",
+        "--llama-batch-size",
+        "512",
+        "--llama-ubatch-size",
+        "512",
+        "--llama-log-verbosity",
+        "4",
+        "--llama-override-tensor",
+        "token_embd.weight=CUDA0"
+      ],
+      "observed_batch_plan": {
+        "logical_batch": 512,
+        "physical_microbatch": 512,
+        "progress_values": [
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872,
+          0,
+          512,
+          1024,
+          1536,
+          2048,
+          2560,
+          3072,
+          3584,
+          4096,
+          4608,
+          5120,
+          5632,
+          6144,
+          6656,
+          7168,
+          7680,
+          8192,
+          8704,
+          9216,
+          9728,
+          10240,
+          10752,
+          11264,
+          11776,
+          12288,
+          12800,
+          13312,
+          13824,
+          14336,
+          14848,
+          15360,
+          15872
+        ],
+        "gpu_embedding_override": true,
+        "all_layers_offloaded": true
+      }
+    },
+    {
+      "engine": "llama-cpp",
+      "chunk": 1024,
+      "median_prefill_tokens_per_second": 4839.765778458783,
+      "median_bootstrap_95": [
+        4827.7406503777565,
+        4852.067914517344
+      ],
+      "median_prefill_ms": 3385.2885,
+      "configuration": {
+        "batch_size": 1024,
+        "cache_prompt": false,
+        "context_checkpoints": 0,
+        "context_tokens_requested": 17519,
+        "draft_tensor_overrides": [],
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "log_verbosity": 4,
+        "maximum_draft_tokens": 0,
+        "measured_repetitions": 10,
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "prompt_cache_ram_mib": 0,
+        "speculative_types": [],
+        "tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "threads": 8,
+        "ubatch_size": 1024,
+        "warmups": 3
+      },
+      "runtime": {
+        "assistant_gguf": null,
+        "command": [
+          "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+          "--model",
+          "$HF_CACHE/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+          "--ctx-size",
+          "17519",
+          "--n-gpu-layers",
+          "all",
+          "--split-mode",
+          "none",
+          "--flash-attn",
+          "on",
+          "--cache-type-k",
+          "q8_0",
+          "--cache-type-v",
+          "q8_0",
+          "--parallel",
+          "1",
+          "--cache-ram",
+          "0",
+          "--ctx-checkpoints",
+          "0",
+          "--threads",
+          "8",
+          "--poll",
+          "100",
+          "--prio",
+          "0",
+          "--verbosity",
+          "4",
+          "--batch-size",
+          "1024",
+          "--ubatch-size",
+          "1024",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8097",
+          "--no-webui",
+          "--offline",
+          "--override-tensor",
+          "token_embd.weight=CUDA0"
+        ],
+        "executable": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+        "executable_sha256": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925",
+        "gguf": "$HF_CACHE/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+        "llama_cpp_commit": "18b74fa41dcac1f55ae1371fe58153f7225941f6",
+        "llama_runtime_file_sha256": {
+          "libggml-base.so.1.0.0": "05b1d25d6f3d0b4a758851d8f632c85c724403c751f479e110a4c24273be26c2",
+          "libggml-cpu.so.1.0.0": "7b59c6d5cdd8526023a3a6427bd6b19c30c9ee171da574c405a5829593fb75fd",
+          "libggml-cuda.so.1.0.0": "db584de88492d867af386ad8449a6b4b3495b0cb6dc536418b6cbd41485a3027",
+          "libggml.so.1.0.0": "593e10482496be6633c088101470f96897c714ba4aa921959ef665bdf7ae0d7a",
+          "libllama-bench-impl.so": "4076de9bf0d7ac6aa6d4ecee43bc8b6e355adde4f6398f44e61bf2654d093433",
+          "libllama-cli-impl.so": "bac7d7ed88347342bb5ab1d284ad1c3649af686cc6b654ee3b2cc6873cb4a853",
+          "libllama-common.so.1.0.0": "c24ee8a940288386d90f55d62bcadcb4a3f25613a25fa4906dfd1c069b6c03b1",
+          "libllama-quantize-impl.so": "7e76cfbf42bda769c24819f09a775947f825a51d3969d6d1fc35821f7a66019f",
+          "libllama-server-impl.so": "a39661d1035bde9a4649411ef58e34070e92bcc05f65bae2242c11d877b83f86",
+          "libllama.so.1.0.0": "88c8c688511c2ee917b118fb0302cdbe7a90d1cdf54b6259199dd67632e8e12d",
+          "libmtmd.so.1.0.0": "5df97a837620eb89d3ea8f192327b88099d2489274d8adf0f3d95d71d2955e33",
+          "llama-server": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925"
+        },
+        "server_log": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/llama-18b74fa41dca/confirm-llama-cpp-1024.server.log"
+      },
+      "samples": [
+        {
+          "prompt_ms": 3365.694,
+          "prompt_tokens_per_second": 4867.941054653215,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3371.71,
+          "prompt_tokens_per_second": 4859.255392664257,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3377.142,
+          "prompt_tokens_per_second": 4851.439471600543,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3381.714,
+          "prompt_tokens_per_second": 4844.880436370432,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3383.739,
+          "prompt_tokens_per_second": 4841.981015675264,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3386.838,
+          "prompt_tokens_per_second": 4837.550541242303,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3389.638,
+          "prompt_tokens_per_second": 4833.554497559917,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3393.72,
+          "prompt_tokens_per_second": 4827.7406503777565,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3395.831,
+          "prompt_tokens_per_second": 4824.739511477455,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3398.483,
+          "prompt_tokens_per_second": 4820.974534814503,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 10111.0,
+        "active_median_power_w": 173.66,
+        "active_median_sm_clock_mhz": 2355.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 64.97
+      },
+      "raw_result": {
+        "bytes": 888268,
+        "sha256": "56fa8680438b7760dc738adc9e27c5e71f918b46304773ac726d6115ac8881d3"
+      },
+      "command_template": [
+        "/usr/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "llama-cpp",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/llama-18b74fa41dca/confirm-llama-cpp-1024.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--gguf",
+        "$ROOT/build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+        "--executable",
+        "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+        "--context-tokens",
+        "17519",
+        "--llama-batch-size",
+        "1024",
+        "--llama-ubatch-size",
+        "1024",
+        "--llama-log-verbosity",
+        "4",
+        "--llama-override-tensor",
+        "token_embd.weight=CUDA0"
+      ],
+      "observed_batch_plan": {
+        "logical_batch": 1024,
+        "physical_microbatch": 1024,
+        "progress_values": [
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360,
+          0,
+          1024,
+          2048,
+          3072,
+          4096,
+          5120,
+          6144,
+          7168,
+          8192,
+          9216,
+          10240,
+          11264,
+          12288,
+          13312,
+          14336,
+          15360
+        ],
+        "gpu_embedding_override": true,
+        "all_layers_offloaded": true
+      }
+    },
+    {
+      "engine": "llama-cpp",
+      "chunk": 2048,
+      "median_prefill_tokens_per_second": 4604.776053812933,
+      "median_bootstrap_95": [
+        4596.386797843985,
+        4616.64303357268
+      ],
+      "median_prefill_ms": 3558.0465000000004,
+      "configuration": {
+        "batch_size": 2048,
+        "cache_prompt": false,
+        "context_checkpoints": 0,
+        "context_tokens_requested": 17519,
+        "draft_tensor_overrides": [],
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "log_verbosity": 4,
+        "maximum_draft_tokens": 0,
+        "measured_repetitions": 10,
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "prompt_cache_ram_mib": 0,
+        "speculative_types": [],
+        "tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "threads": 8,
+        "ubatch_size": 2048,
+        "warmups": 3
+      },
+      "runtime": {
+        "assistant_gguf": null,
+        "command": [
+          "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+          "--model",
+          "$HF_CACHE/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+          "--ctx-size",
+          "17519",
+          "--n-gpu-layers",
+          "all",
+          "--split-mode",
+          "none",
+          "--flash-attn",
+          "on",
+          "--cache-type-k",
+          "q8_0",
+          "--cache-type-v",
+          "q8_0",
+          "--parallel",
+          "1",
+          "--cache-ram",
+          "0",
+          "--ctx-checkpoints",
+          "0",
+          "--threads",
+          "8",
+          "--poll",
+          "100",
+          "--prio",
+          "0",
+          "--verbosity",
+          "4",
+          "--batch-size",
+          "2048",
+          "--ubatch-size",
+          "2048",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8097",
+          "--no-webui",
+          "--offline",
+          "--override-tensor",
+          "token_embd.weight=CUDA0"
+        ],
+        "executable": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+        "executable_sha256": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925",
+        "gguf": "$HF_CACHE/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+        "llama_cpp_commit": "18b74fa41dcac1f55ae1371fe58153f7225941f6",
+        "llama_runtime_file_sha256": {
+          "libggml-base.so.1.0.0": "05b1d25d6f3d0b4a758851d8f632c85c724403c751f479e110a4c24273be26c2",
+          "libggml-cpu.so.1.0.0": "7b59c6d5cdd8526023a3a6427bd6b19c30c9ee171da574c405a5829593fb75fd",
+          "libggml-cuda.so.1.0.0": "db584de88492d867af386ad8449a6b4b3495b0cb6dc536418b6cbd41485a3027",
+          "libggml.so.1.0.0": "593e10482496be6633c088101470f96897c714ba4aa921959ef665bdf7ae0d7a",
+          "libllama-bench-impl.so": "4076de9bf0d7ac6aa6d4ecee43bc8b6e355adde4f6398f44e61bf2654d093433",
+          "libllama-cli-impl.so": "bac7d7ed88347342bb5ab1d284ad1c3649af686cc6b654ee3b2cc6873cb4a853",
+          "libllama-common.so.1.0.0": "c24ee8a940288386d90f55d62bcadcb4a3f25613a25fa4906dfd1c069b6c03b1",
+          "libllama-quantize-impl.so": "7e76cfbf42bda769c24819f09a775947f825a51d3969d6d1fc35821f7a66019f",
+          "libllama-server-impl.so": "a39661d1035bde9a4649411ef58e34070e92bcc05f65bae2242c11d877b83f86",
+          "libllama.so.1.0.0": "88c8c688511c2ee917b118fb0302cdbe7a90d1cdf54b6259199dd67632e8e12d",
+          "libmtmd.so.1.0.0": "5df97a837620eb89d3ea8f192327b88099d2489274d8adf0f3d95d71d2955e33",
+          "llama-server": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925"
+        },
+        "server_log": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/llama-18b74fa41dca/confirm-llama-cpp-2048.server.log"
+      },
+      "samples": [
+        {
+          "prompt_ms": 3540.422,
+          "prompt_tokens_per_second": 4627.69692426496,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3544.115,
+          "prompt_tokens_per_second": 4622.874822064183,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3549.856,
+          "prompt_tokens_per_second": 4615.3984837694825,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3553.696,
+          "prompt_tokens_per_second": 4610.411245081177,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3555.668,
+          "prompt_tokens_per_second": 4607.854276608502,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3560.425,
+          "prompt_tokens_per_second": 4601.6978310173645,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3560.936,
+          "prompt_tokens_per_second": 4601.037480033339,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3564.539,
+          "prompt_tokens_per_second": 4596.386797843985,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3567.326,
+          "prompt_tokens_per_second": 4592.795836433227,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3567.514,
+          "prompt_tokens_per_second": 4592.553806376092,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 10693.0,
+        "active_median_power_w": 173.53,
+        "active_median_sm_clock_mhz": 2362.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 69.22
+      },
+      "raw_result": {
+        "bytes": 888330,
+        "sha256": "e9ece4d503bee06560e199b51ab0d6170371f487e7ad544f6d570197eb647a03"
+      },
+      "command_template": [
+        "/usr/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "llama-cpp",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/llama-18b74fa41dca/confirm-llama-cpp-2048.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--gguf",
+        "$ROOT/build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+        "--executable",
+        "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+        "--context-tokens",
+        "17519",
+        "--llama-batch-size",
+        "2048",
+        "--llama-ubatch-size",
+        "2048",
+        "--llama-log-verbosity",
+        "4",
+        "--llama-override-tensor",
+        "token_embd.weight=CUDA0"
+      ],
+      "observed_batch_plan": {
+        "logical_batch": 2048,
+        "physical_microbatch": 2048,
+        "progress_values": [
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336,
+          0,
+          2048,
+          4096,
+          6144,
+          8192,
+          10240,
+          12288,
+          14336
+        ],
+        "gpu_embedding_override": true,
+        "all_layers_offloaded": true
+      }
+    },
+    {
+      "engine": "llama-cpp",
+      "chunk": 4096,
+      "median_prefill_tokens_per_second": 4199.519516977936,
+      "median_bootstrap_95": [
+        4193.353953728243,
+        4208.96967128598
+      ],
+      "median_prefill_ms": 3901.3995,
+      "configuration": {
+        "batch_size": 4096,
+        "cache_prompt": false,
+        "context_checkpoints": 0,
+        "context_tokens_requested": 17519,
+        "draft_tensor_overrides": [],
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "log_verbosity": 4,
+        "maximum_draft_tokens": 0,
+        "measured_repetitions": 10,
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "prompt_cache_ram_mib": 0,
+        "speculative_types": [],
+        "tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "threads": 8,
+        "ubatch_size": 4096,
+        "warmups": 3
+      },
+      "runtime": {
+        "assistant_gguf": null,
+        "command": [
+          "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+          "--model",
+          "$HF_CACHE/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+          "--ctx-size",
+          "17519",
+          "--n-gpu-layers",
+          "all",
+          "--split-mode",
+          "none",
+          "--flash-attn",
+          "on",
+          "--cache-type-k",
+          "q8_0",
+          "--cache-type-v",
+          "q8_0",
+          "--parallel",
+          "1",
+          "--cache-ram",
+          "0",
+          "--ctx-checkpoints",
+          "0",
+          "--threads",
+          "8",
+          "--poll",
+          "100",
+          "--prio",
+          "0",
+          "--verbosity",
+          "4",
+          "--batch-size",
+          "4096",
+          "--ubatch-size",
+          "4096",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8097",
+          "--no-webui",
+          "--offline",
+          "--override-tensor",
+          "token_embd.weight=CUDA0"
+        ],
+        "executable": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+        "executable_sha256": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925",
+        "gguf": "$HF_CACHE/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+        "llama_cpp_commit": "18b74fa41dcac1f55ae1371fe58153f7225941f6",
+        "llama_runtime_file_sha256": {
+          "libggml-base.so.1.0.0": "05b1d25d6f3d0b4a758851d8f632c85c724403c751f479e110a4c24273be26c2",
+          "libggml-cpu.so.1.0.0": "7b59c6d5cdd8526023a3a6427bd6b19c30c9ee171da574c405a5829593fb75fd",
+          "libggml-cuda.so.1.0.0": "db584de88492d867af386ad8449a6b4b3495b0cb6dc536418b6cbd41485a3027",
+          "libggml.so.1.0.0": "593e10482496be6633c088101470f96897c714ba4aa921959ef665bdf7ae0d7a",
+          "libllama-bench-impl.so": "4076de9bf0d7ac6aa6d4ecee43bc8b6e355adde4f6398f44e61bf2654d093433",
+          "libllama-cli-impl.so": "bac7d7ed88347342bb5ab1d284ad1c3649af686cc6b654ee3b2cc6873cb4a853",
+          "libllama-common.so.1.0.0": "c24ee8a940288386d90f55d62bcadcb4a3f25613a25fa4906dfd1c069b6c03b1",
+          "libllama-quantize-impl.so": "7e76cfbf42bda769c24819f09a775947f825a51d3969d6d1fc35821f7a66019f",
+          "libllama-server-impl.so": "a39661d1035bde9a4649411ef58e34070e92bcc05f65bae2242c11d877b83f86",
+          "libllama.so.1.0.0": "88c8c688511c2ee917b118fb0302cdbe7a90d1cdf54b6259199dd67632e8e12d",
+          "libmtmd.so.1.0.0": "5df97a837620eb89d3ea8f192327b88099d2489274d8adf0f3d95d71d2955e33",
+          "llama-server": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925"
+        },
+        "server_log": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/llama-18b74fa41dca/confirm-llama-cpp-4096.server.log"
+      },
+      "samples": [
+        {
+          "prompt_ms": 3881.158,
+          "prompt_tokens_per_second": 4221.420514186745,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3888.757,
+          "prompt_tokens_per_second": 4213.171458129165,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3892.824,
+          "prompt_tokens_per_second": 4208.769777416087,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3896.529,
+          "prompt_tokens_per_second": 4204.767884442796,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3899.637,
+          "prompt_tokens_per_second": 4201.416695964265,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3903.162,
+          "prompt_tokens_per_second": 4197.622337991608,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3906.122,
+          "prompt_tokens_per_second": 4194.441443457219,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3907.135,
+          "prompt_tokens_per_second": 4193.353953728243,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3907.205,
+          "prompt_tokens_per_second": 4193.278827192328,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 3912.441,
+          "prompt_tokens_per_second": 4187.666983348759,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 11869.0,
+        "active_median_power_w": 173.5,
+        "active_median_sm_clock_mhz": 2415.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 69.845
+      },
+      "raw_result": {
+        "bytes": 888223,
+        "sha256": "073d6f69b147dc82480e614be2fe31dd792554bc854bc49e78fb6939c7f2e17f"
+      },
+      "command_template": [
+        "/usr/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "llama-cpp",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/llama-18b74fa41dca/confirm-llama-cpp-4096.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--gguf",
+        "$ROOT/build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+        "--executable",
+        "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+        "--context-tokens",
+        "17519",
+        "--llama-batch-size",
+        "4096",
+        "--llama-ubatch-size",
+        "4096",
+        "--llama-log-verbosity",
+        "4",
+        "--llama-override-tensor",
+        "token_embd.weight=CUDA0"
+      ],
+      "observed_batch_plan": {
+        "logical_batch": 4096,
+        "physical_microbatch": 4096,
+        "progress_values": [
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288,
+          0,
+          4096,
+          8192,
+          12288
+        ],
+        "gpu_embedding_override": true,
+        "all_layers_offloaded": true
+      }
+    },
+    {
+      "engine": "llama-cpp",
+      "chunk": 8192,
+      "median_prefill_tokens_per_second": 3536.4867364093598,
+      "median_bootstrap_95": [
+        3530.8938067157233,
+        3548.1335808191157
+      ],
+      "median_prefill_ms": 4632.8485,
+      "configuration": {
+        "batch_size": 8192,
+        "cache_prompt": false,
+        "context_checkpoints": 0,
+        "context_tokens_requested": 17519,
+        "draft_tensor_overrides": [],
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "log_verbosity": 4,
+        "maximum_draft_tokens": 0,
+        "measured_repetitions": 10,
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "prompt_cache_ram_mib": 0,
+        "speculative_types": [],
+        "tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "threads": 8,
+        "ubatch_size": 8192,
+        "warmups": 3
+      },
+      "runtime": {
+        "assistant_gguf": null,
+        "command": [
+          "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+          "--model",
+          "$HF_CACHE/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+          "--ctx-size",
+          "17519",
+          "--n-gpu-layers",
+          "all",
+          "--split-mode",
+          "none",
+          "--flash-attn",
+          "on",
+          "--cache-type-k",
+          "q8_0",
+          "--cache-type-v",
+          "q8_0",
+          "--parallel",
+          "1",
+          "--cache-ram",
+          "0",
+          "--ctx-checkpoints",
+          "0",
+          "--threads",
+          "8",
+          "--poll",
+          "100",
+          "--prio",
+          "0",
+          "--verbosity",
+          "4",
+          "--batch-size",
+          "8192",
+          "--ubatch-size",
+          "8192",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8097",
+          "--no-webui",
+          "--offline",
+          "--override-tensor",
+          "token_embd.weight=CUDA0"
+        ],
+        "executable": "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+        "executable_sha256": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925",
+        "gguf": "$HF_CACHE/derived/gem16/gemma4-12b-llama-cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+        "llama_cpp_commit": "18b74fa41dcac1f55ae1371fe58153f7225941f6",
+        "llama_runtime_file_sha256": {
+          "libggml-base.so.1.0.0": "05b1d25d6f3d0b4a758851d8f632c85c724403c751f479e110a4c24273be26c2",
+          "libggml-cpu.so.1.0.0": "7b59c6d5cdd8526023a3a6427bd6b19c30c9ee171da574c405a5829593fb75fd",
+          "libggml-cuda.so.1.0.0": "db584de88492d867af386ad8449a6b4b3495b0cb6dc536418b6cbd41485a3027",
+          "libggml.so.1.0.0": "593e10482496be6633c088101470f96897c714ba4aa921959ef665bdf7ae0d7a",
+          "libllama-bench-impl.so": "4076de9bf0d7ac6aa6d4ecee43bc8b6e355adde4f6398f44e61bf2654d093433",
+          "libllama-cli-impl.so": "bac7d7ed88347342bb5ab1d284ad1c3649af686cc6b654ee3b2cc6873cb4a853",
+          "libllama-common.so.1.0.0": "c24ee8a940288386d90f55d62bcadcb4a3f25613a25fa4906dfd1c069b6c03b1",
+          "libllama-quantize-impl.so": "7e76cfbf42bda769c24819f09a775947f825a51d3969d6d1fc35821f7a66019f",
+          "libllama-server-impl.so": "a39661d1035bde9a4649411ef58e34070e92bcc05f65bae2242c11d877b83f86",
+          "libllama.so.1.0.0": "88c8c688511c2ee917b118fb0302cdbe7a90d1cdf54b6259199dd67632e8e12d",
+          "libmtmd.so.1.0.0": "5df97a837620eb89d3ea8f192327b88099d2489274d8adf0f3d95d71d2955e33",
+          "llama-server": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925"
+        },
+        "server_log": "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/llama-18b74fa41dca/confirm-llama-cpp-8192.server.log"
+      },
+      "samples": [
+        {
+          "prompt_ms": 4617.129,
+          "prompt_tokens_per_second": 3548.5255014533923,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 4616.842,
+          "prompt_tokens_per_second": 3548.7460909426836,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 4617.639,
+          "prompt_tokens_per_second": 3548.1335808191157,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 4628.94,
+          "prompt_tokens_per_second": 3539.4712396358564,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 4629.762,
+          "prompt_tokens_per_second": 3538.842817406165,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 4639.449,
+          "prompt_tokens_per_second": 3531.4538429024656,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 4635.935,
+          "prompt_tokens_per_second": 3534.130655412554,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 4639.392,
+          "prompt_tokens_per_second": 3531.4972306716054,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 4640.978,
+          "prompt_tokens_per_second": 3530.2903827598407,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 4647.026,
+          "prompt_tokens_per_second": 3525.695789091776,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 14271.0,
+        "active_median_power_w": 171.76,
+        "active_median_sm_clock_mhz": 2422.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 68.0
+      },
+      "raw_result": {
+        "bytes": 888174,
+        "sha256": "5a610c0c73e8ce49306917b9e1098208181dcba90051db28759253f9e31bf396"
+      },
+      "command_template": [
+        "/usr/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "llama-cpp",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/llama-18b74fa41dca/confirm-llama-cpp-8192.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--gguf",
+        "$ROOT/build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+        "--executable",
+        "$CENTRAL_LLAMA_CPP/versions/master-18b74fa41dcac1f55ae1371fe58153f7225941f6/source/build-central-cuda/bin/llama-server",
+        "--context-tokens",
+        "17519",
+        "--llama-batch-size",
+        "8192",
+        "--llama-ubatch-size",
+        "8192",
+        "--llama-log-verbosity",
+        "4",
+        "--llama-override-tensor",
+        "token_embd.weight=CUDA0"
+      ],
+      "observed_batch_plan": {
+        "logical_batch": 8192,
+        "physical_microbatch": 8192,
+        "progress_values": [
+          0,
+          8192,
+          0,
+          8192,
+          0,
+          8192,
+          0,
+          8192,
+          0,
+          8192,
+          0,
+          8192,
+          0,
+          8192,
+          0,
+          8192,
+          0,
+          8192,
+          0,
+          8192,
+          0,
+          8192,
+          0,
+          8192,
+          0,
+          8192
+        ],
+        "gpu_embedding_override": true,
+        "all_layers_offloaded": true
+      }
+    },
+    {
+      "engine": "vllm",
+      "chunk": 512,
+      "median_prefill_tokens_per_second": 6643.363532886342,
+      "median_bootstrap_95": [
+        6634.743550895666,
+        6649.485888080446
+      ],
+      "median_prefill_ms": 2466.2206172943115,
+      "configuration": {
+        "batch_size": 1,
+        "channelwise_group_size_normalizations": [],
+        "chunked_prefill": true,
+        "context_tokens_requested": 17519,
+        "cpu_offload_gb": 0,
+        "cuda_graphs_requested": true,
+        "enforce_eager": false,
+        "gpu_memory_utilization": 0.94,
+        "kv_cache": "fp8",
+        "language_model_only": true,
+        "limit_mm_per_prompt": {
+          "audio": 0,
+          "image": 0,
+          "video": 0
+        },
+        "linear_backend": "auto",
+        "max_num_batched_tokens_requested": 512,
+        "measured_repetitions": 10,
+        "mm_processor_cache_gb": 0,
+        "moe_backend": "auto",
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "prefix_caching": false,
+        "primary_statistic": "median",
+        "trust_remote_code": false,
+        "warmups": 3,
+        "weight_format": "native"
+      },
+      "runtime": {
+        "assistant_checkpoint": null,
+        "checkpoint": "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "model_weights": null,
+        "packages": {
+          "compressed-tensors": "0.17.0",
+          "torch": "2.14.0",
+          "transformers": "5.20.2",
+          "vllm": "0.33.0"
+        },
+        "python": "3.13.14",
+        "torch_cuda": "13.0"
+      },
+      "samples": [
+        {
+          "prompt_ms": 2460.7677459716797,
+          "prompt_tokens_per_second": 6658.084667608675,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2466.0158157348633,
+          "prompt_tokens_per_second": 6643.915215571166,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2468.1296348571777,
+          "prompt_tokens_per_second": 6638.225062658869,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2464.5328521728516,
+          "prompt_tokens_per_second": 6647.913005320693,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2462.8305435180664,
+          "prompt_tokens_per_second": 6652.508043284227,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2465.0702476501465,
+          "prompt_tokens_per_second": 6646.463732876666,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2466.4254188537598,
+          "prompt_tokens_per_second": 6642.811850201519,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2469.128370285034,
+          "prompt_tokens_per_second": 6635.539973204652,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2470.7212448120117,
+          "prompt_tokens_per_second": 6631.2620391324635,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2472.522020339966,
+          "prompt_tokens_per_second": 6626.432389769875,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 15283.0,
+        "active_median_power_w": 173.07,
+        "active_median_sm_clock_mhz": 2302.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 65.19
+      },
+      "raw_result": {
+        "bytes": 13348,
+        "sha256": "fea0beeb2824ff55109fe780158b4cdb693d2c0532696e9ea6e67eb92335dc9f"
+      },
+      "command_template": [
+        "tools/run_isolated_vllm_reference.sh",
+        "--",
+        "env",
+        "CUDA_HOME=/opt/cuda",
+        "HF_HUB_OFFLINE=1",
+        "TRANSFORMERS_OFFLINE=1",
+        "VLLM_NO_USAGE_STATS=1",
+        "$ROOT/third_party/cache/vllm-0.33.0-env/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "vllm",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-vllm-512-mem94.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--gpu-memory-utilization",
+        "0.94",
+        "--vllm-max-num-batched-tokens",
+        "512",
+        "--context-tokens",
+        "17519"
+      ],
+      "measured_jit_warning": false,
+      "default_tactic_warning": false
+    },
+    {
+      "engine": "vllm",
+      "chunk": 1024,
+      "median_prefill_tokens_per_second": 6871.119674701069,
+      "median_bootstrap_95": [
+        6853.116679587829,
+        6892.792187001427
+      ],
+      "median_prefill_ms": 2384.4735622406006,
+      "configuration": {
+        "batch_size": 1,
+        "channelwise_group_size_normalizations": [],
+        "chunked_prefill": true,
+        "context_tokens_requested": 17519,
+        "cpu_offload_gb": 0,
+        "cuda_graphs_requested": true,
+        "enforce_eager": false,
+        "gpu_memory_utilization": 0.94,
+        "kv_cache": "fp8",
+        "language_model_only": true,
+        "limit_mm_per_prompt": {
+          "audio": 0,
+          "image": 0,
+          "video": 0
+        },
+        "linear_backend": "auto",
+        "max_num_batched_tokens_requested": 1024,
+        "measured_repetitions": 10,
+        "mm_processor_cache_gb": 0,
+        "moe_backend": "auto",
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "prefix_caching": false,
+        "primary_statistic": "median",
+        "trust_remote_code": false,
+        "warmups": 3,
+        "weight_format": "native"
+      },
+      "runtime": {
+        "assistant_checkpoint": null,
+        "checkpoint": "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "model_weights": null,
+        "packages": {
+          "compressed-tensors": "0.17.0",
+          "torch": "2.14.0",
+          "transformers": "5.20.2",
+          "vllm": "0.33.0"
+        },
+        "python": "3.13.14",
+        "torch_cuda": "13.0"
+      },
+      "samples": [
+        {
+          "prompt_ms": 2369.91810798645,
+          "prompt_tokens_per_second": 6913.3190487836355,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2373.4476566314697,
+          "prompt_tokens_per_second": 6903.038267653686,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2378.4003257751465,
+          "prompt_tokens_per_second": 6888.663704946423,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2380.51438331604,
+          "prompt_tokens_per_second": 6882.5461063491675,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2383.418560028076,
+          "prompt_tokens_per_second": 6874.15977821663,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2385.528564453125,
+          "prompt_tokens_per_second": 6868.079571185508,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2388.533592224121,
+          "prompt_tokens_per_second": 6859.438801002492,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2390.7370567321777,
+          "prompt_tokens_per_second": 6853.116679587829,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2393.174409866333,
+          "prompt_tokens_per_second": 6846.137052299127,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2392.8449153900146,
+          "prompt_tokens_per_second": 6847.079764602939,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 15327.0,
+        "active_median_power_w": 173.48,
+        "active_median_sm_clock_mhz": 2302.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 68.34
+      },
+      "raw_result": {
+        "bytes": 13316,
+        "sha256": "8b2a97af9f5796c253397fc2425842d6636697541f1524ab642d26dd9a2b584c"
+      },
+      "command_template": [
+        "tools/run_isolated_vllm_reference.sh",
+        "--",
+        "env",
+        "CUDA_HOME=/opt/cuda",
+        "HF_HUB_OFFLINE=1",
+        "TRANSFORMERS_OFFLINE=1",
+        "VLLM_NO_USAGE_STATS=1",
+        "$ROOT/third_party/cache/vllm-0.33.0-env/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "vllm",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-vllm-1024-mem94.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--gpu-memory-utilization",
+        "0.94",
+        "--vllm-max-num-batched-tokens",
+        "1024",
+        "--context-tokens",
+        "17519"
+      ],
+      "measured_jit_warning": false,
+      "default_tactic_warning": false
+    },
+    {
+      "engine": "vllm",
+      "chunk": 2048,
+      "median_prefill_tokens_per_second": 7057.123838625055,
+      "median_bootstrap_95": [
+        7044.305630474768,
+        7072.901537503234
+      ],
+      "median_prefill_ms": 2321.6265439987183,
+      "configuration": {
+        "batch_size": 1,
+        "channelwise_group_size_normalizations": [],
+        "chunked_prefill": true,
+        "context_tokens_requested": 17519,
+        "cpu_offload_gb": 0,
+        "cuda_graphs_requested": true,
+        "enforce_eager": false,
+        "gpu_memory_utilization": 0.94,
+        "kv_cache": "fp8",
+        "language_model_only": true,
+        "limit_mm_per_prompt": {
+          "audio": 0,
+          "image": 0,
+          "video": 0
+        },
+        "linear_backend": "auto",
+        "max_num_batched_tokens_requested": 2048,
+        "measured_repetitions": 10,
+        "mm_processor_cache_gb": 0,
+        "moe_backend": "auto",
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "prefix_caching": false,
+        "primary_statistic": "median",
+        "trust_remote_code": false,
+        "warmups": 3,
+        "weight_format": "native"
+      },
+      "runtime": {
+        "assistant_checkpoint": null,
+        "checkpoint": "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "model_weights": null,
+        "packages": {
+          "compressed-tensors": "0.17.0",
+          "torch": "2.14.0",
+          "transformers": "5.20.2",
+          "vllm": "0.33.0"
+        },
+        "python": "3.13.14",
+        "torch_cuda": "13.0"
+      },
+      "samples": [
+        {
+          "prompt_ms": 2314.687728881836,
+          "prompt_tokens_per_second": 7078.27660533487,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2315.053939819336,
+          "prompt_tokens_per_second": 7077.15691552249,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2316.4467811584473,
+          "prompt_tokens_per_second": 7072.901537503234,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2318.2761669158936,
+          "prompt_tokens_per_second": 7067.3202070641855,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2320.218324661255,
+          "prompt_tokens_per_second": 7061.404448821434,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2323.0347633361816,
+          "prompt_tokens_per_second": 7052.8432284286755,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2324.0087032318115,
+          "prompt_tokens_per_second": 7049.887540100901,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2325.850248336792,
+          "prompt_tokens_per_second": 7044.305630474768,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2328.064441680908,
+          "prompt_tokens_per_second": 7037.605878370974,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2327.1965980529785,
+          "prompt_tokens_per_second": 7040.23029842321,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 15337.0,
+        "active_median_power_w": 173.46,
+        "active_median_sm_clock_mhz": 2317.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 65.88
+      },
+      "raw_result": {
+        "bytes": 13336,
+        "sha256": "8263b8344949433c2a5779eaeb62e6beea7648f36c58dd54e016f9d0bdaf2e8a"
+      },
+      "command_template": [
+        "tools/run_isolated_vllm_reference.sh",
+        "--",
+        "env",
+        "CUDA_HOME=/opt/cuda",
+        "HF_HUB_OFFLINE=1",
+        "TRANSFORMERS_OFFLINE=1",
+        "VLLM_NO_USAGE_STATS=1",
+        "$ROOT/third_party/cache/vllm-0.33.0-env/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "vllm",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-vllm-2048-mem94.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--gpu-memory-utilization",
+        "0.94",
+        "--vllm-max-num-batched-tokens",
+        "2048",
+        "--context-tokens",
+        "17519"
+      ],
+      "measured_jit_warning": false,
+      "default_tactic_warning": false
+    },
+    {
+      "engine": "vllm",
+      "chunk": 4096,
+      "median_prefill_tokens_per_second": 7112.993721153385,
+      "median_bootstrap_95": [
+        7101.9693320212955,
+        7130.242706163278
+      ],
+      "median_prefill_ms": 2303.390622138977,
+      "configuration": {
+        "batch_size": 1,
+        "channelwise_group_size_normalizations": [],
+        "chunked_prefill": true,
+        "context_tokens_requested": 17519,
+        "cpu_offload_gb": 0,
+        "cuda_graphs_requested": true,
+        "enforce_eager": false,
+        "gpu_memory_utilization": 0.94,
+        "kv_cache": "fp8",
+        "language_model_only": true,
+        "limit_mm_per_prompt": {
+          "audio": 0,
+          "image": 0,
+          "video": 0
+        },
+        "linear_backend": "auto",
+        "max_num_batched_tokens_requested": 4096,
+        "measured_repetitions": 10,
+        "mm_processor_cache_gb": 0,
+        "moe_backend": "auto",
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "prefix_caching": false,
+        "primary_statistic": "median",
+        "trust_remote_code": false,
+        "warmups": 3,
+        "weight_format": "native"
+      },
+      "runtime": {
+        "assistant_checkpoint": null,
+        "checkpoint": "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "model_weights": null,
+        "packages": {
+          "compressed-tensors": "0.17.0",
+          "torch": "2.14.0",
+          "transformers": "5.20.2",
+          "vllm": "0.33.0"
+        },
+        "python": "3.13.14",
+        "torch_cuda": "13.0"
+      },
+      "samples": [
+        {
+          "prompt_ms": 2295.2377796173096,
+          "prompt_tokens_per_second": 7138.258243000751,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2295.6254482269287,
+          "prompt_tokens_per_second": 7137.052785616444,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2298.7964153289795,
+          "prompt_tokens_per_second": 7127.207912256682,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2300.0147342681885,
+          "prompt_tokens_per_second": 7123.432626710111,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2302.3996353149414,
+          "prompt_tokens_per_second": 7116.053941590752,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2304.3816089630127,
+          "prompt_tokens_per_second": 7109.933500716017,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2305.2546977996826,
+          "prompt_tokens_per_second": 7107.240694764958,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2305.6976795196533,
+          "prompt_tokens_per_second": 7105.875217523437,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2308.6793422698975,
+          "prompt_tokens_per_second": 7096.697969277632,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2309.7329139709473,
+          "prompt_tokens_per_second": 7093.46085034232,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 15407.0,
+        "active_median_power_w": 173.58,
+        "active_median_sm_clock_mhz": 2325.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 65.59
+      },
+      "raw_result": {
+        "bytes": 13356,
+        "sha256": "4d3fc9a1c083ae5ece519e53928a8875617eba3b825fde50eb1fa42861f05bab"
+      },
+      "command_template": [
+        "tools/run_isolated_vllm_reference.sh",
+        "--",
+        "env",
+        "CUDA_HOME=/opt/cuda",
+        "HF_HUB_OFFLINE=1",
+        "TRANSFORMERS_OFFLINE=1",
+        "VLLM_NO_USAGE_STATS=1",
+        "$ROOT/third_party/cache/vllm-0.33.0-env/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "vllm",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-vllm-4096-mem94.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--gpu-memory-utilization",
+        "0.94",
+        "--vllm-max-num-batched-tokens",
+        "4096",
+        "--context-tokens",
+        "17519"
+      ],
+      "measured_jit_warning": false,
+      "default_tactic_warning": false
+    },
+    {
+      "engine": "vllm",
+      "chunk": 8192,
+      "median_prefill_tokens_per_second": 7037.887044698739,
+      "median_bootstrap_95": [
+        7028.3394721995965,
+        7055.6683471739325
+      ],
+      "median_prefill_ms": 2327.9714584350586,
+      "configuration": {
+        "batch_size": 1,
+        "channelwise_group_size_normalizations": [],
+        "chunked_prefill": true,
+        "context_tokens_requested": 17519,
+        "cpu_offload_gb": 0,
+        "cuda_graphs_requested": true,
+        "enforce_eager": false,
+        "gpu_memory_utilization": 0.94,
+        "kv_cache": "fp8",
+        "language_model_only": true,
+        "limit_mm_per_prompt": {
+          "audio": 0,
+          "image": 0,
+          "video": 0
+        },
+        "linear_backend": "auto",
+        "max_num_batched_tokens_requested": 8192,
+        "measured_repetitions": 10,
+        "mm_processor_cache_gb": 0,
+        "moe_backend": "auto",
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "prefix_caching": false,
+        "primary_statistic": "median",
+        "trust_remote_code": false,
+        "warmups": 3,
+        "weight_format": "native"
+      },
+      "runtime": {
+        "assistant_checkpoint": null,
+        "checkpoint": "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "model_weights": null,
+        "packages": {
+          "compressed-tensors": "0.17.0",
+          "torch": "2.14.0",
+          "transformers": "5.20.2",
+          "vllm": "0.33.0"
+        },
+        "python": "3.13.14",
+        "torch_cuda": "13.0"
+      },
+      "samples": [
+        {
+          "prompt_ms": 2320.746421813965,
+          "prompt_tokens_per_second": 7059.79759184279,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2321.242570877075,
+          "prompt_tokens_per_second": 7058.288610401174,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2322.486400604248,
+          "prompt_tokens_per_second": 7054.508476664202,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2322.967290878296,
+          "prompt_tokens_per_second": 7053.048083946691,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2327.7359008789062,
+          "prompt_tokens_per_second": 7038.5991786326495,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2329.5674324035645,
+          "prompt_tokens_per_second": 7033.065354581977,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2328.207015991211,
+          "prompt_tokens_per_second": 7037.174910764829,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2331.1338424682617,
+          "prompt_tokens_per_second": 7028.3394721995965,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2332.17716217041,
+          "prompt_tokens_per_second": 7025.195283514588,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        },
+        {
+          "prompt_ms": 2332.871675491333,
+          "prompt_tokens_per_second": 7023.103830410782,
+          "output_token_sha256": "584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182",
+          "first_output_token_id": 61684,
+          "generated_tokens": 1,
+          "measured_decode_intervals": 0
+        }
+      ],
+      "output_token_ids": [
+        61684
+      ],
+      "telemetry": {
+        "sampled_peak_device_total_mib": 15587.0,
+        "active_median_power_w": 173.95,
+        "active_median_sm_clock_mhz": 2310.0,
+        "active_median_memory_clock_mhz": 14001.0,
+        "active_median_temperature_c": 65.97
+      },
+      "raw_result": {
+        "bytes": 13326,
+        "sha256": "aca1d57046a52eb0d6116ff0dd47963b5db2eb24f1bf367dc5c30c3cdf9ccce3"
+      },
+      "command_template": [
+        "tools/run_isolated_vllm_reference.sh",
+        "--",
+        "env",
+        "CUDA_HOME=/opt/cuda",
+        "HF_HUB_OFFLINE=1",
+        "TRANSFORMERS_OFFLINE=1",
+        "VLLM_NO_USAGE_STATS=1",
+        "$ROOT/third_party/cache/vllm-0.33.0-env/bin/python",
+        "$ROOT/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "vllm",
+        "--workload",
+        "$ROOT/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "$ROOT/benchmarks/results/2026-11-15/58febf4/12b-matched-prefill/confirm-vllm-8192-mem94.json",
+        "--fixed-output-tokens",
+        "1",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--mtp-draft-tokens",
+        "0",
+        "--model",
+        "$HF_CACHE/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--gpu-memory-utilization",
+        "0.94",
+        "--vllm-max-num-batched-tokens",
+        "8192",
+        "--context-tokens",
+        "17519"
+      ],
+      "measured_jit_warning": false,
+      "default_tactic_warning": true
+    }
+  ],
+  "best_confirmed": {
+    "gem16": 8192,
+    "llama-cpp": 1024,
+    "vllm": 4096
+  },
+  "limitations": [
+    "Native/vLLM mixed FP8/NVFP4 target versus Q8/NVFP4 converted GGUF; KV FP8 versus Q8_0; batching match does not establish numerical/quality equivalence.",
+    "llama logical batch and physical microbatch both equal chunk; GPU token embedding placement is explicit at all points.",
+    "vLLM uses94% budget consistently; the original90%8192 failure is retained separately and does not prove a physical16GB limit.",
+    "Native CLI initializes per sample (initialization excluded); references keep their models within a cohort, so cache and thermal history can differ.",
+    "One-output probes preserve17,519 requested context; full1135-output native boundary/default/D2 checks are separate and bit-equal.",
+    "Best means fastest confirmed among the tested512/1024/2048/4096/8192 settings, not an exhaustive engine tuning search."
+  ],
+  "native_full_output_boundaries": {
+    "512": {
+      "output_sha256": "adadc4849d7f6d53134f393390ea483f1c220cd60a1520417ee859ef29687563",
+      "tokens": 1135,
+      "raw_result": {
+        "bytes": 42976,
+        "sha256": "95fb76ca6d8fda5df44cabcd2047501ba7aa80e2441e8898e60e86cd658c3b7d"
+      }
+    },
+    "1024": {
+      "output_sha256": "adadc4849d7f6d53134f393390ea483f1c220cd60a1520417ee859ef29687563",
+      "tokens": 1135,
+      "raw_result": {
+        "bytes": 42931,
+        "sha256": "05cb260b13789e38ea068296d232fe7fe44eea6a35b310f5d6afd57b60867e20"
+      }
+    },
+    "2048": {
+      "output_sha256": "adadc4849d7f6d53134f393390ea483f1c220cd60a1520417ee859ef29687563",
+      "tokens": 1135,
+      "raw_result": {
+        "bytes": 42899,
+        "sha256": "2a0e80d8163c2435f4f0b7c0c4602437354b00715e4c21831df994627c4e0187"
+      }
+    },
+    "4096": {
+      "output_sha256": "adadc4849d7f6d53134f393390ea483f1c220cd60a1520417ee859ef29687563",
+      "tokens": 1135,
+      "raw_result": {
+        "bytes": 42915,
+        "sha256": "6d2259d2a60bac2af5d73da97a3ca30f5fcbdafe35d072deba18ad6fc4ec0962"
+      }
+    },
+    "8192": {
+      "output_sha256": "adadc4849d7f6d53134f393390ea483f1c220cd60a1520417ee859ef29687563",
+      "tokens": 1135,
+      "raw_result": {
+        "bytes": 42948,
+        "sha256": "118bd408faa54054ec2071c48973a7a377c191b67e81d5823cf192e1167b75ca"
+      }
+    }
+  },
+  "final_control_sources": {
+    "src/cuda/engine/prefill_chunk_plan.h": {
+      "bytes": 1446,
+      "sha256": "6088fdc6f6c98f288605a0bb8f1f846f7a3a4678a1ee44c071aa1607378c25e3"
+    },
+    "src/cuda/engine/inference_engine.cu": {
+      "bytes": 26933,
+      "sha256": "b39f4f8cef104caee6bae78b30a92e0e82619723868903277dfb475a2ee16c47"
+    },
+    "src/cuda/engine/inference_engine_initialize.cuh": {
+      "bytes": 7894,
+      "sha256": "381cd9fee8f9b2b9f45e88ee909c727282782186bd19ea6688a41f5f64c7e5fc"
+    },
+    "tools/benchmark_wikipedia_workload.py": {
+      "bytes": 56717,
+      "sha256": "e82a4fccbd17bd65fc5b66deb2c701f1d89d2d20f8b6ff92631598e5bcf7fc4e"
+    },
+    "tests/python/test_benchmark_wikipedia_workload.py": {
+      "bytes": 27154,
+      "sha256": "8424ea32edef8da9e63bbab10a28999334eb58cbd020bb25548db9e9d28d796c"
+    },
+    "tests/cuda/twelve_b_prefill_chunk_plan_host.cpp": {
+      "bytes": 1464,
+      "sha256": "1a171eeecdd1b2a9136f32cffb11a2e02d109c5bb5bf9096ba4ad9f8d4115355"
+    }
+  },
+  "scheduler_observations": {
+    "observed-vllm-1024": {
+      "diagnostic_only": true,
+      "process_setting": "VLLM_ENABLE_V1_MULTIPROCESSING=0; counts only, timing excluded",
+      "requested_chunk": 1024,
+      "observed_prefill_steps": [
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 1024,
+          "per_sequence_tokens": [
+            1024
+          ],
+          "scheduler_limit": 1024,
+          "long_prefill_threshold": 0
+        }
+      ],
+      "scheduler_source_sha256": "d76cc22257550972137df9c893505d0bd0f5d482374691e6eca4372772de501a"
+    },
+    "observed-vllm-8192": {
+      "diagnostic_only": true,
+      "process_setting": "VLLM_ENABLE_V1_MULTIPROCESSING=0; counts only, timing excluded",
+      "requested_chunk": 8192,
+      "observed_prefill_steps": [
+        {
+          "total_tokens": 8192,
+          "per_sequence_tokens": [
+            8192
+          ],
+          "scheduler_limit": 8192,
+          "long_prefill_threshold": 0
+        },
+        {
+          "total_tokens": 8192,
+          "per_sequence_tokens": [
+            8192
+          ],
+          "scheduler_limit": 8192,
+          "long_prefill_threshold": 0
+        }
+      ],
+      "scheduler_source_sha256": "d76cc22257550972137df9c893505d0bd0f5d482374691e6eca4372772de501a"
+    }
+  },
+  "failed90_percent_attempt": {
+    "status": "insufficient_kv_budget",
+    "gpu_memory_utilization": 0.9,
+    "context": 17519,
+    "chunk": 8192,
+    "required_kv_gib": 2.79,
+    "available_kv_gib": 2.51,
+    "configuration_unchanged": true,
+    "reason": "Engine initialization fails before inference; do not label this a physical16GB limit; no performance samples"
+  }
+}

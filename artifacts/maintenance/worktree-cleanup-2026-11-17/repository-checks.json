@@ -1,0 +1,10 @@
+{
+  "staged_files_before_this_receipt": 167,
+  "staged_raw_bytes_match_worktree": true,
+  "retained_original_evidence_git_blobs_exact": 70,
+  "staged_local_markdown_targets_checked": 183,
+  "missing_staged_targets": [],
+  "unstaged_changes": false,
+  "production_runtime_source_unchanged": true,
+  "csv_crlf_preserved_by_narrow_gitattributes": true
+}

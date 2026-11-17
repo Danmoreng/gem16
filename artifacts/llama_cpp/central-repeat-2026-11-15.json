@@ -1,0 +1,3058 @@
+{
+  "scope": "Native-vs-central 16K generation under the last full comparison settings",
+  "native_commit": "58febf4d66bb028a35f6f7f9528d2206cfab2475",
+  "llama_commit": "de32b268c4ad55d45f3b7b16c029f4e077f4ba74",
+  "remote_main_at_start": "655ae68cf14111d098bf5f851c3091745d4a6fb5",
+  "runtime_sources_equal_remote_main": true,
+  "native_scope": "Existing qualified local binary, byte-identical to November 5; remote main only adds release/test/documentation changes.",
+  "upstream_at_setup": "de32b268c4ad55d45f3b7b16c029f4e077f4ba74",
+  "upstream_at_postrun": "de32b268c4ad55d45f3b7b16c029f4e077f4ba74",
+  "freshness": "The original benchmark runner checked official master for each llama launch; separate Nsight traces are diagnostic only.",
+  "llama_version": [
+    "version: 1.0.0-dev (build 1, commit de32b26)",
+    "built with GNU 16.2.1 for Linux x86_64"
+  ],
+  "hardware": "NVIDIA GeForce RTX 5080 Laptop GPU, 620.70.06, 16303 MiB, [N/A]",
+  "power_profile": "max-power",
+  "measurement_harness": "Previous runner; cooldown parses decimal GPU temperature and preserves the <=50C gate.",
+  "driver_on_previous_run": "615.78.08",
+  "limitations": [
+    "Different quantization and KV precisions between engines.",
+    "Output streams differ between engines; no new model-quality equivalence claim.",
+    "NVIDIA driver changed from 615.78.08 to 620.70.06 between dates.",
+    "Native binary and benchmark helper are byte-identical to the previous comparison."
+  ],
+  "sample_protocol": "Ordinary then D2; native/llama/llama/native; 3 warmups and 10 measured per cohort; 200ms GPU telemetry; start <=50C",
+  "timing_boundary": "1134 intervals after first output, divided by engine-reported decode time",
+  "context": {
+    "requested": 17519,
+    "native": 17519,
+    "llama_effective": 17664
+  },
+  "binary_identities": {
+    "native": {
+      "bytes": 12741176,
+      "sha256": "0d3045cb7ed439749da683b68a90f858eff601134a7b1a4d51c68d79a8ff192a"
+    },
+    "server": {
+      "bytes": 15976,
+      "sha256": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925"
+    },
+    "helper": {
+      "bytes": 54558,
+      "sha256": "700ad4232b80e1024a30dea6fd31e06791367492f09671b48d147093aecedad1"
+    },
+    "workload": {
+      "bytes": 203477,
+      "sha256": "825ff6dcf2632184c4f70a152fe12e2d2a9c2697ab3f077f5369a049792d03e6"
+    }
+  },
+  "llama_libraries": {
+    "libggml-base.so": {
+      "bytes": 994792,
+      "sha256": "02d3c6caf3227733d5e1aa0cd9954330077f84abca99137aee1cefd9470018ee"
+    },
+    "libggml-base.so.1": {
+      "bytes": 994792,
+      "sha256": "02d3c6caf3227733d5e1aa0cd9954330077f84abca99137aee1cefd9470018ee"
+    },
+    "libggml-base.so.1.0.0": {
+      "bytes": 994792,
+      "sha256": "02d3c6caf3227733d5e1aa0cd9954330077f84abca99137aee1cefd9470018ee"
+    },
+    "libggml-cpu.so": {
+      "bytes": 1486248,
+      "sha256": "3db21a5dfe1a71b52b250a9556fc8f631ba4d6ab687ef95d179065c7752299b2"
+    },
+    "libggml-cpu.so.1": {
+      "bytes": 1486248,
+      "sha256": "3db21a5dfe1a71b52b250a9556fc8f631ba4d6ab687ef95d179065c7752299b2"
+    },
+    "libggml-cpu.so.1.0.0": {
+      "bytes": 1486248,
+      "sha256": "3db21a5dfe1a71b52b250a9556fc8f631ba4d6ab687ef95d179065c7752299b2"
+    },
+    "libggml-cuda.so": {
+      "bytes": 57073920,
+      "sha256": "2ffe3ca2d50a64e4da5728be28c34a08c4a7a017a70b617646ed3f151fe3e203"
+    },
+    "libggml-cuda.so.1": {
+      "bytes": 57073920,
+      "sha256": "2ffe3ca2d50a64e4da5728be28c34a08c4a7a017a70b617646ed3f151fe3e203"
+    },
+    "libggml-cuda.so.1.0.0": {
+      "bytes": 57073920,
+      "sha256": "2ffe3ca2d50a64e4da5728be28c34a08c4a7a017a70b617646ed3f151fe3e203"
+    },
+    "libggml.so": {
+      "bytes": 55320,
+      "sha256": "98edf6413fc5c95de7bfafb79a863a966eccac89f0653c7318cb32f4707ce7fb"
+    },
+    "libggml.so.1": {
+      "bytes": 55320,
+      "sha256": "98edf6413fc5c95de7bfafb79a863a966eccac89f0653c7318cb32f4707ce7fb"
+    },
+    "libggml.so.1.0.0": {
+      "bytes": 55320,
+      "sha256": "98edf6413fc5c95de7bfafb79a863a966eccac89f0653c7318cb32f4707ce7fb"
+    },
+    "libllama-bench-impl.so": {
+      "bytes": 489904,
+      "sha256": "c7d8e87bac7374c7d022dab4ada3524729c4a6d0089bd6015adbe0fa03ed26e8"
+    },
+    "libllama-cli-impl.so": {
+      "bytes": 250024,
+      "sha256": "bac7d7ed88347342bb5ab1d284ad1c3649af686cc6b654ee3b2cc6873cb4a853"
+    },
+    "libllama-common.so": {
+      "bytes": 7267584,
+      "sha256": "b3095591f5de6eb02c3999d7a493e01b428b55003635158b40eb585d36a863d1"
+    },
+    "libllama-common.so.1": {
+      "bytes": 7267584,
+      "sha256": "b3095591f5de6eb02c3999d7a493e01b428b55003635158b40eb585d36a863d1"
+    },
+    "libllama-common.so.1.0.0": {
+      "bytes": 7267584,
+      "sha256": "b3095591f5de6eb02c3999d7a493e01b428b55003635158b40eb585d36a863d1"
+    },
+    "libllama-quantize-impl.so": {
+      "bytes": 87592,
+      "sha256": "7e76cfbf42bda769c24819f09a775947f825a51d3969d6d1fc35821f7a66019f"
+    },
+    "libllama-server-impl.so": {
+      "bytes": 8457912,
+      "sha256": "6143623f1b18a50daaa0d9167f7cbbab285a82be1c773257d75ceba191b575cc"
+    },
+    "libllama.so": {
+      "bytes": 5626680,
+      "sha256": "327b8e1e632be1167604ec24a10ef91688cbb96a7085118b2d8a23d1e752055a"
+    },
+    "libllama.so.1": {
+      "bytes": 5626680,
+      "sha256": "327b8e1e632be1167604ec24a10ef91688cbb96a7085118b2d8a23d1e752055a"
+    },
+    "libllama.so.1.0.0": {
+      "bytes": 5626680,
+      "sha256": "327b8e1e632be1167604ec24a10ef91688cbb96a7085118b2d8a23d1e752055a"
+    },
+    "libmtmd.so": {
+      "bytes": 2411480,
+      "sha256": "b452c7f8ff384ac28d6f19e4d895bab909b2e4b59cc7789aa540d02d1ef04c08"
+    },
+    "libmtmd.so.1": {
+      "bytes": 2411480,
+      "sha256": "b452c7f8ff384ac28d6f19e4d895bab909b2e4b59cc7789aa540d02d1ef04c08"
+    },
+    "libmtmd.so.1.0.0": {
+      "bytes": 2411480,
+      "sha256": "b452c7f8ff384ac28d6f19e4d895bab909b2e4b59cc7789aa540d02d1ef04c08"
+    }
+  },
+  "model_files": {
+    "native_target": {
+      "bytes": 12204692480,
+      "sha256": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4"
+    },
+    "native_assistant": {
+      "bytes": 258317280,
+      "sha256": "4d3ce2102ad0631d9e7e0586be0b108d5789cbc5b90d21b4c50613979228d927"
+    },
+    "llama_target": {
+      "bytes": 14439363584,
+      "sha256": "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d"
+    },
+    "llama_assistant": {
+      "bytes": 251939328,
+      "sha256": "7272d97595f0d4c74bd7b623492b7dbdaafd8b7c72f329a8270ba4eca68f768a"
+    }
+  },
+  "previous_full_comparison": {
+    "native_commit": "1d46cc5a5441d7883dfd6059225e2d16ca39a7fe",
+    "llama_commit": "b1c902f026d32535b5e8eae55e5e47b379e57672"
+  },
+  "modes": {
+    "ordinary": {
+      "pooled": {
+        "native_tps": 141.7383953128804,
+        "llama_tps": 144.32863413723186,
+        "llama_lead_tps": 2.590238824351445,
+        "llama_over_native_pct": 1.8274785873182875,
+        "llama_over_native_95_pct": [
+          1.7669144390228375,
+          2.0180569455008124
+        ],
+        "native_over_llama_pct": -1.7946811731680112
+      },
+      "ab": {
+        "native_tps": 141.75886007849707,
+        "llama_tps": 144.32274021503028,
+        "llama_lead_tps": 2.5638801365332142,
+        "llama_over_native_pct": 1.8086207346147631,
+        "llama_over_native_95_pct": [
+          1.5902842742888668,
+          1.9856983674565232
+        ],
+        "native_over_llama_pct": -1.7764907544806974
+      },
+      "ba": {
+        "native_tps": 141.70925961141685,
+        "llama_tps": 144.44079098720607,
+        "llama_lead_tps": 2.731531375789217,
+        "llama_over_native_pct": 1.9275602619612808,
+        "llama_over_native_95_pct": [
+          1.777886581474375,
+          2.0916068069289917
+        ],
+        "native_over_llama_pct": -1.8911080153466875
+      },
+      "decode_native": {
+        "median": 141.7383953128804,
+        "mean": 141.7253169559371,
+        "stdev": 0.09214620839189326,
+        "median_bootstrap95": [
+          141.64704060200648,
+          141.76054350073096
+        ],
+        "samples": [
+          142.00721056012702,
+          141.8040627989421,
+          141.7854463615904,
+          141.7634675294153,
+          141.7845599864967,
+          141.75425262757884,
+          141.7338777714035,
+          141.63899044124167,
+          141.62873039959533,
+          141.6271384573882,
+          141.76931606931444,
+          141.75655624072613,
+          141.75761947204663,
+          141.7429128543573,
+          141.72130143645913,
+          141.69721778637458,
+          141.65349855411003,
+          141.64058264990294,
+          141.62590030485785,
+          141.6136968168138
+        ]
+      },
+      "decode_llama": {
+        "median": 144.32863413723186,
+        "mean": 144.39566672412462,
+        "stdev": 0.2947845761194464,
+        "median_bootstrap95": [
+          144.25645592724342,
+          144.58339182084666
+        ],
+        "samples": [
+          144.63237867460623,
+          144.88513317550138,
+          144.4467485724738,
+          144.52454610498702,
+          144.35473687212055,
+          144.12558600268576,
+          144.29074355794,
+          144.03427558507255,
+          143.9004665598284,
+          143.95398956295492,
+          144.95652901974745,
+          144.7833745787206,
+          144.26519148087328,
+          144.25735512153682,
+          144.25555673295003,
+          144.18902952899776,
+          144.58837830745915,
+          144.3025314023432,
+          144.57905057206895,
+          144.58773306962436
+        ]
+      },
+      "cohorts": {
+        "native-a": {
+          "timing": {
+            "decode_tokens_per_second": [
+              142.00721056012702,
+              141.8040627989421,
+              141.7854463615904,
+              141.7634675294153,
+              141.7845599864967,
+              141.75425262757884,
+              141.7338777714035,
+              141.63899044124167,
+              141.62873039959533,
+              141.6271384573882
+            ],
+            "average_inter_token_latency_ms": [
+              7.0418959435626105,
+              7.051984126984127,
+              7.052910052910053,
+              7.05400352733686,
+              7.052954144620811,
+              7.054462081128748,
+              7.05547619047619,
+              7.060202821869489,
+              7.060714285714286,
+              7.06079365079365
+            ],
+            "prompt_tokens_per_second": [
+              5661.5052886559115,
+              5645.9366417290685,
+              5635.10106655569,
+              5630.937160610935,
+              5626.74075574986,
+              5618.578620320709,
+              5606.657906263688,
+              5597.769638659596,
+              5590.129926847909,
+              5587.937367625843
+            ],
+            "time_to_first_token_ms": [
+              2893.93,
+              2901.91,
+              2907.49,
+              2909.64,
+              2911.81,
+              2916.04,
+              2922.24,
+              2926.88,
+              2930.88,
+              2932.03
+            ],
+            "inference_end_to_end_ms": [
+              10879.44,
+              10898.86,
+              10905.49,
+              10908.88,
+              10909.86,
+              10915.8,
+              10923.15,
+              10933.150000000001,
+              10937.73,
+              10938.97
+            ]
+          },
+          "telemetry": {
+            "peak_vram_mib": 12457.0,
+            "steady_high_util_vram_mib": 12457.0,
+            "high_util_power_w": 167.82,
+            "high_util_core_mhz": 2587.0,
+            "high_util_memory_mhz": 14001.0,
+            "high_util_temp_c": 72.38,
+            "max_temp_c": 80.81
+          },
+          "output_sha256": "9bc749fe3419fb50806e2b7124bacb7ad5d089d44890ba588842be708a3ab247"
+        },
+        "central-b": {
+          "timing": {
+            "decode_tokens_per_second": [
+              144.63237867460623,
+              144.88513317550138,
+              144.4467485724738,
+              144.52454610498702,
+              144.35473687212055,
+              144.12558600268576,
+              144.29074355794,
+              144.03427558507255,
+              143.9004665598284,
+              143.95398956295492
+            ],
+            "average_inter_token_latency_ms": [
+              6.914081128747796,
+              6.902019400352734,
+              6.922966490299824,
+              6.919239858906526,
+              6.927379188712522,
+              6.938393298059965,
+              6.930451499118165,
+              6.942791887125221,
+              6.949247795414462,
+              6.946664021164021
+            ],
+            "prompt_tokens_per_second": [
+              5389.73962531046,
+              5384.625749777257,
+              5368.56629723914,
+              5362.713040518203,
+              5355.750076328592,
+              5347.0735020263655,
+              5344.483331272828,
+              5341.094611440582,
+              5343.285899060686,
+              5338.308456090425
+            ],
+            "time_to_first_token_ms": [
+              3039.85,
+              3042.737,
+              3051.839,
+              3055.17,
+              3059.142,
+              3064.106,
+              3065.591,
+              3067.536,
+              3066.278,
+              3069.137
+            ],
+            "inference_end_to_end_ms": [
+              10880.418,
+              10869.627,
+              10902.483,
+              10901.588,
+              10914.79,
+              10932.244,
+              10924.723,
+              10940.662,
+              10946.725,
+              10946.654
+            ]
+          },
+          "telemetry": {
+            "peak_vram_mib": 14635.0,
+            "steady_high_util_vram_mib": 14635.0,
+            "high_util_power_w": 152.7,
+            "high_util_core_mhz": 2332.0,
+            "high_util_memory_mhz": 14001.0,
+            "high_util_temp_c": 71.56,
+            "max_temp_c": 78.03
+          },
+          "output_sha256": "7832b5df34def4dd37ecbab3ff96a2a5d4f556941f9005375bd470db94a37b52"
+        },
+        "central-b2": {
+          "timing": {
+            "decode_tokens_per_second": [
+              144.95652901974745,
+              144.7833745787206,
+              144.26519148087328,
+              144.25735512153682,
+              144.25555673295003,
+              144.18902952899776,
+              144.58837830745915,
+              144.3025314023432,
+              144.57905057206895,
+              144.58773306962436
+            ],
+            "average_inter_token_latency_ms": [
+              6.898619929453263,
+              6.90687037037037,
+              6.931679012345679,
+              6.932055555555555,
+              6.9321419753086415,
+              6.935340388007055,
+              6.916185185185185,
+              6.929885361552028,
+              6.91663139329806,
+              6.916216049382716
+            ],
+            "prompt_tokens_per_second": [
+              5390.723835626354,
+              5379.76709785141,
+              5374.457026977911,
+              5368.318272072556,
+              5361.35128042184,
+              5361.717975074425,
+              5355.783340519489,
+              5354.913355253267,
+              5353.711245309703,
+              5349.458328163671
+            ],
+            "time_to_first_token_ms": [
+              3039.295,
+              3045.485,
+              3048.494,
+              3051.98,
+              3055.946,
+              3055.737,
+              3059.123,
+              3059.62,
+              3060.307,
+              3062.74
+            ],
+            "inference_end_to_end_ms": [
+              10862.33,
+              10877.876,
+              10909.018,
+              10912.931,
+              10916.994999999999,
+              10920.413,
+              10902.077,
+              10918.11,
+              10903.767,
+              10905.729
+            ]
+          },
+          "telemetry": {
+            "peak_vram_mib": 14635.0,
+            "steady_high_util_vram_mib": 14635.0,
+            "high_util_power_w": 152.22,
+            "high_util_core_mhz": 2332.0,
+            "high_util_memory_mhz": 14001.0,
+            "high_util_temp_c": 70.955,
+            "max_temp_c": 77.03
+          },
+          "output_sha256": "7832b5df34def4dd37ecbab3ff96a2a5d4f556941f9005375bd470db94a37b52"
+        },
+        "native-a2": {
+          "timing": {
+            "decode_tokens_per_second": [
+              141.76931606931444,
+              141.75655624072613,
+              141.75761947204663,
+              141.7429128543573,
+              141.72130143645913,
+              141.69721778637458,
+              141.65349855411003,
+              141.64058264990294,
+              141.62590030485785,
+              141.6136968168138
+            ],
+            "average_inter_token_latency_ms": [
+              7.053712522045855,
+              7.054347442680776,
+              7.054294532627866,
+              7.0550264550264545,
+              7.056102292768959,
+              7.057301587301587,
+              7.059479717813051,
+              7.060123456790124,
+              7.0608553791887125,
+              7.061463844797178
+            ],
+            "prompt_tokens_per_second": [
+              5649.8499948274075,
+              5636.147852560244,
+              5621.238840893964,
+              5615.516703625888,
+              5608.711577895158,
+              5607.2911212186555,
+              5601.405821578267,
+              5602.171935799329,
+              5598.745203101454,
+              5598.936530121964
+            ],
+            "time_to_first_token_ms": [
+              2899.9,
+              2906.95,
+              2914.66,
+              2917.63,
+              2921.17,
+              2921.91,
+              2924.98,
+              2924.58,
+              2926.37,
+              2926.27
+            ],
+            "inference_end_to_end_ms": [
+              10898.81,
+              10906.58,
+              10914.23,
+              10918.029999999999,
+              10922.79,
+              10924.89,
+              10930.43,
+              10930.76,
+              10933.380000000001,
+              10933.97
+            ]
+          },
+          "telemetry": {
+            "peak_vram_mib": 12457.0,
+            "steady_high_util_vram_mib": 12457.0,
+            "high_util_power_w": 168.97,
+            "high_util_core_mhz": 2587.0,
+            "high_util_memory_mhz": 14001.0,
+            "high_util_temp_c": 74.09,
+            "max_temp_c": 80.19
+          },
+          "output_sha256": "9bc749fe3419fb50806e2b7124bacb7ad5d089d44890ba588842be708a3ab247"
+        }
+      },
+      "native_settings": {
+        "batch_size": 1,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 0,
+        "mtp_verification_mode": "disabled",
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "llama_settings": {
+        "batch_size": 2048,
+        "cache_prompt": false,
+        "context_checkpoints": 0,
+        "draft_tensor_overrides": [],
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "log_verbosity": 4,
+        "maximum_draft_tokens": 0,
+        "measured_repetitions": 10,
+        "mtp_backend": "disabled",
+        "mtp_draft_tokens": 0,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "prompt_cache_ram_mib": 0,
+        "speculative_types": [],
+        "tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "threads": 8,
+        "ubatch_size": 512,
+        "warmups": 3
+      },
+      "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+      "previous": {
+        "native_tps": 141.36812934149745,
+        "llama_tps": 143.57584931537684,
+        "llama_lead_tps": 2.2077199738793922,
+        "llama_over_native_pct": 1.5616815361164438
+      },
+      "llama_vs_previous_pct": 0.5243115924053798,
+      "native_vs_previous_pct": 0.26191615685069447,
+      "first_cross_engine_output_divergence_zero_based": 43,
+      "first_llama_output_divergence_vs_previous_zero_based": null
+    },
+    "d2": {
+      "pooled": {
+        "native_tps": 200.4020411671053,
+        "llama_tps": 202.8737229398182,
+        "llama_lead_tps": 2.4716817727129126,
+        "llama_over_native_pct": 1.233361575719627,
+        "llama_over_native_95_pct": [
+          0.9418084373587599,
+          1.3882035563650197
+        ],
+        "native_over_llama_pct": -1.218335098748169
+      },
+      "ab": {
+        "native_tps": 200.620823570283,
+        "llama_tps": 202.8737229398182,
+        "llama_lead_tps": 2.252899369535214,
+        "llama_over_native_pct": 1.1229638725642754,
+        "llama_over_native_95_pct": [
+          0.8409964246131274,
+          1.3455313691618453
+        ],
+        "native_over_llama_pct": -1.1104934325099958
+      },
+      "ba": {
+        "native_tps": 200.06881570003944,
+        "llama_tps": 202.81486818748053,
+        "llama_lead_tps": 2.7460524874410908,
+        "llama_over_native_pct": 1.3725539774065654,
+        "llama_over_native_95_pct": [
+          0.8318890242181798,
+          1.582404531712145
+        ],
+        "native_over_llama_pct": -1.3539700082060402
+      },
+      "decode_native": {
+        "median": 200.4020411671053,
+        "mean": 200.47761477096697,
+        "stdev": 0.47471288812361256,
+        "median_bootstrap95": [
+          200.18308565107628,
+          200.80397768449188
+        ],
+        "samples": [
+          201.29224652087473,
+          201.1533501611533,
+          200.94198198964457,
+          200.9078056403006,
+          200.70014972868313,
+          200.5414974118829,
+          200.39938501776027,
+          200.2549984283338,
+          200.40469731645032,
+          200.30699608394522,
+          201.17476126019844,
+          200.92845246110775,
+          200.5879668446133,
+          200.3738899039124,
+          200.1111728738188,
+          199.97742759194728,
+          199.76359546286494,
+          199.7386136660666,
+          199.9668485295207,
+          200.0264585262601
+        ]
+      },
+      "decode_llama": {
+        "median": 202.8737229398182,
+        "mean": 202.7278140128466,
+        "stdev": 0.7654401979066858,
+        "median_bootstrap95": [
+          202.44836731515866,
+          203.101205384117
+        ],
+        "samples": [
+          202.88439346690782,
+          203.50075128385825,
+          203.35200860318866,
+          202.74604680966402,
+          202.49273195729938,
+          202.86305241272862,
+          203.06164675832852,
+          201.63939585707502,
+          203.14076400990552,
+          202.21617515415863,
+          204.45550739853084,
+          203.19168627060296,
+          202.03780244871956,
+          203.26726131601748,
+          201.5139490656612,
+          201.10790237009385,
+          202.40400267301794,
+          203.05146602621298,
+          202.93456988608463,
+          202.69516648887642
+        ]
+      },
+      "cohorts": {
+        "native-a": {
+          "timing": {
+            "decode_tokens_per_second": [
+              201.29224652087473,
+              201.1533501611533,
+              200.94198198964457,
+              200.9078056403006,
+              200.70014972868313,
+              200.5414974118829,
+              200.39938501776027,
+              200.2549984283338,
+              200.40469731645032,
+              200.30699608394522
+            ],
+            "average_inter_token_latency_ms": [
+              4.9679012345679014,
+              4.971331569664903,
+              4.976560846560846,
+              4.977407407407408,
+              4.982557319223986,
+              4.986499118165784,
+              4.990035273368607,
+              4.9936331569664905,
+              4.989902998236332,
+              4.9923368606701946
+            ],
+            "prompt_tokens_per_second": [
+              5669.655370496614,
+              5661.07492700793,
+              5655.935210820289,
+              5652.59842193694,
+              5646.22849580944,
+              5639.309955529855,
+              5634.655331324887,
+              5624.847654654129,
+              5625.658827690163,
+              5628.32575859072
+            ],
+            "time_to_first_token_ms": [
+              2889.77,
+              2894.15,
+              2896.78,
+              2898.49,
+              2901.76,
+              2905.32,
+              2907.72,
+              2912.79,
+              2912.37,
+              2910.99
+            ],
+            "inference_end_to_end_ms": [
+              8523.37,
+              8531.64,
+              8540.2,
+              8542.869999999999,
+              8551.98,
+              8560.01,
+              8566.42,
+              8575.57,
+              8570.92,
+              8572.3
+            ]
+          },
+          "telemetry": {
+            "peak_vram_mib": 12727.0,
+            "steady_high_util_vram_mib": 12727.0,
+            "high_util_power_w": 171.35,
+            "high_util_core_mhz": 2587.0,
+            "high_util_memory_mhz": 14001.0,
+            "high_util_temp_c": 71.75,
+            "max_temp_c": 77.22
+          },
+          "output_sha256": "9bc749fe3419fb50806e2b7124bacb7ad5d089d44890ba588842be708a3ab247",
+          "speculation_counts_groups_proposed_accepted": [
+            [
+              502,
+              1004,
+              632
+            ]
+          ]
+        },
+        "central-b": {
+          "timing": {
+            "decode_tokens_per_second": [
+              202.88439346690782,
+              203.50075128385825,
+              203.35200860318866,
+              202.74604680966402,
+              202.49273195729938,
+              202.86305241272862,
+              203.06164675832852,
+              201.63939585707502,
+              203.14076400990552,
+              202.21617515415863
+            ],
+            "average_inter_token_latency_ms": [
+              4.928915343915344,
+              4.913986772486773,
+              4.917581128747796,
+              4.932278659611993,
+              4.938448853615521,
+              4.9294338624338625,
+              4.924612874779542,
+              4.959348324514991,
+              4.922694885361552,
+              4.945202821869488
+            ],
+            "prompt_tokens_per_second": [
+              5395.289593420276,
+              5383.790597359563,
+              5372.314088880582,
+              5360.698723104075,
+              5357.552189863488,
+              5352.96960105282,
+              5351.86975723208,
+              5351.703683379308,
+              5345.478985455234,
+              5348.066630172902
+            ],
+            "time_to_first_token_ms": [
+              3036.723,
+              3043.209,
+              3049.71,
+              3056.318,
+              3058.113,
+              3060.731,
+              3061.36,
+              3061.455,
+              3065.02,
+              3063.537
+            ],
+            "inference_end_to_end_ms": [
+              8626.113000000001,
+              8615.67,
+              8626.247,
+              8649.522,
+              8658.314,
+              8650.709,
+              8645.871000000001,
+              8685.356,
+              8647.356,
+              8671.396999999999
+            ]
+          },
+          "telemetry": {
+            "peak_vram_mib": 14989.0,
+            "steady_high_util_vram_mib": 14989.0,
+            "high_util_power_w": 149.35,
+            "high_util_core_mhz": 2257.0,
+            "high_util_memory_mhz": 14001.0,
+            "high_util_temp_c": 71.16,
+            "max_temp_c": 77.91
+          },
+          "output_sha256": "121c05ab27aa19f69fe71227bf95852c8c60eaf931cfe5543881bf92e3dcbc7e",
+          "speculation_counts_groups_proposed_accepted": [
+            [
+              497,
+              993,
+              637
+            ]
+          ],
+          "llama_groups_are_inferred_from_http_totals": true,
+          "all_base_steps_at_max_depth": false,
+          "llama_cumulative_draft_counter_deltas": [
+            {
+              "observed_cumulative": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                2,
+                994,
+                994,
+                994,
+                734,
+                1986,
+                1274
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                3,
+                1491,
+                1491,
+                1491,
+                1101,
+                2979,
+                1911
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                4,
+                1988,
+                1988,
+                1988,
+                1468,
+                3972,
+                2548
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                5,
+                2485,
+                2485,
+                2485,
+                1835,
+                4965,
+                3185
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                6,
+                2982,
+                2982,
+                2982,
+                2202,
+                5958,
+                3822
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                7,
+                3479,
+                3479,
+                3479,
+                2569,
+                6951,
+                4459
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                8,
+                3976,
+                3976,
+                3976,
+                2936,
+                7944,
+                5096
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                9,
+                4473,
+                4473,
+                4473,
+                3303,
+                8937,
+                5733
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                10,
+                4970,
+                4970,
+                4970,
+                3670,
+                9930,
+                6370
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                11,
+                5467,
+                5467,
+                5467,
+                4037,
+                10923,
+                7007
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                12,
+                5964,
+                5964,
+                5964,
+                4404,
+                11916,
+                7644
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                13,
+                6461,
+                6461,
+                6461,
+                4771,
+                12909,
+                8281
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            }
+          ]
+        },
+        "central-b2": {
+          "timing": {
+            "decode_tokens_per_second": [
+              204.45550739853084,
+              203.19168627060296,
+              202.03780244871956,
+              203.26726131601748,
+              201.5139490656612,
+              201.10790237009385,
+              202.40400267301794,
+              203.05146602621298,
+              202.93456988608463,
+              202.69516648887642
+            ],
+            "average_inter_token_latency_ms": [
+              4.891039682539683,
+              4.921461199294533,
+              4.9495687830687825,
+              4.91963139329806,
+              4.962435626102293,
+              4.972455026455027,
+              4.9406137566137565,
+              4.924859788359789,
+              4.927696649029982,
+              4.933516754850088
+            ],
+            "prompt_tokens_per_second": [
+              5400.293812372091,
+              5389.489639936434,
+              5378.453162910602,
+              5367.521580326251,
+              5362.676179656199,
+              5353.739235909265,
+              5339.223511875569,
+              5333.763923650086,
+              5336.030877588833,
+              5335.3792567592645
+            ],
+            "time_to_first_token_ms": [
+              3033.909,
+              3039.991,
+              3046.229,
+              3052.433,
+              3055.191,
+              3060.291,
+              3068.611,
+              3071.752,
+              3070.447,
+              3070.822
+            ],
+            "inference_end_to_end_ms": [
+              8580.348,
+              8620.928,
+              8659.039999999999,
+              8631.295,
+              8682.593,
+              8699.055,
+              8671.267,
+              8656.543,
+              8658.455,
+              8665.43
+            ]
+          },
+          "telemetry": {
+            "peak_vram_mib": 14989.0,
+            "steady_high_util_vram_mib": 14989.0,
+            "high_util_power_w": 148.7,
+            "high_util_core_mhz": 2250.0,
+            "high_util_memory_mhz": 14001.0,
+            "high_util_temp_c": 71.94,
+            "max_temp_c": 78.44
+          },
+          "output_sha256": "121c05ab27aa19f69fe71227bf95852c8c60eaf931cfe5543881bf92e3dcbc7e",
+          "speculation_counts_groups_proposed_accepted": [
+            [
+              497,
+              993,
+              637
+            ]
+          ],
+          "llama_groups_are_inferred_from_http_totals": true,
+          "all_base_steps_at_max_depth": false,
+          "llama_cumulative_draft_counter_deltas": [
+            {
+              "observed_cumulative": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                2,
+                994,
+                994,
+                994,
+                734,
+                1986,
+                1274
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                3,
+                1491,
+                1491,
+                1491,
+                1101,
+                2979,
+                1911
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                4,
+                1988,
+                1988,
+                1988,
+                1468,
+                3972,
+                2548
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                5,
+                2485,
+                2485,
+                2485,
+                1835,
+                4965,
+                3185
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                6,
+                2982,
+                2982,
+                2982,
+                2202,
+                5958,
+                3822
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                7,
+                3479,
+                3479,
+                3479,
+                2569,
+                6951,
+                4459
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                8,
+                3976,
+                3976,
+                3976,
+                2936,
+                7944,
+                5096
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                9,
+                4473,
+                4473,
+                4473,
+                3303,
+                8937,
+                5733
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                10,
+                4970,
+                4970,
+                4970,
+                3670,
+                9930,
+                6370
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                11,
+                5467,
+                5467,
+                5467,
+                4037,
+                10923,
+                7007
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                12,
+                5964,
+                5964,
+                5964,
+                4404,
+                11916,
+                7644
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            },
+            {
+              "observed_cumulative": [
+                13,
+                6461,
+                6461,
+                6461,
+                4771,
+                12909,
+                8281
+              ],
+              "observed_request_delta": [
+                1,
+                497,
+                497,
+                497,
+                367,
+                993,
+                637
+              ],
+              "derived": {
+                "generated_groups": 497,
+                "acceptance_histogram_0_1_2": [
+                  130,
+                  97,
+                  270
+                ],
+                "depth_histogram": {
+                  "1": 1,
+                  "2": 496
+                }
+              },
+              "source": "sequential-slot server aggregate counter differences; not an event trace"
+            }
+          ]
+        },
+        "native-a2": {
+          "timing": {
+            "decode_tokens_per_second": [
+              201.17476126019844,
+              200.92845246110775,
+              200.5879668446133,
+              200.3738899039124,
+              200.1111728738188,
+              199.97742759194728,
+              199.76359546286494,
+              199.7386136660666,
+              199.9668485295207,
+              200.0264585262601
+            ],
+            "average_inter_token_latency_ms": [
+              4.970802469135803,
+              4.97689594356261,
+              4.985343915343916,
+              4.990670194003528,
+              4.997222222222223,
+              5.000564373897707,
+              5.005917107583774,
+              5.006543209876543,
+              5.000828924162257,
+              4.999338624338624
+            ],
+            "prompt_tokens_per_second": [
+              5661.64223562992,
+              5650.142253642555,
+              5637.408388672883,
+              5629.350686833009,
+              5622.106848854406,
+              5611.477773629754,
+              5606.792212636499,
+              5603.647295822916,
+              5607.617378685304,
+              5611.093416623002
+            ],
+            "time_to_first_token_ms": [
+              2893.86,
+              2899.75,
+              2906.3,
+              2910.46,
+              2914.21,
+              2919.73,
+              2922.17,
+              2923.81,
+              2921.74,
+              2919.93
+            ],
+            "inference_end_to_end_ms": [
+              8530.75,
+              8543.55,
+              8559.68,
+              8569.880000000001,
+              8581.060000000001,
+              8590.37,
+              8598.880000000001,
+              8601.23,
+              8592.68,
+              8589.18
+            ]
+          },
+          "telemetry": {
+            "peak_vram_mib": 12727.0,
+            "steady_high_util_vram_mib": 12727.0,
+            "high_util_power_w": 171.35,
+            "high_util_core_mhz": 2576.0,
+            "high_util_memory_mhz": 14001.0,
+            "high_util_temp_c": 73.88,
+            "max_temp_c": 79.62
+          },
+          "output_sha256": "9bc749fe3419fb50806e2b7124bacb7ad5d089d44890ba588842be708a3ab247",
+          "speculation_counts_groups_proposed_accepted": [
+            [
+              502,
+              1004,
+              632
+            ]
+          ]
+        }
+      },
+      "native_settings": {
+        "batch_size": 1,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 2,
+        "mtp_verification_mode": "batched_exact_target",
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "llama_settings": {
+        "batch_size": 2048,
+        "cache_prompt": false,
+        "context_checkpoints": 0,
+        "draft_tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "log_verbosity": 4,
+        "maximum_draft_tokens": 2,
+        "measured_repetitions": 10,
+        "mtp_backend": "draft-mtp",
+        "mtp_draft_tokens": 2,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "prompt_cache_ram_mib": 0,
+        "speculative_types": [
+          "draft-mtp"
+        ],
+        "tensor_overrides": [
+          "token_embd.weight=CUDA0"
+        ],
+        "threads": 8,
+        "ubatch_size": 512,
+        "warmups": 3
+      },
+      "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+      "previous": {
+        "native_tps": 199.60079860355114,
+        "llama_tps": 202.38149866261097,
+        "llama_lead_tps": 2.780700059059825,
+        "llama_over_native_pct": 1.3931307281905614
+      },
+      "llama_vs_previous_pct": 0.24321604517210105,
+      "native_vs_previous_pct": 0.40142252393768896,
+      "first_cross_engine_output_divergence_zero_based": 43,
+      "first_llama_output_divergence_vs_previous_zero_based": null
+    }
+  },
+  "first_native_ordinary_vs_d2_divergence_zero_based": null,
+  "first_llama_ordinary_vs_d2_divergence_zero_based": 102,
+  "raw_file_hashes": {
+    "ordinary-native-a.json": {
+      "bytes": 272723,
+      "sha256": "4301a8d6590b6b6ebbbf9150fb95db8197885f8eb74445e5f0d36c6f5a26408d"
+    },
+    "ordinary-native-a.command.json": {
+      "bytes": 896,
+      "sha256": "3d2a0b9f82c41987da1ab6432cc42f6a44cf01ebbb067509aa8a8cc3caa89462"
+    },
+    "ordinary-native-a-telemetry.csv": {
+      "bytes": 67399,
+      "sha256": "48276c40dcdf5c2968fb343528f4d7cdebb93f7b3d6aec9820d12568b3fa5ccb"
+    },
+    "ordinary-native-a-processes.log": {
+      "bytes": 40034,
+      "sha256": "d911ea3e9e1ef278c90495ea70270fa252650ba3977908b69f4924df4cdbd5e9"
+    },
+    "ordinary-central-b.json": {
+      "bytes": 1139643,
+      "sha256": "34883e7f8c18af01e07f1b1a06e175748f7ae97e76ac4be4b66e50cfa89e13f8"
+    },
+    "ordinary-central-b.command.json": {
+      "bytes": 1176,
+      "sha256": "5e1220d53f9fb4d92a2140f5c6134dd78c5f39684e8863d2db75bec3abb67393"
+    },
+    "ordinary-central-b-telemetry.csv": {
+      "bytes": 60265,
+      "sha256": "3bda877a6f0ee17b2a1ae5f61ce380121b3d6a7725fbe9d2f7393f9d4af50197"
+    },
+    "ordinary-central-b-processes.log": {
+      "bytes": 36387,
+      "sha256": "14c38765a4f614c56e5796ab81a37745658573eb96ee8e72a393c9cb61a4e488"
+    },
+    "ordinary-central-b.server.log": {
+      "bytes": 59483,
+      "sha256": "8d41a52531757cbb74fa5e85598227a48b165fb6ddacdd41d15a54c609d4cedd"
+    },
+    "ordinary-central-b2.json": {
+      "bytes": 1139672,
+      "sha256": "fa61b118120b4a3c6416809e6d7069cf0bf2621482f7f62427bde57d5a6a46c4"
+    },
+    "ordinary-central-b2.command.json": {
+      "bytes": 1178,
+      "sha256": "571a74fd3c5ca9b3f6943373f0c9d2a2661289b0e7e6855df29eebbafc6df883"
+    },
+    "ordinary-central-b2-telemetry.csv": {
+      "bytes": 60185,
+      "sha256": "661c4148ca11532e0ad37dcd3ea10751bcbf1b5b5a3b8da324fdbb917c69f326"
+    },
+    "ordinary-central-b2-processes.log": {
+      "bytes": 36387,
+      "sha256": "f5db27c14a6c13309ca23f2ea49b410682313b20a6246d46d90b3962fa729209"
+    },
+    "ordinary-central-b2.server.log": {
+      "bytes": 59484,
+      "sha256": "e215efbd8f195e8e0f7bd8d591f6da1210403b70314d5cc2aa8b7ef99186db63"
+    },
+    "ordinary-native-a2.json": {
+      "bytes": 272753,
+      "sha256": "bec8ce4ba4744d90fd5d550d3c56e0024c5a8348e0ae24e1a95e1712e202d16e"
+    },
+    "ordinary-native-a2.command.json": {
+      "bytes": 898,
+      "sha256": "ab021c4c96ce06169437956ce319ee74eb0c3544291c4b01b8159b9b025a95c1"
+    },
+    "ordinary-native-a2-telemetry.csv": {
+      "bytes": 66825,
+      "sha256": "af3385546044e4786e67c647849b0407a4c766430c7240205ccf98016d4a7789"
+    },
+    "ordinary-native-a2-processes.log": {
+      "bytes": 40034,
+      "sha256": "9a274e856458d1a5b3179b43dd352300f60850e6122271156d733c06fec7d82b"
+    },
+    "d2-native-a.json": {
+      "bytes": 283858,
+      "sha256": "d8265cb523934de571c858ef8431b87ee95a208b34a888d090f09da27072bec5"
+    },
+    "d2-native-a.command.json": {
+      "bytes": 1057,
+      "sha256": "6ce0795f238736c3e5241fcd957bcca45dd4d8671a6754ef73f120b891fc146a"
+    },
+    "d2-native-a-telemetry.csv": {
+      "bytes": 61180,
+      "sha256": "a7198a8b31d686dc5d78afedafc5e94eaa8626305a52184d662755cbfc9b9ad7"
+    },
+    "d2-native-a-processes.log": {
+      "bytes": 36753,
+      "sha256": "28cb1ce87f771cf0a57c5b88645bacbc8c48fd4b02e7dec96f0d3c079d6df9a1"
+    },
+    "d2-central-b.json": {
+      "bytes": 1166395,
+      "sha256": "326a6b1ed140b827fa5a95c931d0527b5069162d27e58108accf24269d02e95a"
+    },
+    "d2-central-b.command.json": {
+      "bytes": 1419,
+      "sha256": "a244afc4e28337a5759ed67a34a89f7e3ad54bdfc9a85d5df54cb8ea5598804b"
+    },
+    "d2-central-b-telemetry.csv": {
+      "bytes": 48770,
+      "sha256": "386fcfafdb2fe34962fe2e3a8c07eb0e566624c7005b8d0804eb3c38ac44e41d"
+    },
+    "d2-central-b-processes.log": {
+      "bytes": 29568,
+      "sha256": "5fbada2f0c29d73050510176cec3bd69eeae2a35f71f55293173dec1bbd6d77e"
+    },
+    "d2-central-b.server.log": {
+      "bytes": 79794,
+      "sha256": "1bd5321620312215d9d39b2b4904d373aae28db9b6f10e34057bb70e9541a2e6"
+    },
+    "d2-central-b2.json": {
+      "bytes": 1166385,
+      "sha256": "e8b36e192d4a3319b75f27e95dfdaa0c5833b6a8e59c76caaa0f74db223e1885"
+    },
+    "d2-central-b2.command.json": {
+      "bytes": 1421,
+      "sha256": "84c117d74ec20a296718371fceabbce8f2edb5187119c5fb508cddd99dadbe5b"
+    },
+    "d2-central-b2-telemetry.csv": {
+      "bytes": 48469,
+      "sha256": "ce912e1aaeddbf38b33e128bc2b4d9c7de0eea071ec6eefc85422f38da8cd293"
+    },
+    "d2-central-b2-processes.log": {
+      "bytes": 29446,
+      "sha256": "e1ec0a93fca90aa99c5169e1ba8234e85ea5927c6f1cd45c6b708874825cc902"
+    },
+    "d2-central-b2.server.log": {
+      "bytes": 79793,
+      "sha256": "5cbe848237289acef882a50c1cf6c4af249fe9c8f0ba3bf484721b87f30e03ff"
+    },
+    "d2-native-a2.json": {
+      "bytes": 283905,
+      "sha256": "a996a48840ffa2423b756bb4d4f3f73ed70e9190085c7bf11eba9cf4a97f9b7d"
+    },
+    "d2-native-a2.command.json": {
+      "bytes": 1059,
+      "sha256": "5c22debeeb5fb02b8303ce30679acc352fd792f3ad955d95827e358feed820a9"
+    },
+    "d2-native-a2-telemetry.csv": {
+      "bytes": 61825,
+      "sha256": "b9a2ca27c67832936bab43da5af4597cf77c9f4eee87aa036dd36a0666e6210e"
+    },
+    "d2-native-a2-processes.log": {
+      "bytes": 36875,
+      "sha256": "7bbfb8870a9d74189b186854e1078c74469f44bf2c4617188b4676659359e043"
+    },
+    "central-build-manifest.txt": {
+      "bytes": 846,
+      "sha256": "a33bbd2938e03ebaf57fbedbfda0cf39f7808cfed333a85b419f041287a3c231"
+    },
+    "central-version.stderr.log": {
+      "bytes": 84,
+      "sha256": "afd7c5da3a8da65a637a1986b60b2c3ed59fcd6a963774ac5ae72536265c986e"
+    },
+    "central-update.log": {
+      "bytes": 82186,
+      "sha256": "06efa187e9a468dae45544e4908931fae0e043111b00d53f083c8bff1ab70cbc"
+    },
+    "upstream-before.stdout.log": {
+      "bytes": 59,
+      "sha256": "66ba14693516e7ea9f61f6e57bafa4d30627b9f163e10c7a261a6cd9662a7bd5"
+    },
+    "upstream-after.stdout.log": {
+      "bytes": 59,
+      "sha256": "66ba14693516e7ea9f61f6e57bafa4d30627b9f163e10c7a261a6cd9662a7bd5"
+    },
+    "campaign_final.py": {
+      "bytes": 9218,
+      "sha256": "761de2cfbc9843a3c75e7161b0a443ca12114173d7471d4ef07e7be20ec3e01b"
+    },
+    "resume.py": {
+      "bytes": 292,
+      "sha256": "4e7eb24609f5586418490c2220ece1f1393395a99459d98c001a3afecf9a8bd3"
+    }
+  },
+  "actual_dispatch": {
+    "gem16_same_qualified_binary": {
+      "ordinary": {
+        "parent": {
+          "split": [
+            [
+              "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8Kernel<(int)256, (int)8, (int)2, (int)2, (int)128, (bool)0, (bool)0>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+              64,
+              256,
+              49,
+              1056,
+              0,
+              775
+            ]
+          ],
+          "merge": [
+            [
+              "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)256, (int)128>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+              16,
+              256,
+              40,
+              32,
+              0,
+              775
+            ]
+          ]
+        },
+        "candidate": {
+          "split": [
+            [
+              "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8Kernel<(int)256, (int)8, (int)2, (int)2, (int)128, (bool)0, (bool)0, (bool)1>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+              64,
+              256,
+              43,
+              33824,
+              0,
+              775
+            ]
+          ],
+          "merge": [
+            [
+              "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)256, (int)128>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+              16,
+              256,
+              40,
+              32,
+              0,
+              775
+            ]
+          ]
+        },
+        "other_kernel_counts_and_resources_exact": true,
+        "all_32_outputs_exact": true
+      },
+      "d2": {
+        "outputs": 32,
+        "kernel_signatures": 69,
+        "matched_dispatch_counts_and_resources": true,
+        "staged_split_launches": 0,
+        "mtp": {
+          "verification_groups": 13,
+          "accepted_tokens": 18,
+          "proposed_tokens": 26
+        }
+      }
+    },
+    "llama_cpp": {
+      "ordinary": {
+        "launches": 1632127,
+        "top_kernel_shapes": [
+          [
+            "void mul_mat_vec_q<(ggml_type)2, (int)1, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            1408,
+            32,
+            40,
+            384,
+            34023,
+            1017.462839
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)14, (int)1, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            262144,
+            32,
+            48,
+            384,
+            1137,
+            901.179383
+          ],
+          [
+            "void mul_mat_q<(ggml_type)2, (int)32, (bool)0, (ggml_prec)30, (bool)0>(const char *, const char *, const int *, const int *, const ggml_cuda_mm_id_tile_spec *, float *, float *, const float *, ggml_glu_op, float, const float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+            2816,
+            32,
+            186,
+            0,
+            928,
+            791.741104
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)2, (int)1, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            2816,
+            32,
+            40,
+            384,
+            68043,
+            665.476672
+          ],
+          [
+            "quantize_q8_1(const float *, void *, long, long, long, long, long, unsigned int, uint3)",
+            12,
+            256,
+            24,
+            0,
+            199940,
+            527.038112
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)2, (int)1, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            2112,
+            32,
+            40,
+            384,
+            68046,
+            524.976798
+          ],
+          [
+            "void mul_mat_q<(ggml_type)2, (int)32, (bool)0, (ggml_prec)30, (bool)0>(const char *, const char *, const int *, const int *, const ggml_cuda_mm_id_tile_spec *, float *, float *, const float *, ggml_glu_op, float, const float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+            5632,
+            32,
+            186,
+            0,
+            928,
+            510.60031
+          ],
+          [
+            "void rms_norm_f32<float, (int)1024, (int)1, (bool)1, (bool)1, (bool)0, (bool)0, float>(const T1 *, T1 *, int, int, int, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, const T8 *, long, long, long, uint3, uint3, uint3, uint3, float)",
+            1,
+            1024,
+            33,
+            0,
+            138363,
+            502.388628
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)2, (int)1, (bool)0, (bool)1, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            704,
+            32,
+            56,
+            1536,
+            34023,
+            496.076381
+          ],
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)1, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            120,
+            32,
+            255,
+            0,
+            5670,
+            491.505606
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)2, (int)1, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            4096,
+            32,
+            40,
+            384,
+            28350,
+            486.768068
+          ],
+          [
+            "void flash_attn_combine_results<(int)256>(const float *, const float2 *, float *, int)",
+            1,
+            256,
+            40,
+            0,
+            28350,
+            453.039576
+          ],
+          [
+            "void fwht_cuda<(int)64, float>(const T2 *, float *, long, float)",
+            16,
+            32,
+            16,
+            0,
+            28400,
+            447.798542
+          ],
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)8, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            60,
+            32,
+            255,
+            0,
+            160,
+            440.500123
+          ],
+          [
+            "void mul_mat_q<(ggml_type)2, (int)128, (bool)0, (ggml_prec)30, (bool)0>(const char *, const char *, const int *, const int *, const ggml_cuda_mm_id_tile_spec *, float *, float *, const float *, ggml_glu_op, float, const float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+            60,
+            32,
+            255,
+            0,
+            4608,
+            430.618392
+          ],
+          [
+            "void flash_attn_ext_vec<(int)256, (int)1, (ggml_type)8, (ggml_type)8, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            1,
+            32,
+            255,
+            4352,
+            28350,
+            414.640723
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)2, (int)1, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            2048,
+            32,
+            40,
+            384,
+            56700,
+            386.29153
+          ],
+          [
+            "void rms_norm_f32<float, (int)1024, (int)1, (bool)1, (bool)1, (bool)1, (bool)0, float>(const T1 *, T1 *, int, int, int, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, const T8 *, long, long, long, uint3, uint3, uint3, uint3, float)",
+            1,
+            1024,
+            38,
+            0,
+            100932,
+            381.262824
+          ],
+          [
+            "void k_bin_bcast<&op_mul, float, float, float, const float *>(const T2 *, const T3 *, T4 *, unsigned int, unsigned int, unsigned int, uint3, uint3, uint3, uint3, uint3, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, T5...)",
+            11,
+            128,
+            20,
+            0,
+            71186,
+            335.714093
+          ],
+          [
+            "void mul_mat_vec_f<float, float, (int)1, (int)256, (bool)0, (bool)0>(const T1 *, const float *, const int *, ggml_cuda_mm_fusion_args_device, float *, int, uint3, int, int, int, uint3, int, int, int, uint3, int, int, int, int)",
+            128,
+            256,
+            38,
+            0,
+            34023,
+            220.468579
+          ]
+        ],
+        "flash_attention_shapes": [
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)1, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            120,
+            32,
+            255,
+            0,
+            5670,
+            491.505606
+          ],
+          [
+            "void flash_attn_combine_results<(int)256>(const float *, const float2 *, float *, int)",
+            1,
+            256,
+            40,
+            0,
+            28350,
+            453.039576
+          ],
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)8, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            60,
+            32,
+            255,
+            0,
+            160,
+            440.500123
+          ],
+          [
+            "void flash_attn_ext_vec<(int)256, (int)1, (ggml_type)8, (ggml_type)8, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            1,
+            32,
+            255,
+            4352,
+            28350,
+            414.640723
+          ],
+          [
+            "void flash_attn_ext_f16<(int)256, (int)256, (int)32, (int)2, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            120,
+            32,
+            255,
+            0,
+            800,
+            155.98334
+          ],
+          [
+            "void flash_attn_stream_k_fixup_uniform<(int)512, (int)1, (int)8>(float *, const float2 *, int, int, int, int, int, int, uint3, uint3, uint3)",
+            2,
+            512,
+            38,
+            0,
+            5670,
+            30.029442
+          ],
+          [
+            "void flash_attn_stream_k_fixup_general<(int)256, (int)32, (int)2>(float *, const float2 *, int, int, int, int, uint3, uint3, uint3, uint3)",
+            120,
+            256,
+            38,
+            0,
+            800,
+            22.85912
+          ],
+          [
+            "void flash_attn_stream_k_fixup_general<(int)512, (int)8, (int)8>(float *, const float2 *, int, int, int, int, uint3, uint3, uint3, uint3)",
+            60,
+            512,
+            38,
+            0,
+            160,
+            5.10299
+          ],
+          [
+            "void flash_attn_ext_vec<(int)256, (int)2, (ggml_type)8, (ggml_type)8, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            1,
+            32,
+            254,
+            4608,
+            50,
+            0.655956
+          ],
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)2, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            8,
+            32,
+            255,
+            0,
+            10,
+            0.125084
+          ],
+          [
+            "void flash_attn_stream_k_fixup_uniform<(int)512, (int)2, (int)8>(float *, const float2 *, int, int, int, int, int, int, uint3, uint3, uint3)",
+            2,
+            512,
+            40,
+            0,
+            10,
+            0.012575
+          ]
+        ],
+        "scope": "one whole-process 16K+1135 request including initialization and prefill, outside primary timing"
+      },
+      "d2": {
+        "launches": 864675,
+        "top_kernel_shapes": [
+          [
+            "void mul_mat_vec_q_moe<(ggml_type)2, (int)2, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int)",
+            704,
+            32,
+            39,
+            0,
+            14968,
+            793.004344
+          ],
+          [
+            "void mul_mat_q<(ggml_type)2, (int)32, (bool)0, (ggml_prec)30, (bool)0>(const char *, const char *, const int *, const int *, const ggml_cuda_mm_id_tile_spec *, float *, float *, const float *, ggml_glu_op, float, const float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+            2816,
+            32,
+            186,
+            0,
+            928,
+            791.648875
+          ],
+          [
+            "void mul_mat_q<(ggml_type)2, (int)32, (bool)0, (ggml_prec)30, (bool)0>(const char *, const char *, const int *, const int *, const ggml_cuda_mm_id_tile_spec *, float *, float *, const float *, ggml_glu_op, float, const float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+            5632,
+            32,
+            186,
+            0,
+            928,
+            510.258707
+          ],
+          [
+            "void mul_mat_vec_q_moe<(ggml_type)2, (int)2, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int)",
+            1408,
+            32,
+            39,
+            0,
+            14968,
+            503.880357
+          ],
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)8, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            60,
+            32,
+            255,
+            0,
+            160,
+            440.066022
+          ],
+          [
+            "void mul_mat_q<(ggml_type)2, (int)128, (bool)0, (ggml_prec)30, (bool)0>(const char *, const char *, const int *, const int *, const ggml_cuda_mm_id_tile_spec *, float *, float *, const float *, ggml_glu_op, float, const float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+            60,
+            32,
+            255,
+            0,
+            4608,
+            430.758723
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)14, (int)3, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            131072,
+            32,
+            80,
+            2304,
+            496,
+            420.502845
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)2, (int)3, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            1408,
+            32,
+            60,
+            2304,
+            29760,
+            286.330254
+          ],
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)4, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            60,
+            32,
+            255,
+            0,
+            2480,
+            281.95015
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)2, (int)3, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            1056,
+            32,
+            60,
+            2304,
+            29760,
+            248.708945
+          ],
+          [
+            "quantize_q8_1(const float *, void *, long, long, long, long, long, unsigned int, uint3)",
+            12,
+            256,
+            24,
+            0,
+            87828,
+            247.503746
+          ],
+          [
+            "void rms_norm_f32<float, (int)1024, (int)1, (bool)1, (bool)1, (bool)0, (bool)0, float>(const T1 *, T1 *, int, int, int, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, const T8 *, long, long, long, uint3, uint3, uint3, uint3, float)",
+            3,
+            1024,
+            33,
+            0,
+            60512,
+            236.367879
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)2, (int)3, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            2048,
+            32,
+            60,
+            2304,
+            12400,
+            216.498895
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)2, (int)1, (bool)0, (bool)1, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            65536,
+            32,
+            56,
+            1536,
+            995,
+            197.482605
+          ],
+          [
+            "void dequantize_block_q8_0_f16<(bool)0>(const void *, __half *, long)",
+            1536,
+            32,
+            39,
+            2176,
+            26310,
+            188.965707
+          ],
+          [
+            "void rms_norm_f32<float, (int)1024, (int)1, (bool)1, (bool)1, (bool)1, (bool)0, float>(const T1 *, T1 *, int, int, int, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, const T8 *, long, long, long, uint3, uint3, uint3, uint3, float)",
+            3,
+            1024,
+            38,
+            0,
+            44144,
+            174.176755
+          ],
+          [
+            "void k_bin_bcast<&op_mul, float, float, float, const float *>(const T2 *, const T3 *, T4 *, unsigned int, unsigned int, unsigned int, uint3, uint3, uint3, uint3, uint3, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, T5...)",
+            11,
+            128,
+            20,
+            0,
+            32329,
+            166.381273
+          ],
+          [
+            "void mul_mat_vec_q<(ggml_type)2, (int)3, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+            1024,
+            32,
+            60,
+            2304,
+            24800,
+            165.009168
+          ],
+          [
+            "void flash_attn_ext_f16<(int)256, (int)256, (int)32, (int)2, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            120,
+            32,
+            255,
+            0,
+            800,
+            156.600695
+          ],
+          [
+            "void flash_attn_ext_f16<(int)256, (int)256, (int)4, (int)2, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            60,
+            32,
+            254,
+            0,
+            12400,
+            154.098663
+          ]
+        ],
+        "flash_attention_shapes": [
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)8, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            60,
+            32,
+            255,
+            0,
+            160,
+            440.066022
+          ],
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)4, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            60,
+            32,
+            255,
+            0,
+            2480,
+            281.95015
+          ],
+          [
+            "void flash_attn_ext_f16<(int)256, (int)256, (int)32, (int)2, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            120,
+            32,
+            255,
+            0,
+            800,
+            156.600695
+          ],
+          [
+            "void flash_attn_ext_f16<(int)256, (int)256, (int)4, (int)2, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            60,
+            32,
+            254,
+            0,
+            12400,
+            154.098663
+          ],
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)1, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            120,
+            32,
+            255,
+            0,
+            994,
+            86.343442
+          ],
+          [
+            "void flash_attn_stream_k_fixup_general<(int)256, (int)4, (int)2>(float *, const float2 *, int, int, int, int, uint3, uint3, uint3, uint3)",
+            60,
+            256,
+            38,
+            0,
+            12400,
+            61.750726
+          ],
+          [
+            "void flash_attn_combine_results<(int)256>(const float *, const float2 *, float *, int)",
+            1,
+            256,
+            40,
+            0,
+            2982,
+            43.932043
+          ],
+          [
+            "void flash_attn_ext_vec<(int)256, (int)1, (ggml_type)8, (ggml_type)8, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            1,
+            32,
+            255,
+            4352,
+            2982,
+            41.323606
+          ],
+          [
+            "void flash_attn_stream_k_fixup_general<(int)256, (int)32, (int)2>(float *, const float2 *, int, int, int, int, uint3, uint3, uint3, uint3)",
+            120,
+            256,
+            38,
+            0,
+            800,
+            22.872249
+          ],
+          [
+            "void flash_attn_stream_k_fixup_uniform<(int)512, (int)4, (int)8>(float *, const float2 *, int, int, int, int, int, int, uint3, uint3, uint3)",
+            2,
+            512,
+            40,
+            0,
+            2480,
+            11.105621
+          ],
+          [
+            "void flash_attn_stream_k_fixup_uniform<(int)512, (int)1, (int)8>(float *, const float2 *, int, int, int, int, int, int, uint3, uint3, uint3)",
+            2,
+            512,
+            38,
+            0,
+            994,
+            5.349156
+          ],
+          [
+            "void flash_attn_stream_k_fixup_general<(int)512, (int)8, (int)8>(float *, const float2 *, int, int, int, int, uint3, uint3, uint3, uint3)",
+            60,
+            512,
+            38,
+            0,
+            160,
+            5.106471
+          ],
+          [
+            "void flash_attn_ext_vec<(int)256, (int)2, (ggml_type)8, (ggml_type)8, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            1,
+            32,
+            254,
+            4608,
+            78,
+            1.151555
+          ],
+          [
+            "void flash_attn_combine_results<(int)256>(const float *, const float2 *, float *, int)",
+            2,
+            256,
+            40,
+            0,
+            25,
+            0.486806
+          ],
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)2, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            60,
+            32,
+            255,
+            0,
+            5,
+            0.452149
+          ],
+          [
+            "void flash_attn_ext_f16<(int)512, (int)512, (int)2, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+            8,
+            32,
+            255,
+            0,
+            11,
+            0.137308
+          ],
+          [
+            "void flash_attn_stream_k_fixup_uniform<(int)512, (int)2, (int)8>(float *, const float2 *, int, int, int, int, int, int, uint3, uint3, uint3)",
+            2,
+            512,
+            40,
+            0,
+            16,
+            0.030784
+          ]
+        ],
+        "scope": "one whole-process 16K+1135 request including initialization and prefill, outside primary timing"
+      }
+    }
+  },
+  "prefill": {
+    "ordinary": {
+      "gem16": {
+        "prefill_tok_s": 5612.114140760523,
+        "prefill_mean": 5617.065497732077,
+        "prefill_sd": 20.81510303833264,
+        "ttft_ms": 2919.4,
+        "prefill_samples": [
+          5661.5052886559115,
+          5645.9366417290685,
+          5635.10106655569,
+          5630.937160610935,
+          5626.74075574986,
+          5618.578620320709,
+          5606.657906263688,
+          5597.769638659596,
+          5590.129926847909,
+          5587.937367625843,
+          5649.8499948274075,
+          5636.147852560244,
+          5621.238840893964,
+          5615.516703625888,
+          5608.711577895158,
+          5607.2911212186555,
+          5601.405821578267,
+          5602.171935799329,
+          5598.745203101454,
+          5598.936530121964
+        ],
+        "ttft_samples_ms": [
+          2893.93,
+          2901.91,
+          2907.49,
+          2909.64,
+          2911.81,
+          2916.04,
+          2922.24,
+          2926.88,
+          2930.88,
+          2932.03,
+          2899.9,
+          2906.95,
+          2914.66,
+          2917.63,
+          2921.17,
+          2921.91,
+          2924.98,
+          2924.58,
+          2926.37,
+          2926.27
+        ]
+      },
+      "llama": {
+        "prefill_tok_s": 5358.567310470664,
+        "prefill_mean": 5361.292117316758,
+        "prefill_sd": 16.03194688130891,
+        "ttft_ms": 3057.5344999999998,
+        "prefill_samples": [
+          5389.73962531046,
+          5384.625749777257,
+          5368.56629723914,
+          5362.713040518203,
+          5355.750076328592,
+          5347.0735020263655,
+          5344.483331272828,
+          5341.094611440582,
+          5343.285899060686,
+          5338.308456090425,
+          5390.723835626354,
+          5379.76709785141,
+          5374.457026977911,
+          5368.318272072556,
+          5361.35128042184,
+          5361.717975074425,
+          5355.783340519489,
+          5354.913355253267,
+          5353.711245309703,
+          5349.458328163671
+        ],
+        "ttft_samples_ms": [
+          3039.85,
+          3042.737,
+          3051.839,
+          3055.17,
+          3059.142,
+          3064.106,
+          3065.591,
+          3067.536,
+          3066.278,
+          3069.137,
+          3039.295,
+          3045.485,
+          3048.494,
+          3051.98,
+          3055.946,
+          3055.737,
+          3059.123,
+          3059.62,
+          3060.307,
+          3062.74
+        ]
+      },
+      "gem16_over_llama_pct": 4.731616038384501,
+      "bootstrap95_pct": [
+        4.462180591825504,
+        5.068015472480325
+      ],
+      "ttft_reduction_pct": 4.517839455286598
+    },
+    "d2": {
+      "gem16": {
+        "prefill_tok_s": 5632.003009078948,
+        "prefill_mean": 5633.9784222445605,
+        "prefill_sd": 20.240660587014183,
+        "ttft_ms": 2909.09,
+        "prefill_samples": [
+          5669.655370496614,
+          5661.07492700793,
+          5655.935210820289,
+          5652.59842193694,
+          5646.22849580944,
+          5639.309955529855,
+          5634.655331324887,
+          5624.847654654129,
+          5625.658827690163,
+          5628.32575859072,
+          5661.64223562992,
+          5650.142253642555,
+          5637.408388672883,
+          5629.350686833009,
+          5622.106848854406,
+          5611.477773629754,
+          5606.792212636499,
+          5603.647295822916,
+          5607.617378685304,
+          5611.093416623002
+        ],
+        "ttft_samples_ms": [
+          2889.77,
+          2894.15,
+          2896.78,
+          2898.49,
+          2901.76,
+          2905.32,
+          2907.72,
+          2912.79,
+          2912.37,
+          2910.99,
+          2893.86,
+          2899.75,
+          2906.3,
+          2910.46,
+          2914.21,
+          2919.73,
+          2922.17,
+          2923.81,
+          2921.74,
+          2919.93
+        ]
+      },
+      "llama": {
+        "prefill_tok_s": 5355.645712886377,
+        "prefill_mean": 5360.815251545246,
+        "prefill_sd": 20.171853849667627,
+        "ttft_ms": 3059.202,
+        "prefill_samples": [
+          5395.289593420276,
+          5383.790597359563,
+          5372.314088880582,
+          5360.698723104075,
+          5357.552189863488,
+          5352.96960105282,
+          5351.86975723208,
+          5351.703683379308,
+          5345.478985455234,
+          5348.066630172902,
+          5400.293812372091,
+          5389.489639936434,
+          5378.453162910602,
+          5367.521580326251,
+          5362.676179656199,
+          5353.739235909265,
+          5339.223511875569,
+          5333.763923650086,
+          5336.030877588833,
+          5335.3792567592645
+        ],
+        "ttft_samples_ms": [
+          3036.723,
+          3043.209,
+          3049.71,
+          3056.318,
+          3058.113,
+          3060.731,
+          3061.36,
+          3061.455,
+          3065.02,
+          3063.537,
+          3033.909,
+          3039.991,
+          3046.229,
+          3052.433,
+          3055.191,
+          3060.291,
+          3068.611,
+          3071.752,
+          3070.447,
+          3070.822
+        ]
+      },
+      "gem16_over_llama_pct": 5.1601116094669885,
+      "bootstrap95_pct": [
+        4.82206765230675,
+        5.472949022609441
+      ],
+      "ttft_reduction_pct": 4.906900557727145
+    }
+  },
+  "date": "2026-11-15",
+  "raw_result_root": "benchmarks/results/2026-11-15/58febf4/central-repeat",
+  "prefill_scope": "Full cold 16384-token prompt. Engine-reported prompt processing time, used by the runner as TTFT. Loading and tokenization excluded. Separate host/HTTP streaming latency is not measured.",
+  "toolchain_manifest": {
+    "file": "central-build-manifest.txt",
+    "sha256": "a33bbd2938e03ebaf57fbedbfda0cf39f7808cfed333a85b419f041287a3c231"
+  }
+}

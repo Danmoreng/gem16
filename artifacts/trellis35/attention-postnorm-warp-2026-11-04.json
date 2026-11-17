@@ -1,0 +1,1488 @@
+{
+  "schema_version": 1,
+  "package": "AP5_attention_postnorm_exact_warp_tail",
+  "status": "rejected_predeclared_operator_gate",
+  "production_runtime_modified": false,
+  "production_binary": {
+    "path": "${REPO_ROOT}/build/Linux/blackwell-release/bin/gem16-run",
+    "bytes": 12703592,
+    "sha256": "02b65a2eafdcc1c7cd26c6013007226207a76226d8d99021159546e5c90651a8"
+  },
+  "production_sources": {
+    "src/cuda/norm/reference.cu": {
+      "path": "${REPO_ROOT}/src/cuda/norm/reference.cu",
+      "bytes": 12386,
+      "sha256": "b4d5a08667ebd3e2e8b2677a73eedc0449d01694e92d9f6b3e9df6c73495fac0"
+    },
+    "src/cuda/attention/gemma4_26b_reference.cu": {
+      "path": "${REPO_ROOT}/src/cuda/attention/gemma4_26b_reference.cu",
+      "bytes": 44553,
+      "sha256": "23de74c8cac332f97614472162527d35ee94f8f9f90cb7b6fe9555f70126f578"
+    },
+    "src/cuda/layer/reference.h": {
+      "path": "${REPO_ROOT}/src/cuda/layer/reference.h",
+      "bytes": 18603,
+      "sha256": "715e3da46c3907ebf9ab22c8dbbf592f732d9c7db42af9284fc647aaeae1a6f4"
+    },
+    "src/cuda/moe/reference.cu": {
+      "path": "${REPO_ROOT}/src/cuda/moe/reference.cu",
+      "bytes": 70667,
+      "sha256": "f972d83b4ef4af876aca872399c1feb61984d7748b16da01e91b09e2e44a7ab5"
+    }
+  },
+  "operator_screen": {
+    "cases": [
+      {
+        "stem": "phase0-target-postnorm-r1",
+        "rows": 1,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [
+          6.1340003,
+          6.13450003,
+          6.13649988,
+          6.12925005,
+          6.13674974,
+          6.12275028,
+          6.13525009,
+          6.13825035,
+          6.12325001,
+          6.12899971
+        ],
+        "candidate_us": [
+          6.13649988,
+          6.13425016,
+          6.14575005,
+          6.1392498,
+          6.14000034,
+          6.13875008,
+          6.1392498,
+          6.13024998,
+          6.13875008,
+          6.14475012
+        ],
+        "gain": -0.0007737050083762576
+      },
+      {
+        "stem": "phase1-target-postnorm-r1",
+        "rows": 1,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [
+          6.15750027,
+          6.15399981,
+          6.15350008,
+          6.1557498,
+          6.15350008,
+          6.15374994,
+          6.15399981,
+          6.15550041,
+          6.15299988,
+          6.15999985
+        ],
+        "candidate_us": [
+          6.1624999,
+          6.1624999,
+          6.171,
+          6.17149973,
+          6.17250013,
+          6.1624999,
+          6.17224979,
+          6.171,
+          6.17224979,
+          6.1619997
+        ],
+        "gain": -0.0027548517258143557
+      },
+      {
+        "stem": "phase2-target-postnorm-r1",
+        "rows": 1,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [
+          6.12200022,
+          6.12825012,
+          6.12724972,
+          6.11975002,
+          6.12249994,
+          6.12174988,
+          6.12575006,
+          6.12349987,
+          6.12174988,
+          6.12275028
+        ],
+        "candidate_us": [
+          6.12400007,
+          6.13474989,
+          6.12925005,
+          6.12575006,
+          6.12599993,
+          6.13649988,
+          6.12299967,
+          6.12275028,
+          6.12375021,
+          6.12424994
+        ],
+        "gain": -0.00038773714285722516
+      },
+      {
+        "stem": "phase0-target-postnorm-r3",
+        "rows": 3,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [
+          4.63325024,
+          4.63250017,
+          4.64599991,
+          4.63399982,
+          4.63749981,
+          4.63800001,
+          4.64674997,
+          4.63625002,
+          4.63199997,
+          4.63349962
+        ],
+        "candidate_us": [
+          4.62599993,
+          4.63599968,
+          4.62925005,
+          4.62650013,
+          4.62050009,
+          4.63574982,
+          4.62999964,
+          4.63450003,
+          4.62074995,
+          4.63474989
+        ],
+        "gain": 0.0011880174277920652
+      },
+      {
+        "stem": "phase1-target-postnorm-r1",
+        "rows": 1,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [
+          6.15799999,
+          6.15599966,
+          6.14624977,
+          6.15525007,
+          6.15250015,
+          6.14400005,
+          6.15474987,
+          6.15599966,
+          6.15299988,
+          6.15550041
+        ],
+        "candidate_us": [
+          6.17024994,
+          6.16374969,
+          6.16074991,
+          6.15599966,
+          6.1567502,
+          6.17050028,
+          6.1567502,
+          6.15599966,
+          6.171,
+          6.16875029
+        ],
+        "gain": -0.0011764907680307246
+      },
+      {
+        "stem": "phase1-target-postnorm-r3",
+        "rows": 3,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [
+          4.63450003,
+          4.63625002,
+          4.63275003,
+          4.63500023,
+          4.63500023,
+          4.63574982,
+          4.63474989,
+          4.63549995,
+          4.64225006,
+          4.63199997
+        ],
+        "candidate_us": [
+          4.62050009,
+          4.62699986,
+          4.62999964,
+          4.63450003,
+          4.62674999,
+          4.63525009,
+          4.62699986,
+          4.63349962,
+          4.62099981,
+          4.63649988
+        ],
+        "gain": 0.001404446440771867
+      },
+      {
+        "stem": "phase2-target-postnorm-r1",
+        "rows": 1,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [
+          6.13849974,
+          6.13800001,
+          6.1312499,
+          6.12424994,
+          6.13700008,
+          6.13724995,
+          6.13724995,
+          6.13899994,
+          6.12200022,
+          6.13750029
+        ],
+        "candidate_us": [
+          6.12874985,
+          6.14099979,
+          6.14000034,
+          6.1392498,
+          6.13875008,
+          6.13800001,
+          6.13950014,
+          6.14000034,
+          6.14050007,
+          6.1392498
+        ],
+        "gain": -0.0003461296973037431
+      },
+      {
+        "stem": "phase2-target-postnorm-r3",
+        "rows": 3,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [
+          4.63425016,
+          4.63549995,
+          4.63474989,
+          4.63500023,
+          4.63474989,
+          4.63675022,
+          4.63250017,
+          4.63675022,
+          4.63275003,
+          4.62999964
+        ],
+        "candidate_us": [
+          4.62249994,
+          4.63425016,
+          4.62199974,
+          4.63275003,
+          4.63549995,
+          4.62150002,
+          4.6192503,
+          4.63450003,
+          4.63625002,
+          4.63275003
+        ],
+        "gain": 0.00043167880568772965
+      }
+    ],
+    "resources": {
+      "parent_registers": 28,
+      "candidate_registers": 28,
+      "parent_static_shared": 1024,
+      "candidate_static_shared": 1024,
+      "parent_local_bytes": 0,
+      "candidate_local_bytes": 0
+    },
+    "all_actual_consumed_bits_exact": true,
+    "all_case_medians_positive": false,
+    "geomean_gain": -0.00030263969883959074,
+    "bootstrap95": [
+      -0.0006988487807715327,
+      0.00017712951091319873
+    ],
+    "timing_gate_passed": false,
+    "scope": "8realR1/R3postnormcases;actualnormalized-pointerpresence;128launchcachewarmgraphs;3warm10alternating;notprimarythroughput"
+  },
+  "actual_capture_identities": [
+    {
+      "root": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures",
+      "stem": "phase0-target-postnorm-r1",
+      "rows": 1,
+      "epsilon_bits": 897988541,
+      "normalized_output_present": true,
+      "scalar_present": false,
+      "input_output_alias": false,
+      "residual_output_alias": false,
+      "parts": [
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase0-target-postnorm-r1-input.bin",
+          "bytes": 11264,
+          "sha256": "b3082e5e58632d7e5f8c5fad4e8ab3b5c1037026394e14698640443615bcbc39"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase0-target-postnorm-r1-weight.bin",
+          "bytes": 5632,
+          "sha256": "c1435969d9e264b735deb066d3b4e22ad2bc0b28129af6814e886398faacf53b"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase0-target-postnorm-r1-residual.bin",
+          "bytes": 11264,
+          "sha256": "de1855e904648a80c0dd3bb57c2c0598a2277959ecf78433dca925f86f2ef4db"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase0-target-postnorm-r1-output.bin",
+          "bytes": 11264,
+          "sha256": "7c1eda5d865f45e71853bf732262a26ef7f5ca61c05f18b5331c241e1a152fac"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase0-target-postnorm-r1-normalized.bin",
+          "bytes": 11264,
+          "sha256": "bcd9c5a99d5ce2b3fab50181f91c2902d94693ca12ae5fd80ab08897f42677f5"
+        }
+      ]
+    },
+    {
+      "root": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures",
+      "stem": "phase1-target-postnorm-r1",
+      "rows": 1,
+      "epsilon_bits": 897988541,
+      "normalized_output_present": true,
+      "scalar_present": false,
+      "input_output_alias": false,
+      "residual_output_alias": false,
+      "parts": [
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase1-target-postnorm-r1-input.bin",
+          "bytes": 11264,
+          "sha256": "eab193dfa9a58455619e47311d8c8e2f65e9a94863182150e6a35164e10c06ae"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase1-target-postnorm-r1-weight.bin",
+          "bytes": 5632,
+          "sha256": "c1435969d9e264b735deb066d3b4e22ad2bc0b28129af6814e886398faacf53b"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase1-target-postnorm-r1-residual.bin",
+          "bytes": 11264,
+          "sha256": "850c24e7fc3b11a97ee70792181ed0a465719bce58d9a8987295b7ab625ae656"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase1-target-postnorm-r1-output.bin",
+          "bytes": 11264,
+          "sha256": "6ede05ec011bd9de226f4f29c1ad85dc41fc2b500ea900b56534d282f686e18e"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase1-target-postnorm-r1-normalized.bin",
+          "bytes": 11264,
+          "sha256": "121e18c0259fe812e7a9ee8213660c016fff20ddac57e68994c9e3b373424c58"
+        }
+      ]
+    },
+    {
+      "root": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures",
+      "stem": "phase2-target-postnorm-r1",
+      "rows": 1,
+      "epsilon_bits": 897988541,
+      "normalized_output_present": true,
+      "scalar_present": false,
+      "input_output_alias": false,
+      "residual_output_alias": false,
+      "parts": [
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase2-target-postnorm-r1-input.bin",
+          "bytes": 11264,
+          "sha256": "59c2b2295fb9f7d5edfb3c3ca83d24faf1b74bbec9d49495364e2fb0bcc6e550"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase2-target-postnorm-r1-weight.bin",
+          "bytes": 5632,
+          "sha256": "c1435969d9e264b735deb066d3b4e22ad2bc0b28129af6814e886398faacf53b"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase2-target-postnorm-r1-residual.bin",
+          "bytes": 11264,
+          "sha256": "0074cd64517c9a6ebacab04b2ffeeba165a12a310db62fc1c86988c2d4780f4c"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase2-target-postnorm-r1-output.bin",
+          "bytes": 11264,
+          "sha256": "cbe55108169afb469fa65f36c367d179bfa5a104a3f44e3dcf8cdac258ea8b83"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-ordinary-inputs-captures/phase2-target-postnorm-r1-normalized.bin",
+          "bytes": 11264,
+          "sha256": "1152c9732fbf146733b0552208d1c34af92a00dd6791fac6d5c25b2716bd2e78"
+        }
+      ]
+    },
+    {
+      "root": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures",
+      "stem": "phase0-target-postnorm-r3",
+      "rows": 3,
+      "epsilon_bits": 897988541,
+      "normalized_output_present": false,
+      "scalar_present": false,
+      "input_output_alias": false,
+      "residual_output_alias": false,
+      "parts": [
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase0-target-postnorm-r3-input.bin",
+          "bytes": 33792,
+          "sha256": "9e1289b73178294366dc8d2210cd5098d0c7e148736c58758a3fdb7ecb4ad615"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase0-target-postnorm-r3-weight.bin",
+          "bytes": 5632,
+          "sha256": "c1435969d9e264b735deb066d3b4e22ad2bc0b28129af6814e886398faacf53b"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase0-target-postnorm-r3-residual.bin",
+          "bytes": 33792,
+          "sha256": "2bca1009f35744ce4de43af59760d7a70bb130a9432cd8a369a3fb0518705919"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase0-target-postnorm-r3-output.bin",
+          "bytes": 33792,
+          "sha256": "49fabafdb3bdc8cb849de11264d7a1bde5ec419553de2d619b018e7426d697d2"
+        }
+      ]
+    },
+    {
+      "root": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures",
+      "stem": "phase1-target-postnorm-r1",
+      "rows": 1,
+      "epsilon_bits": 897988541,
+      "normalized_output_present": true,
+      "scalar_present": false,
+      "input_output_alias": false,
+      "residual_output_alias": false,
+      "parts": [
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase1-target-postnorm-r1-input.bin",
+          "bytes": 11264,
+          "sha256": "f1e0c551026738997f25bd786dda3c6590c511b66a9cd49e452a763f8e4b974f"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase1-target-postnorm-r1-weight.bin",
+          "bytes": 5632,
+          "sha256": "c1435969d9e264b735deb066d3b4e22ad2bc0b28129af6814e886398faacf53b"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase1-target-postnorm-r1-residual.bin",
+          "bytes": 11264,
+          "sha256": "125c885d5d259c07bddc1acdd40870a039a3ea0c63317ea7e152661fa6179376"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase1-target-postnorm-r1-output.bin",
+          "bytes": 11264,
+          "sha256": "34f3de18a9964aea376dc1ff2a5c2277f033fbaa44efa162de6a65df8c818c96"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase1-target-postnorm-r1-normalized.bin",
+          "bytes": 11264,
+          "sha256": "35a7fe5a9b38f695920a5dfa712ed2eb938d3d0f1f0972757f5d10b2ab1fbabb"
+        }
+      ]
+    },
+    {
+      "root": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures",
+      "stem": "phase1-target-postnorm-r3",
+      "rows": 3,
+      "epsilon_bits": 897988541,
+      "normalized_output_present": false,
+      "scalar_present": false,
+      "input_output_alias": false,
+      "residual_output_alias": false,
+      "parts": [
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase1-target-postnorm-r3-input.bin",
+          "bytes": 33792,
+          "sha256": "73f9b66805fbf82f39d4e6855f0ef6996fa45a7d93c930a47ea5c28415f94fbe"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase1-target-postnorm-r3-weight.bin",
+          "bytes": 5632,
+          "sha256": "c1435969d9e264b735deb066d3b4e22ad2bc0b28129af6814e886398faacf53b"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase1-target-postnorm-r3-residual.bin",
+          "bytes": 33792,
+          "sha256": "9be246698a1e30bb908f4f110feac644016d74daf21fbbe3f7d7049874549557"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase1-target-postnorm-r3-output.bin",
+          "bytes": 33792,
+          "sha256": "1e5fa03262d89f1993cbacb4f864f41399e1937996590330c3d73500f1b2d419"
+        }
+      ]
+    },
+    {
+      "root": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures",
+      "stem": "phase2-target-postnorm-r1",
+      "rows": 1,
+      "epsilon_bits": 897988541,
+      "normalized_output_present": true,
+      "scalar_present": false,
+      "input_output_alias": false,
+      "residual_output_alias": false,
+      "parts": [
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase2-target-postnorm-r1-input.bin",
+          "bytes": 11264,
+          "sha256": "24817c6c77cdfbf2931d9ee313fd8a77ed7c5960ed0fa04745b092a94eeaedae"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase2-target-postnorm-r1-weight.bin",
+          "bytes": 5632,
+          "sha256": "c1435969d9e264b735deb066d3b4e22ad2bc0b28129af6814e886398faacf53b"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase2-target-postnorm-r1-residual.bin",
+          "bytes": 11264,
+          "sha256": "8faf558158ec19d891d730a6a714f68b004f9fa0d2e6aa37a9457980c50c474b"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase2-target-postnorm-r1-output.bin",
+          "bytes": 11264,
+          "sha256": "c3b3e934eef87ded79753c26a1a4ed7e71859706fe1ecd73f5192a44de042b6e"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase2-target-postnorm-r1-normalized.bin",
+          "bytes": 11264,
+          "sha256": "013e176ff78fcb05416961aebe48e277287cc60586c4b72e223ec733bb492870"
+        }
+      ]
+    },
+    {
+      "root": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures",
+      "stem": "phase2-target-postnorm-r3",
+      "rows": 3,
+      "epsilon_bits": 897988541,
+      "normalized_output_present": false,
+      "scalar_present": false,
+      "input_output_alias": false,
+      "residual_output_alias": false,
+      "parts": [
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase2-target-postnorm-r3-input.bin",
+          "bytes": 33792,
+          "sha256": "4ee518d82030d128fd41bfcf424bc872ebe041268f4952da12c8b10a9fefcaaf"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase2-target-postnorm-r3-weight.bin",
+          "bytes": 5632,
+          "sha256": "c1435969d9e264b735deb066d3b4e22ad2bc0b28129af6814e886398faacf53b"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase2-target-postnorm-r3-residual.bin",
+          "bytes": 33792,
+          "sha256": "3fa993a6df2079a03f176b12f9024dc0684c59ff6ddd3d20756777ad5045c6d1"
+        },
+        {
+          "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/replay-d2-head-windows-inputs-captures/phase2-target-postnorm-r3-output.bin",
+          "bytes": 33792,
+          "sha256": "6665f6d79d8e5d41f185d3205407feb4747969dba052271cc6a4a4279ca22eba"
+        }
+      ]
+    }
+  ],
+  "candidate_derivative": {
+    "source_sha256": "b4d5a08667ebd3e2e8b2677a73eedc0449d01694e92d9f6b3e9df6c73495fac0",
+    "accepted_moe_source_sha256": "f972d83b4ef4af876aca872399c1feb61984d7748b16da01e91b09e2e44a7ab5",
+    "generator_sha256": "90fb529de912d8e8ee0e9f4e5d08a6e98c50f9c1eac21005c65cc293e97ae916",
+    "generated_sha256": "69bc4ff2ff40044ac7f9ea8594ad0a1a7eff64509e3428594b3858983105b757",
+    "transform": "duplicate float residual norm only; exact accepted MoE binary tree CTA128/64/32, warp0 16/8/4/2/1 syncwarp after each, final CTA; no generic dispatch change",
+    "candidate_kernel": "template <typename Input>\n__global__ void Ap5AttentionPostnormKernel(\n    const Input* input, const std::uint16_t* weight, const float* residual,\n    float* normalized_output, float* output, std::uint64_t width,\n    float epsilon, const std::uint16_t* scalar) {\n  const std::uint64_t vector = blockIdx.x;\n  const std::uint64_t base = vector * width;\n  float squared_sum = 0.0F;\n  for (std::uint64_t index = threadIdx.x; index < width;\n       index += blockDim.x) {\n    const float value = LoadBoundaryValue(input, base + index);\n    squared_sum = fmaf(value, value, squared_sum);\n  }\n  const float inverse_rms =\n      rsqrtf(Ap5BlockSum(squared_sum) / static_cast<float>(width) + epsilon);\n  const float layer_scale =\n      scalar == nullptr\n          ? 1.0F\n          : static_cast<float>(__ushort_as_bfloat16(scalar[0]));\n  for (std::uint64_t index = threadIdx.x; index < width;\n       index += blockDim.x) {\n    const float norm_scale =\n        weight == nullptr\n            ? 1.0F\n            : static_cast<float>(__ushort_as_bfloat16(weight[index]));\n    const float normalized = static_cast<float>(__float2bfloat16_rn(\n        LoadBoundaryValue(input, base + index) * inverse_rms * norm_scale));\n    if (normalized_output != nullptr) {\n      normalized_output[base + index] = normalized;\n    }\n    float value = static_cast<float>(\n        __float2bfloat16_rn(normalized + residual[base + index]));\n    if (scalar != nullptr) {\n      value = static_cast<float>(__float2bfloat16_rn(value * layer_scale));\n    }\n    output[base + index] = value;\n  }\n}\n\n",
+    "replacement_reduction": "__device__ float Ap5BlockSum(float value) {\n  __shared__ float scratch[kThreads];\n  scratch[threadIdx.x] = value;\n  __syncthreads();\n  // Preserve the accepted binary-tree addition order while avoiding four\n  // block-wide barriers once the live reduction fits in warp zero.\n  for (unsigned stride = kThreads / 2U; stride >= 32U;\n       stride >>= 1U) {\n    if (threadIdx.x < stride) {\n      scratch[threadIdx.x] += scratch[threadIdx.x + stride];\n    }\n    __syncthreads();\n  }\n  if (threadIdx.x < 32U) {\n    for (unsigned stride = 32U / 2U; stride != 0U; stride >>= 1U) {\n      if (threadIdx.x < stride) {\n        scratch[threadIdx.x] += scratch[threadIdx.x + stride];\n      }\n      __syncwarp();\n    }\n  }\n  __syncthreads();\n  return scratch[0];\n}\n\n"
+  },
+  "actual_boundary_results": {
+    "diagnostic_only": true,
+    "resources": {
+      "parent_registers": 28,
+      "candidate_registers": 28,
+      "parent_static_shared": 1024,
+      "candidate_static_shared": 1024,
+      "parent_local_bytes": 0,
+      "candidate_local_bytes": 0
+    },
+    "cases": [
+      {
+        "stem": "phase0-target-postnorm-r1",
+        "rows": 1,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [],
+        "candidate_us": []
+      },
+      {
+        "stem": "phase1-target-postnorm-r1",
+        "rows": 1,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [],
+        "candidate_us": []
+      },
+      {
+        "stem": "phase2-target-postnorm-r1",
+        "rows": 1,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [],
+        "candidate_us": []
+      },
+      {
+        "stem": "phase0-target-postnorm-r3",
+        "rows": 3,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [],
+        "candidate_us": []
+      },
+      {
+        "stem": "phase1-target-postnorm-r1",
+        "rows": 1,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [],
+        "candidate_us": []
+      },
+      {
+        "stem": "phase1-target-postnorm-r3",
+        "rows": 3,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [],
+        "candidate_us": []
+      },
+      {
+        "stem": "phase2-target-postnorm-r1",
+        "rows": 1,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [],
+        "candidate_us": []
+      },
+      {
+        "stem": "phase2-target-postnorm-r3",
+        "rows": 3,
+        "consumed_outputs_bit_exact": true,
+        "parent_us": [],
+        "candidate_us": []
+      }
+    ]
+  },
+  "sass_instruction_proof": {
+    "parent": {
+      "symbol": "__nv_static_46__7ec9449c_24_postnorm_v2_generated_cu_cfcba647__ZN5gem168internal57_GLOBAL__N__7ec9449c_24_postnorm_v2_generated_cu_cfcba64725RmsNormResidualBf16KernelIfEEvPKT_PKtPKfPfSA_mfS7_",
+      "static_cta_barrier_sites": 9,
+      "barrier_instructions": [
+        "/*0300*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*0380*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*03e0*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*0440*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*04a0*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*0500*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*0560*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*05d0*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*0630*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */"
+      ],
+      "scope": "static sites, not dynamic instruction counts; candidate warp-tail source loops explicitly synchronize after each of5stages"
+    },
+    "candidate": {
+      "symbol": "__nv_static_46__7ec9449c_24_postnorm_v2_generated_cu_cfcba647__ZN5gem168internal57_GLOBAL__N__7ec9449c_24_postnorm_v2_generated_cu_cfcba64726Ap5AttentionPostnormKernelIfEEvPKT_PKtPKfPfSA_mfS7_",
+      "static_cta_barrier_sites": 5,
+      "barrier_instructions": [
+        "/*0270*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*02c0*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*0320*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*0370*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*05b0*/                   WARPSYNC.ALL ;                                              /* 0x0000000000007948 */",
+        "/*05c0*/                   BAR.SYNC.DEFER_BLOCKING 0x0 ;                               /* 0x0000000000007b1d */",
+        "/*17e0*/                   WARPSYNC.COLLECTIVE R15, 0x1810 ;                           /* 0x000000000f087348 */",
+        "/*1860*/                   WARPSYNC.COLLECTIVE R15, 0x1890 ;                           /* 0x000000000f087348 */",
+        "/*18e0*/                   WARPSYNC.COLLECTIVE R15, 0x1910 ;                           /* 0x000000000f087348 */",
+        "/*1950*/                   WARPSYNC.COLLECTIVE R15, 0x1980 ;                           /* 0x000000000f087348 */",
+        "/*19b0*/                   WARPSYNC.COLLECTIVE R15, 0x19e0 ;                           /* 0x000000000f087348 */"
+      ],
+      "scope": "static sites, not dynamic instruction counts; candidate warp-tail source loops explicitly synchronize after each of5stages"
+    }
+  },
+  "profiled_dispatch_resources": {
+    "parent": {
+      "kernel": "void unnamed>::RmsNormResidualBf16Kernel<float>(const T1 *, const unsigned short *, const float *, float *, float *, unsigned long, float, const unsigned short *)",
+      "grid": "(1, 1, 1)",
+      "block": "(256, 1, 1)",
+      "metrics": {
+        "launch__barrier_count": "1",
+        "launch__block_dim_x": "256",
+        "launch__block_dim_y": "1",
+        "launch__block_dim_z": "1",
+        "launch__block_size": "256",
+        "launch__cluster_dim_x": "0",
+        "launch__cluster_dim_y": "0",
+        "launch__cluster_dim_z": "0",
+        "launch__cluster_max_active": "0",
+        "launch__cluster_max_potential_size": "8",
+        "launch__cluster_scheduling_policy": "PolicySpread",
+        "launch__cluster_size": "0",
+        "launch__context_id": "1",
+        "launch__device_id": "0",
+        "launch__execution_model": "SIMT",
+        "launch__func_cache_config": "CachePreferNone",
+        "launch__function_pcs": "1",
+        "launch__grid_dim_x": "1",
+        "launch__grid_dim_y": "1",
+        "launch__grid_dim_z": "1",
+        "launch__grid_size": "1",
+        "launch__kernel_name": "",
+        "launch__occupancy_cluster_gpu_pct": "0",
+        "launch__occupancy_cluster_pct": "0",
+        "launch__occupancy_limit_barriers": "24.000000",
+        "launch__occupancy_limit_blocks": "24.000000",
+        "launch__occupancy_limit_registers": "8.000000",
+        "launch__occupancy_limit_shared_mem": "16.000000",
+        "launch__occupancy_limit_warps": "6.000000",
+        "launch__occupancy_per_barrier_count": "512",
+        "launch__occupancy_per_block_size": "2484",
+        "launch__occupancy_per_cluster_size": "312",
+        "launch__occupancy_per_register_count": "4976",
+        "launch__occupancy_per_shared_mem_size": "2360",
+        "launch__per_block_memory_size": "0",
+        "launch__per_block_min_memory_size": "0",
+        "launch__persisting_l2_cache_size": "9.437184",
+        "launch__preferred_cluster_dim_x": "0",
+        "launch__preferred_cluster_dim_y": "0",
+        "launch__preferred_cluster_dim_z": "0",
+        "launch__preferred_cluster_size": "0",
+        "launch__registers_per_thread": "28",
+        "launch__registers_per_thread_allocated": "32.000000",
+        "launch__shared_mem_config_size": "32.768000",
+        "launch__shared_mem_per_block": "2.048000",
+        "launch__shared_mem_per_block_allocated": "2.048000",
+        "launch__shared_mem_per_block_driver": "1.024000",
+        "launch__shared_mem_per_block_dynamic": "0",
+        "launch__shared_mem_per_block_static": "1.024000",
+        "launch__sm_count": "60",
+        "launch__stack_size": "1024",
+        "launch__stream_id": "7",
+        "launch__thread_count": "256",
+        "launch__tpc_count": "30",
+        "launch__tpc_enabled": "all",
+        "launch__user_grid_dim_x": "1",
+        "launch__user_grid_dim_y": "1",
+        "launch__user_grid_dim_z": "1",
+        "launch__user_grid_size": "1",
+        "launch__uses_blocks_as_clusters": "0",
+        "launch__uses_cdp": "0",
+        "launch__uses_green_context": "0",
+        "launch__uses_mps": "0",
+        "launch__uses_nvlink_centric_scheduling": "0",
+        "launch__uses_vgpu": "0",
+        "launch__waves_per_multiprocessor": "0.00",
+        "smsp__average_warps_issue_stalled_barrier_per_issue_active.ratio": "0.370826",
+        "smsp__average_warps_issue_stalled_long_scoreboard_per_issue_active.ratio": "18.937170",
+        "smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.ratio": "2.016257",
+        "smsp__pcsamp_warps_issue_stalled_barrier": "0",
+        "smsp__pcsamp_warps_issue_stalled_barrier_not_issued": "0",
+        "smsp__pcsamp_warps_issue_stalled_long_scoreboard": "10",
+        "smsp__pcsamp_warps_issue_stalled_long_scoreboard_not_issued": "9",
+        "smsp__pcsamp_warps_issue_stalled_short_scoreboard": "1",
+        "smsp__pcsamp_warps_issue_stalled_short_scoreboard_not_issued": "1",
+        "smsp__warpidsamp_warps_issue_stalled_barrier_not_issued": "0",
+        "smsp__warpidsamp_warps_issue_stalled_long_scoreboard_not_issued": "11",
+        "smsp__warpidsamp_warps_issue_stalled_short_scoreboard_not_issued": "1"
+      },
+      "scope": "first actual R1 kernel profiled separately; rates never substitute for unprofiled samples"
+    },
+    "candidate": {
+      "kernel": "void unnamed>::Ap5AttentionPostnormKernel<float>(const T1 *, const unsigned short *, const float *, float *, float *, unsigned long, float, const unsigned short *)",
+      "grid": "(1, 1, 1)",
+      "block": "(256, 1, 1)",
+      "metrics": {
+        "launch__barrier_count": "1",
+        "launch__block_dim_x": "256",
+        "launch__block_dim_y": "1",
+        "launch__block_dim_z": "1",
+        "launch__block_size": "256",
+        "launch__cluster_dim_x": "0",
+        "launch__cluster_dim_y": "0",
+        "launch__cluster_dim_z": "0",
+        "launch__cluster_max_active": "0",
+        "launch__cluster_max_potential_size": "8",
+        "launch__cluster_scheduling_policy": "PolicySpread",
+        "launch__cluster_size": "0",
+        "launch__context_id": "1",
+        "launch__device_id": "0",
+        "launch__execution_model": "SIMT",
+        "launch__func_cache_config": "CachePreferNone",
+        "launch__function_pcs": "1",
+        "launch__grid_dim_x": "1",
+        "launch__grid_dim_y": "1",
+        "launch__grid_dim_z": "1",
+        "launch__grid_size": "1",
+        "launch__kernel_name": "",
+        "launch__occupancy_cluster_gpu_pct": "0",
+        "launch__occupancy_cluster_pct": "0",
+        "launch__occupancy_limit_barriers": "24.000000",
+        "launch__occupancy_limit_blocks": "24.000000",
+        "launch__occupancy_limit_registers": "8.000000",
+        "launch__occupancy_limit_shared_mem": "16.000000",
+        "launch__occupancy_limit_warps": "6.000000",
+        "launch__occupancy_per_barrier_count": "512",
+        "launch__occupancy_per_block_size": "2484",
+        "launch__occupancy_per_cluster_size": "312",
+        "launch__occupancy_per_register_count": "4976",
+        "launch__occupancy_per_shared_mem_size": "2360",
+        "launch__per_block_memory_size": "0",
+        "launch__per_block_min_memory_size": "0",
+        "launch__persisting_l2_cache_size": "9.437184",
+        "launch__preferred_cluster_dim_x": "0",
+        "launch__preferred_cluster_dim_y": "0",
+        "launch__preferred_cluster_dim_z": "0",
+        "launch__preferred_cluster_size": "0",
+        "launch__registers_per_thread": "28",
+        "launch__registers_per_thread_allocated": "32.000000",
+        "launch__shared_mem_config_size": "32.768000",
+        "launch__shared_mem_per_block": "2.048000",
+        "launch__shared_mem_per_block_allocated": "2.048000",
+        "launch__shared_mem_per_block_driver": "1.024000",
+        "launch__shared_mem_per_block_dynamic": "0",
+        "launch__shared_mem_per_block_static": "1.024000",
+        "launch__sm_count": "60",
+        "launch__stack_size": "1024",
+        "launch__stream_id": "7",
+        "launch__thread_count": "256",
+        "launch__tpc_count": "30",
+        "launch__tpc_enabled": "all",
+        "launch__user_grid_dim_x": "1",
+        "launch__user_grid_dim_y": "1",
+        "launch__user_grid_dim_z": "1",
+        "launch__user_grid_size": "1",
+        "launch__uses_blocks_as_clusters": "0",
+        "launch__uses_cdp": "0",
+        "launch__uses_green_context": "0",
+        "launch__uses_mps": "0",
+        "launch__uses_nvlink_centric_scheduling": "0",
+        "launch__uses_vgpu": "0",
+        "launch__waves_per_multiprocessor": "0.00",
+        "smsp__average_warps_issue_stalled_barrier_per_issue_active.ratio": "0.540802",
+        "smsp__average_warps_issue_stalled_long_scoreboard_per_issue_active.ratio": "20.915168",
+        "smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.ratio": "1.858460",
+        "smsp__pcsamp_warps_issue_stalled_barrier": "0",
+        "smsp__pcsamp_warps_issue_stalled_barrier_not_issued": "0",
+        "smsp__pcsamp_warps_issue_stalled_long_scoreboard": "11",
+        "smsp__pcsamp_warps_issue_stalled_long_scoreboard_not_issued": "11",
+        "smsp__pcsamp_warps_issue_stalled_short_scoreboard": "2",
+        "smsp__pcsamp_warps_issue_stalled_short_scoreboard_not_issued": "1",
+        "smsp__warpidsamp_warps_issue_stalled_barrier_not_issued": "0",
+        "smsp__warpidsamp_warps_issue_stalled_long_scoreboard_not_issued": "11",
+        "smsp__warpidsamp_warps_issue_stalled_short_scoreboard_not_issued": "1"
+      },
+      "scope": "first actual R1 kernel profiled separately; rates never substitute for unprofiled samples"
+    }
+  },
+  "gates": {
+    "actual_consumed_output_bits_exact": true,
+    "boundary_memcheck_synccheck": true,
+    "operator_all_cases_positive_and95lower_positive": false,
+    "production_end_to_end": null,
+    "protected_profiles": null
+  },
+  "boundary_coverage": "8actualR1/R3cases each tests normalized output null/present; output independent/input/residual alias times3BF16scalars;14finite-extreme/null-weight combinations, guarded allocations. Not every possible pointer overlap or NaN/Inf contract.",
+  "environment": {
+    "cpu_model": "AMD Ryzen 9 9955HX3D 16-Core Processor",
+    "gpu_model": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "driver_version": "615.78.08 [Deprecated; will be removed in CUDA 14.0. Use KMD Version instead]",
+    "gpu_memory_total": "16303 MiB",
+    "platform_profile": "max-power",
+    "nvidia_powerd": "active",
+    "toolchain": {
+      "nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Tue_Sep_01_08:45:21_PDT_2026\nCuda compilation tools, release 13.4, V13.4.92\nBuild cuda_13.4.r13.4/compiler.38855100_0\n",
+      "cmake": "cmake version 4.4.5\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+      "gcc": "g++ (GCC) 16.2.1 20260810\nCopyright (C) 2026 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "nsys": "NVIDIA Nsight Systems version 2026.3.2.476-263238834031v0\n",
+      "ncu": "NVIDIA (R) Nsight Compute Command Line Profiler\nCopyright (c) 2018-2026 NVIDIA Corporation\nVersion 2026.3.1.0 (build 38829034) (public-release)\n"
+    },
+    "clock_policy": "firmware managed; no locked clocks; cooldown <=50C"
+  },
+  "native_model_identities": {
+    "target": {
+      "directory": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+      "files": {
+        "LICENSE": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/LICENSE",
+          "bytes": 634,
+          "sha256": "e32c5cdb30142b7c670d61be0f2de18ab0007f72ef131e2869ef51687539c86d"
+        },
+        "NOTICE": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/NOTICE",
+          "bytes": 243,
+          "sha256": "f48d72e964adc0c5c616d03a5f6ff2bd973504e8d9ca88559d05e071cff585e7"
+        },
+        "README.md": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/README.md",
+          "bytes": 298,
+          "sha256": "34f25a364f5ba371e5a0230ef77183567763b89ee16155353cd5b6ddadca269a"
+        },
+        "SHA256SUMS": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/SHA256SUMS",
+          "bytes": 754,
+          "sha256": "958cb982b56f43f53acbd6200d0eb70e9963b3daab1d41d0489f206b6d6daa8e"
+        },
+        "chat_template.jinja": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/chat_template.jinja",
+          "bytes": 18683,
+          "sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4"
+        },
+        "config.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/config.json",
+          "bytes": 4152,
+          "sha256": "8a647d5444c9e77b03bd80ac802683ffdbf64b3d9296ca5257ced8e50349ea16"
+        },
+        "gem16.lock.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/gem16.lock.json",
+          "bytes": 1012,
+          "sha256": "92ae384611b4b92e061b71a4048abf1f83f54251fd0df612f50751e635fbff08"
+        },
+        "gem16_compilation.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/gem16_compilation.json",
+          "bytes": 465448,
+          "sha256": "55181031e34c6214e23a3546a393c5f32acb7e01237133b104f9b02188583204"
+        },
+        "gem16_model.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/gem16_model.json",
+          "bytes": 996,
+          "sha256": "0896c371e9458fee1ada61ed4ba9e174ac921d7f02f03969f9a2d38f3fb9840f"
+        },
+        "generation_config.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/generation_config.json",
+          "bytes": 203,
+          "sha256": "b69207f9be617e982d13cc273cce6fd88c98dda99a4bdc5e2d52ffe0a0d9f0a9"
+        },
+        "model.gem16": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/model.gem16",
+          "bytes": 12204692480,
+          "sha256": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4"
+        },
+        "tokenizer.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/tokenizer.json",
+          "bytes": 32169626,
+          "sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f"
+        },
+        "tokenizer_config.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35/tokenizer_config.json",
+          "bytes": 3729,
+          "sha256": "3ab5c7b94dc97d65ca7064496fa69b88ff875378e1cb7ee3e43070c3a8170999"
+        }
+      }
+    },
+    "assistant": {
+      "directory": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+      "files": {
+        ".gitattributes": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/.gitattributes",
+          "bytes": 101,
+          "sha256": "a0e948ca693c63e0b5139f66bd709003cbcf8bc764acb1ee687a552885c8fe2c"
+        },
+        "LICENSE": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/LICENSE",
+          "bytes": 634,
+          "sha256": "e32c5cdb30142b7c670d61be0f2de18ab0007f72ef131e2869ef51687539c86d"
+        },
+        "NOTICE": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/NOTICE",
+          "bytes": 791,
+          "sha256": "555f14e6346372367e5facd6979a9594fd1502f319548933f7c867a1b00ec9d3"
+        },
+        "README.md": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/README.md",
+          "bytes": 31457,
+          "sha256": "d93671a2e9b9064f670525925ba085c43b4023e70ec76f29b0c4ea0c9a1f5dcc"
+        },
+        "chat_template.jinja": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/chat_template.jinja",
+          "bytes": 18683,
+          "sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4"
+        },
+        "config.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/config.json",
+          "bytes": 2720,
+          "sha256": "d3c79600ce09c86c993c89bed7ce05baa376770967ffaa1ac9a0c29347a633e4"
+        },
+        "gem16.lock.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/gem16.lock.json",
+          "bytes": 1664,
+          "sha256": "f2d2278a53ecfb3bf7a093a3207dce70148a88708a51b5050dd8d436c3d69455"
+        },
+        "gem16_compilation.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/gem16_compilation.json",
+          "bytes": 217371,
+          "sha256": "d2a722ccad675807ff73a1a645a0f1fbcc0fc200c402a14e823a5927618a116d"
+        },
+        "gem16_model.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/gem16_model.json",
+          "bytes": 613,
+          "sha256": "ef69d5384d6cca061e9941375bb2b18ebc9fee6587e492ef16701dce29b0131e"
+        },
+        "generation_config.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/generation_config.json",
+          "bytes": 209,
+          "sha256": "fb53f4c64e58896a63472e8eb304397db4a39453e1da0f5d57625ec5a8c1050e"
+        },
+        "model-00001-of-00001.safetensors": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/model-00001-of-00001.safetensors",
+          "bytes": 258317280,
+          "sha256": "4d3ce2102ad0631d9e7e0586be0b108d5789cbc5b90d21b4c50613979228d927"
+        },
+        "model.safetensors.index.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/model.safetensors.index.json",
+          "bytes": 8327,
+          "sha256": "8fcc4b09fb62f710558176406385e9a04423119cd6e81301171d9a64bbfd9165"
+        },
+        "tokenizer.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/tokenizer.json",
+          "bytes": 32169440,
+          "sha256": "75a6583c1a418e2bbd79c60d95d28e0f5bf549ad3f2990b5bdb5238c6c2bf70c"
+        },
+        "tokenizer_config.json": {
+          "path": "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant/tokenizer_config.json",
+          "bytes": 3023,
+          "sha256": "01f2ff1c21ef2e722891380323edcaecd9c86a776aeb9b40148e2f35e3cee4d3"
+        }
+      }
+    }
+  },
+  "peak_vram": null,
+  "peak_vram_scope": "not measured in the standalone operator screen; no model-throughput or primary-memory claim",
+  "commands": {
+    "actual-screen.command.json": [
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-screen",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-cases-v2.tsv",
+      "screen",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-screen.json"
+    ],
+    "boundary-memcheck.command.json": [
+      "compute-sanitizer",
+      "--tool",
+      "memcheck",
+      "--error-exitcode",
+      "99",
+      "--log-file",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-memcheck.sanitizer.log",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-screen",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-cases-v2.tsv",
+      "boundaries",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-memcheck.json"
+    ],
+    "boundary-screen.command.json": [
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-screen",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-cases-v2.tsv",
+      "boundaries",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-screen.json"
+    ],
+    "boundary-synccheck.command.json": [
+      "compute-sanitizer",
+      "--tool",
+      "synccheck",
+      "--error-exitcode",
+      "99",
+      "--log-file",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-synccheck.sanitizer.log",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-screen",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-cases-v2.tsv",
+      "boundaries",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-synccheck.json"
+    ],
+    "counter-candidate-export.command.json": [
+      "ncu",
+      "--import",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-candidate.ncu-repz",
+      "--page",
+      "raw",
+      "--csv"
+    ],
+    "counter-candidate.command.json": [
+      "ncu",
+      "--kernel-name",
+      "regex:.*Ap5AttentionPostnormKernel.*",
+      "--launch-count",
+      "1",
+      "--clock-control",
+      "none",
+      "--cache-control",
+      "none",
+      "--section",
+      "LaunchStats",
+      "--section",
+      "SourceCounters",
+      "--section",
+      "WarpStateStats",
+      "-o",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-candidate",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-screen",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-cases-v2.tsv",
+      "screen",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-candidate-diagnostic.json"
+    ],
+    "counter-parent-export.command.json": [
+      "ncu",
+      "--import",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-parent.ncu-repz",
+      "--page",
+      "raw",
+      "--csv"
+    ],
+    "counter-parent.command.json": [
+      "ncu",
+      "--kernel-name",
+      "regex:.*RmsNormResidualBf16Kernel.*",
+      "--launch-count",
+      "1",
+      "--clock-control",
+      "none",
+      "--cache-control",
+      "none",
+      "--section",
+      "LaunchStats",
+      "--section",
+      "SourceCounters",
+      "--section",
+      "WarpStateStats",
+      "-o",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-parent",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-screen",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-cases-v2.tsv",
+      "screen",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-parent-diagnostic.json"
+    ],
+    "offline-screen-build.command.json": [
+      "/opt/cuda/bin/nvcc",
+      "-std=c++20",
+      "-O3",
+      "-DNDEBUG",
+      "-arch=sm_120a",
+      "-rdc=true",
+      "--expt-relaxed-constexpr",
+      "-I${REPO_ROOT}/include",
+      "-I${REPO_ROOT}/src",
+      "${REPO_ROOT}/tests/cuda/attention_postnorm_warp_screen.cu",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-v2.generated.cu",
+      "-o",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-screen"
+    ],
+    "resources.command.json": [
+      "/opt/cuda/bin/cuobjdump",
+      "--dump-resource-usage",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-screen"
+    ],
+    "sass.command.json": [
+      "/opt/cuda/bin/cuobjdump",
+      "--dump-sass",
+      "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-screen"
+    ]
+  },
+  "laboratory_scripts": {
+    "generator-before-resources.py": "\"\"\"AP5 offline derivative; canonical runtime remains untouched.\"\"\"\nimport argparse\nimport hashlib\nimport json\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parents[2]\nparser = argparse.ArgumentParser(description=__doc__)\nparser.add_argument(\"destination\", type=Path)\nargs = parser.parse_args()\nsource = ROOT / \"src/cuda/norm/reference.cu\"\nmoe = ROOT / \"src/cuda/moe/reference.cu\"\ntext = source.read_text()\nbegin = text.index(\"template <typename Input>\\n__global__ void RmsNormResidualBf16Kernel(\")\nend = text.index(\"__global__ void RmsNormResidualPhysicalBf16Kernel(\", begin)\noriginal = text[begin:end]\nmoe_text = moe.read_text()\ntree = moe_text[moe_text.index(\"__device__ float MoeBlockSum(float value) {\"):]\ntree = tree[:tree.index(\"__device__ float MoeDualGroupSum(\")]\ntree = (tree.replace(\"MoeBlockSum\", \"Ap5BlockSum\")\n        .replace(\"kNormThreads\", \"kThreads\").replace(\"kWarpSize\", \"32U\"))\ncandidate = (original.replace(\"RmsNormResidualBf16Kernel\", \"Ap5AttentionPostnormKernel\")\n             .replace(\"BlockSum(squared_sum)\", \"Ap5BlockSum(squared_sum)\"))\nassert candidate != original and candidate.count(\"Ap5BlockSum(\") == 1\ntext = text[:end] + tree + candidate + text[end:]\ntext += r'''\n#define AP5_ARGS const float* input,const std::uint16_t* weight,const float* residual,float* normalized,float* output,unsigned rows,float epsilon,const std::uint16_t* scalar,cudaStream_t stream\n#define AP5_VALUES input,weight,residual,normalized,output,2816U,epsilon,scalar\nextern \"C\" cudaError_t ap5_parent(AP5_ARGS) {\n  using namespace gem16::internal;\n  RmsNormResidualBf16Kernel<float><<<rows,256,0,stream>>>(AP5_VALUES);\n  return cudaGetLastError();\n}\nextern \"C\" cudaError_t ap5_candidate(AP5_ARGS) {\n  using namespace gem16::internal;\n  Ap5AttentionPostnormKernel<float><<<rows,256,0,stream>>>(AP5_VALUES);\n  return cudaGetLastError();\n}\n'''\nwith args.destination.open(\"x\") as f:\n    f.write(text)\nwith args.destination.with_suffix(\".provenance.json\").open(\"x\") as f:\n    json.dump({\"source_sha256\": hashlib.sha256(source.read_bytes()).hexdigest(),\n               \"accepted_moe_source_sha256\": hashlib.sha256(moe.read_bytes()).hexdigest(),\n               \"generator_sha256\": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),\n               \"generated_sha256\": hashlib.sha256(text.encode()).hexdigest(),\n               \"transform\": \"duplicate float residual norm only; exact accepted MoE binary tree CTA128/64/32, warp0 16/8/4/2/1 syncwarp after each, final CTA; no generic dispatch change\",\n               \"candidate_kernel\": candidate, \"replacement_reduction\": tree}, f, indent=2)\n",
+    "instruction_resources.py": "from pathlib import Path\nimport sys,json\nOUT=Path(__file__).resolve().parent;ROOT=OUT.parents[4];sys.path.insert(0,str(OUT.with_name('ap1-measurement')));import run as r\nr.OUT=OUT\n# No new rate screen. These profiled launches establish dispatch/instructions only.\nr.run('sass',['/opt/cuda/bin/cuobjdump','--dump-sass',str(OUT/'postnorm-screen')],30)\nr.run('resources',['/opt/cuda/bin/cuobjdump','--dump-resource-usage',str(OUT/'postnorm-screen')],30)\nfor role,name in [('parent','RmsNormResidualBf16Kernel'),('candidate','Ap5AttentionPostnormKernel')]:\n label='counter-'+role\n r.run(label,['ncu','--kernel-name','regex:.*'+name+'.*','--launch-count','1','--clock-control','none','--cache-control','none','--section','LaunchStats','--section','SourceCounters','--section','WarpStateStats','-o',str(OUT/label),str(OUT/'postnorm-screen'),str(OUT/'actual-cases-v2.tsv'),'screen',str(OUT/(label+'-diagnostic.json'))],120)\n reports=list(OUT.glob(label+'.ncu-rep*'));assert len(reports)==1\n r.run(label+'-export',['ncu','--import',str(reports[0]),'--page','raw','--csv'],30)\nprint('AP5 INSTRUCTION/RESOURCE CAPTURES DONE; profiling samples diagnostic only',flush=True)\n",
+    "offline_screen.py": "from pathlib import Path\nimport sys,json,shutil,statistics,math,random\nOUT=Path(__file__).resolve().parent;ROOT=OUT.parents[4];sys.path.insert(0,str(OUT.with_name('ap1-measurement')));import run as r\nr.OUT=OUT\nsource=ROOT/'tests/cuda/attention_postnorm_warp_screen.cu';shutil.copyfile(source,OUT/'screen-source.cu')\nr.run('offline-screen-build',['/opt/cuda/bin/nvcc','-std=c++20','-O3','-DNDEBUG','-arch=sm_120a','-rdc=true','--expt-relaxed-constexpr','-I'+str(ROOT/'include'),'-I'+str(ROOT/'src'),str(source),str(OUT/'postnorm-v2.generated.cu'),'-o',str(OUT/'postnorm-screen')],120)\nfor label,mode in [('actual-screen','screen'),('boundary-screen','boundaries')]:\n r.idle_and_cool();r.run(label,[str(OUT/'postnorm-screen'),str(OUT/'actual-cases-v2.tsv'),mode,str(OUT/(label+'.json'))],120)\ndata=r.load(OUT/'actual-screen.json');assert len(data['cases'])==8\nres=data['resources'];assert res['parent_local_bytes']==res['candidate_local_bytes']==0\ncases=[]\nfor case in data['cases']:\n assert case['consumed_outputs_bit_exact']\n cases.append({**case,'gain':statistics.median(case['parent_us'])/statistics.median(case['candidate_us'])-1})\nrng=random.Random(2026110405);samples=[]\nfor _ in range(10000):samples.append(math.exp(statistics.mean(math.log(statistics.median(rng.choices(c['parent_us'],k=10))/statistics.median(rng.choices(c['candidate_us'],k=10))) for c in cases))-1)\nsamples.sort();passed=all(c['gain']>0 for c in cases) and samples[250]>0\nwith (OUT/'operator-summary.json').open('x') as f:json.dump({'cases':cases,'resources':res,'all_actual_consumed_bits_exact':True,'all_case_medians_positive':all(c['gain']>0 for c in cases),'geomean_gain':math.exp(statistics.mean(math.log(1+c['gain']) for c in cases))-1,'bootstrap95':[samples[250],samples[9749]],'timing_gate_passed':passed,'scope':'8realR1/R3postnormcases;actualnormalized-pointerpresence;128launchcachewarmgraphs;3warm10alternating;notprimarythroughput'},f,indent=2)\nprint('AP5 OFFLINE TIMING GATE',passed,'gains',[c['gain'] for c in cases],flush=True)\nfor tool in ['memcheck','synccheck']:\n label='boundary-'+tool\n r.run(label,['compute-sanitizer','--tool',tool,'--error-exitcode','99','--log-file',str(OUT/(label+'.sanitizer.log')),str(OUT/'postnorm-screen'),str(OUT/'actual-cases-v2.tsv'),'boundaries',str(OUT/(label+'.json'))],120)\n assert 'ERROR SUMMARY: 0 errors' in (OUT/(label+'.sanitizer.log')).read_text()\nprint('AP5 OFFLINE ACTUAL/BOUNDARY/SANITIZERS DONE; no production promotion',flush=True)\n"
+  },
+  "test_sources": {
+    "tests/cuda/build_attention_postnorm_warp_candidate.py": {
+      "identity": {
+        "path": "${REPO_ROOT}/tests/cuda/build_attention_postnorm_warp_candidate.py",
+        "bytes": 2928,
+        "sha256": "90fb529de912d8e8ee0e9f4e5d08a6e98c50f9c1eac21005c65cc293e97ae916"
+      },
+      "text": "\"\"\"AP5 offline derivative; canonical runtime remains untouched.\"\"\"\nimport argparse\nimport hashlib\nimport json\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parents[2]\nparser = argparse.ArgumentParser(description=__doc__)\nparser.add_argument(\"destination\", type=Path)\nargs = parser.parse_args()\nsource = ROOT / \"src/cuda/norm/reference.cu\"\nmoe = ROOT / \"src/cuda/moe/reference.cu\"\ntext = source.read_text()\nbegin = text.index(\"template <typename Input>\\n__global__ void RmsNormResidualBf16Kernel(\")\nend = text.index(\"__global__ void RmsNormResidualPhysicalBf16Kernel(\", begin)\noriginal = text[begin:end]\nmoe_text = moe.read_text()\ntree = moe_text[moe_text.index(\"__device__ float MoeBlockSum(float value) {\"):]\ntree = tree[:tree.index(\"__device__ float MoeDualGroupSum(\")]\ntree = (tree.replace(\"MoeBlockSum\", \"Ap5BlockSum\")\n        .replace(\"kNormThreads\", \"kThreads\").replace(\"kWarpSize\", \"32U\"))\ncandidate = (original.replace(\"RmsNormResidualBf16Kernel\", \"Ap5AttentionPostnormKernel\")\n             .replace(\"BlockSum(squared_sum)\", \"Ap5BlockSum(squared_sum)\"))\nassert candidate != original and candidate.count(\"Ap5BlockSum(\") == 1\ntext = text[:end] + tree + candidate + text[end:]\ntext += r'''\n#define AP5_ARGS const float* input,const std::uint16_t* weight,const float* residual,float* normalized,float* output,unsigned rows,float epsilon,const std::uint16_t* scalar,cudaStream_t stream\n#define AP5_VALUES input,weight,residual,normalized,output,2816U,epsilon,scalar\nextern \"C\" cudaError_t ap5_parent(AP5_ARGS) {\n  using namespace gem16::internal;\n  RmsNormResidualBf16Kernel<float><<<rows,256,0,stream>>>(AP5_VALUES);\n  return cudaGetLastError();\n}\nextern \"C\" cudaError_t ap5_candidate(AP5_ARGS) {\n  using namespace gem16::internal;\n  Ap5AttentionPostnormKernel<float><<<rows,256,0,stream>>>(AP5_VALUES);\n  return cudaGetLastError();\n}\nextern \"C\" cudaError_t ap5_resources(cudaFuncAttributes* parent,cudaFuncAttributes* candidate) {\n  using namespace gem16::internal;\n  auto error=cudaFuncGetAttributes(parent,RmsNormResidualBf16Kernel<float>);\n  if(error!=cudaSuccess)return error;\n  return cudaFuncGetAttributes(candidate,Ap5AttentionPostnormKernel<float>);\n}\n'''\nwith args.destination.open(\"x\") as f:\n    f.write(text)\nwith args.destination.with_suffix(\".provenance.json\").open(\"x\") as f:\n    json.dump({\"source_sha256\": hashlib.sha256(source.read_bytes()).hexdigest(),\n               \"accepted_moe_source_sha256\": hashlib.sha256(moe.read_bytes()).hexdigest(),\n               \"generator_sha256\": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),\n               \"generated_sha256\": hashlib.sha256(text.encode()).hexdigest(),\n               \"transform\": \"duplicate float residual norm only; exact accepted MoE binary tree CTA128/64/32, warp0 16/8/4/2/1 syncwarp after each, final CTA; no generic dispatch change\",\n               \"candidate_kernel\": candidate, \"replacement_reduction\": tree}, f, indent=2)\n"
+    },
+    "tests/cuda/attention_postnorm_warp_screen.cu": {
+      "identity": {
+        "path": "${REPO_ROOT}/tests/cuda/attention_postnorm_warp_screen.cu",
+        "bytes": 7885,
+        "sha256": "c208b462c1e4c0c560cc0fccd4ff13c31da47d64f02307596178cca8ca2d702f"
+      },
+      "text": "// AP5 actual width2816 R1/R3 postnorm replay. Diagnostic timings only.\n#include <cuda_runtime.h>\n#include <algorithm>\n#include <bit>\n#include <cstdint>\n#include <cstdio>\n#include <cstring>\n#include <filesystem>\n#include <fstream>\n#include <limits>\n#include <stdexcept>\n#include <string>\n#include <vector>\n#define ARGS const float*,const std::uint16_t*,const float*,float*,float*,unsigned,float,const std::uint16_t*,cudaStream_t\nextern \"C\" cudaError_t ap5_parent(ARGS);\nextern \"C\" cudaError_t ap5_candidate(ARGS);\nextern \"C\" cudaError_t ap5_resources(cudaFuncAttributes*,cudaFuncAttributes*);\nnamespace {\nvoid Check(cudaError_t e){if(e!=cudaSuccess)throw std::runtime_error(cudaGetErrorString(e));}\nstruct Device {\n void* raw=nullptr;void* p=nullptr;std::size_t size;\n explicit Device(std::size_t n):size(n){Check(cudaMalloc(&raw,n+256));p=static_cast<char*>(raw)+128;reset();}\n ~Device(){if(raw)(void)cudaFree(raw);}\n void reset(){Check(cudaMemset(raw,0xa5,size+256));}\n template<class T>T* as(){return static_cast<T*>(p);}\n std::vector<char> bytes(){std::vector<char>b(size);Check(cudaMemcpy(b.data(),p,size,cudaMemcpyDeviceToHost));return b;}\n void guards(){unsigned char b[256];Check(cudaMemcpy(b,raw,128,cudaMemcpyDeviceToHost));Check(cudaMemcpy(b+128,static_cast<char*>(p)+size,128,cudaMemcpyDeviceToHost));for(auto c:b)if(c!=0xa5)throw std::runtime_error(\"postnorm guard changed\");}\n};\nstd::vector<char> Read(const std::filesystem::path& p,std::size_t n){\n if(!std::filesystem::is_regular_file(std::filesystem::symlink_status(p))||std::filesystem::file_size(p)!=n)throw std::runtime_error(\"postnorm capture extent/type mismatch\");\n std::vector<char>b(n);std::ifstream f(p,std::ios::binary);f.read(b.data(),n);if(!f||f.peek()!=EOF)throw std::runtime_error(\"postnorm capture read failed\");return b;\n}\nvoid Upload(Device& d,const std::vector<char>& b){if(d.size!=b.size())throw std::runtime_error(\"upload size mismatch\");Check(cudaMemcpy(d.p,b.data(),b.size(),cudaMemcpyHostToDevice));}\n}\nint main(int argc,char** argv){\n try {\n  if(argc!=4)return 2;\n  const bool boundaries=std::string(argv[2])==\"boundaries\";\n  std::ifstream manifest(argv[1]);if(!manifest)throw std::runtime_error(\"missing postnorm manifest\");\n  if(std::filesystem::exists(argv[3]))throw std::runtime_error(\"postnorm output exists\");\n  cudaFuncAttributes pa{},ca{};Check(ap5_resources(&pa,&ca));\n  std::ofstream result(argv[3]);result.precision(9);\n  result<<\"{\\\"diagnostic_only\\\":true,\\\"resources\\\":{\\\"parent_registers\\\":\"<<pa.numRegs<<\",\\\"candidate_registers\\\":\"<<ca.numRegs<<\",\\\"parent_static_shared\\\":\"<<pa.sharedSizeBytes<<\",\\\"candidate_static_shared\\\":\"<<ca.sharedSizeBytes<<\",\\\"parent_local_bytes\\\":\"<<pa.localSizeBytes<<\",\\\"candidate_local_bytes\\\":\"<<ca.localSizeBytes<<\"},\\\"cases\\\":[\";\n  std::string root,stem;unsigned rows,epsilon_bits,normalized_present,cases=0;\n  while(manifest>>root>>stem>>rows>>epsilon_bits>>normalized_present){\n   if(cases>=32 || (rows!=1&&rows!=3))throw std::runtime_error(\"postnorm case geometry invalid\");\n   const auto n=rows*2816U*4U;\n   Device input(n),residual(n),weight(5632),pn(n),po(n),cn(n),co(n),scalar(2);\n   auto file=[&](const char* part){return std::filesystem::path(root)/(stem+\"-\"+part+\".bin\");};\n   const auto original_input=Read(file(\"input\"),n),original_residual=Read(file(\"residual\"),n);\n   Upload(input,original_input);Upload(residual,original_residual);Upload(weight,Read(file(\"weight\"),5632));\n   const float epsilon=std::bit_cast<float>(epsilon_bits);\n   const bool actual_normalized=normalized_present!=0;\n   auto launch=[&](bool child,bool norm=true,int alias=0,bool use_scalar=false,cudaStream_t stream=nullptr,bool use_weight=true){\n    auto f=child?ap5_candidate:ap5_parent;auto& output=child?co:po;auto& normalized=child?cn:pn;\n    float* destination=alias==1?input.as<float>():alias==2?residual.as<float>():output.as<float>();\n    Check(f(input.as<float>(),use_weight?weight.as<std::uint16_t>():nullptr,residual.as<float>(),norm?normalized.as<float>():nullptr,destination,rows,epsilon,use_scalar?scalar.as<std::uint16_t>():nullptr,stream));\n   };\n   launch(false,actual_normalized);launch(true,actual_normalized);Check(cudaDeviceSynchronize());\n   if(pn.bytes()!=cn.bytes()||po.bytes()!=co.bytes()||po.bytes()!=Read(file(\"output\"),n))throw std::runtime_error(\"actual postnorm bit mismatch\");\n   if(std::filesystem::exists(file(\"normalized\"))&&pn.bytes()!=Read(file(\"normalized\"),n))throw std::runtime_error(\"actual normalized bits mismatch\");\n   std::vector<float> parent,child;\n   if(!boundaries){\n    cudaStream_t stream{};Check(cudaStreamCreate(&stream));cudaEvent_t a{},b{};Check(cudaEventCreate(&a));Check(cudaEventCreate(&b));\n    auto graph=[&](bool candidate){cudaGraph_t g{};Check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));for(unsigned i=0;i<128;++i)launch(candidate,actual_normalized,0,false,stream);Check(cudaStreamEndCapture(stream,&g));cudaGraphExec_t e{};Check(cudaGraphInstantiate(&e,g,0ULL));Check(cudaGraphDestroy(g));return e;};\n    auto pg=graph(false),cg=graph(true);\n    auto measure=[&](bool candidate){Check(cudaEventRecord(a,stream));Check(cudaGraphLaunch(candidate?cg:pg,stream));Check(cudaEventRecord(b,stream));Check(cudaEventSynchronize(b));float ms;Check(cudaEventElapsedTime(&ms,a,b));return ms*1000/128;};\n    for(unsigned i=0;i<3;++i){(void)measure(false);(void)measure(true);}\n    for(unsigned i=0;i<10;++i){float p,c;if(i%2){c=measure(true);p=measure(false);}else{p=measure(false);c=measure(true);}parent.push_back(p);child.push_back(c);}\n    Check(cudaGraphExecDestroy(pg));Check(cudaGraphExecDestroy(cg));Check(cudaEventDestroy(a));Check(cudaEventDestroy(b));Check(cudaStreamDestroy(stream));\n   } else {\n    for(bool norm:{false,true})for(int alias:{0,1,2})for(std::uint16_t bits:{std::uint16_t(0x3f00),std::uint16_t(0x3f80),std::uint16_t(0xbf80)}){\n     Check(cudaMemcpy(scalar.p,&bits,2,cudaMemcpyHostToDevice));\n     Upload(input,original_input);Upload(residual,original_residual);launch(false,norm,alias,true);Check(cudaDeviceSynchronize());\n     const auto expected=alias==1?input.bytes():alias==2?residual.bytes():po.bytes();const auto expected_norm=pn.bytes();\n     Upload(input,original_input);Upload(residual,original_residual);launch(true,norm,alias,true);Check(cudaDeviceSynchronize());\n     if(expected!=(alias==1?input.bytes():alias==2?residual.bytes():co.bytes())||(norm&&expected_norm!=cn.bytes()))throw std::runtime_error(\"scalar/alias postnorm mismatch\");\n    }\n    for(float value:{0.0F,-0.0F,std::numeric_limits<float>::denorm_min(),std::numeric_limits<float>::min(),1.e-20F,1.e10F,std::numeric_limits<float>::max()})for(bool use_weight:{false,true}){\n     std::vector<float> finite(n/4);\n     for(std::size_t i=0;i<finite.size();++i)finite[i]=(i%2?value:-value);\n     Check(cudaMemcpy(input.p,finite.data(),n,cudaMemcpyHostToDevice));Upload(residual,original_residual);\n     launch(false,true,0,false,nullptr,use_weight);launch(true,true,0,false,nullptr,use_weight);Check(cudaDeviceSynchronize());\n     if(pn.bytes()!=cn.bytes()||po.bytes()!=co.bytes())throw std::runtime_error(\"finite-extreme/null-weight postnorm mismatch\");\n    }\n   }\n   for(auto* d:{&input,&residual,&weight,&pn,&po,&cn,&co,&scalar})d->guards();\n   result<<(cases?\",\":\"\")<<\"{\\\"stem\\\":\\\"\"<<stem<<\"\\\",\\\"rows\\\":\"<<rows<<\",\\\"consumed_outputs_bit_exact\\\":true,\\\"parent_us\\\":[\";for(unsigned i=0;i<parent.size();++i)result<<(i?\",\":\"\")<<parent[i];result<<\"],\\\"candidate_us\\\":[\";for(unsigned i=0;i<child.size();++i)result<<(i?\",\":\"\")<<child[i];result<<\"]}\";++cases;\n  }\n  result<<\"]}\\n\";if(!cases||!result||!manifest.eof())throw std::runtime_error(\"postnorm manifest/output incomplete\");\n  std::fprintf(stderr,\"AP5 %u actual postnorm cases exact%s\\n\",cases,boundaries?\", scalar/alias matrix checked\":\"\");return 0;\n } catch(const std::exception& e){std::fprintf(stderr,\"AP5: %s\\n\",e.what());return 1;}\n}\n"
+    }
+  },
+  "limitations": [
+    "Warm standalone128launch CUDAgraphs,3warmups+10retained alternating; no model-throughput result and no new llama measurement.",
+    "All8actualcases must improve and aggregate95lower>0; no post-hoc R3-only selection or favorable repeat.",
+    "Operator failure stops before any production implementation, E2E or protected-profile qualification; these gates remain unknown.",
+    "NCU is separately profiled/cold and diagnostic; normal pointer presence follows real R1/R3 captures.",
+    "12B3840-wide inference_engine_decode_graphs.cuh is not the26B2816-wide production boundary; actual26B sites are in attention/gemma4_26b_reference.cu.",
+    "No Windows, new release or push."
+  ],
+  "generator": {
+    "path": "${REPO_ROOT}/tools/write_attention_postnorm_evidence.py",
+    "bytes": 11260,
+    "sha256": "afcb87b9d7a2b72cd8e09e26e29d5f843fbd446efa9db02aafa990c7fc621aeb"
+  },
+  "raw_manifest": [
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/PREPARATION.md",
+      "bytes": 557,
+      "sha256": "6a745eaf07c3777a90b43202481877e09bc162f0fb9263f60922c158f2e0603b"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-cases-v2.tsv",
+      "bytes": 1331,
+      "sha256": "27aa5438e4351ff5f7158ec2537ffab55f58ebd486281bb15d7edb524ad51999"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-cases.tsv",
+      "bytes": 1315,
+      "sha256": "ad7e8a11eeda2c19fb2190e11c617c377391fe14cb94a0de3bb6a6b4e2ab4811"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-screen.command.json",
+      "bytes": 361,
+      "sha256": "fff8a0913f4b973410a28f13264e2675b695f7ad29639a5f2c7b339bba35abf6"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-screen.json",
+      "bytes": 2823,
+      "sha256": "73525b3c290623729e29ff059aeaf3ed69f44e326f9a34e06f22804c6f75c7e7"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-screen.stderr.log",
+      "bytes": 34,
+      "sha256": "741dd092fb3d0bf7f9a2c9f2da743e2254a1e565427977f129fa5345387f65eb"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/actual-screen.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-memcheck.command.json",
+      "bytes": 593,
+      "sha256": "5ab904d17c30eb1df196e1d4e3c6b0dc6365879463e317a7a9a7ac032f1ace7d"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-memcheck.json",
+      "bytes": 1108,
+      "sha256": "44b4c2d5d1d6c62525b83d1fc7d8c5bb5b9c020f1a1ef1fd01e615adf698d268"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-memcheck.sanitizer.log",
+      "bytes": 62,
+      "sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-memcheck.stderr.log",
+      "bytes": 63,
+      "sha256": "abae3e86687cc87f83f43ba86baecc36d267c377cfa70c88f1927160bdd27cd5"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-memcheck.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-screen.command.json",
+      "bytes": 367,
+      "sha256": "bf57ceff912f6058a792bf09398b58729b7e125b8efe3d0bc146821d5f23e878"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-screen.json",
+      "bytes": 1108,
+      "sha256": "44b4c2d5d1d6c62525b83d1fc7d8c5bb5b9c020f1a1ef1fd01e615adf698d268"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-screen.stderr.log",
+      "bytes": 63,
+      "sha256": "abae3e86687cc87f83f43ba86baecc36d267c377cfa70c88f1927160bdd27cd5"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-screen.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-synccheck.command.json",
+      "bytes": 596,
+      "sha256": "99a599ae8e8a669d5a794ef1beb2cb89ed20f34b68405b942aa6c51a051baa12"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-synccheck.json",
+      "bytes": 1108,
+      "sha256": "44b4c2d5d1d6c62525b83d1fc7d8c5bb5b9c020f1a1ef1fd01e615adf698d268"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-synccheck.sanitizer.log",
+      "bytes": 62,
+      "sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-synccheck.stderr.log",
+      "bytes": 63,
+      "sha256": "abae3e86687cc87f83f43ba86baecc36d267c377cfa70c88f1927160bdd27cd5"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/boundary-synccheck.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-candidate-diagnostic.json",
+      "bytes": 2820,
+      "sha256": "d54c361ebe8bcbdccffa07585177134db34f79c8013dbfb2ba63548bf7ae6212"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-candidate-export.command.json",
+      "bytes": 182,
+      "sha256": "e78b9d9d011584481cd51d806ff8168b759b10935a26c94ff0424708afecc715"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-candidate-export.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-candidate-export.stdout.log",
+      "bytes": 24747,
+      "sha256": "a526c760c881c761230e254054a76b5618a492a93c17efa0e68ce71e2e8a620b"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-candidate.command.json",
+      "bytes": 760,
+      "sha256": "aeab2240cf740ab855861ba8052612112beb064f6c9442752fbb01ef10afbb06"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-candidate.ncu-repz",
+      "bytes": 32626,
+      "sha256": "e71c9cd153d51d1004e3aa5ae50f33db641f939997c7c33552cd6518dfb8d5ad"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-candidate.stderr.log",
+      "bytes": 34,
+      "sha256": "741dd092fb3d0bf7f9a2c9f2da743e2254a1e565427977f129fa5345387f65eb"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-candidate.stdout.log",
+      "bytes": 619,
+      "sha256": "3424ef8ed1bf2e9c4d6dfee35be2946f67b265cadbd0d8a15bcf271fa2fd2947"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-parent-diagnostic.json",
+      "bytes": 2839,
+      "sha256": "ff89ce94da81b1ec1666ddb717cf58c948cc7dd951c5029cf39ceb22465b8dee"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-parent-export.command.json",
+      "bytes": 179,
+      "sha256": "94c504bb38606bdc516d70d05fc34fe46d31a240271d9720d7912fa897b5fb25"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-parent-export.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-parent-export.stdout.log",
+      "bytes": 24759,
+      "sha256": "2da47b9257b49cb916d0b2e425e24f390bc8facd1051fe43867e48a4178a9234"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-parent.command.json",
+      "bytes": 753,
+      "sha256": "712f1ce377ead9fb2224baab851a90f8e2581db8584a41dbbeeb1f6de8ff4b33"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-parent.ncu-repz",
+      "bytes": 32700,
+      "sha256": "ae6553c9298c1944a060ad2985e0a0ceb81cd9861eb68791639977396e212cfa"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-parent.stderr.log",
+      "bytes": 34,
+      "sha256": "741dd092fb3d0bf7f9a2c9f2da743e2254a1e565427977f129fa5345387f65eb"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/counter-parent.stdout.log",
+      "bytes": 615,
+      "sha256": "cae894ffa4b17a9d708d79c38e28aac304ebf0e90945459f60e8155b704613a6"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/executions.jsonl",
+      "bytes": 6360,
+      "sha256": "ac8eb32731f74c75431349e30834662bbf91a73fdf7146f9b02c7dc23a7db836"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/generator-before-resources.py",
+      "bytes": 2602,
+      "sha256": "3f320f7e323a8a6b5b7551a05d800ad31ce3d4e0621c940c5b8d62786e65390c"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/instruction_resources.py",
+      "bytes": 1162,
+      "sha256": "9a0845a944320da36469ad361c5e83b30fb265ec7bfcfad87c9054405e060506"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/offline-screen-build.command.json",
+      "bytes": 557,
+      "sha256": "497fe988cd43d4cb3c1355dc70496c41feb273ece5b726422d7fee2fcee4e29c"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/offline-screen-build.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/offline-screen-build.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/offline_screen.py",
+      "bytes": 2472,
+      "sha256": "b60d80d5a4b92964426bf43a0e970f49c92483eba2436385729b5846ba4cec4e"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/operator-summary.json",
+      "bytes": 5473,
+      "sha256": "bca9967282583ffb99120955f1d6d587816ea89b74b882b494fb86017dcc9ce0"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-screen",
+      "bytes": 1289144,
+      "sha256": "9544f9bcdfebc404f9daee4cdc3f390797a156c0593c424d161cf4a601b9c395"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-v2.generated.cu",
+      "bytes": 15665,
+      "sha256": "69bc4ff2ff40044ac7f9ea8594ad0a1a7eff64509e3428594b3858983105b757"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm-v2.generated.provenance.json",
+      "bytes": 2973,
+      "sha256": "cab0d1ce3b018c7deb7f9d4b45d941077726313021cd3755f7abb4c00e2c2b8e"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm.generated.cu",
+      "bytes": 15339,
+      "sha256": "1fed7a4a67887e8b9a22623b2d0ed767aab1868ddd27d98a2b97a12e39a7370c"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/postnorm.generated.provenance.json",
+      "bytes": 2973,
+      "sha256": "963c18a63b35610703a3d14004275f0134e8a51dc9c14fc3e9b6e1fc310f45d6"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/resources.command.json",
+      "bytes": 172,
+      "sha256": "f69841687f9f045bd6dffd1ec3163e2b20eab5f490e01a0e5596d0f9163e577a"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/resources.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/resources.stdout.log",
+      "bytes": 2457,
+      "sha256": "7c21cf7c6530851259377b5c1997997ef9bf6e847312f55a304cc9015f5a4ead"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/sass.command.json",
+      "bytes": 162,
+      "sha256": "46b222df500db901ee9fcf8723cc4f1196fcfdfa8f3205300e1a28455d549df9"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/sass.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/sass.stdout.log",
+      "bytes": 528740,
+      "sha256": "d9875289ac6c9177c05b5869d2f4e4f8d9278c77e8b9d8021c3c8a78f1f8ddad"
+    },
+    {
+      "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap5-postnorm-warp/screen-source.cu",
+      "bytes": 7885,
+      "sha256": "c208b462c1e4c0c560cc0fccd4ff13c31da47d64f02307596178cca8ca2d702f"
+    }
+  ]
+}

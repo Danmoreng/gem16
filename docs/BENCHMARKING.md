@@ -42,6 +42,29 @@ used the configured maximum draft depth. Where available, verify it against the 
 cumulative `#calls(b,g,a)` statistics. The correction changes group/acceptance telemetry,
 not the already established `(N-1) / decode_time` throughput boundary or saved historical results.
 
+The AP1 helper refresh separates `speculative_work.configured`, `.observed`
+and `.derived`. HTTP totals do not observe individual groups, group depths or
+ordinary fallback counts. Legacy `d1_groups`/`d2_groups`/`d4_groups` and fallback
+fields are nullable, as are their summaries, unless the proposal total proves
+maximum depth at every inferred base step. A configured maximum of two is not
+an observed fixed-D2 histogram. The offline single-slot server counter analysis
+in `tools/llama_speculative_accounting.py` labels any histogram reconstructed
+from cumulative statistics as **derived**, never as an event trace.
+
+Use `tools/analyze_decode_cost.py` for new native Nsight SQLite analyses. It
+reads the full generic merge template dimension (256 local / 512 global),
+retains unknown attention instances, and uses interval unions. The historical
+analyzer's short-name fallback misplaced global merges into local attention;
+the combined attention budget and historical throughput are unchanged. The
+MoE fork/join helper is `tools/decode_moe_accounting.py`; its terminal branch
+budget overlaps category budgets and must not be added to them.
+
+New standalone Linux llama replays use `tools/run_llama_decode_replay.py` to
+build against the verified current central headers/libraries and record source,
+executable, model and actually loaded module hashes. Its diagnostic C API
+times are not server comparison samples. The driver intentionally fails to
+compile without the launcher's source-revision definition.
+
 External llama.cpp comparisons use one of these labels:
 
 1. **same-source closest parity**: the same immutable source with every format mapping and quality difference
@@ -341,6 +364,24 @@ article questions before its first turn-end token. The maximum-context answer co
 origin, Turing test, and requested applications/opportunities, but reaches the forced 256-token limit while
 answering the final risk portion. These are one-run capacity, latency, and quality characterizations rather than
 statistically qualified performance results.
+
+## AP1 diagnostic group costs
+
+`tools/analyze_mtp_group_cost.py` joins the maintained analyzer's cost JSON and
+kernel CSV to a native CLI result. Without a same-capture observation it leaves
+per-group acceptance, depth, position and routing unknown. `--groups` accepts
+that capture's explicit graph observation; `--proposals` instead derives native
+fixed-D2 acceptance/position from that capture's read-only proposal dump and
+emitted stream, with routing still unknown. Never attach a separate run's group
+fixture as an observation of the timed run. Kernel unions exclude copy/memset
+activities here; the complete decode cost record accounts for those separately.
+All such times remain diagnostic, including the observer's extra kernels.
+
+`tests/cuda/ap1_input_observer_memcheck.cu` includes the exact test-only input
+observer implementation and checks its snapshot/marker kernels and aligned slot
+arithmetic against actual saved `.bin` inputs plus boundary lengths. Its focused
+memcheck is not a full-model memory qualification and cannot relabel a timed-out
+model-under-memcheck attempt as passed.
 
 ## MTP timing
 

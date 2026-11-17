@@ -1,12 +1,32 @@
 # Active decisions
 
-**Updated:** 2026-11-08 · **Track:** productization · **Status:** stable v0.3.0 publication authorized
+**Updated:** 2026-11-17 · **Track:** productization · **Status:** stable v0.3.0 publication authorized
 
 Permanent rules in [AGENTS.md](../AGENTS.md) remain binding. Read the
 [product contract](PRODUCT_CONTRACT.md) and the narrow task contract next.
 The [pre-consolidation record](archive/ACTIVE_DECISIONS_2026-09-04_BEFORE_CONSOLIDATION.md)
 preserves the complete decision history, including superseded intermediate stages.
 The existing numbered decisions retain their identities below.
+
+### Owner update: close and publish the reviewed working tree (2026-11-17)
+
+The owner authorizes retaining final useful measurements/qualification/tools,
+removing obsolete candidate/DFlash helpers, intermediate reports and duplicate
+plots, then committing and pushing the closed archive. This supersedes older
+no-commit/no-push restrictions for these completed records only. It does not
+resume stopped campaigns, authorize new optimization work or publish a release.
+
+The current 12B Ordinary/MTP state is committed as `23da107`: fixed D2/D3/D4
+verification and Assistant are unchanged; only the Ordinary tail enables the
+qualified Ordinary kernels. Storage policy/helper is committed as `d789159`.
+DFlash is rejected; both draft weight files are deleted. External MTP depth
+references and immutable raw measurement values remain retained.
+
+Use the [archive index](evidence/benchmark-archive-2026-11-17.md) for final
+retained/rejected dispositions. Historical intermediate statuses below describe
+their dates, not a current queue. The original failed N1 gate is separate from
+the later owner-approved RoPE qualification. No additional combined-package
+speedup or completed Prefill diagnosis is claimed for the stopped Pro campaign.
 
 ### Owner update: standing release publication policy (2026-11-08)
 
@@ -42,6 +62,100 @@ or the separate pinned source recipe used for historical GGUF conversion.
 A changed reference revision requires a new quality result directory; do not
 resume a partially recorded reference with a different executable.
 
+### Owner update: AP1 decode measurement refresh (2026-11-04)
+
+The owner authorizes AP1 from the returned Pro review: verify the source
+findings, repair diagnostic cost attribution/speculation telemetry/replay
+provenance, and preserve fresh ordinary/D2 baseline and separate diagnostic
+captures before starting AP2. This supersedes standing decision 7's freeze
+only for this bounded measurement work. Production `src/` remains unchanged;
+AP2–AP5 runtime candidates are not started as part of AP1. Historical evidence
+is retained. Unobserved work stays unknown, and observer/profile timings are
+excluded from primary throughput. The task entry is
+`plans/gemma4-26b/AP1_MEASUREMENT_2026_11_04.md`. No commit, push or release is
+part of this owner request.
+
+AP1 is complete locally. The
+[measurement evidence](evidence/gemma4_26b/decode-ap1-measurement-2026-11-04.md)
+records current baselines, corrected attribution, same-capture groups and scoped
+memory-check limitations. Its Go concerns one bounded AP2 R3-QKV grid trial;
+AP1 itself made no production runtime change.
+
+### Owner update: bounded AP2 R3-QKV trial (2026-11-04)
+
+After AP1's completion the owner explicitly requests proceeding to the AP2
+performance experiment. This supersedes decision 7's freeze only for flattening
+the useful native 26B fixed-R3 Q/K/V CTA ranges (256 local / 288 global).
+Preserve the accepted arithmetic, packing/padding, weights, scales, K ordering,
+global Q/K-only behavior and every other dispatch path. Begin with one offline
+candidate and current actual-input bit/resource/timing screens. Only a winning
+screen may enter production qualification and adjacent unprofiled D2 AB/BA;
+Ordinary and protected profiles must pass. No commit, push or wider AP3–AP5
+implementation is authorized. Task: `plans/gemma4-26b/AP2_QKV_FLAT_2026_11_04.md`.
+
+The AP2 trial is closed without promotion. Warm QKV replay improves1.323%,
+but full D2 improves only0.080633% pooled and BA's lower95bound is negative.
+The predeclared both-orders gate fails; Ordinary is skipped and the exact
+parent sources/canonical executable are restored. All numerical, scoped memory
+and protected-profile checks passed. The
+[negative record](evidence/gemma4_26b/qkv-flat-grid-2026-11-04.md) preserves the
+candidate, measurements and actual dispatch. No further grid/address/prefetch
+search or AP3 implementation follows from this closed exception.
+
+### Owner update: AP3–AP5 experiment Goal (2026-11-04)
+
+The owner now explicitly authorizes implementing/testing AP3, AP4 and AP5,
+retaining and committing qualified gains, otherwise restoring the parent and
+documenting rejected candidates. This supersedes decision7's tuning freeze and
+the earlier AP1/AP2-only scope for these three bounded experiments only:
+R1 global26B exact warp normalization (Target and Assistant), final unused
+fixed-D2 FP8 feedback projection/quantization, and width2816 rows1/3 attention
+postnorm warp tail. Keep each separate, preserve numerical/format/runtime
+boundaries and all other paths; no reopening of older negative searches.
+Commits are authorized for accepted gains and their necessary evidence/tests;
+no push or release is authorized. Follow the predeclared numerical/memory/
+protected-profile/ABBA gates in `plans/gemma4-26b/AP3_AP5_GOAL_2026_11_04.md`.
+
+AP3 closes without promotion: warm operator+1.8666%, pooled fullOrdinary
++0.083396%, but BA95lower-0.112272% fails the predeclared both-orders gate.
+The exact parent attention source and canonical executable are restored before
+AP4 starts. Numerical, scoped memory, protected profiles and full output/proposal
+parity passed. [Negative evidence](evidence/gemma4_26b/r1-global-warp-normalization-2026-11-04.md).
+No further AP3 tuning is authorized by this result; AP4/AP5 remain in scope.
+
+AP4 also closes without promotion: D2 AB-0.116104% and BA-0.060738%, both
+95%intervals include zero. Pooled+0.011921% does not satisfy the independently
+predeclared both-orders gate. Exactly502unused quant/projection pairs disappear;
+all other kernel counts and all1135outputs/1004proposals remain exact. Nine
+regressions and the scoped32output memory screen pass. Remaining acceptance-only
+gates are not claimed after failure. Exact parent source/binary restored;
+[negative evidence](evidence/gemma4_26b/final-d2-feedback-2026-11-04.md). AP5 remains open.
+
+AP5 closes at the offline operator gate without a production patch:8actual
+R1/R3cases, geometric mean-0.030264%,95%[-0.069885%,+0.017713%]. Numerical,
+scalar/alias/finite-boundary, memory/synchronization and resource/instruction
+screens pass; SASS CTA barrier sites fall9to5 without a winning timing screen.
+Production/E2E/protected gates stay unrun. [Evidence](evidence/gemma4_26b/attention-postnorm-warp-2026-11-04.md).
+The AP3–AP5 Goal is now closed with three rejections and no retained runtime
+change, commit or push. Exact parent source/canonical executable restored;
+[final audit](../artifacts/trellis35/ap3-ap5-closeout-2026-11-04.json). No further
+search, subset promotion or wider tuning follows from this completed exception.
+
+### Owner update: five bounded Trellis35 decode experiments (2026-11-05)
+
+The owner authorizes testing N1, N3, N2, N4 and N5 in that order, and retaining
+qualified wins. This supersedes decision 7's tuning freeze for these five
+candidates only. The [task entry](plans/gemma4-26b/N1_N5_DECODE_GOAL_2026_11_05.md)
+defines the screen thresholds, ABBA qualification and restoration rules.
+Git publication is outside this scope.
+
+All five experiments are closed. N1 passed primary D2 (+1.225% AB,
++1.645% BA) and missed the Ordinary secondary point-estimate requirement
+(−0.0731% AB, −0.0518% BA). N3, N2, N4 and N5 failed their operator screens.
+The exact qualified parent is restored. See the
+[evidence](evidence/gemma4_26b/n1-n5-decode-2026-11-05.md).
+This bounded exception is complete.
+
 ### Owner update: qualify the Trellis35 Fixed-D2 RoPE candidate (2026-11-05)
 
 The owner authorizes qualifying the measured N1 candidate and publishing it
@@ -60,6 +174,21 @@ lifecycle parity passed. The in-flight cancellation probe reproduced the same
 pre-existing streaming status issue on both builds. See the
 [qualification evidence](evidence/gemma4_26b/n1-rope-qualification-2026-11-05.md).
 
+### Owner update: bounded Trellis35 Ordinary Decode follow-up (2026-11-05)
+
+The owner authorizes measuring the actual inter-graph gap on the N1 baseline.
+This supersedes decision 7's freeze for that diagnostic and the conditional
+next step in the [task entry](plans/gemma4-26b/ORDINARY_DECODE_FOLLOWUP_2026_11_05.md).
+A large reproducible gap permits one bounded Ordinary greedy graph
+prototype. A small gap directs the follow-up to real-input Ordinary
+Routed-GateUp diagnosis. Previous negative trials remain historical.
+
+The follow-up is complete. Both timing methods place the inter-graph gap
+at roughly 10–13 µs and below the prototype gate. The real-route GateUp
+measurement separates warm and evicted conditions and records the extra
+K3 instruction work. See the
+[evidence](evidence/gemma4_26b/ordinary-decode-followup-2026-11-05.md).
+
 ### Owner update: Ordinary local Attention and FP8 O Goal (2026-11-05)
 
 The owner authorizes the two sequential optimization experiments in the
@@ -74,6 +203,152 @@ Ordinary with exact outputs and matched peak VRAM. D2 passed the
 −0.20% margin in both orders and the protected-profile checks passed.
 The FP8 O two-tile CTA missed its primary operator gate and is closed.
 See the [evidence](evidence/gemma4_26b/local-attention-o-2026-11-05.md).
+
+### Owner update: five bounded 12B Decode experiments (2026-11-15)
+
+The owner authorizes the five experiments in
+[`DECODE_FIVE_STEPS_2026_11_15.md`](plans/gemma4-12b/DECODE_FIVE_STEPS_2026_11_15.md),
+retaining and committing only measured gains with identical outputs. This
+supersedes standing decision 7's tuning freeze for these five bounded 12B
+candidates only. Preserve model/precision, all numerical boundaries, residency,
+allocation and protected profiles. Existing unrelated dirty work is separate.
+Record rejected candidates and restore their runtime changes. No push or
+release is authorized.
+
+### Owner update: matched 12B Prefill comparison (2026-11-15)
+
+The owner explicitly pauses the five-step Decode Goal and requests a current
+12B three-engine Prefill comparison with matched chunk sizes, including1024
+and larger valid sizes up to8192. This supersedes decision7's tuning freeze
+only for explicit benchmark chunk/context controls, proportional validation and
+new immutable measurements. Existing numerical/kernel/format/residency rules
+remain. Decode optimization is not resumed by this exception. Task entry:
+`plans/gemma4-12b/MATCHED_PREFILL_2026_11_15.md`. No push/release is requested.
+
+The comparison is complete locally: all 15 chunk/engine combinations have
+three warmups and ten retained samples. Common 1,024-token chunks yield
+5,246.93 / 4,839.77 / 6,871.12 tok/s for native / llama.cpp / vLLM.
+All final llama.cpp points use current central revision `18b74fa`; the earlier
+screen revision remains separate. Full native output checks pass at all five
+sizes. [Evidence](evidence/gemma4_12b/matched-prefill-2026-11-15.md).
+The Decode Goal remains paused; no commit, push or release was performed.
+
+The owner-requested independent batch/microbatch follow-up is also complete:
+batch 8192 with microbatches 512/1024/2048 reaches
+4728.51/4798.45/4598.25 tok/s. An adjacent 1024/1024 control reaches
+4812.04 tok/s. All four cohorts retain ten samples after three warmups;
+logical batch enlargement provides no demonstrated gain at microbatch 1024.
+[Follow-up evidence](evidence/gemma4_12b/prefill-batch-microbatch-2026-11-15.md).
+No runtime kernel change, Decode Goal resumption or Git publication follows.
+
+### Owner update: new Pro 12B campaign (2026-11-15)
+
+After clearing the earlier Goal, the owner explicitly adopts
+`GEM16_12B_CODEX_PLAN_2026-11-15.txt` as a new Goal. The bounded exception to
+standing decision 7 now covers corrected post-attention fusion, historically
+filtered Assistant GEMV, exact QKV load reconstruction, counter-filtered D2
+Down weight pipelining and global D2 Target-attention preloading, in that
+order. Existing numerical/cache/operator/E2E gates remain unchanged. This
+supersedes the earlier pause only for the newly adopted five experiments;
+prior negative results remain evidence, not authorization for a broader search.
+Task: [execution contract](plans/gemma4-12b/PRO_CAMPAIGN_2026_11_15.md).
+No earlier commit/push/release authorization is inherited.
+
+The owner subsequently changes the new campaign's admission/confidence rule:
+always perform a full Decode test for otherwise numerically/memory-valid
+candidates, even if an isolated operator interval dips slightly below zero;
+95% lower bounds may extend to -2% overall Decode loss. This supersedes the
+previous positive-lower-bound admission/Decode rules for future experiments,
+including reopening E1; exactness/runtime/profile requirements and measured
+gain requirements remain. Original decisions/samples stay immutable.
+
+E1 is qualified locally on2026-11-16 and retained: Ordinary+0.708245%,
+secondary D2+0.06491% (effectively unchanged), all full output/proposal/KV bytes
+exact, relevant12B/26B text/media/session and host/CUDA regressions pass.
+The first rebuilt diagnostic candidate was stale because restored timestamps
+prevented compilation; its protection results are invalidated and replaced by
+a distinct, actually rebuilt candidate. Primary pinned-binary timings were
+unaffected. Static shared2KiB and loaded1KiB are both disclosed with a conservative
+2KiB budget. [Qualification](../artifacts/gemma4_12b/norm-fusion-qualified-2026-11-16.json).
+E2–E5 and final cumulative/Prefill diagnosis remain open. No Git publication.
+
+### Owner update: cumulative gain threshold for the current five experiments (2026-11-16)
+
+The owner explicitly moves the0.5% minimum from each individual experiment
+to the combined package of these five experiments. This supersedes the
+per-experiment minimum/stop rule in the adopted Pro plan for future decisions,
+including the still-running E2trial. Small positive measured primary effects
+may remain provisional components after complete numerical/memory/native-state/
+protected qualification and the existing Decode/Prefill margins pass. They
+are not advertised as independently meeting the former0.5% gate.
+
+Preserve the original protocols/results and report both the old single-trial
+assessment and the new package-component assessment. The final combined
+version must be measured directly against the original campaign parent;
+Ordinary and D2 are assessed separately, never added across modes. The−2%
+Decode confidence margin,−1% Prefill/inverse-TTFT margin, exactness/residency/
+allocation rules and bounded candidate count remain. This does not reopen
+older campaigns or authorize a parameter sweep or Git publication.
+
+E2 is now correctness-qualified and retained provisionally over E1. Full
+primary D2ABBA gains0.39353%; Ordinary−0.01550% is within its margin, as are
+Prefill/inverseTTFT. Full1135IDs/1014proposals/wholeKV, actual native Assistant
+sequence and32protected text/media/session cases plus host/CUDA tests pass.
+The original individual0.5% gate remains recorded as failed; the owner's new
+package rule admits this small positive component. E3–E5 and final combined
+performance remain open. [Evidence](../artifacts/gemma4_12b/assistant-exact-tree-2026-11-16.json).
+
+E3 is closed without retention: fullOrdinary+0.15193%, D2−3.00401%; both
+D2confidence bounds violate the owner's−2% loss margin. Numeric/sanitizer/
+operand/actual-dispatch checks pass. Only the joint T1/T3QKVcandidate is
+restored, preserving E1+E2; no T1-only salvage/search. E4's current parent
+Down counters admit the single predeclared weight/SFBpipeline hypothesis;
+E4/E5 and final combined/Prefill closure remain open.
+[QKV evidence](../artifacts/gemma4_12b/qkv-load64-full-2026-11-16.json).
+
+E4 is closed without retention: fullD2−1.68796%, Ordinary−0.00333%.
+The loss margins pass but the primary effect is negative, so the pipeline
+is restored, preserving E1+E2. Numeric/memory/race and actual production
+dispatch/instruction gates pass. E5's actual24case parent capture/counters
+admit the single predeclared two8token KVpreload trial; no runtime candidate
+has run yet. E5 and the final combined/Prefill diagnosis remain open.
+[Down evidence](../artifacts/gemma4_12b/down-weight-pipeline-2026-11-16.json).
+
+E5 is closed without retention after all80full requests: D2−0.01668%,
+Ordinary−0.03421%. The isolated warm/evicted gain(+2.93%/+2.21%) does not
+transfer to a positive full-model effect. Numeric/memory/sync/race checks
+and actual native dispatch/instructions pass;48new Targetglobal calls over
+six groups, same other kernel/grid/block counts,70versus64registers,
+unchanged41,056B staticShared and zero local. Only E5attention source/header
+is restored, preserving E1+E2. Acceptance-only full state/protected gates
+are unrun after rejection, not claimed passed.
+[Attention evidence](../artifacts/gemma4_12b/global-attention-preload-2026-11-16.json).
+All five individual experiments are complete. The fresh direct original-parent/
+cumulative-package Ordinary/D2 comparison is running; final state, bounded
+4096/8192Prefill diagnosis and closure audit remain open. No broader tuning
+or Git publication is authorized by these outcomes. The existing recurring
+Prefill weight repack remains a disclosed runtime-rule conflict for a separate
+task, not an exception to the permanent rule.
+
+The owner explicitly stops this campaign on2026-11-16 at15:56Berlin.
+All owned benchmark/coordinator processes are stopped; the Goal is paused.
+Individual E1–E5evidence remains valid, but the interrupted cumulative comparison
+has no accepted package result and the final Prefill diagnosis is unrun.
+No automatic continuation or new benchmark is authorized until the owner resumes.
+Continuation state is recorded at the end of the campaign task entry.
+
+### Owner update: publish the two retained 12B Decode patches (2026-11-16)
+
+After stopping and clearing the five-experiment Goal, the owner explicitly
+requests committing and pushing the retained post-attention fusion and
+Assistant exact-tree GEMV, their existing measurements and README to `main`.
+This supersedes the campaign's earlier no-publication restriction for these
+two patches only; publication does not wait for the interrupted final package
+comparison. No further benchmarks are authorized. Existing per-trial results,
+including the Assistant's former provisional assessment, remain immutable;
+there is no claim of a qualified cumulative gain or a completed Prefill profile.
+Unrelated local work stays outside this commit. This is no release request.
+[Published scope and limitations](evidence/gemma4_12b/retained-decode-2026-11-16.md).
 
 ## Standing decisions
 

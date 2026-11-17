@@ -1,0 +1,50 @@
+{
+  "status": "all_three_bounded_candidates_rejected",
+  "public_records": [
+    {
+      "artifact": {
+        "path": "artifacts/trellis35/r1-global-warp-normalization-2026-11-04.json",
+        "bytes": 1555295,
+        "sha256": "083edb8bdbe59e3579a351c7642fa56539e79c51002e91167f391cd55a79fb23"
+      },
+      "status": "rejected_predeclared_gate",
+      "raw_files_exact": 150
+    },
+    {
+      "artifact": {
+        "path": "artifacts/trellis35/final-d2-feedback-2026-11-04.json",
+        "bytes": 1555902,
+        "sha256": "ea724d731a3ba21eb5800f162c6b5ab7609a0ea0d479d7c33026a1a6c835e679"
+      },
+      "status": "rejected_predeclared_gate",
+      "raw_files_exact": 70
+    },
+    {
+      "artifact": {
+        "path": "artifacts/trellis35/attention-postnorm-warp-2026-11-04.json",
+        "bytes": 86599,
+        "sha256": "6428ad6bc2fbeaf19f044462887c5ccf55f973f4985bfe446dc1f1e4866974db"
+      },
+      "status": "rejected_predeclared_operator_gate",
+      "raw_files_exact": 57
+    }
+  ],
+  "ap4_actual_resource_shapes_exact": 69,
+  "all_tracked_runtime_source_matches_HEAD": true,
+  "canonical_executable": {
+    "path": "build/Linux/blackwell-release/bin/gem16-run",
+    "bytes": 12703592,
+    "sha256": "02b65a2eafdcc1c7cd26c6013007226207a76226d8d99021159546e5c90651a8"
+  },
+  "promoted_runtime_changes": 0,
+  "commits": [],
+  "pushes": [],
+  "scope": "AP3/AP4 fail primary both-order E2E gate;AP5 fails offline all-case/aggregate gate and never modifies production;acceptance-only unrun gates not passes",
+  "metadata_errata": [
+    {
+      "artifact": "attention-postnorm-warp-2026-11-04.json",
+      "field": "limitations",
+      "correction": "The word cold in the separately profiled NCU limitation does not establish controlled cold cache. Recorded commands use --cache-control none and --clock-control none. Cache state is uncontrolled; all unprofiled warm operator samples and the rejection decision are unchanged."
+    }
+  ]
+}

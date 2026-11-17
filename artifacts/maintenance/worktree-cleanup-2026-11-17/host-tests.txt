@@ -1,0 +1,27 @@
+test_environment_allowlist_excludes_raw_machine_identifiers (cleanup_test_0.PublicationTest.test_environment_allowlist_excludes_raw_machine_identifiers) ... ok
+test_removes_personal_identifiers_without_changing_samples_or_technical_facts (cleanup_test_0.PublicationTest.test_removes_personal_identifiers_without_changing_samples_or_technical_facts) ... ok
+test_assistant_attention_is_separate (cleanup_test_1.DecodeCostAccountingTest.test_assistant_attention_is_separate) ... ok
+test_generic_merges_use_full_instance (cleanup_test_1.DecodeCostAccountingTest.test_generic_merges_use_full_instance) ... ok
+test_generic_split_uses_full_26b_head_dimension (cleanup_test_1.DecodeCostAccountingTest.test_generic_split_uses_full_26b_head_dimension) ... ok
+test_interval_union_preserves_overlap_and_idle (cleanup_test_1.DecodeCostAccountingTest.test_interval_union_preserves_overlap_and_idle) ... ok
+test_moe_rejects_join_before_inputs_complete (cleanup_test_1.DecodeCostAccountingTest.test_moe_rejects_join_before_inputs_complete) ... ok
+test_moe_terminal_branch_is_charged_once (cleanup_test_1.DecodeCostAccountingTest.test_moe_terminal_branch_is_charged_once) ... ok
+test_partial_intervals_clip_at_window (cleanup_test_1.DecodeCostAccountingTest.test_partial_intervals_clip_at_window) ... ok
+test_sqlite_attribution_preserves_global_merge_and_total (cleanup_test_1.DecodeCostAccountingTest.test_sqlite_attribution_preserves_global_merge_and_total) ... ok
+test_hashes_actual_central_modules (cleanup_test_2.LlamaReplayProvenanceTest.test_hashes_actual_central_modules) ... ok
+test_rejects_noncentral_module_even_with_central_backend (cleanup_test_2.LlamaReplayProvenanceTest.test_rejects_noncentral_module_even_with_central_backend) ... ok
+test_requires_actual_cuda_and_llama_modules (cleanup_test_2.LlamaReplayProvenanceTest.test_requires_actual_cuda_and_llama_modules) ... ok
+test_missing_counters_stays_empty (cleanup_test_3.LlamaSpeculativeAccountingTest.test_missing_counters_stays_empty) ... ok
+test_mixed_depth_and_acceptance_are_derived_not_observed (cleanup_test_3.LlamaSpeculativeAccountingTest.test_mixed_depth_and_acceptance_are_derived_not_observed) ... ok
+test_no_drafts_is_unknown_depth (cleanup_test_3.LlamaSpeculativeAccountingTest.test_no_drafts_is_unknown_depth) ... ok
+test_rejects_resets_missing_requests_and_inconsistent_acceptance (cleanup_test_3.LlamaSpeculativeAccountingTest.test_rejects_resets_missing_requests_and_inconsistent_acceptance) ... ok
+test_missing_observation_leaves_joint_data_unknown (cleanup_test_4.GroupCostTest.test_missing_observation_leaves_joint_data_unknown) ... ok
+test_proposals_derive_all_acceptance_cases_without_inventing_routes (cleanup_test_4.GroupCostTest.test_proposals_derive_all_acceptance_cases_without_inventing_routes) ... ok
+test_rejects_missing_continuation_and_inconsistent_totals (cleanup_test_4.GroupCostTest.test_rejects_missing_continuation_and_inconsistent_totals) ... ok
+test_all_acceptance_cases_and_union (cleanup_test_5.ValidateMtpGroupsTest.test_all_acceptance_cases_and_union) ... ok
+test_rejects_corrupted_position_depth_output_route_and_totals (cleanup_test_5.ValidateMtpGroupsTest.test_rejects_corrupted_position_depth_output_route_and_totals) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 0.004s
+
+OK

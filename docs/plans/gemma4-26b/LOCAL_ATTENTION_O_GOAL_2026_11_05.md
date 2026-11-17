@@ -1,3 +1,7 @@
+> Historical task contract, closed or superseded. Current disposition is in
+> [the archive index](../../evidence/benchmark-archive-2026-11-17.md).
+> This file does not authorize a new experiment.
+
 # Ordinary local Attention and FP8 O
 
 The owner authorizes two bounded experiments on the qualified N1 baseline

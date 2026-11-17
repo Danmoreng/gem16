@@ -1,0 +1,16 @@
+{
+  "owner_authorized": true,
+  "base_revision": "23da1075593a72198b8f24fe79bfa672fc7bef39",
+  "removed_untracked_candidate_or_duplicate_files": 69,
+  "removed_closed_dflash_logs_and_bytecode": 22,
+  "removed_file_bytes": 3822503,
+  "old_progress_measurements_losslessly_preserved": 4,
+  "original_evidence_files_byte_exact": 70,
+  "production_runtime_source_unchanged": true,
+  "new_gpu_campaigns": 0,
+  "host_tests": 22,
+  "replay_compile_link_passed": true,
+  "replay_inference_run": false,
+  "graphics_rerender_not_run": true,
+  "historical_native_claims_not_requalified": true
+}

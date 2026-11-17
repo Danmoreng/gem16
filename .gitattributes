@@ -19,3 +19,11 @@ CMakePresets.json text eol=lf
 *.lock text eol=lf
 docs/plans/gemma4-26b/SHA256SUMS.txt text eol=lf
 third_party/exllamav3_quant/LICENSE text eol=lf
+
+# Preserve the exact recorded bytes of these historical benchmark captures.
+artifacts/benchmark_history/2026-11-15/history.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+artifacts/benchmark_history/2026-11-15/reddit-final/history.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+artifacts/gemma4_12b/matched-prefill-2026-11-15/results.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+artifacts/gemma4_12b/prefill-batch-microbatch-2026-11-15/results.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+# Tool output includes intentional trailing blanks; preserve this raw capture.
+artifacts/dflash/2026-11-16/central-build-manifest.txt -text whitespace=-blank-at-eol

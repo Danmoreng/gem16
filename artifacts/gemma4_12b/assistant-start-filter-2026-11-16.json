@@ -1,0 +1,62 @@
+{
+  "decision": "admit the one previously declared exact-tree candidate",
+  "historical_negative_preserved": "Aug1 Windows short Assistant warp reduction -0.60%; original candidate source not located in the bounded285-file retained-result search; no assertion that it was numerically identical or different",
+  "current_new_hypothesis": "Measured2.38\u20133.58 warp stall cycles per issued instruction at barriers, and9actual CTA barrier sites, provide a concrete current reduction/barrier target. Candidate retains exact reduction tree, pair loads, FMA and BF16 boundary while reducing to1barrier.",
+  "caveats": "Long-scoreboard is larger, especially K4096/8192; isolated profiler-default-cache evidence is not a production cache or total-latency decomposition. No performance gain predicted or guaranteed. No sweep or fallback candidate.",
+  "parent_actual_cases": 126,
+  "shape_counters": [
+    {
+      "case": 0,
+      "grid": "(4096, 1, 1)",
+      "warp_stall_cycles_per_issued_instruction": {
+        "barrier": 2.491429,
+        "long_scoreboard": 7.617952,
+        "short_scoreboard": 3.700307
+      }
+    },
+    {
+      "case": 1,
+      "grid": "(1024, 1, 1)",
+      "warp_stall_cycles_per_issued_instruction": {
+        "barrier": 3.581556,
+        "long_scoreboard": 27.47106,
+        "short_scoreboard": 2.620232
+      }
+    },
+    {
+      "case": 2,
+      "grid": "(8192, 1, 1)",
+      "warp_stall_cycles_per_issued_instruction": {
+        "barrier": 2.384122,
+        "long_scoreboard": 9.193727,
+        "short_scoreboard": 3.62774
+      }
+    },
+    {
+      "case": 4,
+      "grid": "(1024, 1, 1)",
+      "warp_stall_cycles_per_issued_instruction": {
+        "barrier": 2.865943,
+        "long_scoreboard": 46.478123,
+        "short_scoreboard": 1.838996
+      }
+    },
+    {
+      "case": 20,
+      "grid": "(3840, 1, 1)",
+      "warp_stall_cycles_per_issued_instruction": {
+        "barrier": 2.539846,
+        "long_scoreboard": 9.740382,
+        "short_scoreboard": 3.634059
+      }
+    }
+  ],
+  "full_decode_required_after_numeric_memory_checks": true,
+  "profiler": "NsightCompute2026.4.0.0; actual report suffix.ncu-repz; obsolete.ncu-rep assertion failed after successful capture, recovered by importing existing report without repeating GPU work",
+  "evidence_sha256": {
+    "parent-counters.ncu-repz": "dd2ea317b71e2274207814aff0957d67973c7067a9e0643b6bf386ec784744f1",
+    "parent-counter-raw.csv": "f7860c045e7b4e20a3e7f13518227606b28293172425f9f6d777f7fa387b1e15",
+    "parent-kernel.sass": "128eb74c1be11ad63f0921aa48ded13024af890a6103b92ca9f91afa5b0bd056",
+    "weight-identities.json": "f61860650dec628f6c9782adc2a96dce66fbe099517480e2fcbb13427b1607ba"
+  }
+}

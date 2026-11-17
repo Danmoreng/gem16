@@ -1,0 +1,26 @@
+"""Offline real-input Assistant GEMV observer from the shared T3 observer."""
+from pathlib import Path
+import argparse,hashlib,json
+root=Path(__file__).resolve().parents[2]
+p=argparse.ArgumentParser();p.add_argument('destination',type=Path);a=p.parse_args()
+source=root/'tests/cuda/twelve_b_fp8_operator_lab.cu';s=source.read_text().replace('GEM16_12B_FP8_LAB_DIR','GEM16_12B_ASSISTANT_LAB_DIR')
+s=s.replace('stride=512*1024,slots=8','stride=128*1024,slots=42')
+x=s.index('using Gate=');y=s.index('\nLaunch launch=',x);s=s[:x]+'''using Gate=cudaError_t(*)(unsigned,const float*,const std::uint16_t*,float*,std::uint64_t,std::uint64_t,cudaStream_t);'''+s[y:]
+x=s.index('struct Record{');y=s.index('std::array<Record,slots>',x);s=s[:x]+'''struct Record{std::uint64_t rows=0,width=0;const std::uint16_t*weight=nullptr;};'''+s[y:]
+x=s.index('void Run(');y=s.index('cudaGraphExec_t Graph',x);s=s[:x]+'''void Run(unsigned variant,unsigned i,cudaStream_t stream){const auto&r=records[i%slots];Check(gate(variant,reinterpret_cast<const float*>(Base(i)),r.weight,outputs[0],r.rows,r.width,stream));}\n'''+s[y:]
+x=s.index('void Finish(){');y=s.index('__attribute__((constructor))',x)
+s=s[:x]+r'''void Finish(){finished=true;injecting=true;const auto dir=std::filesystem::path(std::getenv("GEM16_12B_ASSISTANT_LAB_DIR"));if(!std::filesystem::create_directory(dir))throw std::runtime_error("directory exists");Check(cudaMalloc(&outputs[0],32768));Check(cudaMalloc(&evict,evict_bytes));Check(cudaMemset(evict,0,evict_bytes));cudaStream_t stream{};Check(cudaStreamCreate(&stream));cudaEvent_t start{},end{};Check(cudaEventCreate(&start));Check(cudaEventCreate(&end));std::ofstream f(dir/"screen.json");f.precision(10);f<<"{\"diagnostic_only\":true,\"actual_groups\":[0,250,506],\"cases\":[";
+for(unsigned i=0;i<phases*slots;++i){const auto&r=records[i%slots];if(!r.rows||!r.width)throw std::runtime_error("missing capture");const auto n=r.rows*sizeof(float);auto expected=Download(Output(i,0),n);Run(0,i,stream);Check(cudaStreamSynchronize(stream));if(expected!=Download(outputs[0],n))throw std::runtime_error("parent actual mismatch");Run(1,i,stream);Check(cudaStreamSynchronize(stream));if(expected!=Download(outputs[0],n))throw std::runtime_error("candidate differs");
+Export(dir/("a-"+std::to_string(i)+".bin"),Base(i),r.width*sizeof(float));Export(dir/("expected-"+std::to_string(i)+".bin"),Output(i,0),n);if(i<slots)Export(dir/("w-"+std::to_string(i)+".bin"),r.weight,r.rows*r.width*2);
+auto p=Graph(0,i,16,stream),c=Graph(1,i,16,stream),pe=Graph(0,i,1,stream),ce=Graph(1,i,1,stream);for(unsigned j=0;j<4;++j){Check(cudaGraphLaunch(p,stream));Check(cudaGraphLaunch(c,stream));}Check(cudaStreamSynchronize(stream));auto time=[&](cudaGraphExec_t g,bool cold){if(cold)Evict<<<512,256,0,stream>>>(evict,evict_bytes);Check(cudaEventRecord(start,stream));Check(cudaGraphLaunch(g,stream));Check(cudaEventRecord(end,stream));Check(cudaEventSynchronize(end));float ms=0;Check(cudaEventElapsedTime(&ms,start,end));return 1000.0*ms/(cold?1:16);};
+if(i)f<<',';f<<"{\"slot\":"<<i%slots<<",\"phase\":"<<i/slots<<",\"rows\":"<<r.rows<<",\"width\":"<<r.width<<",\"bit_equal\":true,\"samples\":[";for(unsigned j=0;j<25;++j){double a,b,d,e;if(j%2==0){a=time(p,false);b=time(c,false);d=time(pe,true);e=time(ce,true);}else{b=time(c,false);a=time(p,false);e=time(ce,true);d=time(pe,true);}if(j)f<<',';f<<'['<<a<<','<<b<<','<<d<<','<<e<<']';}f<<"]}";for(auto g:{p,c,pe,ce})Check(cudaGraphExecDestroy(g));}
+f<<"]}\n";f.close();Check(cudaEventDestroy(start));Check(cudaEventDestroy(end));Check(cudaStreamDestroy(stream));Check(cudaFree(outputs[0]));Check(cudaFree(evict));injecting=false;}
+'''+s[y:]
+s=s.replace('gem16_12b_fp8','gem16_12b_assistant').replace('calls>=96','calls>=42')
+x=s.index('extern "C" cudaError_t cudaLaunchKernel(');y=s.index('extern "C" cudaError_t __cudaLaunchKernel',x)
+s=s[:x]+r'''extern "C" cudaError_t cudaLaunchKernel(const void*fn,dim3 grid,dim3 block,void**args,std::size_t shared,cudaStream_t stream){const auto e=launch(fn,grid,block,args,shared,stream);if(!enabled||!ready||injecting||finished||e!=cudaSuccess)return e;const char*n=nullptr;Check(cudaFuncGetName(&n,fn));if(!n||!std::strstr(n,"Bf16GemvKernel"))return e;const unsigned slot=calls++%42;Record r;r.rows=Arg<std::uint64_t>(args,3);r.width=Arg<std::uint64_t>(args,4);r.weight=Arg<const std::uint16_t*>(args,1);if(r.rows>8192||r.width>8192||!r.rows||!r.width||Arg<const void*>(args,0)==Arg<const void*>(args,2))std::abort();records[slot]=r;injecting=true;
+Snapshot<<<1,256,0,stream>>>(reinterpret_cast<const std::uint8_t*>(Arg<const float*>(args,0)),Base(slot),r.width*sizeof(float),counter,slot==0);Snapshot<<<1,256,0,stream>>>(reinterpret_cast<const std::uint8_t*>(Arg<const float*>(args,2)),reinterpret_cast<std::uint8_t*>(Output(slot,0)),r.rows*sizeof(float),counter,false);Check(cudaGetLastError());injecting=false;return e;}
+'''+s[y:]
+with a.destination.open('x') as f:f.write(s)
+sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+a.destination.with_suffix('.provenance.json').write_text(json.dumps({'source_sha256':sha(source),'generator_sha256':sha(Path(__file__)),'output_sha256':sha(a.destination),'transformation':'borrow all42 Assistant GEMV bindings from fixed-D2, replay at3 phases, preserve target dispatch and compare exact outputs'},indent=2)+'\n')

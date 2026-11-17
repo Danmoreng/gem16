@@ -1,0 +1,13 @@
+Chart notes (for the post text, not embedded in the graphics)
+
+RTX 5080 Laptop GPU, Linux, batch one, identical16,384-token Wikipedia prompt IDs. Latest full runs generate1,135 fixed greedy outputs after3warmups and10retained repetitions. 26B gem16/llama and vLLM D2 pool two cohorts. Rates are medians.
+
+Dates are equally spaced measurement categories, not a proportional calendar axis. Open diamonds mark different setups: short screens, stop-terminated/sampled outputs, or a memory-constrained runtime configuration. Triangles mark prefill from D2 runs. Visible bars show the full run range for highly variable current measurements.
+
+Legend sizes describe the latest Target model files in decimal GB, excluding the Assistant and runtime/KV memory. Historical12B llama.cpp initially mapped FP8 attention to BF16, thenQ8_0; the legend describes the latest format.
+
+Formats, cache precision and engine timing boundaries differ; output streams differ. This is observed performance history, not identical-quality or version-only attribution. 26B vLLM uses a distinct community INT4 W4A16 checkpoint and produces different greedy outputs between runs.
+
+26B vLLM D2 fits with full CUDA Graphs but TorchInductor disabled, an official base-model BF16 Assistant,128-token prefill chunks and384MiB KV. Ordinary used1024/512MiB. D2 median149.87tok/s over20retained runs, range123.77–237.52; peak15521MiB. It is a variable characterization, not a stable qualified baseline. W4A8 was attempted explicitly through Humming but failed model construction; the successful rate remains W4A16.
+
+All values, dates, formats, counts and source pointers are in history.csv/history.json. The oldest retained repository/external matrices are July21,2026; no April/May evidence was found locally.

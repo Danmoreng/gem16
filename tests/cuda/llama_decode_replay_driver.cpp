@@ -1,12 +1,29 @@
-// Standalone diagnostic, compiled against the pinned external llama headers and
+// Standalone diagnostic, compiled against verified external llama headers and
 // libraries. It is not linked into gem16 or exposed by either product CLI.
 #include "decode_replay_support.h"
 #include "llama.h"
 #include "ggml-backend.h"
 #include <memory>
+#include <link.h>
+
+#ifndef GEM16_LLAMA_REPLAY_COMMIT
+#error "Build with tools/run_llama_decode_replay.py to record the actual source identity"
+#endif
 
 namespace {
 using namespace decode_replay;
+constexpr const char* kEngine = "llama.cpp-" GEM16_LLAMA_REPLAY_COMMIT "-q4_0";
+// Hex encoding keeps paths unambiguous even with whitespace or control bytes.
+// The launcher hashes these actually loaded modules, not an ldd prediction.
+int RecordModule(dl_phdr_info* info, std::size_t, void*) {
+  if (!info->dlpi_name || !info->dlpi_name[0]) return 0;
+  std::cerr << "GEM16_REPLAY_MODULE_HEX=";
+  constexpr char digits[] = "0123456789abcdef";
+  for (const unsigned char* p = reinterpret_cast<const unsigned char*>(info->dlpi_name); *p; ++p)
+    std::cerr << digits[*p >> 4U] << digits[*p & 15U];
+  std::cerr << '\n';
+  return 0;
+}
 struct Batch {
   llama_batch value = llama_batch_init(2048, 0, 1);
   ~Batch() { llama_batch_free(value); }
@@ -90,6 +107,7 @@ int main(int argc, char** argv) {
         llama_init_from_model(model.get(), cp), llama_free);
     Require(ctx != nullptr && llama_n_ctx(ctx.get()) >= kContext,
             "llama diagnostic context creation failed");
+    dl_iterate_phdr(RecordModule, nullptr);
     Batch batch;
     std::vector<Row> rows(1134U);
     if (!d2) {
@@ -101,11 +119,11 @@ int main(int argc, char** argv) {
                static_cast<std::uint32_t>(prompt.size() + i));
         rows[i] = {history[i], Prediction(ctx.get()), Ns(start)};
       }
-      WriteRows("llama-b11552-q4_0", rows, initial);
+      WriteRows(kEngine, rows, initial);
     } else if (windows) {
       constexpr std::array<std::size_t, 3> starts{0U, 567U, 1128U};
-      std::cout << "{\"diagnostic_only\":true,\"engine\":\"llama-b11552-q4_0\","
-                   "\"mode\":\"forced_d2_windows\",\"cases\":[";
+      std::cout << "{\"diagnostic_only\":true,\"engine\":\"" << kEngine
+                << "\",\"mode\":\"forced_d2_windows\",\"cases\":[";
       for (unsigned phase = 0U; phase < starts.size(); ++phase) {
         Prefill(ctx.get(), batch, prompt);
         for (std::size_t i = 0U; i < starts[phase]; ++i) {
@@ -155,8 +173,8 @@ int main(int argc, char** argv) {
         Require(Prediction(ctx.get()) == history[accepted + 2U],
                 "llama post-rollback continuation mismatch");
       }
-      std::cout << "{\"diagnostic_only\":true,\"engine\":\"llama-b11552-q4_0\","
-                   "\"mode\":\"forced_d2\",\"accepted\":[0,1,2],"
+      std::cout << "{\"diagnostic_only\":true,\"engine\":\"" << kEngine
+                << "\",\"mode\":\"forced_d2\",\"accepted\":[0,1,2],"
                    "\"commit_and_continuation_exact\":true}\n";
     }
     return 0;

@@ -1,0 +1,36 @@
+{
+  "converter_commit": "e8fbcad855c5d8c315aa1dde231836ae472f5779",
+  "python": "third_party/cache/vllm-0.33.0-env/bin/python",
+  "source_model_manifest": "model-manifest.json",
+  "transformations": "Official BF16 GGUF conversion, matrices retain BF16; one-dimensional normalization tensors are promoted exactly from BF16 to F32; tokenizer metadata inherited from locked target. No weight quantization. Target embedding/output are shared at runtime.",
+  "omitted_families": "No source draft tensors omitted; source has no standalone embedding/output matrices.",
+  "quality_status": "unqualified external experiment; output hashes recorded separately",
+  "artifacts": [
+    {
+      "path": "/home/sebastian/Development/gem16gb/artifacts/dflash/2026-11-16/gemma4-12B-it-DFlash-bf16.gguf",
+      "bytes": 1470874944,
+      "sha256": "0c22f3898c3308601a2ac9882cf091c9a370dbf16f837ea2c85857f1ad55b126"
+    },
+    {
+      "path": "/home/sebastian/Development/gem16gb/artifacts/dflash/2026-11-16/runner-vllm-initial.py",
+      "bytes": 9988,
+      "sha256": "9c72d2b37cdba8d74190c06de3ff1a55d5a5d78300f0bddedbd2d1d58d6633a7"
+    },
+    {
+      "path": "/home/sebastian/Development/gem16gb/artifacts/dflash/2026-11-16/runner.py",
+      "bytes": 10382,
+      "sha256": "89c77385a00fe0a7d2c1ee14468e4b99b3ec1b5f255126f25ee6e7bcb416c076"
+    },
+    {
+      "path": "/home/sebastian/Development/gem16gb/artifacts/dflash/2026-11-16/benchmark_wikipedia_workload.py",
+      "bytes": 56717,
+      "sha256": "e82a4fccbd17bd65fc5b66deb2c701f1d89d2d20f8b6ff92631598e5bcf7fc4e"
+    }
+  ],
+  "runner_provenance_note": "First vLLM launch executed runner-vllm-initial.py contents from tools/benchmark_dflash_workload.py. The file gained only a post-request activity assertion and logging while that process was already running. Its in-result source hash therefore identifies the later on-disk version; use this pinned initial source for that run. Later launches use pinned runner.py.",
+  "successful_cohort_runner": {
+    "path": "/home/sebastian/Development/gem16gb/artifacts/dflash/2026-11-16/runner-kv-budget.py",
+    "bytes": 10605,
+    "sha256": "4276a15ab020eba44a66462f18e7f752bc008459bb39d5ba281c39f3ef8b206e"
+  }
+}

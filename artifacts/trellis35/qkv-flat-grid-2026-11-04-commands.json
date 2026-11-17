@@ -1,0 +1,945 @@
+{
+  "schema_version": 1,
+  "measurement_record": {
+    "path": "${REPO_ROOT}/artifacts/trellis35/qkv-flat-grid-2026-11-04.json",
+    "bytes": 1863630,
+    "sha256": "a26cef99828d3d9a53148f1d5253e806c1458b3ce404be930430f978740ac79a"
+  },
+  "commands": {
+    "12b-product.command.json": {
+      "argv": [
+        "env",
+        "GEM16_12B_MODEL=${HOME}/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "GEM16_M22_RAW_DIR=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/12b-product-fixture",
+        "ctest",
+        "--test-dir",
+        "${REPO_ROOT}/build/Linux/blackwell-release",
+        "--output-on-failure",
+        "-R",
+        "^gem16-12b-m22-product$"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/12b-product.command.json",
+        "bytes": 451,
+        "sha256": "092e1d64a160e338c4084e6f62174d081a82ad6e66addfdb0f1a679802ca0352"
+      }
+    },
+    "actual-screen.command.json": {
+      "argv": [
+        "env",
+        "GEM16_VISION_D2_DIAGNOSTIC=1",
+        "LD_PRELOAD=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-lab.so",
+        "GEM16_FP8_OPERATOR_LAB=1",
+        "GEM16_FP8_LAB_MODE=t3",
+        "GEM16_FP8_LAB_CANDIDATE=flat",
+        "GEM16_LAB_OUTPUT=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/actual-screen-captures",
+        "${REPO_ROOT}/build/Linux/blackwell-release/bin/gem16-26b-decode-replay-driver",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/prompt.ids",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/native-history.ids",
+        "d2-head-windows",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/actual-screen.command.json",
+        "bytes": 1031,
+        "sha256": "dbf978bd2ae8dbb5f9ccf6a6c62b3aac1e9ff4494930e23c0c3f2c0ba4215ef2"
+      }
+    },
+    "boundary-memcheck.command.json": {
+      "argv": [
+        "compute-sanitizer",
+        "--tool",
+        "memcheck",
+        "--error-exitcode",
+        "99",
+        "--log-file",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/boundary-memcheck.sanitizer.log",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-boundary"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/boundary-memcheck.command.json",
+        "bytes": 328,
+        "sha256": "d4bc73a3cfcf012b438597315ec033814a87104a75a7e8b2f22bb3aa20da810a"
+      }
+    },
+    "boundary-synccheck.command.json": {
+      "argv": [
+        "compute-sanitizer",
+        "--tool",
+        "synccheck",
+        "--error-exitcode",
+        "99",
+        "--log-file",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/boundary-synccheck.sanitizer.log",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-boundary"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/boundary-synccheck.command.json",
+        "bytes": 330,
+        "sha256": "a5e649c4c85e424a6760421373995985ee3369093d608bede71d48eefccd056c"
+      }
+    },
+    "build-flat-boundary.command.json": {
+      "argv": [
+        "/opt/cuda/bin/nvcc",
+        "-std=c++20",
+        "-O3",
+        "-DNDEBUG",
+        "-arch=sm_120a",
+        "-rdc=true",
+        "--expt-relaxed-constexpr",
+        "-I${REPO_ROOT}/include",
+        "-I${REPO_ROOT}/src",
+        "-I${REPO_ROOT}/tests/cuda",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-boundary.generated.cu",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat.generated.cu",
+        "-o",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-boundary"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/build-flat-boundary.command.json",
+        "bytes": 625,
+        "sha256": "9dc4ed3cdcb3321b34dbaeec5da30400fb597b5ca98c932e9d76fcc7fc8b8f0c"
+      }
+    },
+    "build-flat-lab.command.json": {
+      "argv": [
+        "/opt/cuda/bin/nvcc",
+        "-std=c++20",
+        "-O3",
+        "-DNDEBUG",
+        "-arch=sm_120a",
+        "-rdc=true",
+        "--expt-relaxed-constexpr",
+        "-Xcompiler",
+        "-fPIC",
+        "-shared",
+        "--cudart",
+        "shared",
+        "-I${REPO_ROOT}/include",
+        "-I${REPO_ROOT}/src",
+        "-I${REPO_ROOT}/tests/cuda",
+        "${REPO_ROOT}/tests/cuda/fp8_projection_operator_lab.cu",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat.generated.cu",
+        "-o",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-lab.so",
+        "-ldl"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/build-flat-lab.command.json",
+        "bytes": 663,
+        "sha256": "c615e4e1f1bc6d57c397196fd30e78fa316058a892b65ae32e0f740f38c8b4db"
+      }
+    },
+    "build-production-trial.command.json": {
+      "argv": [
+        "cmake",
+        "--build",
+        "${REPO_ROOT}/build/Linux/blackwell-release",
+        "--parallel",
+        "4"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/build-production-trial.command.json",
+        "bytes": 121,
+        "sha256": "edc052458dd99de9b77a6668547c4dce769d8ec4b0ae7a229eea6cdf4cb52141"
+      }
+    },
+    "candidate-native-full-trace-export.command.json": {
+      "argv": [
+        "nsys",
+        "export",
+        "--type",
+        "sqlite",
+        "--output",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/candidate-native-full-trace.sqlite",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/candidate-native-full-trace.nsys-rep"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/candidate-native-full-trace-export.command.json",
+        "bytes": 319,
+        "sha256": "25f7c741f906d80b060f0d6aebfba0b6255068cdc100daef4effbfe5bc815406"
+      }
+    },
+    "candidate-native-full-trace.command.json": {
+      "argv": [
+        "nsys",
+        "profile",
+        "--trace=cuda,nvtx",
+        "--sample=none",
+        "--cpuctxsw=none",
+        "--cuda-graph-trace=node:nvtx-precapture",
+        "--capture-range=cudaProfilerApi",
+        "--capture-range-end=stop",
+        "-o",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/candidate-native-full-trace",
+        "sh",
+        "-c",
+        "env LD_PRELOAD=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/proposal-observer.so GEM16_AUDIT_PROPOSALS_JSON=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/candidate-readonly-proposals.json ${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-candidate --model ${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35 --input-token-ids-file ${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/prompt.ids --kv-cache fp8 --max-context 17519 --greedy --suppress-token-ids 1,50,106,258882,258883 --max-tokens 1135 --assistant-model ${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant --mtp-draft-tokens 2 --cuda-profile-phase decode > ${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/candidate-native-full-trace.json"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/candidate-native-full-trace.command.json",
+        "bytes": 1448,
+        "sha256": "121024764115e62ab124c2ad4dced0bb0a3081c6da484f7132ddd3393da458fb"
+      }
+    },
+    "counter-global-candidate-export.command.json": {
+      "argv": [
+        "ncu",
+        "--import",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-global-candidate.ncu-repz",
+        "--page",
+        "raw",
+        "--csv"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-global-candidate-export.command.json",
+        "bytes": 184,
+        "sha256": "021fad754d5c77f1955dd526bdafd1515ffd3b13d57f3e6f5280ae566b078253"
+      }
+    },
+    "counter-global-candidate.command.json": {
+      "argv": [
+        "ncu",
+        "--profile-from-start",
+        "off",
+        "--kernel-name",
+        "regex:.*(Sm120DirectProjectionPackedT3Kernel|Sm120QkvFlatT3CandidateKernel).*",
+        "--launch-count",
+        "1",
+        "--clock-control",
+        "none",
+        "--cache-control",
+        "none",
+        "--section",
+        "LaunchStats",
+        "--section",
+        "MemoryWorkloadAnalysis_Tables",
+        "-o",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-global-candidate",
+        "env",
+        "GEM16_VISION_D2_DIAGNOSTIC=1",
+        "LD_PRELOAD=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-lab.so",
+        "GEM16_FP8_OPERATOR_LAB=1",
+        "GEM16_FP8_LAB_MODE=t3",
+        "GEM16_FP8_LAB_CANDIDATE=flat",
+        "GEM16_LAB_OUTPUT=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-global-candidate-captures",
+        "GEM16_LAB_PROFILE_CASE=phase2-layer29-qkv",
+        "GEM16_LAB_PROFILE_KIND=candidate",
+        "${REPO_ROOT}/build/Linux/blackwell-release/bin/gem16-26b-decode-replay-driver",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/prompt.ids",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/native-history.ids",
+        "d2-head-windows",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-global-candidate.command.json",
+        "bytes": 1569,
+        "sha256": "2dc818c05171c124a4cc62b0ca85530addb66a317f2ee4db91d1212d6893de9e"
+      }
+    },
+    "counter-global-parent-export.command.json": {
+      "argv": [
+        "ncu",
+        "--import",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-global-parent.ncu-repz",
+        "--page",
+        "raw",
+        "--csv"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-global-parent-export.command.json",
+        "bytes": 181,
+        "sha256": "fdc75176fe98555dffe49cf6638a637e048768fdefe25c40ad35af975625096a"
+      }
+    },
+    "counter-global-parent.command.json": {
+      "argv": [
+        "ncu",
+        "--profile-from-start",
+        "off",
+        "--kernel-name",
+        "regex:.*(Sm120DirectProjectionPackedT3Kernel|Sm120QkvFlatT3CandidateKernel).*",
+        "--launch-count",
+        "1",
+        "--clock-control",
+        "none",
+        "--cache-control",
+        "none",
+        "--section",
+        "LaunchStats",
+        "--section",
+        "MemoryWorkloadAnalysis_Tables",
+        "-o",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-global-parent",
+        "env",
+        "GEM16_VISION_D2_DIAGNOSTIC=1",
+        "LD_PRELOAD=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-lab.so",
+        "GEM16_FP8_OPERATOR_LAB=1",
+        "GEM16_FP8_LAB_MODE=t3",
+        "GEM16_FP8_LAB_CANDIDATE=flat",
+        "GEM16_LAB_OUTPUT=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-global-parent-captures",
+        "GEM16_LAB_PROFILE_CASE=phase2-layer29-qkv",
+        "GEM16_LAB_PROFILE_KIND=parent",
+        "${REPO_ROOT}/build/Linux/blackwell-release/bin/gem16-26b-decode-replay-driver",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/prompt.ids",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/native-history.ids",
+        "d2-head-windows",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-global-parent.command.json",
+        "bytes": 1560,
+        "sha256": "a84708b738af6ed0774604e9f6e41717dfdd49d1877cf00ccc9b7af178866dbe"
+      }
+    },
+    "counter-local-candidate-export.command.json": {
+      "argv": [
+        "ncu",
+        "--import",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-local-candidate.ncu-repz",
+        "--page",
+        "raw",
+        "--csv"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-local-candidate-export.command.json",
+        "bytes": 183,
+        "sha256": "94d2c38891b45f5e528c89acf2a5d7db64b7e3f397b35c4e78fdfcbd2928f263"
+      }
+    },
+    "counter-local-candidate.command.json": {
+      "argv": [
+        "ncu",
+        "--profile-from-start",
+        "off",
+        "--kernel-name",
+        "regex:.*(Sm120DirectProjectionPackedT3Kernel|Sm120QkvFlatT3CandidateKernel).*",
+        "--launch-count",
+        "1",
+        "--clock-control",
+        "none",
+        "--cache-control",
+        "none",
+        "--section",
+        "LaunchStats",
+        "--section",
+        "MemoryWorkloadAnalysis_Tables",
+        "-o",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-local-candidate",
+        "env",
+        "GEM16_VISION_D2_DIAGNOSTIC=1",
+        "LD_PRELOAD=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-lab.so",
+        "GEM16_FP8_OPERATOR_LAB=1",
+        "GEM16_FP8_LAB_MODE=t3",
+        "GEM16_FP8_LAB_CANDIDATE=flat",
+        "GEM16_LAB_OUTPUT=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-local-candidate-captures",
+        "GEM16_LAB_PROFILE_CASE=phase2-layer15-qkv",
+        "GEM16_LAB_PROFILE_KIND=candidate",
+        "${REPO_ROOT}/build/Linux/blackwell-release/bin/gem16-26b-decode-replay-driver",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/prompt.ids",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/native-history.ids",
+        "d2-head-windows",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-local-candidate.command.json",
+        "bytes": 1567,
+        "sha256": "d3e145aa35465539172f24e888bb9b996da01daab30d846013f4ae5bc4221314"
+      }
+    },
+    "counter-local-parent-export.command.json": {
+      "argv": [
+        "ncu",
+        "--import",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-local-parent.ncu-repz",
+        "--page",
+        "raw",
+        "--csv"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-local-parent-export.command.json",
+        "bytes": 180,
+        "sha256": "5f434b90201dc3d15c38180f028a85128580553533d6581f30db83418a42080e"
+      }
+    },
+    "counter-local-parent.command.json": {
+      "argv": [
+        "ncu",
+        "--profile-from-start",
+        "off",
+        "--kernel-name",
+        "regex:.*(Sm120DirectProjectionPackedT3Kernel|Sm120QkvFlatT3CandidateKernel).*",
+        "--launch-count",
+        "1",
+        "--clock-control",
+        "none",
+        "--cache-control",
+        "none",
+        "--section",
+        "LaunchStats",
+        "--section",
+        "MemoryWorkloadAnalysis_Tables",
+        "-o",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-local-parent",
+        "env",
+        "GEM16_VISION_D2_DIAGNOSTIC=1",
+        "LD_PRELOAD=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-lab.so",
+        "GEM16_FP8_OPERATOR_LAB=1",
+        "GEM16_FP8_LAB_MODE=t3",
+        "GEM16_FP8_LAB_CANDIDATE=flat",
+        "GEM16_LAB_OUTPUT=${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-local-parent-captures",
+        "GEM16_LAB_PROFILE_CASE=phase2-layer15-qkv",
+        "GEM16_LAB_PROFILE_KIND=parent",
+        "${REPO_ROOT}/build/Linux/blackwell-release/bin/gem16-26b-decode-replay-driver",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/prompt.ids",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/native-history.ids",
+        "d2-head-windows",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/counter-local-parent.command.json",
+        "bytes": 1558,
+        "sha256": "1b97d306378b1fb8ee74820d2dce8026b011192735dabc96c7f314c73f542412"
+      }
+    },
+    "d2-candidate-b.command.json": {
+      "argv": [
+        "/usr/bin/python",
+        "${REPO_ROOT}/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "${REPO_ROOT}/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-candidate-b.json",
+        "--fixed-output-tokens",
+        "1135",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--gpu-telemetry-csv",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-candidate-b-telemetry.csv",
+        "--mtp-draft-tokens",
+        "2",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--executable",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-candidate",
+        "--assistant-model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-candidate-b.command.json",
+        "bytes": 1086,
+        "sha256": "90e0c5746eb334f5879907e9ce7d663ebeced13568df3b41b2acc24eb46342c7"
+      }
+    },
+    "d2-candidate-b2.command.json": {
+      "argv": [
+        "/usr/bin/python",
+        "${REPO_ROOT}/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "${REPO_ROOT}/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-candidate-b2.json",
+        "--fixed-output-tokens",
+        "1135",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--gpu-telemetry-csv",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-candidate-b2-telemetry.csv",
+        "--mtp-draft-tokens",
+        "2",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--executable",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-candidate",
+        "--assistant-model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-candidate-b2.command.json",
+        "bytes": 1088,
+        "sha256": "97030dc046ea9522414301b06c88ec1eb31564aaa8d392e0fadffedb06c47525"
+      }
+    },
+    "d2-parent-a.command.json": {
+      "argv": [
+        "/usr/bin/python",
+        "${REPO_ROOT}/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "${REPO_ROOT}/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-parent-a.json",
+        "--fixed-output-tokens",
+        "1135",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--gpu-telemetry-csv",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-parent-a-telemetry.csv",
+        "--mtp-draft-tokens",
+        "2",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--executable",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-parent",
+        "--assistant-model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-parent-a.command.json",
+        "bytes": 1077,
+        "sha256": "4f0c84f30c644c8313fdcaab0edbeac60e33ce8bb085a2fa47b18c97472d5927"
+      }
+    },
+    "d2-parent-a2.command.json": {
+      "argv": [
+        "/usr/bin/python",
+        "${REPO_ROOT}/tools/benchmark_wikipedia_workload.py",
+        "--engine",
+        "gem16",
+        "--workload",
+        "${REPO_ROOT}/benchmarks/prompts/wikipedia-summary-16k.json",
+        "--output",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-parent-a2.json",
+        "--fixed-output-tokens",
+        "1135",
+        "--warmups",
+        "3",
+        "--repetitions",
+        "10",
+        "--gpu-telemetry-csv",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-parent-a2-telemetry.csv",
+        "--mtp-draft-tokens",
+        "2",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--executable",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-parent",
+        "--assistant-model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/d2-parent-a2.command.json",
+        "bytes": 1079,
+        "sha256": "b763e5c2f4a055f39b8b5372c384dc7bde0d27f89575f877f53ab0c39c226aee"
+      }
+    },
+    "flat-resources.command.json": {
+      "argv": [
+        "cuobjdump",
+        "--dump-resource-usage",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-lab.so"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-resources.command.json",
+        "bytes": 149,
+        "sha256": "a0e64a804f0c9b7132d7fbfc1a080300c883c5e0b32c63a8ff9385a1c6c23e0a"
+      }
+    },
+    "full-context-d2-memcheck.command.json": {
+      "argv": [
+        "compute-sanitizer",
+        "--tool",
+        "memcheck",
+        "--error-exitcode",
+        "99",
+        "--log-file",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/full-context-d2-memcheck.sanitizer.log",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-candidate",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--input-token-ids-file",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap1-measurement/prompt.ids",
+        "--kv-cache",
+        "fp8",
+        "--max-context",
+        "17519",
+        "--greedy",
+        "--suppress-token-ids",
+        "1,50,106,258882,258883",
+        "--max-tokens",
+        "8",
+        "--assistant-model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/full-context-d2-memcheck.command.json",
+        "bytes": 990,
+        "sha256": "c84fbff1f3ec6cc2a2e569143cfd53bbcbefc9f849fd48cb620bb749371ca8b6"
+      }
+    },
+    "generate-flat-boundary.command.json": {
+      "argv": [
+        "/usr/bin/python3",
+        "${REPO_ROOT}/tests/cuda/build_fp8_qkv_flat_boundary.py",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat-boundary.generated.cu"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/generate-flat-boundary.command.json",
+        "bytes": 227,
+        "sha256": "0dc650a381f16055fef8641425fd36d38c2de22211596d08a8e66e978495091a"
+      }
+    },
+    "generate-flat-candidate.command.json": {
+      "argv": [
+        "/usr/bin/python3",
+        "${REPO_ROOT}/tests/cuda/build_fp8_qkv_flat_candidate.py",
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/flat.generated.cu"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/generate-flat-candidate.command.json",
+        "bytes": 219,
+        "sha256": "84173bdc8b1f4e9dcfb708afd3e71a8233802bdd8b29750f6acc245716df4e41"
+      }
+    },
+    "production-fp8-resources.command.json": {
+      "argv": [
+        "cuobjdump",
+        "--dump-resource-usage",
+        "${REPO_ROOT}/build/Linux/blackwell-release/CMakeFiles/gem16_core.dir/src/cuda/fp8/sm120.cu.o"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/production-fp8-resources.command.json",
+        "bytes": 166,
+        "sha256": "17c6b552303a16d045e55271ab8985af6c228a7a2586123b80b3772954858089"
+      }
+    },
+    "production-host-cuda.command.json": {
+      "argv": [
+        "ctest",
+        "--test-dir",
+        "${REPO_ROOT}/build/Linux/blackwell-release",
+        "--output-on-failure",
+        "-R",
+        "^gem16-(unit|cuda|cuda-trellis35|cuda-moe-reference|cuda-attention-reference|cuda-nvfp4-consumption|cuda-conditional-graph|cuda-vision26b|26b-vision-module-contract)$"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/production-host-cuda.command.json",
+        "bytes": 306,
+        "sha256": "ac6f81265de93a51a5457dfadb8a0cce1bb2b79797d58f5f5cd6c5ca17fb8601"
+      }
+    },
+    "protected-12b-candidate-d2.command.json": {
+      "argv": [
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-candidate",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--input-token-ids",
+        "2,105,2364,107,40654,607,7121,506,3658,3730,236761,106,107,105,4368,107,100,45518,107,101",
+        "--kv-cache",
+        "fp8",
+        "--max-context",
+        "4096",
+        "--greedy",
+        "--suppress-token-ids",
+        "1,50,106,258882,258883",
+        "--max-tokens",
+        "64",
+        "--assistant-model",
+        "${HOME}/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345",
+        "--mtp-draft-tokens",
+        "2"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/protected-12b-candidate-d2.command.json",
+        "bytes": 717,
+        "sha256": "be927d6ca0458984766b7728e19678b1d909647102428e3e152937f030cbdd4c"
+      }
+    },
+    "protected-12b-candidate-ordinary.command.json": {
+      "argv": [
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-candidate",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--input-token-ids",
+        "2,105,2364,107,40654,607,7121,506,3658,3730,236761,106,107,105,4368,107,100,45518,107,101",
+        "--kv-cache",
+        "fp8",
+        "--max-context",
+        "4096",
+        "--greedy",
+        "--suppress-token-ids",
+        "1,50,106,258882,258883",
+        "--max-tokens",
+        "64"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/protected-12b-candidate-ordinary.command.json",
+        "bytes": 527,
+        "sha256": "308518c6da404bdf6e9b1e46d1277385bf9b573a74498680bef4642249d33b8f"
+      }
+    },
+    "protected-12b-parent-d2.command.json": {
+      "argv": [
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-parent",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--input-token-ids",
+        "2,105,2364,107,40654,607,7121,506,3658,3730,236761,106,107,105,4368,107,100,45518,107,101",
+        "--kv-cache",
+        "fp8",
+        "--max-context",
+        "4096",
+        "--greedy",
+        "--suppress-token-ids",
+        "1,50,106,258882,258883",
+        "--max-tokens",
+        "64",
+        "--assistant-model",
+        "${HOME}/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345",
+        "--mtp-draft-tokens",
+        "2"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/protected-12b-parent-d2.command.json",
+        "bytes": 714,
+        "sha256": "8d51708e1726566cc36abcc78dd6483d4d0078736945e7a3692fe76ecc1504fd"
+      }
+    },
+    "protected-12b-parent-ordinary.command.json": {
+      "argv": [
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-parent",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+        "--input-token-ids",
+        "2,105,2364,107,40654,607,7121,506,3658,3730,236761,106,107,105,4368,107,100,45518,107,101",
+        "--kv-cache",
+        "fp8",
+        "--max-context",
+        "4096",
+        "--greedy",
+        "--suppress-token-ids",
+        "1,50,106,258882,258883",
+        "--max-tokens",
+        "64"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/protected-12b-parent-ordinary.command.json",
+        "bytes": 524,
+        "sha256": "531840006e19bb343f46104bb91d97172fba267a07558098a2c1545f7595b217"
+      }
+    },
+    "protected-compact-vision-image-ordinary.command.json": {
+      "argv": [
+        "${REPO_ROOT}/build/Linux/blackwell-release/bin/gem16-chat",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--vision-model",
+        "${REPO_ROOT}/models/checkpoints/google-gemma-4-26b-a4b-it-qat-vision-fp8-v1",
+        "--vision-max-soft-token-budget",
+        "70",
+        "--max-context",
+        "4096",
+        "--greedy",
+        "--no-thinking",
+        "--max-tokens",
+        "160",
+        "--message",
+        "Inspect the image. Reply with exactly four labeled facts: ROBOT COLOR, CHAIR COLOR, BALL POSITION relative to the table, and STAR COUNT. Include every label.",
+        "--image",
+        "${REPO_ROOT}/benchmarks/vision-v19/images/scene-square.png",
+        "--json"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/protected-compact-vision-image-ordinary.command.json",
+        "bytes": 799,
+        "sha256": "1d94754b168e1056f8a9416795b02d94c5919ce56bc8eee2a9527861255003ab"
+      }
+    },
+    "protected-compact-vision-live-d2.command.json": {
+      "argv": [
+        "${REPO_ROOT}/build/Linux/blackwell-release/bin/gem16-chat",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--vision-model",
+        "${REPO_ROOT}/models/checkpoints/google-gemma-4-26b-a4b-it-qat-vision-fp8-v1",
+        "--vision-max-soft-token-budget",
+        "70",
+        "--max-context",
+        "4096",
+        "--greedy",
+        "--no-thinking",
+        "--max-tokens",
+        "160",
+        "--message",
+        "Inspect the image. Reply with exactly four labeled facts: ROBOT COLOR, CHAIR COLOR, BALL POSITION relative to the table, and STAR COUNT. Include every label.",
+        "--image",
+        "${REPO_ROOT}/benchmarks/vision-v19/images/scene-square.png",
+        "--stats",
+        "--assistant-model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/protected-compact-vision-live-d2.command.json",
+        "bytes": 1004,
+        "sha256": "5c0df378988b0fc7ee02fd47ed223c70ec2da3242a49351a6b36d295be14bcdd"
+      }
+    },
+    "protected-compact-vision-live-ordinary.command.json": {
+      "argv": [
+        "${REPO_ROOT}/build/Linux/blackwell-release/bin/gem16-chat",
+        "--model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--trellis35",
+        "--vision-model",
+        "${REPO_ROOT}/models/checkpoints/google-gemma-4-26b-a4b-it-qat-vision-fp8-v1",
+        "--vision-max-soft-token-budget",
+        "70",
+        "--max-context",
+        "4096",
+        "--greedy",
+        "--no-thinking",
+        "--max-tokens",
+        "160",
+        "--message",
+        "Inspect the image. Reply with exactly four labeled facts: ROBOT COLOR, CHAIR COLOR, BALL POSITION relative to the table, and STAR COUNT. Include every label.",
+        "--image",
+        "${REPO_ROOT}/benchmarks/vision-v19/images/scene-square.png",
+        "--stats"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/protected-compact-vision-live-ordinary.command.json",
+        "bytes": 800,
+        "sha256": "d495c0551f4525fe44201c00a17a8e5f8cf3144f737f5002b4255439f7b75057"
+      }
+    },
+    "protected-nvfp4-candidate-d2.command.json": {
+      "argv": [
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-candidate",
+        "--model",
+        "${REPO_ROOT}/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-runtime-view",
+        "--input-token-ids",
+        "2,105,2364,107,40654,607,7121,506,3658,3730,236761,106,107,105,4368,107,100,45518,107,101",
+        "--kv-cache",
+        "fp8",
+        "--max-context",
+        "17519",
+        "--greedy",
+        "--suppress-token-ids",
+        "1,50,106,258882,258883",
+        "--max-tokens",
+        "64",
+        "--assistant-model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/protected-nvfp4-candidate-d2.command.json",
+        "bytes": 711,
+        "sha256": "73e1b847891788866bf304e402e59bc7ddd2a8a6415adfbfa93951b6282bac12"
+      }
+    },
+    "protected-nvfp4-candidate-ordinary.command.json": {
+      "argv": [
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-candidate",
+        "--model",
+        "${REPO_ROOT}/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-runtime-view",
+        "--input-token-ids",
+        "2,105,2364,107,40654,607,7121,506,3658,3730,236761,106,107,105,4368,107,100,45518,107,101",
+        "--kv-cache",
+        "fp8",
+        "--max-context",
+        "17519",
+        "--greedy",
+        "--suppress-token-ids",
+        "1,50,106,258882,258883",
+        "--max-tokens",
+        "64"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/protected-nvfp4-candidate-ordinary.command.json",
+        "bytes": 507,
+        "sha256": "1ff7bcddef9771945421c0cd333cb6faf682c30ffbc68eddba3dd3ce43dea454"
+      }
+    },
+    "protected-nvfp4-parent-d2.command.json": {
+      "argv": [
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-parent",
+        "--model",
+        "${REPO_ROOT}/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-runtime-view",
+        "--input-token-ids",
+        "2,105,2364,107,40654,607,7121,506,3658,3730,236761,106,107,105,4368,107,100,45518,107,101",
+        "--kv-cache",
+        "fp8",
+        "--max-context",
+        "17519",
+        "--greedy",
+        "--suppress-token-ids",
+        "1,50,106,258882,258883",
+        "--max-tokens",
+        "64",
+        "--assistant-model",
+        "${HOME}/.cache/huggingface/hub/.gem16/snapshots/danmoreng--gemma-4-26B-A4B-it-GEM16--6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant",
+        "--mtp-draft-tokens",
+        "2"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/protected-nvfp4-parent-d2.command.json",
+        "bytes": 708,
+        "sha256": "13acfa98c5d0ab02a00fad1a6c63604d4227c8c1c27b302ba2cb63ad867e0ad0"
+      }
+    },
+    "protected-nvfp4-parent-ordinary.command.json": {
+      "argv": [
+        "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/gem16-run-parent",
+        "--model",
+        "${REPO_ROOT}/benchmarks/results/2026-10-10/c01789a2/d2-graph-fix/nvfp4-runtime-view",
+        "--input-token-ids",
+        "2,105,2364,107,40654,607,7121,506,3658,3730,236761,106,107,105,4368,107,100,45518,107,101",
+        "--kv-cache",
+        "fp8",
+        "--max-context",
+        "17519",
+        "--greedy",
+        "--suppress-token-ids",
+        "1,50,106,258882,258883",
+        "--max-tokens",
+        "64"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/protected-nvfp4-parent-ordinary.command.json",
+        "bytes": 504,
+        "sha256": "54b7730d7a9946f12c1ec59587b2a39bf8edaaa053ac530e6d1e9082f58c24b1"
+      }
+    },
+    "restore-parent-build.command.json": {
+      "argv": [
+        "cmake",
+        "--build",
+        "${REPO_ROOT}/build/Linux/blackwell-release",
+        "--parallel",
+        "4"
+      ],
+      "raw": {
+        "path": "${REPO_ROOT}/benchmarks/results/2026-11-04/66b74d7/ap2-qkv-flat/restore-parent-build.command.json",
+        "bytes": 121,
+        "sha256": "edc052458dd99de9b77a6668547c4dce769d8ec4b0ae7a229eea6cdf4cb52141"
+      }
+    }
+  },
+  "generator": {
+    "path": "${REPO_ROOT}/tools/write_decode_command_evidence.py",
+    "bytes": 1162,
+    "sha256": "95496e6cdb5b78f36dca4c780ec5f603b6ecd84cf3a72678ecf5cc833d1a3f4f"
+  }
+}

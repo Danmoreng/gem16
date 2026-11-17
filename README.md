@@ -120,6 +120,81 @@ not publish a mirror or duplicate the payload bytes.
 
 ## Recorded performance
 
+**12B, 2026-11-17:** Ordinary **53.17 tok/s**; fixed MTP D2/D3/D4
+**98.68 / 100.18 / 97.06 tok/s**. Each cohort uses one warmup and three
+retained requests on the 16K/1,135-output workload. MTP retains the optimized
+verifier and Assistant; only its Ordinary tail enables the newer Ordinary
+kernels. The small MTP deltas do not establish a speed gain. These native
+measurements are separate from older cross-engine references below.
+[Ordinary qualification](docs/evidence/gemma4_12b/ordinary-o-global-2026-11-17.md) ·
+[MTP samples and dispatch](docs/evidence/gemma4_12b/mtp-ordinary-only-2026-11-17.md) ·
+[Closed benchmark archive](docs/evidence/benchmark-archive-2026-11-17.md).
+
+<!-- 12B-PRO-NORM-FUSION-2026-11-15 -->
+**12B Decode optimizations (2026-11-16):** Two bit-exact changes are retained:
+post-attention fusion improves full Ordinary throughput **0.71%**, and the
+Assistant exact-tree GEMV improves full D2 throughput **0.39%** in its separate
+comparison. The other mode is effectively unchanged in each trial. Full output
+IDs, draft proposals and KV bytes match; relevant text/media/session, host and
+CUDA checks passed on Linux SM120a.
+
+The owner approved publishing both measured patches after stopping the campaign.
+The final cumulative comparison was interrupted, so **no combined speedup is
+claimed**. These percentages are separate per-patch results and are not added.
+No new benchmarks were run for publication; this is not Windows execution or
+release qualification, nor an updated llama.cpp comparison.
+[Method, checks and limitations](docs/evidence/gemma4_12b/retained-decode-2026-11-16.md).
+[Fusion samples](artifacts/gemma4_12b/norm-fusion-qualified-2026-11-16.json) ·
+[Assistant samples](artifacts/gemma4_12b/assistant-exact-tree-2026-11-16.json).
+<!-- /12B-PRO-NORM-FUSION-2026-11-15 -->
+
+<!-- MATCHED-12B-PREFILL-2026-11-15 -->
+**2026-11-15 matched 12B Prefill:** With 1,024-token chunks, confirmed medians are
+**5,246.93 / 4,839.77 / 6,871.12 tok/s**
+for GemSixteen / llama.cpp / vLLM. Across the five tested sizes, each engine's
+best confirmed point is **5,965.28 / 4,839.77 / 7,112.99 tok/s**
+at **8,192 / 1,024 / 4,096 tokens**.
+The full curve uses identical 16K prompt IDs, 17,519 requested context, 3 warmups
+and 10 retained one-output probes per point. Formats/KV remain different;
+vLLM uses a consistent 94% memory budget. This refresh concerns Prefill only.
+[Curve, complete samples and controls](docs/evidence/gemma4_12b/matched-prefill-2026-11-15.md).
+<!-- /MATCHED-12B-PREFILL-2026-11-15 -->
+
+**Batch/microbatch follow-up:** At logical batch 8,192, physical microbatches
+512 / 1,024 / 2,048 yield **4,728.51 / 4,798.45 / 4,598.25 tok/s**.
+[Independent controls, samples and memory](docs/evidence/gemma4_12b/prefill-batch-microbatch-2026-11-15.md).
+
+<!-- CENTRAL-LLAMA-REPEAT-2026-11-15 -->
+**2026-11-15 central llama.cpp repeat:** The qualified gem16 binary reached
+**141.74 Ordinary / 200.40 D2 tok/s** against central llama.cpp `de32b26`
+at **144.33 / 202.87 tok/s**, a llama.cpp lead of **1.83% / 1.23%**.
+Native prefill remained faster at **5,612 / 5,632 tok/s** versus
+**5,359 / 5,356 tok/s** (+4.73% / +5.16%) on the same 16K prompt.
+The NVIDIA driver changed to 620.70.06 since the prior comparison.
+[Method, samples and timing scope](docs/evidence/gemma4_26b/central-llama-repeat-2026-11-15.md)
+<!-- /CENTRAL-LLAMA-REPEAT-2026-11-15 -->
+
+<!-- VLLM-Q4-REPEAT-2026-11-15 -->
+
+Current 26B vLLM 0.33.0 INT4 characterization (2026-11-15): **6,475.09 prefill /
+146.674 Ordinary decode tok/s**, 16K + 1,135 outputs, 3 warmups + 10 measurements,
+15,447 MiB sampled peak VRAM. A different, 3.37% larger INT4 W4A16 checkpoint was
+necessary because the same Google Q4_0 GGUF still fails loading. All 10 Ordinary output hashes differ. D2 fits without TorchInductor while keeping CUDA Graphs: **149.873 tok/s median** over20runs, with substantial variation (123.8–237.5 tok/s). The matched base BF16 Assistant and memory/compiler differences are documented. See [method, limitations and raw evidence](docs/evidence/gemma4_26b/vllm-q4-repeat-2026-11-15.md).
+
+<!-- /VLLM-Q4-REPEAT-2026-11-15 -->
+
+<!-- BENCHMARK-HISTORY-2026-11-15 -->
+
+[Benchmark history: July–November 2026](docs/evidence/benchmark-history-2026-11-15.md)
+separates 12B / 26B, Prefill / Ordinary / D2 and all three engines, with an
+exportable chart and source-linked CSV/JSON. The earliest retained llama.cpp/vLLM
+matrices date to **July 21**, the first 16K Wikipedia comparison to **July 26**;
+the 26B track begins in August. Format and workload changes are labeled.
+
+[Final comparison JPEG, including confirmed best 12B Prefill settings](artifacts/benchmark_history/2026-11-15/reddit-final/history.jpg).
+
+<!-- /BENCHMARK-HISTORY-2026-11-15 -->
+
 <!-- CENTRAL-LLAMA-REPEAT-2026-11-05 -->
 **2026-11-05 central llama.cpp repeat:** On the same 16K text workload,
 gem16 `1d46cc5` reached **141.37 Ordinary / 199.60 D2 tok/s** and central
@@ -139,6 +214,22 @@ trial missed its operator gate.
 [Measurements and qualification](docs/evidence/gemma4_26b/local-attention-o-2026-11-05.md)
 <!-- /ORDINARY-LOCAL-ATTENTION-2026-11-05 -->
 
+<!-- MATCHED-ORDINARY-REPLAY-2026-11-05 -->
+**2026-11-05 matched Ordinary replay:** With identical forced tokens,
+gem16 and central llama.cpp `45b6604` reached 147.32 / 175.42 steps/s at
+2K and 139.91 / 147.05 steps/s at 16K. The diagnostic isolates a larger
+gap around Attention and its projections than around MoE from routing.
+[Replay scope and measurements](docs/evidence/gemma4_26b/matched-ordinary-replay-2026-11-05.md)
+<!-- /MATCHED-ORDINARY-REPLAY-2026-11-05 -->
+
+<!-- ORDINARY-DECODE-FOLLOWUP-2026-11-05 -->
+**2026-11-05 Ordinary Decode diagnosis:** On the 16K workload, launch-level
+tracing and sparse CUDA events put the gap between decode graphs at roughly
+10–13 µs per token. The real-route M1 GateUp replay measured 34.82 µs with
+warm weights and 53.25 µs after cache eviction. The heavier K3 route issued
+25% more warp instructions with the same FP8 MMA count. [Measurements](docs/evidence/gemma4_26b/ordinary-decode-followup-2026-11-05.md)
+<!-- /ORDINARY-DECODE-FOLLOWUP-2026-11-05 -->
+
 <!-- N1-ROPE-QUALIFIED-2026-11-05 -->
 **2026-11-05 Trellis35 Fixed-D2 RoPE:** Preparing the local and global RoPE
 tables once per group raised native 16K decode throughput from **197.73 to
@@ -146,6 +237,49 @@ tables once per group raised native 16K decode throughput from **197.73 to
 peak VRAM matched. Ordinary passed the −0.20% non-inferiority margin in both
 orders. [Measurements and qualification](docs/evidence/gemma4_26b/n1-rope-qualification-2026-11-05.md)
 <!-- /N1-ROPE-QUALIFIED-2026-11-05 -->
+
+<!-- N1-N5-DECODE-2026-11-05 -->
+**2026-11-05 decode experiments:** N1 group-wide RoPE improved native Fixed-D2
+by 1.23% and 1.65% in the two unprofiled orders. Ordinary missed the
+predeclared nonnegative-point requirement. N3, N2, N4 and N5 stopped at the
+operator screen. The qualified parent was restored. See the
+[measurements and decisions](docs/evidence/gemma4_26b/n1-n5-decode-2026-11-05.md).
+<!-- /N1-N5-DECODE-2026-11-05 -->
+
+<!-- AP5-POSTNORM-WARP-2026-11-04 -->
+**2026-11-04 AP5 attention postnorm:** rejected at the operator screen (-0.0303%,95%[-0.0699%,+0.0177%]); runtime unchanged. [Evidence and limits](docs/evidence/gemma4_26b/attention-postnorm-warp-2026-11-04.md).
+<!-- /AP5-POSTNORM-WARP-2026-11-04 -->
+
+<!-- AP4-FINAL-FEEDBACK-2026-11-04 -->
+**2026-11-04 AP4 final D2 feedback:** Rejected by the predeclared primary D2 gate; exact parent restored. D2 pooled measured change+0.0119%; [qualification and limits](docs/evidence/gemma4_26b/final-d2-feedback-2026-11-04.md).
+<!-- /AP4-FINAL-FEEDBACK-2026-11-04 -->
+
+<!-- AP3-R1-WARP-2026-11-04 -->
+**2026-11-04 AP3 R1 normalization:** Rejected by the predeclared gate; exact parent runtime restored. Ordinary's pooled measured change is+0.0834% under firmware-managed clocks; [qualification and limits](docs/evidence/gemma4_26b/r1-global-warp-normalization-2026-11-04.md).
+<!-- /AP3-R1-WARP-2026-11-04 -->
+
+<!-- AP2-QKV-FLAT-2026-11-04 -->
+**2026-11-04 AP2 flat-QKV trial:** Rejected by the predeclared end-to-end gate; exact parent runtime source and canonical binary are restored. Warm QKV replay improves1.323%; D2's measured pooled change is+0.0806% under the same firmware clock policy. Operator and model results are separately scoped. [Trial evidence](docs/evidence/gemma4_26b/qkv-flat-grid-2026-11-04.md).
+<!-- /AP2-QKV-FLAT-2026-11-04 -->
+
+<!-- AP1-DECODE-MEASUREMENT-2026-11-04 -->
+The **2026-11-04 AP1 measurement refresh** compares the unchanged accepted
+native runtime with current central llama.cpp `9e2a04a439ed`.
+Unprofiled ABBA medians (20 retained samples per engine/mode) are:
+
+| Mode | gem16 tok/s | llama.cpp tok/s | llama throughput advantage |
+|---|---:|---:|---:|
+| ordinary | 139.497 | 143.945 | 3.188% |
+| d2 | 198.193 | 202.026 | 1.934% |
+
+Both engines use the same 16,384 prompt IDs, 1,135 output positions and 1,134
+decode intervals. Native hybrid Trellis35 / FP8 KV and Google QAT Q4_0 / Q8_0
+KV differ, as do output streams; this is no quality-parity claim. AP1 corrects
+diagnostic attribution/provenance and preserves current operator inputs/counters;
+it makes no runtime optimization claim. Both complete baseline campaigns,
+same-capture D2 group costs, sanitizer scope/timeout and the bounded AP2 decision
+are in the [AP1 evidence](docs/evidence/gemma4_26b/decode-ap1-measurement-2026-11-04.md).
+<!-- /AP1-DECODE-MEASUREMENT-2026-11-04 -->
 
 <!-- CENTRAL-LLAMA-REPEAT-2026-11-03 -->
 The **2026-11-03 central llama.cpp repeat** uses official master
