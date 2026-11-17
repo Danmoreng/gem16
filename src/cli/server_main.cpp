@@ -4,7 +4,6 @@
 #include <chrono>
 #include <csignal>
 #include <cstdint>
-#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <limits>
@@ -35,6 +34,10 @@
 #include "server/session_pool.h"
 #include "server/http_policy.h"
 #include "util/json.h"
+
+// windows.h aliases this name to the Win32 API.
+#undef GetEnvironmentVariable
+#include "util/environment.h"
 
 namespace {
 
@@ -1123,7 +1126,8 @@ int ServerMain(int argc, char** argv) {
   gem16::internal::TwelveBD3MathSelection math_selection;
   if (!moe26b) {
     const auto selected = gem16::internal::SelectTwelveBD3Math(
-        std::getenv("GEM16_12B_D3_ATTENTION"), session_options.mtp_draft_tokens,
+        gem16::internal::GetEnvironmentVariable("GEM16_12B_D3_ATTENTION"),
+        session_options.mtp_draft_tokens,
         session_options.kv_cache_mode, session_options.max_context_tokens,
         session_options.mtp_adaptive);
     if (!selected.ok()) {

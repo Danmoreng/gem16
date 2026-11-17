@@ -6,6 +6,7 @@ Unknown template dimensions remain explicit rather than defaulting to local.
 The 256-local/512-global mapping belongs to this 26B profile, not to 12B.
 """
 from collections import Counter,defaultdict
+from contextlib import closing
 import bisect,csv,json,re,sqlite3,sys
 from pathlib import Path
 OUT=Path(__file__).resolve().parent
@@ -97,7 +98,11 @@ def sweep(ops,apis,start,end):
  return {'wall_ms':(end-start)/1e6,'gpu_busy_union_ms':busy/1e6,'gpu_idle_ms':{k:v/1e6 for k,v in idle.items()},'gpu_exclusive_category_ms':{k:v/1e6 for k,v in exclusive.items()},'gpu_inclusive_category_ms':{k:v/1e6 for k,v in inclusive.items()},'gpu_overlap_category_pairs_ms':{k:v/1e6 for k,v in overlap.items()},'gpu_overlap_ms':sum(overlap.values())/1e6}
 
 def analyze(path):
- con=sqlite3.connect('file:'+str(path.resolve())+'?mode=ro',uri=True);con.row_factory=sqlite3.Row
+ with closing(sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True)) as con:
+  con.row_factory=sqlite3.Row
+  return analyze_connection(path,con)
+
+def analyze_connection(path,con):
  strings=dict(con.execute('select id,value from StringIds'))
  kernels=[dict(r) for r in con.execute('select * from CUPTI_ACTIVITY_KIND_KERNEL order by start')]
  for k in kernels:k['name']=strings[k['shortName']];k['demangled']=strings[k['demangledName']]
@@ -211,7 +216,6 @@ def analyze(path):
   a=boundaries[index];b=boundaries[index+8] if index+8<len(boundaries) else end
   windows[label]={'first_unit_index':index,'unit_count':min(8,len(boundaries)-index),**sweep(ops,apis,a,b)}
  result['representative_windows']=windows
- con.close()
  return result,kernel_rows
 
 if __name__=='__main__':

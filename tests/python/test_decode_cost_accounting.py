@@ -1,3 +1,4 @@
+from contextlib import closing
 import importlib.util
 from pathlib import Path
 import unittest
@@ -21,7 +22,7 @@ class DecodeCostAccountingTest(unittest.TestCase):
     def test_sqlite_attribution_preserves_global_merge_and_total(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "trace.sqlite"
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db, db:
                 db.executescript("""
                     CREATE TABLE StringIds(id INTEGER,value TEXT);
                     CREATE TABLE CUPTI_ACTIVITY_KIND_KERNEL(start INTEGER,end INTEGER,
