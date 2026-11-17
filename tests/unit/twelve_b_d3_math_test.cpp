@@ -9,36 +9,38 @@ void RunTwelveBD3MathTests() {
   using gem16::internal::SelectTwelveBD3Math;
   using gem16::KvCacheMode;
   constexpr auto fp8 = KvCacheMode::kCheckpointFp8;
-  const auto automatic = SelectTwelveBD3Math(nullptr, 3, fp8, 17519, false);
+  const auto automatic = SelectTwelveBD3Math(nullptr, 3, fp8, 17519);
   GEM16_CHECK(automatic.ok());
   if (!automatic.ok()) return;
   GEM16_CHECK(automatic.value().optimized);
   GEM16_CHECK(std::string_view(automatic.value().policy) == "auto");
   for (const char* mode : {"optimized", "fp8", "auto"}) {
-    const auto selection = SelectTwelveBD3Math(mode, 3, fp8, 17519, false);
+    const auto selection = SelectTwelveBD3Math(mode, 3, fp8, 17519);
     GEM16_CHECK(selection.ok() && selection.value().optimized);
   }
-  const auto exact = SelectTwelveBD3Math("exact", 3, fp8, 17519, false);
+  const auto exact = SelectTwelveBD3Math("exact", 3, fp8, 17519);
   GEM16_CHECK(exact.ok() && !exact.value().optimized);
   // Unsupported automatic shapes stay on their established native path;
   // explicit optimized requests must fail instead of silently changing math.
   for (unsigned depth : {0U, 1U, 2U, 4U}) {
-    const auto native = SelectTwelveBD3Math(nullptr, depth, fp8, 17519, false);
+    const auto native = SelectTwelveBD3Math(nullptr, depth, fp8, 17519);
     GEM16_CHECK(native.ok() && !native.value().optimized);
-    GEM16_CHECK(!SelectTwelveBD3Math("optimized", depth, fp8, 17519, false).ok());
+    GEM16_CHECK(!SelectTwelveBD3Math("optimized", depth, fp8, 17519).ok());
   }
-  for (auto context : {17518U, 17520U, 32768U}) {
-    const auto native = SelectTwelveBD3Math(nullptr, 3, fp8, context, false);
-    GEM16_CHECK(native.ok() && !native.value().optimized);
-    GEM16_CHECK(!SelectTwelveBD3Math("fp8", 3, fp8, context, false).ok());
+  for (auto context : {5U, 64U, 1024U, 1025U, 2048U, 17518U, 17520U,
+                       32768U, 262143U, 262144U}) {
+    GEM16_CHECK(SelectTwelveBD3Math(nullptr, 3, fp8, context).value().optimized);
+    GEM16_CHECK(SelectTwelveBD3Math("fp8", 3, fp8, context).value().optimized);
+  }
+  for (auto context : {0U, 4U, 262145U}) {
+    GEM16_CHECK(!SelectTwelveBD3Math(nullptr, 3, fp8, context).value().optimized);
+    GEM16_CHECK(!SelectTwelveBD3Math("optimized", 3, fp8, context).ok());
   }
   GEM16_CHECK(!SelectTwelveBD3Math(nullptr, 3,
-      KvCacheMode::kBf16Correctness, 17519, false).value().optimized);
-  GEM16_CHECK(!SelectTwelveBD3Math(nullptr, 3, fp8, 17519, true).value().optimized);
+      KvCacheMode::kBf16Correctness, 17519).value().optimized);
   GEM16_CHECK(!SelectTwelveBD3Math("optimized", 3, fp8, 17519, true).ok());
-  GEM16_CHECK(!SelectTwelveBD3Math("optimized", 3, fp8, 17519, false, true).ok());
   for (const char* invalid : {"", "fast", "EXACT"})
-    GEM16_CHECK(!SelectTwelveBD3Math(invalid, 3, fp8, 17519, false).ok());
+    GEM16_CHECK(!SelectTwelveBD3Math(invalid, 3, fp8, 17519).ok());
 
   gem16::GreedyInferenceResult result;
   result.mtp_enabled = true;

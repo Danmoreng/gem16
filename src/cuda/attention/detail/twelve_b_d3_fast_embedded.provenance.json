@@ -1,13 +1,13 @@
 {
   "status": "experimental_unqualified_changed_attention_math",
   "inputs": {
-    "src/cuda/attention/twelve_b_d3_fast_triton.py": "01d1c379dd01d39c393e99f52f0d00d3f61573470c7841a12969e7d9566ceb90",
-    "tools/compile_12b_d3_fast_attention.py": "35e03f3179a2ff6beb7f9393ef1c3259b1689f6fc06363aca119f9425ddc4f5c"
+    "src/cuda/attention/twelve_b_d3_fast_triton.py": "06346a6fdef9c2548e68d215f8478e043cde1daa3a4ae1d0c27308fb9b058c82",
+    "tools/compile_12b_d3_fast_attention.py": "3225b1deec466ee439faf9afd74e14ca6e841e793e6ed59a3c9afbad535b7767"
   },
   "triton_version": "3.8.0",
   "target": "sm120",
   "ptxas": {
-    "path": "/home/sebastian/Development/gem16gb/third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/triton/backends/nvidia/bin/ptxas-blackwell",
+    "filename": "ptxas-blackwell",
     "version": "ptxas-blackwell: NVIDIA (R) Ptx optimizing assembler\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Fri_Apr_24_07:22:02_PM_PDT_2026\nCuda compilation tools, release 13.3, V13.3.33\nBuild cuda_13.3.r13.3/compiler.37862127_0\n",
     "sha256": "7fdd01a4cf50e30746da98989c9272a907f491e6fd7fecfda14642e4375f88fb"
   },
@@ -16,7 +16,7 @@
     "num_stages": 3
   },
   "tma_kv_loads": true,
-  "supported_capacity": 17519,
+  "supported_capacity": "4..262144",
   "native_kv_layout_and_scales_preserved": true,
   "changed_operators": [
     "global D3 queries rounded/clamped to E4M3 (scale1)",
@@ -42,14 +42,15 @@
     "enable_fp_fusion": true,
     "enable_reflect_ftz": true,
     "extern_libs": [
-      [
-        "libdevice",
-        "/home/sebastian/Development/gem16gb/third_party/cache/vllm-0.33.0-env/lib/python3.13/site-packages/triton/backends/nvidia/lib/libdevice.10.bc"
-      ]
+      {
+        "name": "libdevice",
+        "filename": "libdevice.10.bc",
+        "sha256": "5c2fae37c86e68c3a38605a95f512d7d12d5f3db986310be47f57304aa72a5ee"
+      }
     ],
     "global_scratch_align": 128,
     "global_scratch_size": 256,
-    "hash": "bad9571bd12652624e11cc641c4a02f073666787a6d7404336f88ac8228bb007",
+    "hash": "1c63aa795be2e0d3b40b2499d5d1b2a2cb693e947f556bb1428f160699d0e31e",
     "instrumentation_mode": "",
     "ir_override": null,
     "launch_cooperative_grid": false,
@@ -79,8 +80,8 @@
   },
   "nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Tue_Sep_01_08:45:21_PDT_2026\nCuda compilation tools, release 13.4, V13.4.92\nBuild cuda_13.4.r13.4/compiler.38855100_0\n",
   "outputs": {
-    "twelve_b_d3_fast_embedded.cuh": "fcc495bca592caa5620567e2380b83c7e48ee5432d3afbf27d73e07c0dcda2cf",
-    "attention.ptx": "59ed5b49d2ef286405ec965bcb015f9688270bf9b1969466698faf209ee394ed",
-    "attention.cubin": "03370092695a3de1298c57339af4762d8ffb0d5aaeb274cbd56e9274d9525369"
+    "twelve_b_d3_fast_embedded.cuh": "212423db527f28f122d74e58a9b24d5695cd033dd1c5c18368edb1b27d3cd475",
+    "attention.ptx": "320ebccb2110c66f02a7bdaab84762569bc96953715a490136188643d0132078",
+    "attention.cubin": "a8c16d5f361d4b0f9e6b3ba0f61c2847d6e93496b2e6224f279cac223c1b6b0a"
   }
 }

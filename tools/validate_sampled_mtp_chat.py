@@ -10,13 +10,15 @@ except ModuleNotFoundError:
 
 import argparse
 import json
+import os
 import subprocess
 from pathlib import Path
 
 
 def run(command: list[str], conversation: str) -> tuple[list[str], str]:
     completed = subprocess.run(
-        command, input=conversation, text=True, capture_output=True, check=True
+        command, input=conversation, text=True, capture_output=True, check=True,
+        env={**os.environ, "GEM16_12B_D3_ATTENTION": "exact"},
     )
     responses = []
     for line in completed.stdout.splitlines():
@@ -59,6 +61,7 @@ def main() -> int:
         "schema_version": 1,
         "seed": args.seed,
         "draft_tokens": args.draft_tokens,
+        "mtp_math_policy": "exact",
         "sampling": {"temperature": 1.0, "top_k": 64, "top_p": 0.95},
         "ordinary_responses": ordinary,
         "mtp_responses": mtp,

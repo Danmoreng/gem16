@@ -307,11 +307,14 @@
       mtp_offsets_.layers[index] = {
           key.value(), value.value(), backup_key.value(), backup_value.value()};
     }
-    auto attention_workspace = layout.Add<float>(
-        mtp_draft_tokens_ == 0U
-            ? 0U
-            : (mtp_draft_tokens_ + 1U) *
-                  internal::DecodeAttentionWorkspaceElements(max_context_));
+    auto elements = internal::DecodeAttentionFixedWorkspaceElements(
+        max_context_, mtp_draft_tokens_ + 1U);
+    if (fast_d3_attention_) {
+      elements = std::max({elements, fast_d3_global_.WorkspaceElements(),
+                           fast_d3_local_.WorkspaceElements()});
+    }
+    auto attention_workspace = layout.Add<float>(elements);
+    mtp_offsets_.attention_workspace_elements = elements;
     auto candidates = layout.Add<ArgmaxValue>(
         kMaximumMtpVerifyTokens * kFusedOutputHeadBlocks);
     auto selected = layout.Add<std::uint32_t>(kMaximumMtpVerifyTokens);

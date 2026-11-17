@@ -1125,7 +1125,7 @@ int ServerMain(int argc, char** argv) {
     const auto selected = gem16::internal::SelectTwelveBD3Math(
         std::getenv("GEM16_12B_D3_ATTENTION"), session_options.mtp_draft_tokens,
         session_options.kv_cache_mode, session_options.max_context_tokens,
-        session_options.sampling.enabled, session_options.mtp_adaptive);
+        session_options.mtp_adaptive);
     if (!selected.ok()) {
       logger.Log(LogLevel::kError, "mtp_math_selection_failed",
                  {{"error", selected.status().message()}});

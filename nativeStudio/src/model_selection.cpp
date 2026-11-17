@@ -64,7 +64,8 @@ ServerConfig SavedServerSelection(const std::string& record,
   const auto draft = Number(data, "draft_tokens"),
              vision = Number(data, "vision_budget");
   if (c.max_context_tokens < 1 || c.max_context_tokens > 262144 ||
-      (draft != 0 && draft != 2) ||
+      (selected == ModelProfile::kGemma4Unified12B ? (draft < 0 || draft > 4)
+                                                  : (draft != 0 && draft != 2)) ||
       (vision != 70 && vision != 140 && vision != 280) ||
       c.model_name.size() > 255)
     throw std::runtime_error("Unsupported saved model configuration.");

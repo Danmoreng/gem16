@@ -43,7 +43,10 @@ void Record(const std::string& name, const gem16::GreedyInferenceResult& r) {
 
 int main(int argc, char** argv) {
   try {
-    Require(argc == 6, "usage: audit target assistant depth sampled expect-chain");
+    const bool reasoning_tail_only =
+        argc == 7 && std::string(argv[6]) == "--reasoning-tail-only";
+    Require(argc == 6 || reasoning_tail_only,
+            "usage: audit target assistant depth sampled expect-chain [--reasoning-tail-only]");
     const unsigned depth = static_cast<unsigned>(std::stoul(argv[3]));
     const bool sampled = std::stoul(argv[4]) != 0;
     const bool expect_chain = std::stoul(argv[5]) != 0;
@@ -55,7 +58,8 @@ int main(int argc, char** argv) {
     options.model_directory = argv[1];
     if (depth) options.assistant_model_directory = argv[2];
     options.mtp_draft_tokens = depth;
-    options.max_context_tokens = 4096;
+    options.max_context_tokens = reasoning_tail_only
+        ? prompt.size() + std::max(2U, depth + 1U) : 4096;
     options.suppressed_token_ids = {1,50,106,258882,258883};
     options.sampling.enabled = sampled;
     options.sampling.temperature = 1.0F;
@@ -88,7 +92,33 @@ int main(int argc, char** argv) {
       Require(r.mtp_gpu_chained == (expect_chain && n >= depth + 2U), "wrong chain route");
       return r;
     };
+    gem16::ReasoningTokenOptions reasoning;
+    reasoning.enabled = true;
+    reasoning.starts_in_reasoning = true;
+    reasoning.channel_open_token_ids = {105,4368};
+    reasoning.channel_close_token_id = 99;
+    reasoning.max_reasoning_tokens = 1;
+    const auto check_reasoning_close = [&](const gem16::GreedyInferenceResult& r) {
+      Require(r.reasoning_tokens == 1 && r.reasoning_budget_forced &&
+                  r.output_token_ids[1] == reasoning.channel_close_token_id,
+              "reasoning budget did not force the channel close token");
+    };
     std::cout << "{\"cases\":{";
+    auto reasoning_tail = generate(prompt, std::max(2U, depth + 1U), reasoning);
+    check_reasoning_close(reasoning_tail);
+    Record("reasoning_tail", reasoning_tail);
+    Check(session.Reset());
+    if (reasoning_tail_only) {
+      if (depth) {
+        auto control = generate(prompt, depth + 2U, reasoning);
+        check_reasoning_close(control);
+        Record("reasoning_full_group_capacity", control);
+      }
+      std::cout << "},\"optimized_d3\":"
+                << (reasoning_tail.experimental_d3_fp8_attention ? "true" : "false")
+                << ",\"stream_exact\":true}\n";
+      return 0;
+    }
     auto baseline = generate(prompt, 32);
     Record("first", baseline);
     std::vector<std::uint32_t> continuation(prompt.begin(), prompt.end());
@@ -111,11 +141,6 @@ int main(int argc, char** argv) {
                          baseline.output_token_ids.begin()), "tail changed prefix");
       Record("tail_" + std::to_string(n), r);
     }
-    gem16::ReasoningTokenOptions reasoning;
-    reasoning.enabled = true;
-    reasoning.starts_in_reasoning = true;
-    reasoning.channel_open_token_ids = {105,4368};
-    reasoning.channel_close_token_id = 99;
     for (unsigned budget : {1U,4U,5U,6U,9U}) {
       Check(session.Reset());
       reasoning.max_reasoning_tokens = budget;

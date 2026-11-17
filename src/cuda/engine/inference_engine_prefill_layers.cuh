@@ -225,15 +225,17 @@
         float* decode_scores = Pointer<float>(workspace_, offsets_.scores);
         auto* direct_control = Pointer<internal::DecodeControl>(
             workspace_, offsets_.decode_control);
+        const bool fast_verify = fast_d3_attention_ && controlled_mtp && tokens == 4U;
+        // Below the 1024-token window no legal history index can wrap.
         if (!layer.global && controlled_mtp &&
-            capacity == kSlidingWindow &&
+            (capacity == kSlidingWindow || fast_verify) &&
             (tokens >= 3U && tokens <= 5U)) {
-          status = fast_d3_attention_ && tokens == 4U
+          status = fast_verify
               ? fast_d3_local_.Launch(q_norm, layer.key_cache_fp8,
                     layer.value_cache_fp8, k_fp8, v_fp8, layer.k_cache_scale,
                     layer.v_cache_scale,
                     Pointer<float>(mtp_workspace_, mtp_offsets_.attention_workspace),
-                    internal::DecodeAttentionFixedWorkspaceElements(max_context_, 4U),
+                    mtp_offsets_.attention_workspace_elements,
                     attention, mtp_row_controls, stream_)
               : internal::LaunchOnlineAttentionDecodeFp8LocalFixed12BControlledSm120(
               q_norm, layer.key_cache_fp8, layer.value_cache_fp8, k_fp8,
@@ -246,13 +248,13 @@
               k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
               mtp_row_controls, tokens, layer.kv_elements, capacity, stream_);
           if (!status.ok()) return status;
-        } else if (layer.global && capacity > 512U &&
+        } else if (layer.global && (capacity > 512U || fast_verify) &&
                    (tokens == 3U || (controlled_mtp && (tokens == 4U || tokens == 5U)))) {
-          status = fast_d3_attention_ && controlled_mtp && tokens == 4U && layer.kv_heads == 1U
+          status = fast_verify && layer.kv_heads == 1U
                        ? fast_d3_global_.Launch(q_norm, layer.key_cache_fp8,
                              layer.value_cache_fp8, layer.k_cache_scale, layer.v_cache_scale,
                              Pointer<float>(mtp_workspace_, mtp_offsets_.attention_workspace),
-                             internal::DecodeAttentionFixedWorkspaceElements(max_context_, 4U),
+                             mtp_offsets_.attention_workspace_elements,
                              attention, mtp_row_controls, capacity, stream_)
                        : controlled_mtp
                        ? internal::LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(

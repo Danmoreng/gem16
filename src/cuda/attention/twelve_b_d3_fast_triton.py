@@ -4,7 +4,7 @@ import triton.language as tl
 
 
 @triton.jit
-def gem16_d3_global_fp8(Q, K, V, KS, VS, CONTROL, PARTIAL, LSE,
+def gem16_d3_global_fp8(Q, K, V, KS, VS, CONTROL, PARTIAL, LSE, CAPACITY,
                         HEAD_DIM: tl.constexpr = 512,
                         HEADS: tl.constexpr = 16,
                         SEGMENTS: tl.constexpr = 16,
@@ -28,12 +28,12 @@ def gem16_d3_global_fp8(Q, K, V, KS, VS, CONTROL, PARTIAL, LSE,
     denominator = tl.zeros((HEADS,), tl.float32)
     accumulator = tl.zeros((HEADS, HEAD_DIM), tl.float32)
     if USE_TMA:
-        # Narrow offline variant for the fixed17519 benchmark capacity. Loading
-        # a partial final tile is bounded by the tensor map's exact shape.
-        kd = tl.make_tensor_descriptor(K, shape=[17519, HEAD_DIM],
+        # Bound partial TMA tiles by the physical allocation. The causal
+        # mask below is per query and may end earlier within the same tile.
+        kd = tl.make_tensor_descriptor(K, shape=[CAPACITY, HEAD_DIM],
                                       strides=[HEAD_DIM, 1],
                                       block_shape=[TILE, HEAD_DIM])
-        vd = tl.make_tensor_descriptor(V, shape=[17519, HEAD_DIM],
+        vd = tl.make_tensor_descriptor(V, shape=[CAPACITY, HEAD_DIM],
                                       strides=[HEAD_DIM, 1],
                                       block_shape=[TILE, HEAD_DIM])
     for tile in range(first, first + tiles):

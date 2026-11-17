@@ -5,11 +5,13 @@
 #include <cuda_runtime.h>
 #include <cuda_bf16.h>
 #include <cuda_fp8.h>
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace {
@@ -29,18 +31,27 @@ float Fp(std::uint8_t x){__nv_fp8_e4m3 f;f.__x=x;return float(f);}
 }
 
 int main(int argc,char**argv){try{
-  constexpr unsigned cap=17519;
-  bool scoped=false,single=false;
-  for(int i=1;i<argc;++i){scoped|=std::strcmp(argv[i],"--scoped")==0;single|=std::strcmp(argv[i],"--single")==0;}
+  unsigned cap = 17519;
+  bool scoped = false, single = false;
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--scoped") == 0) scoped = true;
+    else if (std::strcmp(argv[i], "--single") == 0) single = true;
+    else if (std::strcmp(argv[i], "--capacity") == 0 && i + 1 < argc) {
+      const auto requested = std::stoul(argv[++i]);
+      if (requested < 4 || requested > 262144) throw std::runtime_error("invalid capacity");
+      cap = static_cast<unsigned>(requested);
+    } else throw std::runtime_error("unknown argument");
+  }
   const unsigned rows=single?1U:4U,qsize=rows*16*512;
   TwelveBD3FastGlobalAttention fast;Check(fast.Initialize());
-  Buffer<float>q(qsize),out(qsize),exact(qsize),workspace(DecodeAttentionFixedWorkspaceElements(cap,4)),ref_workspace(workspace.n);
+  Buffer<float>q(qsize),out(qsize),exact(qsize),workspace(TwelveBD3FastGlobalAttention::WorkspaceElements()),ref_workspace(DecodeAttentionFixedWorkspaceElements(cap,4));
   Buffer<std::uint8_t>k(cap*512),v(cap*512);Buffer<std::uint16_t>ks(1),vs(1);Buffer<DecodeControl>c(rows);
   std::vector<std::uint8_t>keys(k.n),values(v.n);
-  for(std::size_t i=0;i<keys.size();++i){keys[i]=__nv_fp8_e4m3(float(int((i*37+11)%257)-128)/64.F).__x;values[i]=__nv_fp8_e4m3(float(int((i*19+7)%257)-128)/64.F).__x;}
+  for(std::size_t i=0;i<keys.size();++i){keys[i]=__nv_fp8_e4m3(float(int((i*37+11)%257)-128)/64.F).__x;values[i]=__nv_fp8_e4m3(float(int((i*19+7)%257)-128)/64.F + (i / 512 >= 17519 ? 2.F : 0.F)).__x;}
   k.Put(keys);v.Put(values);ks.Put({Bf(.125F)});vs.Put({Bf(.0625F)});
   cudaStream_t stream{};Check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
-  std::vector<unsigned>positions=scoped?std::vector<unsigned>{0,cap-rows}:std::vector<unsigned>{0,510,511,512,1023,16383,cap-rows};
+  std::vector<unsigned>positions=scoped?std::vector<unsigned>{0,cap-rows}:std::vector<unsigned>{0,510,511,512,1023,16383,17518,17519,cap-rows};
+  std::erase_if(positions, [=](unsigned p){ return p > cap - rows; });
   unsigned cases=0;double worst_relative=0,worst_absolute=0;
   for(unsigned position:positions)for(unsigned variant=0;variant<2;++variant){
     std::vector<float>query(qsize);for(unsigned i=0;i<qsize;++i)query[i]=variant==0?0.F:float(__float2bfloat16_rn(float(int((i*13+3)%129)-64)/32.F));q.Put(query);
@@ -48,10 +59,29 @@ int main(int argc,char**argv){try{
     Check(fast.Launch(q.p,k.p,v.p,ks.p,vs.p,workspace.p,workspace.n,out.p,c.p,cap,stream,rows));Check(cudaStreamSynchronize(stream));auto actual=out.Get();
     for(float x:actual)if(!std::isfinite(x))throw std::runtime_error("nonfinite attention");
     if(variant==0){
-      for(unsigned row=0;row<rows;++row)for(unsigned dim=0;dim<512;++dim){double sum=0;for(unsigned t=0;t<position+row+1;++t)sum+=Fp(values[t*512+dim])*.0625;float expected=float(sum/(position+row+1));for(unsigned head=0;head<16;++head)if(std::abs(actual[(row*16+head)*512+dim]-expected)>1.e-6F)throw std::runtime_error("uniform attention/causal-mask mismatch");}
+      std::array<double, 512> sums{};
+      for (unsigned t = 0; t < position + rows; ++t) {
+        for (unsigned dim = 0; dim < 512; ++dim) sums[dim] += Fp(values[t*512+dim]) * .0625;
+        if (t < position) continue;
+        for (unsigned head = 0; head < 16; ++head) for (unsigned dim = 0; dim < 512; ++dim) {
+          float expected = static_cast<float>(sums[dim] / (t + 1));
+          if (std::abs(actual[((t-position)*16+head)*512+dim]-expected) > 1.e-6F)
+            throw std::runtime_error("uniform attention/causal-mask mismatch");
+        }
+      }
     }
     if(!scoped){
-      Check(single?LaunchOnlineAttentionDecodeFp8Sm120(q.p,k.p,v.p,ks.p,vs.p,ref_workspace.p,exact.p,c.p,16,1,512,cap,false,stream):LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(q.p,k.p,v.p,ks.p,vs.p,ref_workspace.p,exact.p,c.p,4,1,cap,stream));Check(cudaStreamSynchronize(stream));auto reference=exact.Get();double err=0,norm=0,absolute=0;
+      if (single || cap <= 512) {
+        for (unsigned row = 0; row < rows; ++row) {
+          Check(LaunchOnlineAttentionDecodeFp8Sm120(q.p + row*16*512, k.p, v.p,
+              ks.p, vs.p, ref_workspace.p, exact.p + row*16*512, c.p + row,
+              16, 1, 512, cap, false, stream));
+        }
+      } else {
+        Check(LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(q.p, k.p, v.p,
+            ks.p, vs.p, ref_workspace.p, exact.p, c.p, 4, 1, cap, stream));
+      }
+      Check(cudaStreamSynchronize(stream));auto reference=exact.Get();double err=0,norm=0,absolute=0;
       for(unsigned i=0;i<qsize;++i){double d=actual[i]-reference[i];err+=d*d;norm+=double(reference[i])*reference[i];absolute=std::max(absolute,std::abs(d));}
       double relative=std::sqrt(err/std::max(norm,1.e-30));worst_relative=std::max(worst_relative,relative);worst_absolute=std::max(worst_absolute,absolute);
       if(variant==1&&relative>.15)throw std::runtime_error("moderate-query FP8 relative error exceeds predeclared15% bound");

@@ -74,15 +74,15 @@ Tentative Target K/V and hidden rows live in fixed workspace until a GPU transac
 prefix. Proposed tokens are never counted as output tokens. Every result reports proposal, acceptance, rejection,
 Target-batch, fallback, and effective verified-token counters.
 
-`--mtp-draft-tokens 1|2|3|4` selects a fixed12B draft length. Fixed D3 is a local experimental mode; adaptive D3 and26B D3 are explicitly unsupported. `--mtp-adaptive` selects D4/D2/D1 or ordinary
-fallback from context and recent acceptance. All modes must preserve the corresponding ordinary Target sequence.
+`--mtp-draft-tokens 1|2|3|4` selects a fixed12B draft length. Fixed D3 supports greedy and sampled 12B generation. See the [math mode contract](MTP_MATH_MODES.md) for its context range and quality scope. Adaptive D3 and 26B D3 are unsupported. `--mtp-adaptive` selects D4/D2/D1 or ordinary
+fallback from context and recent acceptance. Reference arithmetic preserves the corresponding Ordinary Target sequence.
 
 Fixed D2, D3 and D4 use one device-routed conditional CUDA Graph for12B with checkpoint FP8 KV and contexts
-larger than the local sliding window. The device owns current token, position, remaining length, stop state,
+larger than the local sliding window. Optimized fixed D3 also uses this graph for shorter slots that fit a full group. The device owns current token, position, remaining length, stop state,
 sampling step, response-channel state, reasoning budget, and branch selection. Complete safe groups use
 D+1-row verification; an ordinary Target child handles partial response markers, exact reasoning-budget
 boundaries, stops, and short tails. A fixed mapped SPSC ring streams only verified IDs to the host without a
-per-group host decision. D1, BF16-KV/small-context execution, and the adaptive route retain the direct transaction
+per-group host decision. D1, BF16-KV, small-context reference execution and the adaptive route retain the direct transaction
 boundary. D3/D4 extend existing fixed-row attention, FP8 projections, head selection, norm/quantization fusion,
 NVFP4 Down and Gate/Up launch policies; D2 remains the selected depth. These local D3/D4 changes have scoped
 numerical/memory/dispatch evidence, with an inherited full conditional-model Assistant PreProjection synccheck
@@ -96,7 +96,7 @@ for the unchanged output/KV checks, actual dispatch and per-depth timings.
 
 ## Sampled MTP
 
-Sampled MTP reproduces ordinary same-seed Target sampling. For every verifier row, the Target applies the normal
+Reference sampled MTP reproduces Ordinary same-seed Target sampling. Optimized D3 samples the logits produced by its selected Target arithmetic. For every verifier row, the Target applies the normal
 suppression, repetition penalty, temperature, top-k, min-p, top-p, and SplitMix64 output-step mapping to the exact
 committed history plus proposal prefix. A proposal is accepted only when it equals that Target sample. RNG,
 repetition history, K/V, and hidden state advance by exactly the emitted count.

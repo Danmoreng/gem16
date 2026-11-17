@@ -82,8 +82,7 @@ Status TwelveBD3FastGlobalAttention::Launch(const float* query,
     unsigned rows) const {
   static_assert(offsetof(DecodeControl, position) == 8);
   if (!kernel_ || !query || !key || !value || !key_scale || !value_scale ||
-      !workspace || !output || !controls || capacity < 4 || capacity > 17519U ||
-      (d3_fast::kFixedCapacity != 0U && capacity != d3_fast::kFixedCapacity) ||
+      !workspace || !output || !controls || capacity < 4 || capacity > 262144U ||
       (rows != 1U && rows != 4U) || workspace_elements < WorkspaceElements()) {
     return Status(StatusCode::kInvalidArgument, "invalid experimental D3 global FP8 geometry/resources");
   }
@@ -92,8 +91,9 @@ Status TwelveBD3FastGlobalAttention::Launch(const float* query,
   static_assert(d3_fast::kGlobalScratchPerCTA <= 256U);
   void* global_scratch = d3_fast::kGlobalScratchPerCTA == 0U ? nullptr :
       static_cast<void*>(workspace + 4U * 16U * (16U * 512U + 16U));
+  auto descriptor_rows = static_cast<std::int32_t>(capacity);
   void* arguments[] = {&query, &key, &value, &key_scale, &value_scale,
-                      &controls, &workspace, &lse, &global_scratch, &no_scratch};
+                      &controls, &workspace, &lse, &descriptor_rows, &global_scratch, &no_scratch};
   auto error = cudaLaunchKernel(reinterpret_cast<const void*>(kernel_),
       dim3(16, rows), dim3(128), arguments, d3_fast::kShared, stream);
   if (error != cudaSuccess) return Failure("launch experimental D3 FP8 attention", error);

@@ -214,6 +214,14 @@ bool TestLiveServerCompatibility() {
   health.supports_mtp = false;
   health.vision_mtp_supported = false;
   health.qualification_state = "production_candidate";
+  if (!HealthCompatibilityError(config, health).empty()) return false;
+
+  config.profile = ModelProfile::kGemma4Unified12B;
+  config.mtp_draft_tokens = 3;
+  health.profile_id = "gemma4-12b-unified";
+  health.mtp_draft_tokens = 3;
+  health.supports_mtp = true;
+  health.decode_mode = "fixed-d3";
   return HealthCompatibilityError(config, health).empty();
 }
 

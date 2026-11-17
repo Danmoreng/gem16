@@ -87,6 +87,7 @@ class InferenceEngine {
       std::span<const std::uint32_t> tokens);
 
   [[nodiscard]] std::uint64_t weight_bytes() const;
+  [[nodiscard]] bool uses_fixed_mtp_graph() const;
   [[nodiscard]] bool experimental_d3_fp8_attention() const;
   [[nodiscard]] const char* mtp_math_policy() const;
   [[nodiscard]] const char* mtp_math_selection_reason() const;

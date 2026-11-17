@@ -10,6 +10,7 @@
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
+#include <string_view>
 #include <vector>
 namespace {
 using namespace gem16::internal;
@@ -28,13 +29,19 @@ float Fp(unsigned char x){__nv_fp8_e4m3 a;a.__x=x;return float(a);}
 std::vector<unsigned char> Values(unsigned n,unsigned salt){std::vector<unsigned char>x(n);for(unsigned i=0;i<n;++i)x[i]=__nv_fp8_e4m3(float(int((i*37+salt*11)%257)-128)/64.F).__x;return x;}
 }
 int main(int argc,char**argv){try{
- const bool scoped=argc>1;constexpr unsigned qsize=4*16*256,kvsize=1024*8*256,specsize=4*8*256;
+ const bool scoped = argc > 1;
+ const bool short_cache = scoped && std::string_view(argv[1]) == "--short-cache";
+ constexpr unsigned qsize=4*16*256,specsize=4*8*256;
+ const unsigned kvsize = (short_cache ? 5U : 1024U) * 8U * 256U;
  TwelveBD3FastLocalAttention fast;Check(fast.Initialize());
  Buffer<float>q(qsize),out(qsize),reference(qsize),workspace(DecodeAttentionFixedWorkspaceElements(17519,4));Buffer<std::uint8_t>k(kvsize),v(kvsize),sk(specsize),sv(specsize);Buffer<std::uint16_t>ks(1),vs(1);Buffer<DecodeControl>c(4);
  auto keys=Values(kvsize,1),values=Values(kvsize,2),draft_keys=Values(specsize,3),draft_values=Values(specsize,4);k.Put(keys);v.Put(values);sk.Put(draft_keys);sv.Put(draft_values);ks.Put({Bf(.125F)});vs.Put({Bf(.0625F)});
  cudaStream_t stream{};Check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));unsigned cases=0;double worst_error=0,worst_abs=0;
  auto launch=[&](bool candidate){if(candidate)Check(fast.Launch(q.p,k.p,v.p,sk.p,sv.p,ks.p,vs.p,workspace.p,workspace.n,out.p,c.p,stream));else Check(LaunchOnlineAttentionDecodeFp8LocalFixed12BControlledSm120(q.p,k.p,v.p,sk.p,sv.p,ks.p,vs.p,workspace.p,reference.p,c.p,4,1024,stream));};
- for(unsigned position:scoped?std::vector<unsigned>{0,1022,1023,17515}:std::vector<unsigned>{0,1,127,128,1020,1021,1022,1023,1024,2047,16383,17515})for(unsigned variant=0;variant<2;++variant){
+ std::vector<unsigned> positions{0,1,127,128,1020,1021,1022,1023,1024,2047,16383,17515,262140};
+ if (scoped) positions = {0,1022,1023,17515,262140};
+ if (short_cache) positions = {0,1};
+ for(unsigned position:positions)for(unsigned variant=0;variant<2;++variant){
   std::vector<float>query(qsize);for(unsigned i=0;i<qsize;++i)query[i]=variant==0?0.F:float(__float2bfloat16_rn(float(int((i*13+3)%129)-64)/32.F));q.Put(query);std::vector<DecodeControl>controls(4);for(unsigned row=0;row<4;++row)controls[row].position=position+row;c.Put(controls);
   launch(true);Check(cudaStreamSynchronize(stream));auto actual=out.Get();for(float x:actual)if(!std::isfinite(x))throw std::runtime_error("nonfinite");
   if(variant==0)for(unsigned row=0;row<4;++row)for(unsigned head=0;head<16;++head)for(unsigned dim=0;dim<256;++dim){

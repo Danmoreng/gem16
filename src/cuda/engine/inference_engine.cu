@@ -323,6 +323,7 @@ struct MtpWorkspaceOffsets {
   };
   std::array<LayerKv, kLayers> layers{};
   std::uint64_t attention_workspace = 0;
+  std::uint64_t attention_workspace_elements = 0;
   std::uint64_t output_candidates = 0;
   std::uint64_t selected = 0;
   std::uint64_t sampling_logits = 0;
@@ -620,6 +621,7 @@ std::uint64_t InferenceEngine::cache_bytes() const { return impl_->cache_bytes()
 std::uint64_t InferenceEngine::workspace_bytes() const { return impl_->workspace_bytes(); }
 std::uint64_t InferenceEngine::decode_graph_device_bytes() const { return impl_->decode_graph_device_bytes(); }
 std::uint64_t InferenceEngine::prefill_chunk_tokens() const { return impl_->prefill_chunk_tokens(); }
+bool InferenceEngine::uses_fixed_mtp_graph() const { return impl_->uses_fixed_mtp_graph(); }
 bool InferenceEngine::experimental_d3_fp8_attention() const { return impl_->experimental_d3_fp8_attention(); }
 const char* InferenceEngine::mtp_math_policy() const { return impl_->mtp_math_policy(); }
 const char* InferenceEngine::mtp_math_selection_reason() const { return impl_->mtp_math_selection_reason(); }

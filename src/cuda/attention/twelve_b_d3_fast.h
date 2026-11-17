@@ -6,8 +6,8 @@
 namespace gem16::internal {
 struct DecodeControl;
 
-// Explicit opt-in approximate path. Library loading is startup-only; Launch
-// reuses the already reserved fixed-D workspace and supports graph capture.
+// The optimized verifier and Assistant share an offline-compiled kernel.
+// Launch uses the physical slot capacity and preallocated graph workspace.
 class TwelveBD3FastGlobalAttention {
  public:
   TwelveBD3FastGlobalAttention() = default;

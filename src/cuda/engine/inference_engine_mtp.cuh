@@ -1,4 +1,9 @@
   [[nodiscard]] std::uint64_t weight_bytes() const { return model_.weight_bytes(); }
+  [[nodiscard]] bool uses_fixed_mtp_graph() const {
+    return mtp_draft_tokens_ >= 2U && mtp_draft_tokens_ <= 4U &&
+           kv_cache_mode_ == KvCacheMode::kCheckpointFp8 &&
+           (max_context_ > kSlidingWindow || fast_d3_attention_);
+  }
   [[nodiscard]] bool experimental_d3_fp8_attention() const { return fast_d3_attention_; }
   [[nodiscard]] const char* mtp_math_policy() const { return mtp_math_.policy; }
   [[nodiscard]] const char* mtp_math_selection_reason() const { return mtp_math_.reason; }
@@ -65,12 +70,12 @@
     context.target_hidden = latest_target_hidden_;
     context.sliding_kv = make_view(sliding);
     context.full_kv = make_view(full);
-    if (fast_d3_attention_) {
+    if (fast_d3_attention_ && draft_count == 3U) {
       context.experimental_global_attention = &fast_d3_global_;
       context.experimental_attention_workspace = Pointer<float>(
           mtp_workspace_, mtp_offsets_.attention_workspace);
       context.experimental_attention_workspace_elements =
-          internal::DecodeAttentionFixedWorkspaceElements(max_context_, 4U);
+          mtp_offsets_.attention_workspace_elements;
     }
     context.input_token = input_token;
     context.position = processed_position;
@@ -353,7 +358,7 @@
       assistant_context.experimental_attention_workspace = Pointer<float>(
           mtp_workspace_, mtp_offsets_.attention_workspace);
       assistant_context.experimental_attention_workspace_elements =
-          internal::DecodeAttentionFixedWorkspaceElements(max_context_, 4U);
+          mtp_offsets_.attention_workspace_elements;
     }
     Status status = assistant_.GenerateDraftsDevice(
         assistant_context, kProposalCount, stream_, device_control);
@@ -493,8 +498,7 @@
       return Error(StatusCode::kInvalidArgument,
                    "fixed MTP graph state is invalid");
     }
-    if (kv_cache_mode_ != KvCacheMode::kCheckpointFp8 ||
-        max_context_ <= kSlidingWindow) {
+    if (!uses_fixed_mtp_graph()) {
       Status status = GenerateAssistantDraftsDevice(
           input_token, start_position - 1U, mtp_draft_tokens_);
       if (!status.ok()) return status;
@@ -518,9 +522,7 @@
   }
 
   [[nodiscard]] Status PrepareFixedMtpGraph() {
-    if ((mtp_draft_tokens_ < 2U || mtp_draft_tokens_ > 4U) ||
-        kv_cache_mode_ != KvCacheMode::kCheckpointFp8 ||
-        max_context_ <= kSlidingWindow) {
+    if (!uses_fixed_mtp_graph()) {
       return Status::Ok();
     }
     if (latest_target_hidden_ == nullptr) {

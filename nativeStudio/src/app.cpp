@@ -1945,8 +1945,8 @@ void StudioApp::DrawServer() {
   FieldLabel("Context tokens");
   if (ImGui::InputInt("##context-tokens", &context))
     settings_.server.max_context_tokens = std::max(context, 1);
-  const int generic_mtp_values[] = {0, 1, 2, 4};
-  const char* generic_mtp_labels[] = {"Off", "D1", "D2", "D4"};
+  const int generic_mtp_values[] = {0, 1, 2, 3, 4};
+  const char* generic_mtp_labels[] = {"Off", "D1", "D2", "D3 (fixed)", "D4"};
   const int moe_mtp_values[] = {0, 2};
   const char* moe_mtp_labels[] = {"Off", "D2 (fixed)"};
   const bool moe_profile = settings_.server.profile !=
@@ -1954,7 +1954,7 @@ void StudioApp::DrawServer() {
   const int* mtp_values = moe_profile ? moe_mtp_values : generic_mtp_values;
   const char* const* mtp_labels =
       moe_profile ? moe_mtp_labels : generic_mtp_labels;
-  const int mtp_count = moe_profile ? 2 : 4;
+  const int mtp_count = moe_profile ? 2 : 5;
   int mtp_index = settings_.server.mtp_draft_tokens == 0 ? 0
                                                         : (moe_profile ? 1 : 2);
   for (int index = 0; index < mtp_count; ++index) {
@@ -1964,6 +1964,7 @@ void StudioApp::DrawServer() {
   FieldLabel("MTP draft profile");
   if (ImGui::Combo("##mtp-profile", &mtp_index, mtp_labels, mtp_count)) {
     settings_.server.mtp_draft_tokens = mtp_values[mtp_index];
+    if (settings_.server.mtp_draft_tokens == 3) settings_.server.mtp_adaptive = false;
   }
   if (vision_profile) {
     const int budget_values[] = {70, 140, 280};

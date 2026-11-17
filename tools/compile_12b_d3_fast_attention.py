@@ -25,7 +25,7 @@ def main():
     spec.loader.exec_module(module)
     signature = {"Q": "*fp32", "K": "*fp8e4nv", "V": "*fp8e4nv",
                  "KS": "*bf16", "VS": "*bf16", "CONTROL": "*u64",
-                 "PARTIAL": "*fp32", "LSE": "*fp32"}
+                 "PARTIAL": "*fp32", "LSE": "*fp32", "CAPACITY": "i32"}
     constants = {"HEAD_DIM": 512, "HEADS": 16, "SEGMENTS": 16, "TILE": 32,
                  "USE_TMA": args.tma}
     signature.update({name: "constexpr" for name in constants})
@@ -45,26 +45,30 @@ def main():
               f'inline constexpr char kKernel[] = "{compiled.metadata.name}";\n' +
               f"inline constexpr unsigned kShared = {compiled.metadata.shared};\n" +
               f"inline constexpr unsigned kGlobalScratchPerCTA = {compiled.metadata.global_scratch_size};\n" +
-              f"inline constexpr unsigned kFixedCapacity = {17519 if args.tma else 0};\n" +
               "} // namespace gem16::internal::d3_fast\n")
     output_name = "twelve_b_d3_fast_embedded.cuh"
     (args.output / output_name).write_text(header)
     sha = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
     assembler = get_ptxas(120)
+    compiled_metadata = compiled.metadata._asdict()
+    compiled_metadata["extern_libs"] = [
+        {"name": name, "filename": Path(path).name, "sha256": sha(Path(path))}
+        for name, path in compiled_metadata["extern_libs"]
+    ]
     metadata = {"status": "experimental_unqualified_changed_attention_math",
         "inputs": {str(p.relative_to(root)): sha(p) for p in [source, Path(__file__)]},
         "triton_version": triton.__version__, "target": "sm120",
-        "ptxas": {"path": assembler.path, "version": get_ptxas_version(120),
+        "ptxas": {"filename": Path(assembler.path).name, "version": get_ptxas_version(120),
                   "sha256": sha(Path(assembler.path))},
         "options": {"num_warps": 4, "num_stages": 3},
         "tma_kv_loads": args.tma,
-        "supported_capacity": 17519 if args.tma else "4..17519",
+        "supported_capacity": "4..262144",
         "native_kv_layout_and_scales_preserved": True,
         "changed_operators": ["global D3 queries rounded/clamped to E4M3 (scale1)",
             "QK and PV use FP8 Tensor Core dot with FP32 accumulation",
             "online softmax tiles rounded to E4M3 after scaling256",
             "16 dynamic segments /32-token online softmax tiles"],
-        "metadata": compiled.metadata._asdict(),
+        "metadata": compiled_metadata,
         "nvcc": subprocess.check_output(["/opt/cuda/bin/nvcc", "--version"], text=True),
         "outputs": {p.name: sha(p) for p in args.output.iterdir() if p.is_file()}}
     (args.output / "provenance.json").write_text(json.dumps(metadata, indent=2, default=str) + "\n")

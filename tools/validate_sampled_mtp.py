@@ -11,6 +11,7 @@ except ModuleNotFoundError:
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,10 @@ def csv_ints(value: str) -> list[int]:
 
 
 def run(command: list[str]) -> dict[str, Any]:
-    completed = subprocess.run(command, check=True, text=True, capture_output=True)
+    completed = subprocess.run(
+        command, check=True, text=True, capture_output=True,
+        env={**os.environ, "GEM16_12B_D3_ATTENTION": "exact"},
+    )
     return json.loads(completed.stdout)
 
 
@@ -99,6 +103,7 @@ def main() -> int:
 
     summary = {
         "schema_version": 1,
+        "mtp_math_policy": "exact",
         "sampling": {"temperature": 1.0, "top_k": 64, "top_p": 0.95,
                      "repetition_penalty": args.repetition_penalty},
         "kv_cache": args.kv_cache,

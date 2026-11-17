@@ -708,6 +708,15 @@ bool TestModelLifecycle() {
     Require(restored.model_directory == settings.server.model_directory &&
                 restored.mtp_draft_tokens == settings.server.mtp_draft_tokens,
             "exact model selection roundtrip");
+    auto sampled_d3 = settings;
+    ApplyProfileDefaults(sampled_d3.server, ModelProfile::kGemma4Unified12B);
+    sampled_d3.server.max_context_tokens = 262144;
+    sampled_d3.server.mtp_draft_tokens = 3;
+    sampled_d3.server.greedy = false;
+    const auto d3 = SavedServerSelection(GenerationIdentity(sampled_d3), settings.server);
+    Require(d3.mtp_draft_tokens == 3 && d3.max_context_tokens == 262144 &&
+                !d3.greedy && !d3.mtp_adaptive,
+            "restore sampled full-context fixed D3");
     const auto revision = std::string(CatalogForProfile(settings.server.profile)
                                           .components.front()
                                           .catalog->revision);

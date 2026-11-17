@@ -8,6 +8,15 @@ The [pre-consolidation record](archive/ACTIVE_DECISIONS_2026-09-04_BEFORE_CONSOL
 preserves the complete decision history, including superseded intermediate stages.
 The existing numbered decisions retain their identities below.
 
+### Owner update: 12B fixed D3 sampling and selectable context (2026-11-17)
+
+The owner requests optimized fixed-D3 with checkpoint sampling and selectable
+context through the 12B maximum of 262144. This supersedes the previous
+greedy-only and capacity-17519 selection limits. Use the existing Target sampler
+and transactional verifier with the selected arithmetic. D2 remains the Studio
+default. The earlier 16K timing and quality evidence applies to its original
+workload. The current selection contract is in [MTP math modes](MTP_MATH_MODES.md).
+
 ### Owner update: optimized12B D3 default; reference retained (2026-11-17)
 
 The owner selects the fastest measured12B D3 path as default, retains reference

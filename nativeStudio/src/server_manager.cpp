@@ -117,8 +117,8 @@ std::string HealthCompatibilityError(const ServerConfig& config,
            (health.profile_id.empty() ? std::string("<missing>")
                                       : health.profile_id);
   }
-  const std::string_view expected_decode_mode =
-      config.mtp_draft_tokens == 2 ? "fixed-d2" : "ordinary";
+  const std::string expected_decode_mode = config.mtp_draft_tokens == 0
+      ? "ordinary" : "fixed-d" + std::to_string(config.mtp_draft_tokens);
   if (health.decode_mode != expected_decode_mode) {
     return "Live server decode-mode mismatch: expected " +
            std::string(expected_decode_mode) + ", received " +

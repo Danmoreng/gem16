@@ -668,7 +668,7 @@ Status AssistantModel::GenerateDraftsDevice(
                  "assistant shared-KV modes disagree");
   }
   if (context.experimental_global_attention != nullptr &&
-      (draft_count != 3U || impl_->max_context != 17519U ||
+      (draft_count != 3U || context.full_kv.capacity != impl_->max_context ||
        context.full_kv.mode != AssistantKvCacheMode::kCheckpointFp8 ||
        context.experimental_attention_workspace == nullptr ||
        context.experimental_attention_workspace_elements <

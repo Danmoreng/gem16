@@ -398,10 +398,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
     if (select) next_token = forwarded.value();
   }
   if (mtp_enabled &&
-      (options.mtp_draft_tokens >= 2U && options.mtp_draft_tokens <= 4U) &&
-      !options.mtp_adaptive &&
-      options.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
-      options.max_context_tokens > kSlidingWindow) {
+      !options.mtp_adaptive && engine.uses_fixed_mtp_graph()) {
     status = engine.PrepareFixedMtpGraph();
     if (!status.ok()) return status;
   }
@@ -454,10 +451,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
           generation_steps - result.output_token_ids.size());
       const bool fixed_mtp_chain =
           remaining >= options.mtp_draft_tokens + 1U &&
-          (options.mtp_draft_tokens >= 2U && options.mtp_draft_tokens <= 4U) &&
-          !options.mtp_adaptive &&
-          options.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
-          options.max_context_tokens > kSlidingWindow;
+          !options.mtp_adaptive && engine.uses_fixed_mtp_graph();
       if (fixed_mtp_chain) {
         status = engine.PrepareMtpDeviceControl(
             next_token, processed_position, remaining,

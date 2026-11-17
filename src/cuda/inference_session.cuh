@@ -1193,11 +1193,13 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     result.stop_token_id = next_token;
   }
 
-  if (result.mtp_enabled &&
-      (impl_->mtp_draft_tokens >= 2U && impl_->mtp_draft_tokens <= 4U) &&
-      !impl_->mtp_adaptive &&
-      impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
-      impl_->max_context_tokens > kSlidingWindow) {
+  const std::size_t fixed_mtp_group_tokens = impl_->mtp_draft_tokens + 1U;
+  const bool can_start_fixed_mtp_chain =
+      result.mtp_enabled && !result.stopped && !impl_->mtp_adaptive &&
+      max_generated_tokens - result.output_token_ids.size() >=
+          fixed_mtp_group_tokens &&
+      impl_->engine.uses_fixed_mtp_graph();
+  if (can_start_fixed_mtp_chain) {
     Status status = impl_->engine.PrepareFixedMtpGraph();
     if (!status.ok()) {
       impl_->poisoned = true;
@@ -1208,12 +1210,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   const auto decode_start = std::chrono::steady_clock::now();
   if (result.mtp_enabled) {
     std::uint64_t processed_position = impl_->cached_token_ids.size() - 1U;
-    const bool reasoning_gpu_chain =
-        (impl_->mtp_draft_tokens >= 2U && impl_->mtp_draft_tokens <= 4U) &&
-        !impl_->mtp_adaptive &&
-        impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
-        impl_->max_context_tokens > kSlidingWindow;
-    while (!reasoning_gpu_chain &&
+    while (!can_start_fixed_mtp_chain &&
            result.output_token_ids.size() < max_generated_tokens &&
            !result.stopped && !reasoning_complete) {
       const bool force_close = reasoning_tracker.in_reasoning() &&
@@ -1288,11 +1285,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       const std::size_t remaining = static_cast<std::size_t>(
           max_generated_tokens - result.output_token_ids.size());
       const bool fixed_mtp_chain =
-          remaining >= impl_->mtp_draft_tokens + 1U &&
-          (impl_->mtp_draft_tokens >= 2U && impl_->mtp_draft_tokens <= 4U) &&
-          !impl_->mtp_adaptive &&
-          impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
-          impl_->max_context_tokens > kSlidingWindow;
+          can_start_fixed_mtp_chain && remaining >= fixed_mtp_group_tokens;
       if (fixed_mtp_chain) {
         internal::MtpReasoningState device_reasoning{};
         device_reasoning.enabled = reasoning.enabled ? 1U : 0U;

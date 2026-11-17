@@ -105,7 +105,7 @@
     mtp_draft_tokens_ = mtp_draft_tokens;
     const auto math = internal::SelectTwelveBD3Math(
         std::getenv("GEM16_12B_D3_ATTENTION"), mtp_draft_tokens,
-        kv_cache_mode_, max_context_, sampling_.enabled);
+        kv_cache_mode_, max_context_);
     if (!math.ok()) return math.status();
     mtp_math_ = math.value();
     fast_d3_attention_ = mtp_math_.optimized;
