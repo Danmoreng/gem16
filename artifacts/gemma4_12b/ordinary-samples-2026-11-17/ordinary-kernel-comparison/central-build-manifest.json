@@ -1,0 +1,49 @@
+{
+  "commit": "d92ea9bb126ab957849dd0c0f1f881a64de7dc86",
+  "source": "/home/sebastian/Development/_engines/llama.cpp/versions/master-d92ea9bb126ab957849dd0c0f1f881a64de7dc86/source",
+  "build_directory": "/tmp/gem16-central-llama-build-udi_50mf",
+  "reason": "build intermediates in tmpfs; permanent source/runtime retained centrally",
+  "commands": {},
+  "cpu": {
+    "version": "version: 1.0.0-dev (build 1, commit d92ea9b)\nbuilt with GNU 16.2.1 for Linux x86_64\n",
+    "binaries": {
+      "libllama-common.so.1.0.0": "9510a3c3464a1ff7ca6fbaaee37d236b1e31b94a8b333eee877ef297eda189ad",
+      "libggml-cpu.so.1.0.0": "8deb52857bfb298e35e4800332c00c80d927ab28a21e8f09f98f4347fc768c1d",
+      "libllama-server-impl.so": "5a176bb9fdaa43a6462d21370c873c664862373d17f3c4054908e709ff30e4fe",
+      "libggml.so.1.0.0": "be3fd30fb3bb981223ee5b7a7fdf8c12d9c08c158b77c0be11c29b0e1a34749a",
+      "llama-server": "21e98552db93ac833e22e80a1dc0cc0200d3df57a3729055bd62a7ee3464a262",
+      "libllama-cli-impl.so": "271f808cd8e52696d0bae32c1d3a9bff51c2281412ab8db48d41927ed080719a",
+      "libllama-bench-impl.so": "4ae10beac5ce2b27ccf12142f356f3272b1fe00caa5cd51aa72268fff0535146",
+      "llama-quantize": "c7caece3b6601e8b05d3efa2da59ed9e6206a685994f53e742d89347521754e0",
+      "llama-cli": "bae7d73cf554dd7b4d7c9eeba8de43058be93fde849060294260660a9abca3dc",
+      "libmtmd.so.1.0.0": "04393c6d60a847430c6bab207c1a3ff75c5cfbd6aba825a0fc118558f5f87e56",
+      "libllama.so.1.0.0": "084652f786f0b02005b2f767cd389e44de624102e94cde3ca4ef9885fa6f4539",
+      "libllama-quantize-impl.so": "4403de992e26360efd6443d16e8dea4b4f0080f92d10d70be48645ad623ed2e3",
+      "llama-gguf": "c9b7a4d84a8ce9b33f29d319e18f217cc5cfc2210d6af5435bda8a795ee2bcf2",
+      "libggml-base.so.1.0.0": "31a6a649f7c7da6e30b93306f6320625b4d5b177840a2d33e1080c612a321fb8",
+      "llama-bench": "834a10e21c8980cb95a6f635e67a50d822970a3d61057e16723f402fef753630"
+    }
+  },
+  "cuda": {
+    "version": "version: 1.0.0-dev (build 1, commit d92ea9b)\nbuilt with GNU 16.2.1 for Linux x86_64\n",
+    "binaries": {
+      "libllama-common.so.1.0.0": "a139d47996cc94dc2f61ec69794f3f68e188783abe58ab514a9e3ccf6d6d467e",
+      "libggml-cpu.so.1.0.0": "999dc3d984e0e9fc08e5f092f59b0059509820fd80c7eb0dc30229f9f795a369",
+      "libllama-server-impl.so": "5de836b6012a42be1391c9e512171e1c464f6cc003c66dc4c13b8a5c1a3a5fbb",
+      "libggml.so.1.0.0": "ad6ea1adbca68be9fbd369a6bd0ccc76793b27dc1a23265f523a34106e41f828",
+      "llama-server": "ee74e41354baaf28383fa6575c3a980b39361cf4fd96dd0f0588f8d6051b8925",
+      "libllama-cli-impl.so": "105af7576f615ca38c6617f2ad9a9994a21992254c5415bc80838140f680d770",
+      "libggml-cuda.so.1.0.0": "7f79ad277b7a228401c1d42d58d71a2819cc5bd45a2c3cb1f9c15505b1ff6995",
+      "libllama-bench-impl.so": "71c9afa40729a0a15bfaccba187046cb21a35251c88800e71ba9406ecca9a9e3",
+      "llama-quantize": "e65961942958a8d3145d822e2ab729005f113144392d8259e5509316dd683ea9",
+      "llama-cli": "d63e7b3bf7be9cfe9ba105706cdb99ebf21c5202e4ff688055e3f2abc18858d3",
+      "libmtmd.so.1.0.0": "c2b6645d5d8eb6e586298272472633d0b6909c63abdfb7a4824634f560970ad2",
+      "libllama.so.1.0.0": "4300912882cefeeed09525feebc806fdbbd0b90dc613c0545fc449d7cbef9b03",
+      "libllama-quantize-impl.so": "7e76cfbf42bda769c24819f09a775947f825a51d3969d6d1fc35821f7a66019f",
+      "llama-gguf": "37e4e47bd4433c1a1bc2f7c2b78eec7a75746384a9c1cfab204298c2944f6928",
+      "libggml-base.so.1.0.0": "31a6a649f7c7da6e30b93306f6320625b4d5b177840a2d33e1080c612a321fb8",
+      "llama-bench": "c7d555067e53a7caf2742c1cba9b17135a530c9b0be0db0b558eee211e153477"
+    }
+  },
+  "built_utc": "2026-11-17T12:08:48.242108+00:00"
+}

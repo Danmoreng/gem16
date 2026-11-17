@@ -1,0 +1,84 @@
+{
+  "diagnostic_only": true,
+  "captured_calls": 96,
+  "actual_decode_steps": [
+    0,
+    566,
+    1133
+  ],
+  "cases": [
+    {
+      "slot": 0,
+      "layer": 0,
+      "phase": 0,
+      "divisor": 11
+    },
+    {
+      "slot": 1,
+      "layer": 15,
+      "phase": 0,
+      "divisor": 29.875
+    },
+    {
+      "slot": 2,
+      "layer": 31,
+      "phase": 0,
+      "divisor": 26.75
+    },
+    {
+      "slot": 3,
+      "layer": 47,
+      "phase": 0,
+      "divisor": 97
+    },
+    {
+      "slot": 0,
+      "layer": 0,
+      "phase": 1,
+      "divisor": 11
+    },
+    {
+      "slot": 1,
+      "layer": 15,
+      "phase": 1,
+      "divisor": 29.875
+    },
+    {
+      "slot": 2,
+      "layer": 31,
+      "phase": 1,
+      "divisor": 26.75
+    },
+    {
+      "slot": 3,
+      "layer": 47,
+      "phase": 1,
+      "divisor": 97
+    },
+    {
+      "slot": 0,
+      "layer": 0,
+      "phase": 2,
+      "divisor": 11
+    },
+    {
+      "slot": 1,
+      "layer": 15,
+      "phase": 2,
+      "divisor": 29.875
+    },
+    {
+      "slot": 2,
+      "layer": 31,
+      "phase": 2,
+      "divisor": 26.75
+    },
+    {
+      "slot": 3,
+      "layer": 47,
+      "phase": 2,
+      "divisor": 97
+    }
+  ],
+  "source": "retained12B actual norm fixtures,2026-11-15"
+}

@@ -20,6 +20,7 @@
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/nvfp4/sm120_layout.h"
 #include "cuda/output_head.h"
+#include "cuda/norm/twelve_b_ordinary.h"
 #include "cuda/sampling/sampling.h"
 #include "cuda/vision/projection.h"
 #include "gem16/model.h"
@@ -161,6 +162,38 @@ class DeviceAllocation {
  private:
   void* data_ = nullptr;
   std::uint64_t bytes_ = 0;
+};
+
+// Persistent resources for graph-captured, independent Gate/Up branches.
+// Creation is startup-only; recurrent decode replays the resulting graph DAG.
+class OrdinaryDecodeFork {
+ public:
+  ~OrdinaryDecodeFork() {
+    if (stream_ != nullptr) (void)cudaStreamDestroy(stream_);
+    if (ready_ != nullptr) (void)cudaEventDestroy(ready_);
+    if (done_ != nullptr) (void)cudaEventDestroy(done_);
+  }
+  [[nodiscard]] Status Initialize() {
+    cudaError_t e = cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking);
+    if (e == cudaSuccess) e = cudaEventCreateWithFlags(&ready_, cudaEventDisableTiming);
+    if (e == cudaSuccess) e = cudaEventCreateWithFlags(&done_, cudaEventDisableTiming);
+    return e == cudaSuccess ? Status::Ok() : CudaFailure("create12B Ordinary graph fork", e);
+  }
+  [[nodiscard]] Status Begin(cudaStream_t main) {
+    cudaError_t e = cudaEventRecord(ready_, main);
+    if (e == cudaSuccess) e = cudaStreamWaitEvent(stream_, ready_, 0U);
+    return e == cudaSuccess ? Status::Ok() : CudaFailure("fork12B Ordinary Gate/Up", e);
+  }
+  [[nodiscard]] Status Join(cudaStream_t main) {
+    cudaError_t e = cudaEventRecord(done_, stream_);
+    if (e == cudaSuccess) e = cudaStreamWaitEvent(main, done_, 0U);
+    return e == cudaSuccess ? Status::Ok() : CudaFailure("join12B Ordinary Gate/Up", e);
+  }
+  [[nodiscard]] cudaStream_t stream() const { return stream_; }
+ private:
+  cudaStream_t stream_ = nullptr;
+  cudaEvent_t ready_ = nullptr;
+  cudaEvent_t done_ = nullptr;
 };
 
 class GraphExecutable {

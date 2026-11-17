@@ -1,0 +1,8 @@
+[
+  "/opt/cuda/bin/compute-sanitizer",
+  "--tool",
+  "memcheck",
+  "--error-exitcode",
+  "99",
+  "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/ordinary-optimization/norm-boundaries"
+]

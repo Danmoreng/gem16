@@ -25,3 +25,25 @@ diagnostic instrumentation stays separate from primary samples.
 Raw root: benchmarks/results/2026-11-17/ordinary-kernel-comparison/.
 Serialize GPU jobs, use /tmp for bulky temporary profiling exports, retain
 losslessly compressed traces/hashes, and respect Berlin22:45/22:55/23:00.
+
+## Owner extension after baseline analysis
+
+The owner now explicitly requests implementing both measured kernel improvements
+and overlap of independent Ordinary graph work. This supersedes the measurement-only
+scope above for a narrow12B T1 slice. Keep the committed baseline executable and
+samples unchanged. Qualify fixed-width norm/quant boundaries bit-exactly, test graph
+fork/join dependencies and allocations, then measure kernel-only, overlap-only and
+combined with one warmup+three retained requests. Do not promote an unqualified or
+slower combination; report it honestly. No26B tuning or additional commit/push is
+implicitly authorized by this extension.
+
+## Owner checkpoint and next slice
+
+The owner explicitly requests committing the completed Ordinary kernel/overlap
+changes and their evidence before any further runtime modification. This
+supersedes the no-additional-commit restriction for that completed slice only.
+No push or branch change. The next authorized slice is12B Ordinary FP8 O
+projection and global attention, with exact numerical/cache/format boundaries,
+operator/sanitizer/dispatch evidence and a final one-warmup/three-retained
+comparison against the newly committed51.6977tok/s parent.26B and other12B
+paths retain their behavior. Failed candidates remain diagnostic.

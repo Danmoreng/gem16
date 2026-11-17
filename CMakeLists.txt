@@ -351,6 +351,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/fp8/sm120.cu
     src/cuda/kv_cache/reference.cu
     src/cuda/norm/reference.cu
+    src/cuda/norm/twelve_b_ordinary.cu
     src/cuda/rope/reference.cu
     src/cuda/vision/gemma4_26b.cu
     src/cuda/layer/checkpoint_probe.cu

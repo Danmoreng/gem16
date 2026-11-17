@@ -1,0 +1,13 @@
+[
+  "cmake",
+  "--build",
+  "/tmp/gem16-central-llama-build-udi_50mf/cuda",
+  "--parallel",
+  "6",
+  "--target",
+  "llama-cli",
+  "llama-bench",
+  "llama-quantize",
+  "llama-server",
+  "llama-gguf"
+]

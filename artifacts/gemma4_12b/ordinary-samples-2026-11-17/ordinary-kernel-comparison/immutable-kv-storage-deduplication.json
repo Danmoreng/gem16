@@ -1,0 +1,19 @@
+{
+  "logical_payloads_unchanged": true,
+  "paths_preserved": true,
+  "estimated_reclaimed_bytes": 622575616,
+  "hardlinks": [
+    {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d4-chain/state-d4-candidate.kv.bin",
+      "same_bytes_reference": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fp8-packed/state-d3.kv.bin",
+      "bytes": 311287808,
+      "sha256": "6b03676412022f6be775dfec7ec4e9e68ef3d997a28e6f5f3f100ff36c577231"
+    },
+    {
+      "path": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d4-chain/state-d4-parent.kv.bin",
+      "same_bytes_reference": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fp8-packed/state-d3.kv.bin",
+      "bytes": 311287808,
+      "sha256": "6b03676412022f6be775dfec7ec4e9e68ef3d997a28e6f5f3f100ff36c577231"
+    }
+  ]
+}

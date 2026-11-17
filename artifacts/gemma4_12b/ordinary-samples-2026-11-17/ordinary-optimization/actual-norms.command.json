@@ -1,0 +1,8 @@
+[
+  "python",
+  "/home/sebastian/Development/gem16gb/tests/cuda/twelve_b_ordinary_actual_norms.py",
+  "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-15/58febf4/12b-five-step-goal/norm-fixtures",
+  "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/ordinary-optimization/actual-norm-lab.so",
+  "--output",
+  "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/ordinary-optimization/actual-norms.json"
+]

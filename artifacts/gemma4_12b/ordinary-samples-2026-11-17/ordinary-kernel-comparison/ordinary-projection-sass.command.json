@@ -1,0 +1,7 @@
+[
+  "/opt/cuda/bin/cuobjdump",
+  "--dump-sass",
+  "--function",
+  "__nv_static_29__fdbc63a0_8_sm120_cu_8b4dce3d__ZN5gem168internal40_GLOBAL__N__fdbc63a0_8_sm120_cu_8b4dce3d27Sm120DirectProjectionKernelILb0EEEvPKhPKfNS1_16Fp8MatrixBindingES7_S7_jmm,__nv_static_29__1d501c29_8_sm120_cu_7b48d55f__ZN5gem168internal40_GLOBAL__N__1d501c29_8_sm120_cu_7b48d55f27Sm120DirectProjectionKernelILb0ELi0EEEvPKhS4_S4_S4_PKjPKNS0_26Gemma4MoePrefillAssignmentES6_jjPfmmmf",
+  "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/12b-mtp-parity/production-candidate/gem16-run"
+]

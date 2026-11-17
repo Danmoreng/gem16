@@ -1,0 +1,296 @@
+{
+  "benchmark_source": {
+    "git_commit": "4beb06e48621f7dd5e02f1e3f61106d25f54ce72",
+    "worktree_dirty_at_start": true
+  },
+  "configuration": {
+    "batch_size": 1,
+    "channelwise_group_size_normalizations": [],
+    "chunked_prefill": true,
+    "context_tokens_requested": 17519,
+    "cpu_offload_gb": 0,
+    "cuda_graphs_requested": true,
+    "enforce_eager": false,
+    "gpu_memory_utilization": 0.9,
+    "kv_cache": "fp8",
+    "language_model_only": true,
+    "limit_mm_per_prompt": {
+      "audio": 0,
+      "image": 0,
+      "video": 0
+    },
+    "linear_backend": "auto",
+    "max_num_batched_tokens_requested": 1024,
+    "measured_repetitions": 1,
+    "mm_processor_cache_gb": 0,
+    "moe_backend": "auto",
+    "mtp_backend": "disabled",
+    "mtp_draft_tokens": 0,
+    "prefix_caching": false,
+    "primary_statistic": "median",
+    "trust_remote_code": false,
+    "warmups": 1,
+    "weight_format": "native"
+  },
+  "engine": "vllm",
+  "gpu_telemetry_csv": null,
+  "limitations": [
+    "No continuous power, clock, or thermal telemetry was captured.",
+    "TTFT includes prompt processing and first-token selection.",
+    "Decode throughput uses generated_tokens - 1 intervals after the first token.",
+    "Engine checkpoint and KV precisions must be read from configuration before comparison."
+  ],
+  "representative_output_token_ids": [
+    61684,
+    3526,
+    1778,
+    48903,
+    113684,
+    853,
+    24612,
+    236772,
+    9175,
+    727,
+    1416,
+    8046,
+    203191,
+    9561,
+    216559,
+    236802,
+    568,
+    41410,
+    1473,
+    108,
+    10354,
+    649,
+    26850,
+    2906,
+    166566,
+    145711,
+    107,
+    236829,
+    139,
+    1018,
+    16716,
+    53121,
+    76148,
+    77113,
+    1778,
+    121587,
+    23998,
+    3564,
+    4899,
+    7919,
+    998,
+    501,
+    236764,
+    104063,
+    3818,
+    191314,
+    236764,
+    1778,
+    199092,
+    127266,
+    9561,
+    216559,
+    236802,
+    2087,
+    208763,
+    568,
+    236798,
+    62681,
+    236764,
+    41774,
+    602,
+    765,
+    6652,
+    33821
+  ],
+  "runs": [
+    {
+      "average_inter_token_latency_ms": 26.76455852382614,
+      "decode_ms": 1686.1671870010468,
+      "decode_tokens_per_second": 37.36284307136199,
+      "first_output_token_id": 61684,
+      "generated_tokens": 64,
+      "inference_end_to_end_ms": 4021.8808119552705,
+      "last_output_token_id": 33821,
+      "measured_decode_intervals": 63,
+      "output_token_sha256": "9bb6302430c0d0c25b2b286ce695778d94d5fcf0e00f37292e9f68c32b219b9c",
+      "prompt_ms": 2335.7136249542236,
+      "prompt_tokens": 16384,
+      "prompt_tokens_per_second": 7014.558559301593,
+      "stop_reason": "length",
+      "stop_reason_detail": null,
+      "wall_ms": 4021.8700650002575
+    }
+  ],
+  "runtime": {
+    "assistant_checkpoint": null,
+    "checkpoint": "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+    "device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "model_weights": null,
+    "packages": {
+      "compressed-tensors": "0.17.0",
+      "torch": "2.14.0",
+      "transformers": "5.20.2",
+      "vllm": "0.33.0"
+    },
+    "python": "3.13.14",
+    "torch_cuda": "13.0"
+  },
+  "schema_version": 1,
+  "status": "diagnostic_only_profiled_not_primary_throughput",
+  "summary": {
+    "average_inter_token_latency_ms": {
+      "confidence_interval_95": [
+        26.76455852382614,
+        26.76455852382614
+      ],
+      "maximum": 26.76455852382614,
+      "mean": 26.76455852382614,
+      "median": 26.76455852382614,
+      "minimum": 26.76455852382614,
+      "sample_count": 1,
+      "samples": [
+        26.76455852382614
+      ],
+      "standard_deviation": 0.0
+    },
+    "decode_tokens_per_second": {
+      "confidence_interval_95": [
+        37.36284307136199,
+        37.36284307136199
+      ],
+      "maximum": 37.36284307136199,
+      "mean": 37.36284307136199,
+      "median": 37.36284307136199,
+      "minimum": 37.36284307136199,
+      "sample_count": 1,
+      "samples": [
+        37.36284307136199
+      ],
+      "standard_deviation": 0.0
+    },
+    "deterministic_outputs": true,
+    "generated_tokens": {
+      "confidence_interval_95": [
+        64.0,
+        64.0
+      ],
+      "maximum": 64.0,
+      "mean": 64.0,
+      "median": 64.0,
+      "minimum": 64.0,
+      "sample_count": 1,
+      "samples": [
+        64.0
+      ],
+      "standard_deviation": 0.0
+    },
+    "inference_end_to_end_ms": {
+      "confidence_interval_95": [
+        4021.8808119552705,
+        4021.8808119552705
+      ],
+      "maximum": 4021.8808119552705,
+      "mean": 4021.8808119552705,
+      "median": 4021.8808119552705,
+      "minimum": 4021.8808119552705,
+      "sample_count": 1,
+      "samples": [
+        4021.8808119552705
+      ],
+      "standard_deviation": 0.0
+    },
+    "measured_decode_intervals": {
+      "confidence_interval_95": [
+        63.0,
+        63.0
+      ],
+      "maximum": 63.0,
+      "mean": 63.0,
+      "median": 63.0,
+      "minimum": 63.0,
+      "sample_count": 1,
+      "samples": [
+        63.0
+      ],
+      "standard_deviation": 0.0
+    },
+    "output_token_sha256_values": [
+      "9bb6302430c0d0c25b2b286ce695778d94d5fcf0e00f37292e9f68c32b219b9c"
+    ],
+    "prompt_tokens_per_second": {
+      "confidence_interval_95": [
+        7014.558559301593,
+        7014.558559301593
+      ],
+      "maximum": 7014.558559301593,
+      "mean": 7014.558559301593,
+      "median": 7014.558559301593,
+      "minimum": 7014.558559301593,
+      "sample_count": 1,
+      "samples": [
+        7014.558559301593
+      ],
+      "standard_deviation": 0.0
+    },
+    "stop_reason_values": [
+      "length"
+    ],
+    "time_to_first_token_ms": {
+      "confidence_interval_95": [
+        2335.7136249542236,
+        2335.7136249542236
+      ],
+      "maximum": 2335.7136249542236,
+      "mean": 2335.7136249542236,
+      "median": 2335.7136249542236,
+      "minimum": 2335.7136249542236,
+      "sample_count": 1,
+      "samples": [
+        2335.7136249542236
+      ],
+      "standard_deviation": 0.0
+    }
+  },
+  "workload": {
+    "fixed_output_tokens": 64,
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "ignore_eos": true,
+    "max_new_tokens": 64,
+    "path": "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "prompt_tokens": 16384,
+    "seed": 0,
+    "source": {
+      "api_url": "https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=extracts%7Crevisions&explaintext=1&exsectionformat=plain&revids=1366077412&rvprop=ids%7Ctimestamp",
+      "article_url": "https://en.wikipedia.org/w/index.php?title=Artificial+intelligence&oldid=1366077412",
+      "extract_characters": 86450,
+      "extract_utf8_sha256": "2724cd80c72f6ba5ef4b6ae05ed0ff1af172ebdc2d660c506fe4b49828139056",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "page_id": 1164,
+      "revision": 1366077412,
+      "revision_timestamp": "2026-07-26T03:46:54Z",
+      "title": "Artificial intelligence"
+    },
+    "stop_token_ids": [],
+    "suppress_token_ids": [
+      1,
+      50,
+      106,
+      258882,
+      258883
+    ],
+    "temperature": 0.0
+  },
+  "profile": {
+    "trace_dir": "/tmp/gem16-ordinary-traces-jru_l9hb/vllm-traces",
+    "delay_worker_iterations": 48,
+    "active_worker_iterations": 16,
+    "scope_must_be_verified_from_trace": true,
+    "wrapper": "/home/sebastian/Development/gem16gb/tools/profile_12b_ordinary_vllm.py"
+  }
+}

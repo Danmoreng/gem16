@@ -103,8 +103,28 @@
 
   [[nodiscard]] Status InitializeSlot(std::uint32_t mtp_draft_tokens) {
     mtp_draft_tokens_ = mtp_draft_tokens;
+    // Ablation controls are read once, before any graph capture. Never inspect
+    // environment or create streams/events in recurring inference.
+    const auto flag = [](const char* name, bool* value) -> Status {
+      const char* text = std::getenv(name);
+      if (text == nullptr || std::strcmp(text, "1") == 0) { *value = true; return Status::Ok(); }
+      if (std::strcmp(text, "0") == 0) { *value = false; return Status::Ok(); }
+      return Error(StatusCode::kInvalidArgument, std::string(name) + " requires0 or1");
+    };
+    Status status = flag("GEM16_12B_ORDINARY_NORMS", &ordinary_norms_);
+    if (!status.ok()) return status;
+    status = flag("GEM16_12B_ORDINARY_OVERLAP", &ordinary_overlap_);
+    if (!status.ok()) return status;
+    ordinary_norms_ = ordinary_norms_ && mtp_draft_tokens == 0U &&
+                      kv_cache_mode_ == KvCacheMode::kCheckpointFp8;
+    ordinary_overlap_ = ordinary_overlap_ && mtp_draft_tokens == 0U &&
+                        kv_cache_mode_ == KvCacheMode::kCheckpointFp8;
+    if (ordinary_overlap_) {
+      status = ordinary_fork_.Initialize();
+      if (!status.ok()) return status;
+    }
     cudaError_t error = cudaSuccess;
-    Status status = AllocateCache();
+    status = AllocateCache();
     if (!status.ok()) return status;
     status = AllocateWorkspace();
     if (!status.ok()) return status;

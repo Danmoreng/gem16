@@ -1,0 +1,4 @@
+[
+  "/home/sebastian/Development/_engines/llama.cpp/versions/master-d92ea9bb126ab957849dd0c0f1f881a64de7dc86/source/build-central-cuda/bin/llama-cli",
+  "--list-devices"
+]

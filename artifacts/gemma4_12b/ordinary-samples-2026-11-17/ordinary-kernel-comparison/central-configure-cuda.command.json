@@ -1,0 +1,18 @@
+[
+  "cmake",
+  "-S",
+  "/home/sebastian/Development/_engines/llama.cpp/versions/master-d92ea9bb126ab957849dd0c0f1f881a64de7dc86/source",
+  "-B",
+  "/tmp/gem16-central-llama-build-udi_50mf/cuda",
+  "-G",
+  "Ninja",
+  "-DCMAKE_BUILD_TYPE=Release",
+  "-DLLAMA_BUILD_TESTS=OFF",
+  "-DLLAMA_BUILD_EXAMPLES=ON",
+  "-DLLAMA_BUILD_TOOLS=ON",
+  "-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON",
+  "-DGGML_CUDA=ON",
+  "-DGGML_NATIVE=OFF",
+  "-DCMAKE_CUDA_ARCHITECTURES=120a-real",
+  "-DCMAKE_CUDA_COMPILER=/opt/cuda/bin/nvcc"
+]

@@ -1,0 +1,2416 @@
+{
+  "status": "diagnostic_profile_not_primary_throughput",
+  "sequence_lengths": [
+    16415,
+    16416,
+    16417,
+    16418,
+    16419,
+    16420,
+    16421,
+    16422,
+    16423,
+    16424,
+    16425,
+    16426,
+    16427,
+    16428,
+    16429,
+    16430
+  ],
+  "boundary": "first GPU activity through last GPU activity of 16 complete decode steps; includes 15 inter-step gaps; profiler timings are not primary throughput",
+  "native": {
+    "steps": 16,
+    "window_start_us": 4760429.05,
+    "window_end_us": 5075760.966,
+    "span_ms_per_step": 19.708244750000013,
+    "kernel_union_ms_per_step": 19.50805143749842,
+    "all_gpu_activity_union_ms_per_step": 19.514363312498432,
+    "summed_kernel_ms_per_step": 19.50805143749842,
+    "api_timing_note": "Host API durations overlap GPU work and must not be added to device costs. Profiler drain synchronization is diagnostic only.",
+    "non_kernel_interval_ms_per_step": 0.20019331250159303,
+    "kernel_count": 13888,
+    "kernels_per_step": 868.0,
+    "families": {
+      "FFN GELU/quant": {
+        "count": 768,
+        "count_per_step": 48.0,
+        "sum_ms_per_step": 0.04844112500007031
+      },
+      "FP8 QKV/O": {
+        "count": 1536,
+        "count_per_step": 96.0,
+        "sum_ms_per_step": 4.99761506249971
+      },
+      "KV write": {
+        "count": 768,
+        "count_per_step": 48.0,
+        "sum_ms_per_step": 0.07570106250065146
+      },
+      "NVFP4 Gate/Up/Down": {
+        "count": 2304,
+        "count_per_step": 144.0,
+        "sum_ms_per_step": 6.700556375000451
+      },
+      "attention": {
+        "count": 1536,
+        "count_per_step": 96.0,
+        "sum_ms_per_step": 2.661404624997871
+      },
+      "head and argmax": {
+        "count": 32,
+        "count_per_step": 2.0,
+        "sum_ms_per_step": 2.43318018750014
+      },
+      "norm/quant/rotary/round/embedding": {
+        "count": 6944,
+        "count_per_step": 434.0,
+        "sum_ms_per_step": 2.5911529999995255
+      }
+    },
+    "copies": {
+      "count": 160,
+      "bytes": 262592,
+      "sum_ms_per_step": 0.0063118750000139695
+    },
+    "apis": {
+      "cudaGraphLaunch_v10000": {
+        "count": 16,
+        "sum_ms": 0.1761929999962449
+      },
+      "cudaStreamSynchronize_v3020": {
+        "count": 16,
+        "sum_ms": 315.1449670000002
+      }
+    },
+    "dispatches": [
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120DirectProjectionKernel<(bool)0, (int)0>(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned int *, const gem16::internal::Gemma4MoePrefillAssignment *, const unsigned int *, unsigned int, unsigned int, float *, unsigned long, unsigned long, unsigned long, float)",
+        "grid": [
+          480,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 54,
+        "shared": 0,
+        "count": 1536,
+        "sum_ms_per_step": 4.133040625000314
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120DirectProjectionKernel<(bool)0, (int)0>(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned int *, const gem16::internal::Gemma4MoePrefillAssignment *, const unsigned int *, unsigned int, unsigned int, float *, unsigned long, unsigned long, unsigned long, float)",
+        "grid": [
+          120,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 54,
+        "shared": 0,
+        "count": 768,
+        "sum_ms_per_step": 2.567515750000137
+      },
+      {
+        "name": "gem16::internal::<unnamed>::FusedOutputHeadCandidatesKernel(const unsigned short *, const float *, const unsigned int *, unsigned int, const gem16::internal::DecodeControl *, gem16::internal::OutputHeadCandidate *, float *)",
+        "grid": [
+          4096,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 64,
+        "count": 16,
+        "sum_ms_per_step": 2.4293463125000128
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120DirectProjectionKernel<(bool)0>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long, unsigned long)",
+        "grid": [
+          128,
+          1,
+          3
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 0,
+        "count": 640,
+        "sum_ms_per_step": 2.3694733124995837
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120DirectProjectionKernel<(bool)0>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long, unsigned long)",
+        "grid": [
+          120,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 0,
+        "count": 768,
+        "sum_ms_per_step": 2.133007750000397
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8GlobalGqaKernel<(bool)0, (bool)0, (bool)1>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, const gem16::internal::DecodeControl *, unsigned long, int)",
+        "grid": [
+          35,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 64,
+        "shared": 41056,
+        "count": 128,
+        "sum_ms_per_step": 1.3956289374996558
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8Kernel<(int)256, (int)8, (int)2, (int)2, (int)128, (bool)0, (bool)0, (bool)0>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+        "grid": [
+          64,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 49,
+        "shared": 1056,
+        "count": 640,
+        "sum_ms_per_step": 1.1558952499996522
+      },
+      {
+        "name": "gem16::internal::<unnamed>::TwelveBPostAttentionQuantizeKernel(float *, const unsigned short *, const float *, float *, float *, const unsigned short *, unsigned char *, unsigned char *, float)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 64,
+        "shared": 1024,
+        "count": 768,
+        "sum_ms_per_step": 0.8046255625004997
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormResidualBf16Kernel<float>(const T1 *, const unsigned short *, const float *, float *, float *, unsigned long, float, const unsigned short *)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 28,
+        "shared": 1024,
+        "count": 768,
+        "sum_ms_per_step": 0.760378249999776
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormQuantizeTokenKernel<float>(const T1 *, const unsigned short *, unsigned char *, float *, unsigned long, float)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 32,
+        "shared": 1024,
+        "count": 768,
+        "sum_ms_per_step": 0.5196685625000973
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::Sm120DirectProjectionKernel<(bool)0>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long, unsigned long)",
+        "grid": [
+          256,
+          1,
+          2
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.49513399999972896
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::QuantizeTokenReferenceKernel<float>(const T1 *, unsigned char *, float *, unsigned long)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 32,
+        "shared": 1024,
+        "count": 768,
+        "sum_ms_per_step": 0.22784074999997392
+      },
+      {
+        "name": "gem16::internal::<unnamed>::ProjectionRmsNormRotaryBf16ControlledKernel(const float *, const unsigned short *, float *, const float *, const unsigned short *, float *, const float *, const float *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long, unsigned long, float, bool)",
+        "grid": [
+          24,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 24,
+        "shared": 1024,
+        "count": 640,
+        "sum_ms_per_step": 0.07918075000128011
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)256, (int)128>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 32,
+        "count": 640,
+        "sum_ms_per_step": 0.0780627499987022
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::ControlledAppendKvKernel<unsigned char, (bool)1>(const float *, const float *, T1 *, T1 *, const unsigned short *, const unsigned short *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, bool)",
+        "grid": [
+          8,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 26,
+        "shared": 0,
+        "count": 640,
+        "sum_ms_per_step": 0.06383912500040606
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::GatedGeluQuantizeActivationKernel<float>(const T1 *, const T1 *, unsigned char *, unsigned char *, unsigned long, float)",
+        "grid": [
+          120,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 17,
+        "shared": 0,
+        "count": 768,
+        "sum_ms_per_step": 0.04844112500007031
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+        "grid": [
+          8,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 24,
+        "shared": 1024,
+        "count": 640,
+        "sum_ms_per_step": 0.04630518749955809
+      },
+      {
+        "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 640,
+        "sum_ms_per_step": 0.03492562499945052
+      },
+      {
+        "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+        "grid": [
+          8,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 640,
+        "sum_ms_per_step": 0.03282156249909895
+      },
+      {
+        "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+        "grid": [
+          15,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 768,
+        "sum_ms_per_step": 0.03245556250005029
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::MergeOnlineDecodeAttentionKernel<(int)512, (int)512>(const float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, bool, int)",
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 39,
+        "shared": 32,
+        "count": 128,
+        "sum_ms_per_step": 0.03181768749986077
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::RmsNormKernel<float, (bool)1>(const T1 *, const unsigned short *, float *, unsigned long, float)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 24,
+        "shared": 1024,
+        "count": 144,
+        "sum_ms_per_step": 0.020173562499985566
+      },
+      {
+        "name": "gem16::internal::<unnamed>::ProjectionRmsNormRotaryBf16ControlledKernel(const float *, const unsigned short *, float *, const float *, const unsigned short *, float *, const float *, const float *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, unsigned long, unsigned long, float, bool)",
+        "grid": [
+          17,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 24,
+        "shared": 1024,
+        "count": 128,
+        "sum_ms_per_step": 0.017499749999726193
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::ControlledAppendKvKernel<unsigned char, (bool)1>(const float *, const float *, T1 *, T1 *, const unsigned short *, const unsigned short *, const gem16::internal::DecodeControl *, unsigned long, unsigned long, bool)",
+        "grid": [
+          2,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 26,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.011861937500245404
+      },
+      {
+        "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+        "grid": [
+          2,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.007069999999832362
+      },
+      {
+        "name": "gem16::<unnamed>::RoundBf16Kernel(float *, unsigned long)",
+        "grid": [
+          32,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.00686987500009127
+      },
+      {
+        "name": "void gem16::internal::<unnamed>::OutputHeadArgmaxKernel<(bool)0>(const gem16::internal::OutputHeadCandidate *, unsigned long, unsigned int *)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 37,
+        "shared": 2048,
+        "count": 16,
+        "sum_ms_per_step": 0.003833875000127591
+      },
+      {
+        "name": "gem16::<unnamed>::ControlledEmbeddingKernel(const unsigned short *, const gem16::internal::DecodeControl *, float *)",
+        "grid": [
+          15,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.0013380000001052394
+      }
+    ],
+    "decode_index_start_zero_based": 30,
+    "graph_partition_counts": {
+      "290": 13888
+    },
+    "selected_correlations": [
+      24812,
+      24814,
+      24816,
+      24818,
+      24820,
+      24822,
+      24824,
+      24826,
+      24828,
+      24830,
+      24832,
+      24834,
+      24836,
+      24838,
+      24840,
+      24842
+    ]
+  },
+  "llama": {
+    "steps": 16,
+    "window_start_us": 7056559.865,
+    "window_end_us": 7335424.138,
+    "span_ms_per_step": 17.4290170625,
+    "kernel_union_ms_per_step": 16.98324237500038,
+    "all_gpu_activity_union_ms_per_step": 17.024969687500967,
+    "summed_kernel_ms_per_step": 19.869732562502207,
+    "api_timing_note": "Host API durations overlap GPU work and must not be added to device costs. Profiler drain synchronization is diagnostic only.",
+    "non_kernel_interval_ms_per_step": 0.4457746874996228,
+    "kernel_count": 21632,
+    "kernels_per_step": 1352.0,
+    "families": {
+      "KV write": {
+        "count": 1536,
+        "count_per_step": 96.0,
+        "sum_ms_per_step": 0.23497812499961582
+      },
+      "NVFP4 Gate/Up/Down": {
+        "count": 1536,
+        "count_per_step": 96.0,
+        "sum_ms_per_step": 7.328477937500458
+      },
+      "Q8 Q/K/V/O": {
+        "count": 2944,
+        "count_per_step": 184.0,
+        "sum_ms_per_step": 4.391304187501373
+      },
+      "attention including KV dequant": {
+        "count": 1792,
+        "count_per_step": 112.0,
+        "sum_ms_per_step": 2.158844124998897
+      },
+      "head and softcap": {
+        "count": 32,
+        "count_per_step": 2.0,
+        "sum_ms_per_step": 2.788830499999982
+      },
+      "norm/quant/rotary/FWHT/elementwise": {
+        "count": 13792,
+        "count_per_step": 862.0,
+        "sum_ms_per_step": 2.9672976875018793
+      }
+    },
+    "copies": {
+      "count": 165,
+      "bytes": 16274640,
+      "sum_ms_per_step": 0.041727312500588594
+    },
+    "apis": {
+      "cudaGraphLaunch_v10000": {
+        "count": 96,
+        "sum_ms": 0.5035740000065416
+      },
+      "cudaMemcpyAsync_v3020": {
+        "count": 166,
+        "sum_ms": 0.32538000000081957
+      },
+      "cudaStreamSynchronize_v3020": {
+        "count": 406,
+        "sum_ms": 273.66852000000887
+      }
+    },
+    "dispatches": [
+      {
+        "name": "void mul_mat_vec_q<(ggml_type)40, (int)1, (bool)1, (bool)1, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+        "grid": [
+          3840,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 121,
+        "shared": 3072,
+        "count": 768,
+        "sum_ms_per_step": 4.900022875000141
+      },
+      {
+        "name": "void mul_mat_vec_f<__nv_bfloat16, float, (int)1, (int)256, (bool)0, (bool)0>(const T1 *, const float *, const int *, ggml_cuda_mm_fusion_args_device, float *, int, uint3, int, int, int, uint3, int, int, int, uint3, int, int, int, int)",
+        "grid": [
+          262144,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 36,
+        "shared": 128,
+        "count": 16,
+        "sum_ms_per_step": 2.7854705625000644
+      },
+      {
+        "name": "void mul_mat_vec_q<(ggml_type)40, (int)1, (bool)1, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+        "grid": [
+          3840,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 62,
+        "shared": 768,
+        "count": 768,
+        "sum_ms_per_step": 2.4284550625003174
+      },
+      {
+        "name": "void mul_mat_vec_q<(ggml_type)8, (int)1, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+        "grid": [
+          3840,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 48,
+        "shared": 384,
+        "count": 768,
+        "sum_ms_per_step": 1.4319153125006123
+      },
+      {
+        "name": "void mul_mat_vec_q<(ggml_type)8, (int)1, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+        "grid": [
+          4096,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 48,
+        "shared": 384,
+        "count": 640,
+        "sum_ms_per_step": 1.2635798125005093
+      },
+      {
+        "name": "void mul_mat_vec_q<(ggml_type)8, (int)1, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+        "grid": [
+          2048,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 48,
+        "shared": 384,
+        "count": 1280,
+        "sum_ms_per_step": 1.2083535000000847
+      },
+      {
+        "name": "void flash_attn_combine_results<(int)256>(const float *, const float2 *, float *, int)",
+        "grid": [
+          1,
+          16,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 48,
+        "count": 640,
+        "sum_ms_per_step": 0.7371065625000629
+      },
+      {
+        "name": "void fwht_cuda<(int)64, float>(const T2 *, float *, long, float)",
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 640,
+        "sum_ms_per_step": 0.7323567499995115
+      },
+      {
+        "name": "void flash_attn_ext_vec<(int)256, (int)1, (ggml_type)8, (ggml_type)8, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+        "grid": [
+          1,
+          6,
+          16
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 255,
+        "shared": 4352,
+        "count": 640,
+        "sum_ms_per_step": 0.6672441249991534
+      },
+      {
+        "name": "quantize_q8_1(const float *, void *, long, long, long, long, long, unsigned int, uint3)",
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 24,
+        "shared": 0,
+        "count": 3584,
+        "sum_ms_per_step": 0.628066375000286
+      },
+      {
+        "name": "void rms_norm_f32<float, (int)1024, (int)1, (bool)1, (bool)1, (bool)0, (bool)0, float>(const T1 *, T1 *, int, int, int, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, const T8 *, long, long, long, uint3, uint3, uint3, uint3, float)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          1024,
+          1,
+          1
+        ],
+        "registers": 33,
+        "shared": 128,
+        "count": 1568,
+        "sum_ms_per_step": 0.4707497499997262
+      },
+      {
+        "name": "void mul_mat_vec_q<(ggml_type)8, (int)1, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+        "grid": [
+          8192,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 48,
+        "shared": 384,
+        "count": 128,
+        "sum_ms_per_step": 0.4440366250006482
+      },
+      {
+        "name": "void flash_attn_ext_f16<(int)512, (int)512, (int)1, (int)8, (bool)0, (bool)0, (bool)0>(const char *, const char *, const char *, const char *, const char *, const int *, const int *, float *, float2 *, float, float, float, float, unsigned int, float, int, uint3, int, int, int, int, int, int, int, int, int, int, int, long, int, int, long, int, int, int, int, long, long)",
+        "grid": [
+          120,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 255,
+        "shared": 41232,
+        "count": 128,
+        "sum_ms_per_step": 0.42751243749971035
+      },
+      {
+        "name": "void rms_norm_f32<float, (int)1024, (int)1, (bool)1, (bool)1, (bool)1, (bool)0, float>(const T1 *, T1 *, int, int, int, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, const T8 *, long, long, long, uint3, uint3, uint3, uint3, float)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          1024,
+          1,
+          1
+        ],
+        "registers": 38,
+        "shared": 128,
+        "count": 1520,
+        "sum_ms_per_step": 0.28370093750028175
+      },
+      {
+        "name": "void dequantize_block_q8_0_f16<(bool)0>(const void *, __half *, long)",
+        "grid": [
+          4160,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          1,
+          1
+        ],
+        "registers": 39,
+        "shared": 2176,
+        "count": 256,
+        "sum_ms_per_step": 0.27878125
+      },
+      {
+        "name": "void k_set_rows_quant<long, block_q8_0, (int)32, &quantize_f32_q8_0_block>(const float *, const T1 *, T2 *, long, long, long, long, long, long, long, long, long, long, long, long, long, long, uint3, uint3, uint3, uint3, uint3)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 0,
+        "count": 1536,
+        "sum_ms_per_step": 0.23497812499961582
+      },
+      {
+        "name": "void k_bin_bcast<&op_mul, float, float, float, const float *>(const T2 *, const T3 *, T4 *, unsigned int, unsigned int, unsigned int, uint3, uint3, uint3, uint3, uint3, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, T5...)",
+        "grid": [
+          15,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 20,
+        "shared": 0,
+        "count": 784,
+        "sum_ms_per_step": 0.1619688750014757
+      },
+      {
+        "name": "void fwht_cuda<(int)256, float>(const T2 *, float *, long, float)",
+        "grid": [
+          4,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 22,
+        "shared": 0,
+        "count": 640,
+        "sum_ms_per_step": 0.10309218750009314
+      },
+      {
+        "name": "void fwht_cuda<(int)256, float>(const T2 *, float *, long, float)",
+        "grid": [
+          2,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 22,
+        "shared": 0,
+        "count": 640,
+        "sum_ms_per_step": 0.09713662500021747
+      },
+      {
+        "name": "void rms_norm_mul_rope_f32<(int)256, (bool)0, float>(const float *, T3 *, int, int, int, long, long, long, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, int, const int *, float, float, float, rope_corr_dims, float, const float *, const long *, int, bool)",
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 128,
+        "count": 640,
+        "sum_ms_per_step": 0.09209043749939883
+      },
+      {
+        "name": "void rms_norm_mul_rope_f32<(int)256, (bool)0, float>(const float *, T3 *, int, int, int, long, long, long, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, int, const int *, float, float, float, rope_corr_dims, float, const float *, const long *, int, bool)",
+        "grid": [
+          8,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 128,
+        "count": 640,
+        "sum_ms_per_step": 0.08003487500018673
+      },
+      {
+        "name": "quantize_q8_1(const float *, void *, long, long, long, long, long, unsigned int, uint3)",
+        "grid": [
+          60,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 24,
+        "shared": 0,
+        "count": 768,
+        "sum_ms_per_step": 0.06578668749978533
+      },
+      {
+        "name": "void flash_attn_stream_k_fixup_uniform<(int)512, (int)1, (int)8>(float *, const float2 *, int, int, int, int, int, int, uint3, uint3, uint3)",
+        "grid": [
+          2,
+          1,
+          8
+        ],
+        "block": [
+          512,
+          1,
+          1
+        ],
+        "registers": 38,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.04819974999997066
+      },
+      {
+        "name": "void fwht_cuda<(int)64, float>(const T2 *, float *, long, float)",
+        "grid": [
+          32,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.04768975000083447
+      },
+      {
+        "name": "void rms_norm_f32<float, (int)128, (int)1, (bool)1, (bool)0, (bool)0, (bool)0, float>(const T1 *, T1 *, int, int, int, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, const T8 *, long, long, long, uint3, uint3, uint3, uint3, float)",
+        "grid": [
+          8,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 30,
+        "shared": 128,
+        "count": 640,
+        "sum_ms_per_step": 0.04658531249978114
+      },
+      {
+        "name": "void mul_mat_vec_q<(ggml_type)8, (int)1, (bool)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mm_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 48,
+        "shared": 384,
+        "count": 128,
+        "sum_ms_per_step": 0.04341893749951851
+      },
+      {
+        "name": "void fwht_cuda<(int)64, float>(const T2 *, float *, long, float)",
+        "grid": [
+          8,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 640,
+        "sum_ms_per_step": 0.035461437500140164
+      },
+      {
+        "name": "void fwht_cuda<(int)512, float>(const T2 *, float *, long, float)",
+        "grid": [
+          4,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 38,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.02616318750049686
+      },
+      {
+        "name": "void fwht_cuda<(int)512, float>(const T2 *, float *, long, float)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 38,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.02201162499963539
+      },
+      {
+        "name": "void rms_norm_mul_rope_f32<(int)256, (bool)1, float>(const float *, T3 *, int, int, int, long, long, long, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, int, const int *, float, float, float, rope_corr_dims, float, const float *, const long *, int, bool)",
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 128,
+        "count": 128,
+        "sum_ms_per_step": 0.020111937500478235
+      },
+      {
+        "name": "void rms_norm_mul_rope_f32<(int)256, (bool)1, float>(const float *, T3 *, int, int, int, long, long, long, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, int, const int *, float, float, float, rope_corr_dims, float, const float *, const long *, int, bool)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 128,
+        "count": 128,
+        "sum_ms_per_step": 0.017881687499757392
+      },
+      {
+        "name": "void rms_norm_f32<float, (int)128, (int)1, (bool)1, (bool)0, (bool)0, (bool)0, float>(const T1 *, T1 *, int, int, int, long, long, long, float, const float *, long, long, long, uint3, uint3, uint3, uint3, const T8 *, long, long, long, uint3, uint3, uint3, uint3, float)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 30,
+        "shared": 128,
+        "count": 128,
+        "sum_ms_per_step": 0.009625749999948311
+      },
+      {
+        "name": "quantize_q8_1(const float *, void *, long, long, long, long, long, unsigned int, uint3)",
+        "grid": [
+          32,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 24,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.009355750000453553
+      },
+      {
+        "name": "void fwht_cuda<(int)64, float>(const T2 *, float *, long, float)",
+        "grid": [
+          2,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.006037874999572523
+      },
+      {
+        "name": "void k_get_rows_float<float, float>(const T1 *, const int *, T2 *, long, long, uint3, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long)",
+        "grid": [
+          1,
+          15,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 0,
+        "count": 32,
+        "sum_ms_per_step": 0.005771937499986961
+      },
+      {
+        "name": "void k_bin_bcast<&op_add, float, float, float, const float *>(const T2 *, const T3 *, T4 *, unsigned int, unsigned int, unsigned int, uint3, uint3, uint3, uint3, uint3, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, T5...)",
+        "grid": [
+          15,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 20,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.003947937499848194
+      },
+      {
+        "name": "softcap_f32(const float *, float *, float, float, int)",
+        "grid": [
+          1024,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.003359937499917578
+      },
+      {
+        "name": "void k_get_rows_float<__nv_bfloat16, float>(const T1 *, const int *, T2 *, long, long, uint3, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long)",
+        "grid": [
+          1,
+          15,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.0016699999999837019
+      }
+    ],
+    "decode_index_start_zero_based": 30,
+    "graph_partition_counts": {
+      "20": 4112,
+      "23": 4112,
+      "26": 4112,
+      "29": 4064,
+      "32": 4128,
+      "35": 1104
+    },
+    "selected_correlations": [
+      235309,
+      235310,
+      235311,
+      235312,
+      235313,
+      235314,
+      235364,
+      235365,
+      235366,
+      235367,
+      235368,
+      235369,
+      235419,
+      235420,
+      235421,
+      235422,
+      235423,
+      235424,
+      235474,
+      235475,
+      235476,
+      235477,
+      235478,
+      235479,
+      235529,
+      235530,
+      235531,
+      235532,
+      235533,
+      235534,
+      235584,
+      235585,
+      235586,
+      235587,
+      235588,
+      235589,
+      235639,
+      235640,
+      235641,
+      235642,
+      235643,
+      235644,
+      235694,
+      235695,
+      235696,
+      235697,
+      235698,
+      235699,
+      235749,
+      235750,
+      235751,
+      235752,
+      235753,
+      235754,
+      235804,
+      235805,
+      235806,
+      235807,
+      235808,
+      235809,
+      235859,
+      235860,
+      235861,
+      235862,
+      235863,
+      235864,
+      235914,
+      235915,
+      235916,
+      235917,
+      235918,
+      235919,
+      235969,
+      235970,
+      235971,
+      235972,
+      235973,
+      235974,
+      236024,
+      236025,
+      236026,
+      236027,
+      236028,
+      236029,
+      236079,
+      236080,
+      236081,
+      236082,
+      236083,
+      236084,
+      236134,
+      236135,
+      236136,
+      236137,
+      236138,
+      236139
+    ]
+  },
+  "vllm": {
+    "steps": 16,
+    "window_start_us": 4060968142278.874,
+    "window_end_us": 4060968421432.766,
+    "span_ms_per_step": 17.447118255615234,
+    "kernel_union_ms_per_step": 17.24051989746094,
+    "all_gpu_activity_union_ms_per_step": 17.2423981628418,
+    "summed_kernel_ms_per_step": 17.32533966064453,
+    "api_timing_note": "Host API durations overlap GPU work and must not be added to device costs. Profiler drain synchronization is diagnostic only.",
+    "non_kernel_interval_ms_per_step": 0.20659835815429686,
+    "kernel_count": 12689,
+    "kernels_per_step": 793.0625,
+    "families": {
+      "BF16 head GEMV": {
+        "count": 16,
+        "count_per_step": 1.0,
+        "sum_ms_per_step": 2.7346669921875
+      },
+      "FFN GELU/quant": {
+        "count": 768,
+        "count_per_step": 48.0,
+        "sum_ms_per_step": 0.08668569946289062
+      },
+      "FP8 QKV/O": {
+        "count": 1536,
+        "count_per_step": 96.0,
+        "sum_ms_per_step": 3.9989613342285155
+      },
+      "KV write": {
+        "count": 768,
+        "count_per_step": 48.0,
+        "sum_ms_per_step": 0.08501242065429687
+      },
+      "NVFP4 GateUp/Down": {
+        "count": 1536,
+        "count_per_step": 96.0,
+        "sum_ms_per_step": 7.170549926757812
+      },
+      "attention": {
+        "count": 1536,
+        "count_per_step": 96.0,
+        "sum_ms_per_step": 2.1812814331054686
+      },
+      "metadata/sampling/other": {
+        "count": 369,
+        "count_per_step": 23.0625,
+        "sum_ms_per_step": 0.05419851684570313
+      },
+      "norm/quant/rotary/embedding": {
+        "count": 6160,
+        "count_per_step": 385.0,
+        "sum_ms_per_step": 1.0139833374023437
+      }
+    },
+    "copies": {
+      "count": 65,
+      "bytes": 468,
+      "sum_ms_per_step": 0.002746185302734375
+    },
+    "apis": {
+      "cudaLaunchKernel": {
+        "count": 240,
+        "sum_ms": 1.57156494140625
+      },
+      "cudaPointerGetAttributes": {
+        "count": 32,
+        "sum_ms": 0.171533203125
+      },
+      "cudaEventQuery": {
+        "count": 126,
+        "sum_ms": 0.187783203125
+      },
+      "cudaStreamIsCapturing": {
+        "count": 178,
+        "sum_ms": 0.0837822265625
+      },
+      "cudaMemcpyAsync": {
+        "count": 65,
+        "sum_ms": 0.6280126953125
+      },
+      "cudaEventRecordWithFlags": {
+        "count": 97,
+        "sum_ms": 0.19557666015625
+      },
+      "cudaGraphLaunch": {
+        "count": 16,
+        "sum_ms": 10.62228466796875
+      },
+      "cudaStreamWaitEvent": {
+        "count": 16,
+        "sum_ms": 0.0417294921875
+      },
+      "cudaEventSynchronize": {
+        "count": 16,
+        "sum_ms": 212.10804248046875
+      },
+      "cudaDeviceSynchronize": {
+        "count": 1,
+        "sum_ms": 16.9352841796875
+      }
+    },
+    "dispatches": [
+      {
+        "name": "_ZN7cutlass13device_kernelINS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS1_10collective13CollectiveMmaINS1_42MainloopSm120TmaWarpSpecializedBlockScaledILi7ELi3ENS5_IJNS4_1CILi1EEESB_SB_EEENS1_51KernelTmaWarpSpecializedCooperativeBlockScaledSm120ILi3EEEEENS5_IJNSA_ILi128EEENSA_ILi32EEESG_EEENS5_IJNS_12float_e2m1_tENS_13float_ue4m3_tEEEENS5_IJNS5_IJlSB_lEEENS4_6LayoutINS5_IJNS5_IJNS5_IJSH_NSA_ILi4EEEEEEiEEENS5_IJNS5_IJNSA_ILi16EEESO_EEEiEEENS5_IJSB_iEEEEEENS5_IJST_NS5_IJNS5_IJNSA_ILi0EEESB_EEENSA_ILi512EEEEEENS5_IJSW_iEEEEEEEEEEESL_S13_NS4_8TiledMMAINS4_8MMA_AtomIJNS4_5SM12011BLOCKSCALED19SM120_16x8x64_TN_VSISJ_SJ_fSK_Li16EEEEEENSN_INS5_IJSO_NSA_ILi2EEESB_EEENS5_IJSB_SO_SW_EEEEENS5_IJSG_NSN_INS5_IJNSA_ILi8EEES1B_S1B_EEENS5_IJSB_SR_S1F_EEEEENSA_ILi64EEEEEEEENS5_IJNS4_13SM90_TMA_LOADES1M_EEENS5_IJNS4_14ComposedLayoutINS4_7SwizzleILi2ELi4ELi3EEENS4_18smem_ptr_flag_bitsILi4EEENSN_INS5_IJS1F_SG_EEENS5_IJSG_SB_EEEEEEENSN_INS5_IJNS5_IJSP_SB_EEENS5_IJSS_SB_S1B_EEEEEENS5_IJNS5_IJSS_SY_EEENS5_IJSX_SO_SY_EEEEEEEEEEENS5_IJNS4_9Copy_AtomIJNS4_17SM75_U32x4_LDSM_NENS_15integer_subbyteILi4ELb0EEEEEENS25_IJNS4_13UniversalCopyISK_SK_EESK_EEEEEENS4_8identityES1N_S24_S2D_S2E_EENS_8epilogue10collective18CollectiveEpilogueINS2G_22Sm90TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEEJSI_NS5_IJS1J_SH_EEEvNS5_IJSB_llEEENS_10bfloat16_tES2M_NS2G_6fusion15FusionCallbacksINS2G_23Sm120TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEENS2O_17LinearCombinationIS2N_fvfLNS_15FloatRoundStyleE2EEESI_S2L_JEEES1M_NS1O_INS1P_ILi3ELi4ELi3EEENS1R_ILi16EEENSN_INS5_IJS1J_S1F_EEENS5_IJSB_S1J_EEEEEEENS4_17SM75_U16x4_LDSM_TENS4_14SM90_TMA_STOREES31_NS4_17SM90_U16x4_STSM_TENS25_IJNS4_17SM90_U32x2_STSM_NENS_6half_tEEEEvEEENS1_16StreamKSchedulerEvEEEEvNT_6ParamsE",
+        "grid": [
+          240,
+          1,
+          1
+        ],
+        "block": [
+          384,
+          1,
+          1
+        ],
+        "registers": 168,
+        "shared": 96256,
+        "count": 768,
+        "sum_ms_per_step": 4.68108871459961
+      },
+      {
+        "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, false, true, true, false, 7, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>)",
+        "grid": [
+          32768,
+          1,
+          1
+        ],
+        "block": [
+          16,
+          8,
+          1
+        ],
+        "registers": 164,
+        "shared": 544,
+        "count": 16,
+        "sum_ms_per_step": 2.7346669921875
+      },
+      {
+        "name": "_ZN7cutlass13device_kernelINS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS1_10collective13CollectiveMmaINS1_42MainloopSm120TmaWarpSpecializedBlockScaledILi3ELi3ENS5_IJNS4_1CILi1EEESB_SB_EEENS1_51KernelTmaWarpSpecializedCooperativeBlockScaledSm120ILi3EEEEENS5_IJNSA_ILi128EEENSA_ILi64EEENSA_ILi256EEEEEENS5_IJNS_12float_e2m1_tENS_13float_ue4m3_tEEEENS5_IJNS5_IJlSB_lEEENS4_6LayoutINS5_IJNS5_IJNS5_IJNSA_ILi32EEENSA_ILi4EEEEEEiEEENS5_IJNS5_IJNSA_ILi16EEESQ_EEEiEEENS5_IJSB_iEEEEEENS5_IJSV_NS5_IJNS5_IJNSA_ILi0EEESB_EEENSA_ILi512EEEEEENS5_IJSY_iEEEEEEEEEEESM_S15_NS4_8TiledMMAINS4_8MMA_AtomIJNS4_5SM12011BLOCKSCALED19SM120_16x8x64_TN_VSISK_SK_fSL_Li16EEEEEENSO_INS5_IJSQ_NSA_ILi2EEESB_EEENS5_IJSB_SQ_SY_EEEEENS5_IJSG_NSO_INS5_IJNSA_ILi8EEES1D_S1D_EEENS5_IJSB_ST_S1H_EEEEESH_EEEEENS5_IJNS4_13SM90_TMA_LOADES1N_EEENS5_IJNS4_14ComposedLayoutINS4_7SwizzleILi3ELi4ELi3EEENS4_18smem_ptr_flag_bitsILi4EEENSO_INS5_IJS1H_SI_EEENS5_IJSI_SB_EEEEEEENSO_INS5_IJNS5_IJSR_SB_EEENS5_IJSU_SB_SQ_EEEEEENS5_IJNS5_IJSU_S10_EEENS5_IJSZ_SQ_S10_EEEEEEEEEEENS5_IJNS4_9Copy_AtomIJNS4_17SM75_U32x4_LDSM_NENS_15integer_subbyteILi4ELb0EEEEEENS26_IJNS4_13UniversalCopyISL_SL_EESL_EEEEEENS4_8identityES1O_S25_S2E_S2F_EENS_8epilogue10collective18CollectiveEpilogueINS2H_22Sm90TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEEJSJ_NS5_IJSH_SP_EEEvNS5_IJSB_llEEENS_10bfloat16_tES2N_NS2H_6fusion15FusionCallbacksINS2H_23Sm120TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEENS2P_17LinearCombinationIS2O_fvfLNS_15FloatRoundStyleE2EEESJ_S2M_JEEES1N_NS1P_IS1R_NS1S_ILi16EEENSO_INS5_IJSH_S1H_EEENS5_IJSB_SH_EEEEEEENS4_17SM75_U16x4_LDSM_TENS4_14SM90_TMA_STOREES31_NS4_17SM90_U16x4_STSM_TENS26_IJNS4_17SM90_U32x2_STSM_NENS_6half_tEEEEvEEENS1_16StreamKSchedulerEvEEEEvNT_6ParamsE",
+        "grid": [
+          30,
+          1,
+          1
+        ],
+        "block": [
+          384,
+          1,
+          1
+        ],
+        "registers": 168,
+        "shared": 96256,
+        "count": 768,
+        "sum_ms_per_step": 2.489461212158203
+      },
+      {
+        "name": "_ZN7cutlass13device_kernelI19enable_sm120_familyINS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS2_10collective13CollectiveMmaINS2_31MainloopSm120TmaWarpSpecializedILi9ELi2ENS6_IJNS5_1CILi1EEESC_SC_EEENS2_37KernelTmaWarpSpecializedPingpongSm120ILi2EEEEENS6_IJNSB_ILi16EEENSB_ILi64EEENSB_ILi128EEEEEENS_12float_e4m3_tENS6_IJlSC_lEEESL_SM_NS5_8TiledMMAINS5_8MMA_AtomIJNS5_16SM120_16x8x32_TNISL_SL_fEEEEENS5_6LayoutINS6_IJNSB_ILi2EEEST_SC_EEENS6_IJSC_ST_NSB_ILi0EEEEEEEENS6_IJSH_NSB_ILi32EEESY_EEEEENS5_13SM90_TMA_LOADENS5_14ComposedLayoutINS5_7SwizzleILi3ELi4ELi3EEENS5_18smem_ptr_flag_bitsILi8EEENSS_INS6_IJNSB_ILi8EEESJ_EEENS6_IJSJ_SC_EEEEEEENS5_9Copy_AtomIJNS5_17SM75_U32x4_LDSM_NEhEEENS5_8identityES11_S1B_S1E_S1F_EENS_8epilogue10collective18CollectiveEpilogueINS1H_22Sm90TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEEJSK_NS6_IJSH_SY_EEEvSM_NS_10bfloat16_tESM_NS1H_6fusion15Sm90TreeVisitorINS1O_11Sm90ComputeINS_10multipliesES1N_fLNS_15FloatRoundStyleE2EvEEJNS1O_24Sm90ColOrScalarBroadcastILi0ESK_fNS6_IJSC_SV_SV_EEELi4EEENS1P_INS1Q_IS1R_ffLS1S_2EvEEJNS1O_24Sm90RowOrScalarBroadcastILi0ESK_fNS6_IJSV_SC_SV_EEELi4EEENS1O_12Sm90AccFetchEEEEEEES11_NS12_INS13_ILi2ELi4ELi3EEENS15_ILi16EEENSS_INS6_IJS17_SY_EEENS6_IJSY_SC_EEEEEEENS5_17SM75_U32x2_LDSM_NENS5_14SM90_TMA_STOREES29_NS5_17SM90_U32x2_STSM_NENS1C_IJS2C_NS_6half_tEEEEvEEEvvEEEEEvNT_6ParamsE",
+        "grid": [
+          1,
+          128,
+          1
+        ],
+        "block": [
+          384,
+          1,
+          1
+        ],
+        "registers": 168,
+        "shared": 96256,
+        "count": 640,
+        "sum_ms_per_step": 2.1052913818359373
+      },
+      {
+        "name": "kernel_unified_attention",
+        "grid": [
+          1,
+          8,
+          16
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 192,
+        "shared": 29440,
+        "count": 640,
+        "sum_ms_per_step": 1.4670492553710937
+      },
+      {
+        "name": "_ZN7cutlass13device_kernelI19enable_sm120_familyINS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS2_10collective13CollectiveMmaINS2_31MainloopSm120TmaWarpSpecializedILi9ELi2ENS6_IJNS5_1CILi1EEESC_SC_EEENS2_37KernelTmaWarpSpecializedPingpongSm120ILi2EEEEENS6_IJNSB_ILi16EEENSB_ILi64EEENSB_ILi128EEEEEENS_12float_e4m3_tENS6_IJlSC_lEEESL_SM_NS5_8TiledMMAINS5_8MMA_AtomIJNS5_16SM120_16x8x32_TNISL_SL_fEEEEENS5_6LayoutINS6_IJNSB_ILi2EEEST_SC_EEENS6_IJSC_ST_NSB_ILi0EEEEEEEENS6_IJSH_NSB_ILi32EEESY_EEEEENS5_13SM90_TMA_LOADENS5_14ComposedLayoutINS5_7SwizzleILi3ELi4ELi3EEENS5_18smem_ptr_flag_bitsILi8EEENSS_INS6_IJNSB_ILi8EEESJ_EEENS6_IJSJ_SC_EEEEEEENS5_9Copy_AtomIJNS5_17SM75_U32x4_LDSM_NEhEEENS5_8identityES11_S1B_S1E_S1F_EENS_8epilogue10collective18CollectiveEpilogueINS1H_22Sm90TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEEJSK_NS6_IJSH_SY_EEEvSM_NS_10bfloat16_tESM_NS1H_6fusion15Sm90TreeVisitorINS1O_11Sm90ComputeINS_10multipliesES1N_fLNS_15FloatRoundStyleE2EvEEJNS1O_24Sm90ColOrScalarBroadcastILi0ESK_fNS6_IJSC_SV_SV_EEELi4EEENS1P_INS1Q_IS1R_ffLS1S_2EvEEJNS1O_24Sm90RowOrScalarBroadcastILi0ESK_fNS6_IJSV_SC_SV_EEELi4EEENS1O_12Sm90AccFetchEEEEEEES11_NS12_INS13_ILi2ELi4ELi3EEENS15_ILi16EEENSS_INS6_IJS17_SY_EEENS6_IJSY_SC_EEEEEEENS5_17SM75_U32x2_LDSM_NENS5_14SM90_TMA_STOREES29_NS5_17SM90_U32x2_STSM_NENS1C_IJS2C_NS_6half_tEEEEvEEEvvEEEEEvNT_6ParamsE",
+        "grid": [
+          1,
+          60,
+          1
+        ],
+        "block": [
+          384,
+          1,
+          1
+        ],
+        "registers": 168,
+        "shared": 96256,
+        "count": 768,
+        "sum_ms_per_step": 1.4604627990722656
+      },
+      {
+        "name": "kernel_unified_attention",
+        "grid": [
+          2,
+          1,
+          16
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 254,
+        "shared": 41728,
+        "count": 128,
+        "sum_ms_per_step": 0.6058678894042969
+      },
+      {
+        "name": "_ZN7cutlass13device_kernelI19enable_sm120_familyINS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS2_10collective13CollectiveMmaINS2_31MainloopSm120TmaWarpSpecializedILi9ELi2ENS6_IJNS5_1CILi1EEESC_SC_EEENS2_37KernelTmaWarpSpecializedPingpongSm120ILi2EEEEENS6_IJNSB_ILi16EEENSB_ILi64EEENSB_ILi128EEEEEENS_12float_e4m3_tENS6_IJlSC_lEEESL_SM_NS5_8TiledMMAINS5_8MMA_AtomIJNS5_16SM120_16x8x32_TNISL_SL_fEEEEENS5_6LayoutINS6_IJNSB_ILi2EEEST_SC_EEENS6_IJSC_ST_NSB_ILi0EEEEEEEENS6_IJSH_NSB_ILi32EEESY_EEEEENS5_13SM90_TMA_LOADENS5_14ComposedLayoutINS5_7SwizzleILi3ELi4ELi3EEENS5_18smem_ptr_flag_bitsILi8EEENSS_INS6_IJNSB_ILi8EEESJ_EEENS6_IJSJ_SC_EEEEEEENS5_9Copy_AtomIJNS5_17SM75_U32x4_LDSM_NEhEEENS5_8identityES11_S1B_S1E_S1F_EENS_8epilogue10collective18CollectiveEpilogueINS1H_22Sm90TmaWarpSpecializedILi2ELi2ELi4ELb0ELb1EEEJSK_NS6_IJSH_SY_EEEvSM_NS_10bfloat16_tESM_NS1H_6fusion15Sm90TreeVisitorINS1O_11Sm90ComputeINS_10multipliesES1N_fLNS_15FloatRoundStyleE2EvEEJNS1O_24Sm90ColOrScalarBroadcastILi0ESK_fNS6_IJSC_SV_SV_EEELi4EEENS1P_INS1Q_IS1R_ffLS1S_2EvEEJNS1O_24Sm90RowOrScalarBroadcastILi0ESK_fNS6_IJSV_SC_SV_EEELi4EEENS1O_12Sm90AccFetchEEEEEEES11_NS12_INS13_ILi2ELi4ELi3EEENS15_ILi16EEENSS_INS6_IJS17_SY_EEENS6_IJSY_SC_EEEEEEENS5_17SM75_U32x2_LDSM_NENS5_14SM90_TMA_STOREES29_NS5_17SM90_U32x2_STSM_NENS1C_IJS2C_NS_6half_tEEEEvEEEvvEEEEEvNT_6ParamsE",
+        "grid": [
+          1,
+          144,
+          1
+        ],
+        "block": [
+          384,
+          1,
+          1
+        ],
+        "registers": 168,
+        "shared": 96256,
+        "count": 128,
+        "sum_ms_per_step": 0.4332071533203125
+      },
+      {
+        "name": "triton_red_fused__to_copy_abs_add_amax_clamp_cutlass_scaled_mm_div_mul_reciprocal_rms_norm_unsqueeze_3",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 32,
+        "count": 752,
+        "sum_ms_per_step": 0.23289846801757813
+      },
+      {
+        "name": "triton_red_fused_add_rms_norm_scaled_fp4_quant_1",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 32,
+        "count": 768,
+        "sum_ms_per_step": 0.21078094482421875
+      },
+      {
+        "name": "void vllm::cvt_fp16_to_fp4<__nv_bfloat16, false, false>(int, int, int, int, __nv_bfloat16 const*, float const*, unsigned int*, unsigned int*)",
+        "grid": [
+          90,
+          2,
+          1
+        ],
+        "block": [
+          512,
+          1,
+          1
+        ],
+        "registers": 34,
+        "shared": 0,
+        "count": 768,
+        "sum_ms_per_step": 0.11655996704101562
+      },
+      {
+        "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_split_with_sizes_sub_unsqueeze_view_4",
+        "grid": [
+          4,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          1,
+          1
+        ],
+        "registers": 168,
+        "shared": 0,
+        "count": 624,
+        "sum_ms_per_step": 0.09702853393554688
+      },
+      {
+        "name": "triton_per_fused_add_cat_index_select_mul_rms_norm_split_split_with_sizes_sub_unsqueeze_view_5",
+        "grid": [
+          2,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          1,
+          1
+        ],
+        "registers": 168,
+        "shared": 0,
+        "count": 624,
+        "sum_ms_per_step": 0.09678701782226562
+      },
+      {
+        "name": "triton_poi_fused_gelu_mul_scaled_fp4_quant_slice_2",
+        "grid": [
+          15,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 0,
+        "count": 768,
+        "sum_ms_per_step": 0.08668569946289062
+      },
+      {
+        "name": "reduce_segments",
+        "grid": [
+          1,
+          16,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 48,
+        "shared": 2048,
+        "count": 640,
+        "sum_ms_per_step": 0.08652847290039062
+      },
+      {
+        "name": "reshape_and_cache_kernel_flash",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          512,
+          1,
+          1
+        ],
+        "registers": 18,
+        "shared": 0,
+        "count": 768,
+        "sum_ms_per_step": 0.08501242065429687
+      },
+      {
+        "name": "void vllm::cvt_fp16_to_fp4<__nv_bfloat16, false, false>(int, int, int, int, __nv_bfloat16 const*, float const*, unsigned int*, unsigned int*)",
+        "grid": [
+          128,
+          1,
+          1
+        ],
+        "block": [
+          240,
+          1,
+          1
+        ],
+        "registers": 34,
+        "shared": 0,
+        "count": 768,
+        "sum_ms_per_step": 0.08315704345703125
+      },
+      {
+        "name": "triton_red_fused__to_copy_abs_amax_clamp_cutlass_scaled_mm_div_mul_reciprocal_unsqueeze_view_0",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 23,
+        "shared": 32,
+        "count": 640,
+        "sum_ms_per_step": 0.05451358032226562
+      },
+      {
+        "name": "triton_per_fused_rms_norm_split_with_sizes_view_6",
+        "grid": [
+          2,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          1,
+          1
+        ],
+        "registers": 52,
+        "shared": 0,
+        "count": 624,
+        "sum_ms_per_step": 0.043523101806640624
+      },
+      {
+        "name": "reduce_segments",
+        "grid": [
+          1,
+          16,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 64,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.0218358154296875
+      },
+      {
+        "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_split_with_sizes_sub_unsqueeze_view_4",
+        "grid": [
+          8,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          1,
+          1
+        ],
+        "registers": 168,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.0211697998046875
+      },
+      {
+        "name": "triton_per_fused_add_cat_index_select_mul_rms_norm_split_split_with_sizes_sub_unsqueeze_view_5",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          1,
+          1
+        ],
+        "registers": 125,
+        "shared": 4096,
+        "count": 128,
+        "sum_ms_per_step": 0.0176617431640625
+      },
+      {
+        "name": "triton_red_fused__to_copy_abs_amax_clamp_cutlass_scaled_mm_div_mul_reciprocal_unsqueeze_view_0",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 25,
+        "shared": 32,
+        "count": 128,
+        "sum_ms_per_step": 0.013953399658203126
+      },
+      {
+        "name": "triton_per_fused_rms_norm_split_with_sizes_view_6",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          1,
+          1
+        ],
+        "registers": 53,
+        "shared": 0,
+        "count": 128,
+        "sum_ms_per_step": 0.00870611572265625
+      },
+      {
+        "name": "_gumbel_sample_kernel",
+        "grid": [
+          1,
+          256,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 32,
+        "count": 16,
+        "sum_ms_per_step": 0.0060458984375
+      },
+      {
+        "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+        "grid": [
+          8,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 48,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.005805938720703125
+      },
+      {
+        "name": "triton_red_fused_add_mul_rms_norm_3",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 36,
+        "shared": 32,
+        "count": 16,
+        "sum_ms_per_step": 0.00554180908203125
+      },
+      {
+        "name": "triton_red_fused__to_copy_abs_amax_clamp_cutlass_scaled_mm_div_embedding_mul_reciprocal_rms_norm_unsqueeze_0",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 37,
+        "shared": 32,
+        "count": 16,
+        "sum_ms_per_step": 0.00486395263671875
+      },
+      {
+        "name": "_bad_words_kernel",
+        "grid": [
+          1,
+          5,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 22,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.003839935302734375
+      },
+      {
+        "name": "_gather_block_tables_kernel",
+        "grid": [
+          6,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 36,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.003729736328125
+      },
+      {
+        "name": "_post_update_kernel",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          1,
+          1
+        ],
+        "registers": 30,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.003187896728515625
+      },
+      {
+        "name": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::ArgMaxOps<float>, unsigned int, long, 4, 4> >(at::native::ReduceOp<float, at::native::ArgMaxOps<float>, unsigned int, long, 4, 4>)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          64,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 1040,
+        "count": 16,
+        "sum_ms_per_step": 0.003072052001953125
+      },
+      {
+        "name": "triton_per_fused__to_copy_add_cat_clamp_index_select_mul_reciprocal_rms_norm_split_split_with_sizes_sub_unsqueeze_view_1",
+        "grid": [
+          4,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          1,
+          1
+        ],
+        "registers": 168,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.002903717041015625
+      },
+      {
+        "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 31,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.002817840576171875
+      },
+      {
+        "name": "triton_per_fused_add_cat_index_select_mul_rms_norm_split_split_with_sizes_sub_unsqueeze_view_2",
+        "grid": [
+          2,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          1,
+          1
+        ],
+        "registers": 168,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.002704132080078125
+      },
+      {
+        "name": "_compute_slot_mappings_kernel",
+        "grid": [
+          6,
+          2,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 56,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.002562103271484375
+      },
+      {
+        "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 48,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.002489837646484375
+      },
+      {
+        "name": "_combine_sampled_and_draft_tokens_kernel",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 18,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.002355682373046875
+      },
+      {
+        "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 48,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.002340179443359375
+      },
+      {
+        "name": "_get_num_sampled_and_rejected_kernel",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.002149871826171875
+      },
+      {
+        "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul>, false>(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 32,
+        "sum_ms_per_step": 0.001946044921875
+      },
+      {
+        "name": "void at::native::_scatter_gather_elementwise_kernel<128, 8, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<8>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<8>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1})",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 28,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.001786102294921875
+      },
+      {
+        "name": "void at::native::vectorized_elementwise_kernel<4, at::native::tanh_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>, false>(int, at::native::tanh_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)",
+        "grid": [
+          256,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 38,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.00153790283203125
+      },
+      {
+        "name": "void at::native::index_elementwise_kernel<128, 4, at::native::index_fill_kernel_impl<at::native::OpaqueType<2> >(at::TensorIterator&, long, long, long, at::native::OpaqueType<2>)::{lambda(int)#1}>(long, at::native::index_fill_kernel_impl<at::native::OpaqueType<2> >(at::TensorIterator&, long, long, long, at::native::OpaqueType<2>)::{lambda(int)#1})",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 28,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.001535980224609375
+      },
+      {
+        "name": "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>, false>(int, at::native::AUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>)",
+        "grid": [
+          256,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.001275848388671875
+      },
+      {
+        "name": "void at::native::vectorized_elementwise_kernel<4, at::native::BUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>, false>(int, at::native::BUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>)",
+        "grid": [
+          256,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 40,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.001273895263671875
+      },
+      {
+        "name": "triton_per_fused_rms_norm_split_with_sizes_view_3",
+        "grid": [
+          2,
+          1,
+          1
+        ],
+        "block": [
+          32,
+          1,
+          1
+        ],
+        "registers": 52,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.001230010986328125
+      },
+      {
+        "name": "_prepare_pos_seq_lens_kernel",
+        "grid": [
+          2,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 29,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.00119580078125
+      },
+      {
+        "name": "memcpy32_post",
+        "grid": [
+          8,
+          1,
+          1
+        ],
+        "block": [
+          256,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.00111798095703125
+      },
+      {
+        "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<bool>, std::array<char*, 1ul>, false>(int, at::native::FillFunctor<bool>, std::array<char*, 1ul>)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.0010040283203125
+      },
+      {
+        "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)",
+        "grid": [
+          1,
+          1,
+          1
+        ],
+        "block": [
+          64,
+          1,
+          1
+        ],
+        "registers": 16,
+        "shared": 0,
+        "count": 16,
+        "sum_ms_per_step": 0.000939971923828125
+      },
+      {
+        "name": "_apply_write_kernel",
+        "grid": [
+          5,
+          1,
+          1
+        ],
+        "block": [
+          128,
+          1,
+          1
+        ],
+        "registers": 30,
+        "shared": 0,
+        "count": 1,
+        "sum_ms_per_step": 0.00018798828125
+      }
+    ],
+    "sequence_lengths": [
+      16415,
+      16416,
+      16417,
+      16418,
+      16419,
+      16420,
+      16421,
+      16422,
+      16423,
+      16424,
+      16425,
+      16426,
+      16427,
+      16428,
+      16429,
+      16430
+    ],
+    "graph_counts": {
+      "0": 369,
+      "593": 12320
+    }
+  }
+}

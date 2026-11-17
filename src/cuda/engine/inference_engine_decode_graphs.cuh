@@ -196,9 +196,12 @@
     float* k_norm = Pointer<float>(workspace_, offsets_.k_norm);
     float* v_norm = Pointer<float>(workspace_, offsets_.v_norm);
 
-    Status status = internal::LaunchRmsNormFp8TokenQuantizationBatch(
-        hidden_a, layer.input_norm, fp8_activation, fp8_scale, 1U, kHidden,
-        kEpsilon, stream_);
+    Status status = ordinary_norms_
+        ? internal::LaunchTwelveBOrdinaryInputNormFp8(
+              hidden_a, layer.input_norm, fp8_activation, fp8_scale, stream_)
+        : internal::LaunchRmsNormFp8TokenQuantizationBatch(
+              hidden_a, layer.input_norm, fp8_activation, fp8_scale, 1U,
+              kHidden, kEpsilon, stream_);
     if (!status.ok()) return status;
     status = LaunchFp8QkvProjection(
         fp8_activation, fp8_scale, layer.q, q, layer.k, k,
@@ -273,8 +276,11 @@
                             label);
     };
 
-    Status status = LaunchRoundBf16(attention, layer.query_elements, stream_);
-    if (!status.ok()) return status;
+    Status status = Status::Ok();
+    if (!ordinary_norms_ || capture != nullptr) {
+      status = LaunchRoundBf16(attention, layer.query_elements, stream_);
+      if (!status.ok()) return status;
+    }
     if (capture != nullptr) {
       const cudaError_t error = cudaMemcpyAsync(
           host_state + capture->attention_context, attention,
@@ -284,16 +290,24 @@
         return CudaFailure("copy attention context state", error);
       }
     }
-    status = internal::LaunchFp8ReferenceTokenQuantization(
-        attention, o_activation, o_scale, layer.query_elements, stream_);
+    status = ordinary_norms_ && capture == nullptr
+        ? internal::LaunchTwelveBOrdinaryAttentionQuantize(
+              attention, o_activation, o_scale, layer.query_elements, stream_)
+        : internal::LaunchFp8ReferenceTokenQuantization(
+              attention, o_activation, o_scale, layer.query_elements, stream_);
     if (!status.ok()) return status;
     status = LaunchFp8Projection(o_activation, o_scale, layer.o, projection, stream_);
     if (!status.ok()) return status;
     if (capture == nullptr && kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
-      status = internal::LaunchTwelveBPostAttentionNvfp4Boundary(
-          projection, layer.post_attention_norm, hidden_a, post_norm, hidden_b,
-          layer.pre_mlp_norm, mlp_packed, mlp_scales, layer.gate.input_divisor,
-          stream_);
+      status = ordinary_norms_
+          ? internal::LaunchTwelveBOrdinaryPostAttention(
+                projection, layer.post_attention_norm, hidden_a, post_norm,
+                hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales,
+                layer.gate.input_divisor, stream_)
+          : internal::LaunchTwelveBPostAttentionNvfp4Boundary(
+                projection, layer.post_attention_norm, hidden_a, post_norm,
+                hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales,
+                layer.gate.input_divisor, stream_);
       if (!status.ok()) return status;
     } else {
       status = LaunchRoundBf16(projection, kHidden, stream_);
@@ -333,12 +347,21 @@
       }
       if (!status.ok()) return status;
     }
+    const bool overlap = ordinary_overlap_ && capture == nullptr;
+    if (overlap) {
+      status = ordinary_fork_.Begin(stream_);
+      if (!status.ok()) return status;
+    }
     status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.gate, gate,
                                    stream_);
     if (!status.ok()) return status;
     status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.up, up,
-                                   stream_);
+                                   overlap ? ordinary_fork_.stream() : stream_);
     if (!status.ok()) return status;
+    if (overlap) {
+      status = ordinary_fork_.Join(stream_);
+      if (!status.ok()) return status;
+    }
     if (capture == nullptr) {
       status = internal::LaunchGatedGeluNvfp4ActivationQuantization(
           gate, up, down_packed, down_scales, kIntermediate,
@@ -377,9 +400,13 @@
                               "copy MLP output state");
       if (!status.ok()) return status;
     }
-    status = internal::LaunchRmsNormResidualBf16(
-        projection, layer.post_mlp_norm, hidden_b, post_norm, hidden_a, 1U,
-        kHidden, kEpsilon, layer.layer_scalar, stream_);
+    status = ordinary_norms_ && capture == nullptr
+        ? internal::LaunchTwelveBOrdinaryPostMlp(
+              projection, layer.post_mlp_norm, hidden_b, post_norm, hidden_a,
+              layer.layer_scalar, stream_)
+        : internal::LaunchRmsNormResidualBf16(
+              projection, layer.post_mlp_norm, hidden_b, post_norm, hidden_a,
+              1U, kHidden, kEpsilon, layer.layer_scalar, stream_);
     if (!status.ok()) return status;
     if (capture != nullptr) {
       status = capture_hidden(capture->post_feedforward_norm, post_norm,
@@ -507,6 +534,9 @@
   GraphExecutable full_decode_graph_;
   GraphExecutable fixed_mtp_graph_;
   GraphExecutable fixed_mtp_chain_graph_;
+  bool ordinary_norms_ = false;
+  bool ordinary_overlap_ = false;
+  OrdinaryDecodeFork ordinary_fork_;
   cudaStream_t stream_ = nullptr;
   std::uint64_t max_context_ = 0;
   std::uint64_t prefill_chunk_tokens_ = kMinimumPrefillChunkTokens;

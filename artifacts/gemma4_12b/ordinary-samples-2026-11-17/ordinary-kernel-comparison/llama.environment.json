@@ -1,0 +1,6 @@
+{
+  "CUDA_HOME": "/opt/cuda",
+  "MAX_JOBS": "4",
+  "TORCHINDUCTOR_COMPILE_THREADS": "1",
+  "FLASHINFER_NVCC_THREADS": "1"
+}

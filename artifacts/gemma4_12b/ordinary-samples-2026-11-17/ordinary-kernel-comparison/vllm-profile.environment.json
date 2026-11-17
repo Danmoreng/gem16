@@ -1,0 +1,9 @@
+{
+  "CUDA_HOME": "/opt/cuda",
+  "MAX_JOBS": "4",
+  "TORCHINDUCTOR_COMPILE_THREADS": "1",
+  "FLASHINFER_NVCC_THREADS": "1",
+  "GEM16_VLLM_TRACE_DIR": "/tmp/gem16-ordinary-traces-jru_l9hb/vllm-traces",
+  "GEM16_VLLM_TRACE_DELAY": "48",
+  "GEM16_VLLM_TRACE_STEPS": "16"
+}

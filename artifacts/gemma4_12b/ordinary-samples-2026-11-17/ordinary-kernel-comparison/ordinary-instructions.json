@@ -1,0 +1,20 @@
+{
+  "functions": [
+    "__nv_static_29__fdbc63a0_8_sm120_cu_8b4dce3d__ZN5gem168internal40_GLOBAL__N__fdbc63a0_8_sm120_cu_8b4dce3d27Sm120DirectProjectionKernelILb0EEEvPKhPKfNS1_16Fp8MatrixBindingES7_S7_jmm",
+    "__nv_static_29__1d501c29_8_sm120_cu_7b48d55f__ZN5gem168internal40_GLOBAL__N__1d501c29_8_sm120_cu_7b48d55f27Sm120DirectProjectionKernelILb0ELi0EEEvPKhS4_S4_S4_PKjPKNS0_26Gemma4MoePrefillAssignmentES6_jjPfmmmf"
+  ],
+  "sass_sha256": "1b57ba79e1ad86d42ee8d3b12d40d69a261bb9388b281890fa05962471ae035f",
+  "static_instruction_lines": [
+    "/*0610*/                   QMMA.16832.F32.E4M3.E4M3 R24, R20, R32, R24 ;  /* 0x000000201418727a */",
+    "/*06e0*/                   QMMA.16832.F32.E4M3.E4M3 R24, R16, R28, R24 ;  /* 0x0000001c1018727a */",
+    "/*0710*/                   QMMA.16832.F32.E4M3.E4M3 R24, R12, R10, R24 ;  /* 0x0000000a0c18727a */",
+    "/*0770*/                   QMMA.16832.F32.E4M3.E4M3 R24, R20, R32, R24 ;  /* 0x000000201418727a */",
+    "/*09b0*/                   QMMA.16832.F32.E4M3.E4M3 R24, R8, R12, R24 ;   /* 0x0000000c0818727a */",
+    "/*0820*/                   OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X R16, R20, R42, R16, R14, R25, URZ ;  /* 0x71900e2a1410747f */",
+    "/*0890*/                   OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X R24, R24, R38, R16, R41, R0, URZ ;   /* 0x700029261818747f */",
+    "/*0b70*/                   OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X R24, R16, R42, R24, R40, R21, URZ ;  /* 0x7150282a1018747f */",
+    "/*0bb0*/                   OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X R16, R20, R38, R24, R41, R0, URZ ;   /* 0x700029261410747f */",
+    "/*0fb0*/                   OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X R16, R12, R24, R16, R27, R0, URZ ;   /* 0x70001b180c10747f */"
+  ],
+  "binary_sha256": "b979998e11d4ee9016ea35a693de5dac991863bcc3072c2c747e4c54524e2e53"
+}

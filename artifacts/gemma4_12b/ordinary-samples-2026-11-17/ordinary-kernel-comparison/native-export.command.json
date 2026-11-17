@@ -1,0 +1,9 @@
+[
+  "nsys",
+  "export",
+  "--type",
+  "sqlite",
+  "--output",
+  "/tmp/gem16-ordinary-traces-jru_l9hb/native.sqlite",
+  "/tmp/gem16-ordinary-traces-jru_l9hb/native.nsys-rep"
+]
