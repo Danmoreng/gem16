@@ -394,7 +394,7 @@ __device__ __forceinline__ void StageGlobalBf16ValueAsync(
   }
 }
 
-template <int KvHeads, bool kPrepared>
+template <int KvHeads, bool kPrepared, bool kShareQk = false>
 __launch_bounds__(kGlobalThreads, 1) __global__
     void OnlineGlobalAttentionFp8Kernel(
         const float* __restrict__ query,
@@ -406,6 +406,13 @@ __launch_bounds__(kGlobalThreads, 1) __global__
         const std::uint16_t* __restrict__ value_scale_bf16,
         std::uint16_t* __restrict__ output, int start_position, int tokens,
         int cache_capacity) {
+  static_assert(!kShareQk || (KvHeads == 1 && !kPrepared && kGlobalPvSteps == 1));
+  // Four heads per CTA, with eight words per producer lane. Use a
+  // field-major layout so each lane touches a distinct bank per field.
+  constexpr int kMailboxFields = 8;
+  constexpr int kWarpSize = 32;
+  static_assert(kGlobalQueryHeadsPerBlock * kMailboxFields * kWarpSize *
+                    sizeof(unsigned) <= kGlobalRawBytes);
   __shared__ __align__(16) std::uint8_t shared[kGlobalSharedBytes];
   __nv_bfloat16* query_shared =
       reinterpret_cast<__nv_bfloat16*>(shared);
@@ -528,213 +535,253 @@ __launch_bounds__(kGlobalThreads, 1) __global__
     }
     CommitAsyncCopies();
 
-    float scores[kGlobalScoreTiles][4];
-#pragma unroll
-    for (int score_tile = 0; score_tile < kGlobalScoreTiles;
-         ++score_tile) {
-      scores[score_tile][0] = 0.0F;
-      scores[score_tile][1] = 0.0F;
-      scores[score_tile][2] = 0.0F;
-      scores[score_tile][3] = 0.0F;
-    }
-    unsigned query_fragments[2][4];
-    unsigned key_fragments[2][kGlobalScoreTiles][2];
-    LoadMatrixX4(
-        query_fragments[0][0], query_fragments[0][1],
-        query_fragments[0][2], query_fragments[0][3],
-        SwizzledAddress(query_lane_base, 0U, query_address_select,
-                         query_row_select));
-    LoadMatrixX4(
-        key_fragments[0][0][0], key_fragments[0][0][1],
-        key_fragments[0][1][0], key_fragments[0][1][1],
-        SwizzledAddress(key_lane_base, 0U, key_address_select,
-                         key_row_select));
-#pragma unroll
-    for (int step = 0; step < kGlobalQkSteps; ++step) {
-      const int current = step & 1;
-      const int next = current ^ 1;
-      if (step + 1 < kGlobalQkSteps) {
-        const unsigned contracting_offset =
-            static_cast<unsigned>((step + 1) << 5);
-        LoadMatrixX4(
-            query_fragments[next][0], query_fragments[next][1],
-            query_fragments[next][2], query_fragments[next][3],
-            SwizzledAddress(query_lane_base, contracting_offset,
-                             query_address_select, query_row_select));
-        LoadMatrixX4(
-            key_fragments[next][0][0], key_fragments[next][0][1],
-            key_fragments[next][1][0], key_fragments[next][1][1],
-            SwizzledAddress(key_lane_base, contracting_offset,
-                             key_address_select, key_row_select));
-      }
-#pragma unroll
-      for (int score_tile = 0; score_tile < kGlobalScoreTiles;
-           ++score_tile) {
-        MmaBf16(
-            scores[score_tile][0], scores[score_tile][1],
-            scores[score_tile][2], scores[score_tile][3],
-            query_fragments[current][0], query_fragments[current][1],
-            query_fragments[current][2], query_fragments[current][3],
-            key_fragments[current][score_tile][0],
-            key_fragments[current][score_tile][1]);
-      }
-    }
-
-    const int row0 = group_lane;
-    const int row1 = row0 + 8;
-    const int query_row0 = query_start + row0;
-    const int query_row1 = query_start + row1;
-    const bool row0_valid = query_row0 < tokens;
-    const bool row1_valid = query_row1 < tokens;
-    const int query_position0 =
-        row0_valid ? start_position + query_row0 : -1;
-    const int query_position1 =
-        row1_valid ? start_position + query_row1 : -1;
-    const bool full_score_tile =
-        query_rows == kGlobalQueryRows &&
-        key_start + kGlobalKeyColumns - 1 <= start_position + query_start;
-
-    float block_maximum0 = -CUDART_INF_F;
-    float block_maximum1 = -CUDART_INF_F;
-    if (full_score_tile) {
-#pragma unroll
-      for (int score_tile = 0; score_tile < kGlobalScoreTiles;
-           ++score_tile) {
-        block_maximum0 =
-            fmaxf(block_maximum0,
-                  fmaxf(scores[score_tile][0], scores[score_tile][1]));
-        block_maximum1 =
-            fmaxf(block_maximum1,
-                  fmaxf(scores[score_tile][2], scores[score_tile][3]));
-      }
-    } else {
-#pragma unroll
-      for (int score_tile = 0; score_tile < kGlobalScoreTiles;
-           ++score_tile) {
-        const int key0 =
-            key_start + score_tile * 8 + 2 * lane_in_group;
-        const int key1 = key0 + 1;
-        scores[score_tile][0] =
-            row0_valid && key0 <= query_position0 ? scores[score_tile][0]
-                                                   : -CUDART_INF_F;
-        scores[score_tile][1] =
-            row0_valid && key1 <= query_position0 ? scores[score_tile][1]
-                                                   : -CUDART_INF_F;
-        scores[score_tile][2] =
-            row1_valid && key0 <= query_position1 ? scores[score_tile][2]
-                                                   : -CUDART_INF_F;
-        scores[score_tile][3] =
-            row1_valid && key1 <= query_position1 ? scores[score_tile][3]
-                                                   : -CUDART_INF_F;
-        block_maximum0 =
-            fmaxf(block_maximum0,
-                  fmaxf(scores[score_tile][0], scores[score_tile][1]));
-        block_maximum1 =
-            fmaxf(block_maximum1,
-                  fmaxf(scores[score_tile][2], scores[score_tile][3]));
-      }
-    }
-    block_maximum0 = WarpMaximum<4>(block_maximum0);
-    block_maximum1 = WarpMaximum<4>(block_maximum1);
-
-    const float next_maximum0 = fmaxf(maximum0, block_maximum0);
-    const float next_maximum1 = fmaxf(maximum1, block_maximum1);
     float alpha0;
     float alpha1;
-    if (full_score_tile) {
-      // A full first tile has no previous online-softmax state. Every later
-      // full tile has valid rows and therefore finite running maxima. Keeping
-      // these CTA-uniform cases separate removes redundant finite checks from
-      // the dominant 16K path without changing expf/FMA ordering.
-      alpha0 = key_block == 0 ? 0.0F : expf(maximum0 - next_maximum0);
-      alpha1 = key_block == 0 ? 0.0F : expf(maximum1 - next_maximum1);
-    } else {
-      // The final partial query block can contain an invalid second row, whose
-      // maximum remains -inf across every key tile.
-      alpha0 = isfinite(maximum0) ? expf(maximum0 - next_maximum0) : 0.0F;
-      alpha1 = isfinite(maximum1) ? expf(maximum1 - next_maximum1) : 0.0F;
-    }
-
-    float block_sum0 = 0.0F;
-    float block_sum1 = 0.0F;
     unsigned probability_fragments[kGlobalPvSteps][4];
-    if (full_score_tile) {
+    // Pick the first output warp for the first two heads and the second
+    // for the other two, distributing producers across all four warp-ID residues.
+    const int producer_half = head_in_block >= kGlobalQueryHeadsPerBlock / 2;
+    const bool compute_qk = !kShareQk || output_half == producer_half;
+    // The current raw buffer carries V. The other buffer is available
+    // until both warps have read the mailbox and the next K copy starts.
+    unsigned* const mailbox =
+        reinterpret_cast<unsigned*>(raw_shared + next_raw * kGlobalRawBytes) +
+        (head_in_block * kMailboxFields * kWarpSize + lane);
+    if (compute_qk) {
+      float scores[kGlobalScoreTiles][4];
 #pragma unroll
       for (int score_tile = 0; score_tile < kGlobalScoreTiles;
            ++score_tile) {
-        const float probability00 =
-            expf(scores[score_tile][0] - next_maximum0);
-        const float probability01 =
-            expf(scores[score_tile][1] - next_maximum0);
-        const float probability10 =
-            expf(scores[score_tile][2] - next_maximum1);
-        const float probability11 =
-            expf(scores[score_tile][3] - next_maximum1);
-        block_sum0 += probability00 + probability01;
-        block_sum1 += probability10 + probability11;
-        if (score_tile == 0) {
-          probability_fragments[0][0] =
-              PackBf16x2(probability00, probability01);
-          probability_fragments[0][1] =
-              PackBf16x2(probability10, probability11);
-        } else {
-          probability_fragments[0][2] =
-              PackBf16x2(probability00, probability01);
-          probability_fragments[0][3] =
-              PackBf16x2(probability10, probability11);
-        }
+        scores[score_tile][0] = 0.0F;
+        scores[score_tile][1] = 0.0F;
+        scores[score_tile][2] = 0.0F;
+        scores[score_tile][3] = 0.0F;
       }
-    } else {
+      unsigned query_fragments[2][4];
+      unsigned key_fragments[2][kGlobalScoreTiles][2];
+      LoadMatrixX4(
+          query_fragments[0][0], query_fragments[0][1],
+          query_fragments[0][2], query_fragments[0][3],
+          SwizzledAddress(query_lane_base, 0U, query_address_select,
+                           query_row_select));
+      LoadMatrixX4(
+          key_fragments[0][0][0], key_fragments[0][0][1],
+          key_fragments[0][1][0], key_fragments[0][1][1],
+          SwizzledAddress(key_lane_base, 0U, key_address_select,
+                           key_row_select));
 #pragma unroll
-      for (int score_tile = 0; score_tile < kGlobalScoreTiles;
-           ++score_tile) {
-        const float probability00 = isfinite(scores[score_tile][0])
-                                        ? expf(scores[score_tile][0] -
-                                               next_maximum0)
-                                        : 0.0F;
-        const float probability01 = isfinite(scores[score_tile][1])
-                                        ? expf(scores[score_tile][1] -
-                                               next_maximum0)
-                                        : 0.0F;
-        const float probability10 = isfinite(scores[score_tile][2])
-                                        ? expf(scores[score_tile][2] -
-                                               next_maximum1)
-                                        : 0.0F;
-        const float probability11 = isfinite(scores[score_tile][3])
-                                        ? expf(scores[score_tile][3] -
-                                               next_maximum1)
-                                        : 0.0F;
-        block_sum0 += probability00 + probability01;
-        block_sum1 += probability10 + probability11;
-        if (score_tile == 0) {
-          probability_fragments[0][0] =
-              PackBf16x2(probability00, probability01);
-          probability_fragments[0][1] =
-              PackBf16x2(probability10, probability11);
-        } else {
-          probability_fragments[0][2] =
-              PackBf16x2(probability00, probability01);
-          probability_fragments[0][3] =
-              PackBf16x2(probability10, probability11);
+      for (int step = 0; step < kGlobalQkSteps; ++step) {
+        const int current = step & 1;
+        const int next = current ^ 1;
+        if (step + 1 < kGlobalQkSteps) {
+          const unsigned contracting_offset =
+              static_cast<unsigned>((step + 1) << 5);
+          LoadMatrixX4(
+              query_fragments[next][0], query_fragments[next][1],
+              query_fragments[next][2], query_fragments[next][3],
+              SwizzledAddress(query_lane_base, contracting_offset,
+                               query_address_select, query_row_select));
+          LoadMatrixX4(
+              key_fragments[next][0][0], key_fragments[next][0][1],
+              key_fragments[next][1][0], key_fragments[next][1][1],
+              SwizzledAddress(key_lane_base, contracting_offset,
+                               key_address_select, key_row_select));
+        }
+#pragma unroll
+        for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+             ++score_tile) {
+          MmaBf16(
+              scores[score_tile][0], scores[score_tile][1],
+              scores[score_tile][2], scores[score_tile][3],
+              query_fragments[current][0], query_fragments[current][1],
+              query_fragments[current][2], query_fragments[current][3],
+              key_fragments[current][score_tile][0],
+              key_fragments[current][score_tile][1]);
         }
       }
-    }
 
-    sum0 = fmaf(sum0, alpha0, block_sum0);
-    sum1 = fmaf(sum1, alpha1, block_sum1);
-    maximum0 = next_maximum0;
-    maximum1 = next_maximum1;
+      const int row0 = group_lane;
+      const int row1 = row0 + 8;
+      const int query_row0 = query_start + row0;
+      const int query_row1 = query_start + row1;
+      const bool row0_valid = query_row0 < tokens;
+      const bool row1_valid = query_row1 < tokens;
+      const int query_position0 =
+          row0_valid ? start_position + query_row0 : -1;
+      const int query_position1 =
+          row1_valid ? start_position + query_row1 : -1;
+      const bool full_score_tile =
+          query_rows == kGlobalQueryRows &&
+          key_start + kGlobalKeyColumns - 1 <= start_position + query_start;
+
+      float block_maximum0 = -CUDART_INF_F;
+      float block_maximum1 = -CUDART_INF_F;
+      if (full_score_tile) {
 #pragma unroll
-    for (int output_tile = 0; output_tile < kGlobalOutputTiles;
-         ++output_tile) {
-      accumulator[output_tile][0] *= alpha0;
-      accumulator[output_tile][1] *= alpha0;
-      accumulator[output_tile][2] *= alpha1;
-      accumulator[output_tile][3] *= alpha1;
+        for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+             ++score_tile) {
+          block_maximum0 =
+              fmaxf(block_maximum0,
+                    fmaxf(scores[score_tile][0], scores[score_tile][1]));
+          block_maximum1 =
+              fmaxf(block_maximum1,
+                    fmaxf(scores[score_tile][2], scores[score_tile][3]));
+        }
+      } else {
+#pragma unroll
+        for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+             ++score_tile) {
+          const int key0 =
+              key_start + score_tile * 8 + 2 * lane_in_group;
+          const int key1 = key0 + 1;
+          scores[score_tile][0] =
+              row0_valid && key0 <= query_position0 ? scores[score_tile][0]
+                                                     : -CUDART_INF_F;
+          scores[score_tile][1] =
+              row0_valid && key1 <= query_position0 ? scores[score_tile][1]
+                                                     : -CUDART_INF_F;
+          scores[score_tile][2] =
+              row1_valid && key0 <= query_position1 ? scores[score_tile][2]
+                                                     : -CUDART_INF_F;
+          scores[score_tile][3] =
+              row1_valid && key1 <= query_position1 ? scores[score_tile][3]
+                                                     : -CUDART_INF_F;
+          block_maximum0 =
+              fmaxf(block_maximum0,
+                    fmaxf(scores[score_tile][0], scores[score_tile][1]));
+          block_maximum1 =
+              fmaxf(block_maximum1,
+                    fmaxf(scores[score_tile][2], scores[score_tile][3]));
+        }
+      }
+      block_maximum0 = WarpMaximum<4>(block_maximum0);
+      block_maximum1 = WarpMaximum<4>(block_maximum1);
+
+      const float next_maximum0 = fmaxf(maximum0, block_maximum0);
+      const float next_maximum1 = fmaxf(maximum1, block_maximum1);
+      if (full_score_tile) {
+        // A full first tile has no previous online-softmax state. Every later
+        // full tile has valid rows and therefore finite running maxima. Keeping
+        // these CTA-uniform cases separate removes redundant finite checks from
+        // the dominant 16K path without changing expf/FMA ordering.
+        alpha0 = key_block == 0 ? 0.0F : expf(maximum0 - next_maximum0);
+        alpha1 = key_block == 0 ? 0.0F : expf(maximum1 - next_maximum1);
+      } else {
+        // The final partial query block can contain an invalid second row, whose
+        // maximum remains -inf across every key tile.
+        alpha0 = isfinite(maximum0) ? expf(maximum0 - next_maximum0) : 0.0F;
+        alpha1 = isfinite(maximum1) ? expf(maximum1 - next_maximum1) : 0.0F;
+      }
+
+      float block_sum0 = 0.0F;
+      float block_sum1 = 0.0F;
+      if (full_score_tile) {
+#pragma unroll
+        for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+             ++score_tile) {
+          const float probability00 =
+              expf(scores[score_tile][0] - next_maximum0);
+          const float probability01 =
+              expf(scores[score_tile][1] - next_maximum0);
+          const float probability10 =
+              expf(scores[score_tile][2] - next_maximum1);
+          const float probability11 =
+              expf(scores[score_tile][3] - next_maximum1);
+          block_sum0 += probability00 + probability01;
+          block_sum1 += probability10 + probability11;
+          if (score_tile == 0) {
+            probability_fragments[0][0] =
+                PackBf16x2(probability00, probability01);
+            probability_fragments[0][1] =
+                PackBf16x2(probability10, probability11);
+          } else {
+            probability_fragments[0][2] =
+                PackBf16x2(probability00, probability01);
+            probability_fragments[0][3] =
+                PackBf16x2(probability10, probability11);
+          }
+        }
+      } else {
+#pragma unroll
+        for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+             ++score_tile) {
+          const float probability00 = isfinite(scores[score_tile][0])
+                                          ? expf(scores[score_tile][0] -
+                                                 next_maximum0)
+                                          : 0.0F;
+          const float probability01 = isfinite(scores[score_tile][1])
+                                          ? expf(scores[score_tile][1] -
+                                                 next_maximum0)
+                                          : 0.0F;
+          const float probability10 = isfinite(scores[score_tile][2])
+                                          ? expf(scores[score_tile][2] -
+                                                 next_maximum1)
+                                          : 0.0F;
+          const float probability11 = isfinite(scores[score_tile][3])
+                                          ? expf(scores[score_tile][3] -
+                                                 next_maximum1)
+                                          : 0.0F;
+          block_sum0 += probability00 + probability01;
+          block_sum1 += probability10 + probability11;
+          if (score_tile == 0) {
+            probability_fragments[0][0] =
+                PackBf16x2(probability00, probability01);
+            probability_fragments[0][1] =
+                PackBf16x2(probability10, probability11);
+          } else {
+            probability_fragments[0][2] =
+                PackBf16x2(probability00, probability01);
+            probability_fragments[0][3] =
+                PackBf16x2(probability10, probability11);
+          }
+        }
+      }
+
+      sum0 = fmaf(sum0, alpha0, block_sum0);
+      sum1 = fmaf(sum1, alpha1, block_sum1);
+      maximum0 = next_maximum0;
+      maximum1 = next_maximum1;
+      if constexpr (kShareQk) {
+#pragma unroll
+        for (int fragment = 0; fragment < 4; ++fragment) {
+          mailbox[fragment * kWarpSize] = probability_fragments[0][fragment];
+        }
+        mailbox[4 * kWarpSize] = __float_as_uint(alpha0);
+        mailbox[5 * kWarpSize] = __float_as_uint(alpha1);
+        mailbox[6 * kWarpSize] = __float_as_uint(sum0);
+        mailbox[7 * kWarpSize] = __float_as_uint(sum1);
+      }
+#pragma unroll
+      for (int output_tile = 0; output_tile < kGlobalOutputTiles;
+           ++output_tile) {
+        accumulator[output_tile][0] *= alpha0;
+        accumulator[output_tile][1] *= alpha0;
+        accumulator[output_tile][2] *= alpha1;
+        accumulator[output_tile][3] *= alpha1;
+      }
     }
 
     WaitForAsyncCopies();
     __syncthreads();
+    if constexpr (kShareQk) {
+      if (!compute_qk) {
+#pragma unroll
+        for (int fragment = 0; fragment < 4; ++fragment) {
+          probability_fragments[0][fragment] = mailbox[fragment * kWarpSize];
+        }
+        alpha0 = __uint_as_float(mailbox[4 * kWarpSize]);
+        alpha1 = __uint_as_float(mailbox[5 * kWarpSize]);
+        sum0 = __uint_as_float(mailbox[6 * kWarpSize]);
+        sum1 = __uint_as_float(mailbox[7 * kWarpSize]);
+#pragma unroll
+        for (int output_tile = 0; output_tile < kGlobalOutputTiles; ++output_tile) {
+          accumulator[output_tile][0] *= alpha0;
+          accumulator[output_tile][1] *= alpha0;
+          accumulator[output_tile][2] *= alpha1;
+          accumulator[output_tile][3] *= alpha1;
+        }
+      }
+    }
     if constexpr (!kPrepared) {
       ConvertGlobalFp8Value(
           value_shared, raw_shared + current_raw * kGlobalRawBytes,
@@ -879,7 +926,8 @@ Status LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
   const dim3 grid(static_cast<unsigned>(query_blocks),
                   kGlobalQueryHeads / kGlobalQueryHeadsPerBlock);
   if (kv_heads == 1U) {
-    OnlineGlobalAttentionFp8Kernel<1, false><<<grid, kGlobalThreads, 0, stream>>>(
+    OnlineGlobalAttentionFp8Kernel<1, false, true>
+        <<<grid, kGlobalThreads, 0, stream>>>(
         query, chunk_key, chunk_value, key_cache, value_cache,
         key_scale_bf16, value_scale_bf16, output_bf16,
         static_cast<int>(start_position), static_cast<int>(tokens),

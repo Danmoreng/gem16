@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "scope": "Anonymized aggregate and selected request counters from the 2026-11-17 Pi D3 local workflow",
+  "source_raw_gzip_sha256": "da8ae75eb38a48d6b8f42b1f426172d311f5367ab9992f0fde977beec6effc3a",
+  "source_summary_sha256": "f21d9bfa98c53440b5c043a25fbd7b23dd7a66d620b7ca5c8fbd9799bd1cf469",
+  "http_requests_total": 70,
+  "original_conversation_completed_prefill_requests": 64,
+  "original_conversation_engine_prefill_ms": 335065.478,
+  "rebuilds": [
+    {
+      "ordinal": 11,
+      "reason": "history_or_tools_changed"
+    },
+    {
+      "ordinal": 38,
+      "reason": "history_or_tools_changed"
+    }
+  ],
+  "selected_requests": [
+    {
+      "ordinal": 28,
+      "rendered_ids": 130132,
+      "cached_ids": 123664,
+      "engine_prefill_ms": 6348.076,
+      "first_visible_payload_ms": 6381.00663399382,
+      "reset_reason": null
+    },
+    {
+      "ordinal": 38,
+      "rendered_ids": 136272,
+      "cached_ids": 0,
+      "engine_prefill_ms": 80063.949,
+      "first_visible_payload_ms": 81051.61755299923,
+      "reset_reason": "history_or_tools_changed"
+    },
+    {
+      "ordinal": 51,
+      "rendered_ids": 245692,
+      "cached_ids": 232808,
+      "engine_prefill_ms": 23251.325,
+      "first_visible_payload_ms": 23317.833479995898,
+      "reset_reason": null
+    }
+  ]
+}

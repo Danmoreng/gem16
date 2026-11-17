@@ -24,6 +24,9 @@ selection prefers supported optimized arithmetic; use
 selection reason and environment. Older exact-default evidence remains unchanged;
 its absent override describes its original code revision, not today's default.
 
+The [12B three-engine comparison and D512 acceptance](evidence/gemma4_12b/three-engine-prefill-decode-2026-11-17.md)
+records sampled D3 cold prefill, cached append and decode alongside paired native measurements.
+
 A promoted comparison uses the same GPU, power policy, prompt token IDs, output-token count, context, batch size,
 sampling controls, template, cache state, and timing boundary. Any necessary difference in checkpoint, tensor
 format, K/V precision, runtime feature support, or output semantics is stated beside the result. CPU weight offload,

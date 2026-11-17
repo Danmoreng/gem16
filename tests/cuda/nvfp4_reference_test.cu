@@ -4298,17 +4298,19 @@ void TestOnlineLocalFp8CausalPrefill() {
   CUDA_TEST_CHECK(row_difference(32U) < 1.0e-6F);
 }
 
-void RunOnlineGlobalFp8CausalPrefill(std::uint64_t kv_heads,
-                                    const char* label) {
-  constexpr std::uint64_t tokens = 32;
+void RunOnlineGlobalFp8CausalPrefill(std::uint64_t kv_heads, const char* label,
+                                    std::uint64_t tokens = 32,
+                                    std::uint64_t start_position = 37) {
   constexpr std::uint64_t query_heads = 16;
   constexpr std::uint64_t head_dimension = 512;
   constexpr std::uint64_t capacity = 128;
-  constexpr std::uint64_t start_position = 37;
-  constexpr std::uint64_t score_stride = start_position + tokens;
+  const std::uint64_t score_stride = start_position + tokens;
   const std::uint64_t kv_elements = kv_heads * head_dimension;
   constexpr std::array<std::uint16_t, 1> key_scale = {0x3E80U};
-  constexpr std::array<std::uint16_t, 1> value_scale = {0x3F00U};
+  // At a cold start one-key rows preserve the full value range. Scale the
+  // varying FP8 values by an exact power of two for the same FP32 tolerance.
+  const std::array<std::uint16_t, 1> value_scale = {
+      start_position == 0U ? std::uint16_t{0x3E00U} : std::uint16_t{0x3F00U}};
 
   std::vector<float> queries(tokens * query_heads * head_dimension);
   for (std::size_t index = 0; index < queries.size(); ++index) {
@@ -4458,6 +4460,14 @@ void RunOnlineGlobalFp8CausalPrefill(std::uint64_t kv_heads,
                "copy prepared global online-prefill output"))) {
     return;
   }
+  if (start_position == 0U && kv_heads == 1U) {
+    // The first query can attend only to the first chunk value.
+    for (std::size_t index = 0; index < query_heads * head_dimension; ++index) {
+      const float value = gem16::fp8::DecodeE4M3Fn(chunk_values[index % head_dimension]);
+      CUDA_TEST_CHECK(online_bits[index] == Bf16BitsReference(
+          value * Bf16FromBits(value_scale[0])));
+    }
+  }
   if (kv_heads == 2U) {
     std::size_t mismatches = 0U;
     for (std::size_t index = 0U; index < online_bits.size(); ++index) {
@@ -4475,6 +4485,10 @@ void RunOnlineGlobalFp8CausalPrefill(std::uint64_t kv_heads,
 
 void TestOnlineGlobalFp8CausalPrefill() {
   RunOnlineGlobalFp8CausalPrefill(1U, "online global KVH1 FP8 prefill");
+  RunOnlineGlobalFp8CausalPrefill(
+      1U, "online global KVH1 FP8 cold prefill partial query tile", 17U, 0U);
+  RunOnlineGlobalFp8CausalPrefill(
+      1U, "online global KVH1 FP8 cached prefill partial query tile", 17U, 37U);
   RunOnlineGlobalFp8CausalPrefill(2U, "online global KVH2 FP8 prefill");
 }
 
