@@ -11,6 +11,13 @@ namespace gem16::internal {
 // Experimental T=1 direct-source FP8 projection. E4M3 activation and checkpoint weight bytes
 // are consumed without a persistent repack; FP32 MMA accumulators are scaled by the dynamic
 // per-token FP32 input scale and the checkpoint's per-output-channel BF16 weight scale.
+// Qualified12B Ordinary T1 O: source-order weights and ordered K32 MMAs.
+[[nodiscard]] Status LaunchTwelveBOrdinaryFp8OProjection(
+    const std::uint8_t* activation, const float* activation_scale,
+    const std::uint8_t* weight, const std::uint16_t* weight_scales,
+    float* output, std::uint64_t rows, std::uint64_t contracting,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchFp8Sm120DirectProjection(
     const std::uint8_t* activation_e4m3fn,
     const float* activation_scale,

@@ -1,0 +1,5 @@
+[
+  "/opt/cuda/bin/cuobjdump",
+  "--dump-resource-usage",
+  "/tmp/gem16-experiments/ordinary-o-global-kgug71an/global.so"
+]

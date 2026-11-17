@@ -1,0 +1,18 @@
+{
+  "sass_sha256": "4cf0b26c43212031406fb3b027814a3559bd92fc55ef3d83a3b1fc062280d3a2",
+  "functions": [
+    {
+      "name": "__nv_static_37__7c8b3686_15_decode_sm120_cu_0b78d427__ZN5gem168internal48_GLOBAL__N__7c8b3686_15_decode_sm120_cu_0b78d42731TwelveBOrdinaryGlobalGqa4KernelILb0ELb0ELb1EEEvPKfPKhS6_PKtS8_PfS9_S9_PKNS0_13DecodeControlEmSC_mi",
+      "static_qmma_lines": 0,
+      "static_ldg_lines": 35,
+      "note": "Static instruction count includes alternate control-flow paths; not a dynamic instruction count."
+    },
+    {
+      "name": "__nv_static_29__fdbc63a0_8_sm120_cu_616b74b3__ZN5gem168internal40_GLOBAL__N__fdbc63a0_8_sm120_cu_616b74b330TwelveBOrdinaryOPipelineKernelILj4EEEvPKhPKfNS1_16Fp8MatrixBindingES7_S7_jmm",
+      "static_qmma_lines": 12,
+      "static_ldg_lines": 51,
+      "note": "Static instruction count includes alternate control-flow paths; not a dynamic instruction count."
+    }
+  ],
+  "source": "actual-sass.stdout.log"
+}

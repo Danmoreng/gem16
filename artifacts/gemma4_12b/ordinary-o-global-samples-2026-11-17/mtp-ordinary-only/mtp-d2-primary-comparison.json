@@ -1,0 +1,14 @@
+{
+  "depth": 2,
+  "median_tps": 98.67648210509829,
+  "samples_tps": [
+    98.67648210509829,
+    98.73834339001645,
+    98.27200721008025
+  ],
+  "previous_median_tps": 98.30437948611255,
+  "all_outputs_exact": true,
+  "binary_sha256": "4ea22a29324d7e45fda0dfe21df636702f85205bd41aa691b5c5a6ea0d214f2d",
+  "ordinary_kernels_enabled_in_mtp": true,
+  "assistant_and_verifier_unchanged": true
+}

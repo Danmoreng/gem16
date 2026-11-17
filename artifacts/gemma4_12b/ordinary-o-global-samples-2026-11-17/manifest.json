@@ -1,0 +1,1377 @@
+[
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/active-telemetry-summary.json",
+    "retained": "ordinary-o-global/active-telemetry-summary.json",
+    "original_sha256": "331f09132c03155fdc87406f80f9d095a4a18b288fc3ce3f21187b74569c9a0c",
+    "retained_sha256": "331f09132c03155fdc87406f80f9d095a4a18b288fc3ce3f21187b74569c9a0c",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/actual-sass.command.json",
+    "retained": "ordinary-o-global/actual-sass.command.json",
+    "original_sha256": "e8c7e275ab392006cc65a7f6dbfa0162de3001d03261cbb982399f0a0ff8a788",
+    "retained_sha256": "e8c7e275ab392006cc65a7f6dbfa0162de3001d03261cbb982399f0a0ff8a788",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/actual-sass.stderr.log",
+    "retained": "ordinary-o-global/actual-sass.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/actual-sass.stdout.log",
+    "retained": "ordinary-o-global/actual-sass.stdout.log.gz",
+    "original_sha256": "4cf0b26c43212031406fb3b027814a3559bd92fc55ef3d83a3b1fc062280d3a2",
+    "retained_sha256": "45e871176ba13c08eeb46b725426cff95daef9b6673a34716dd36795612fc840",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/binary-hashes.json",
+    "retained": "ordinary-o-global/binary-hashes.json",
+    "original_sha256": "3ef67db2b7873f81c83040ad6754d12d75e47fad391dd49c65e23a0e516a1741",
+    "retained_sha256": "3ef67db2b7873f81c83040ad6754d12d75e47fad391dd49c65e23a0e516a1741",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-export.command.json",
+    "retained": "ordinary-o-global/combined-export.command.json",
+    "original_sha256": "f25ccd3f5d7108e6e47afecb0118deef266a21f5e6e9707ea944af0f5e317b93",
+    "retained_sha256": "f25ccd3f5d7108e6e47afecb0118deef266a21f5e6e9707ea944af0f5e317b93",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-export.stderr.log",
+    "retained": "ordinary-o-global/combined-export.stderr.log.gz",
+    "original_sha256": "355ec7de2cfa58d21bdf4ea428d71d66f8374dd4645008f8521b4d923f2e751a",
+    "retained_sha256": "b58f7839cd1ccf025a2b1a1c9c387fc1e5c7ebd01fac0c71c5b554e9da8eb9fa",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-export.stdout.log",
+    "retained": "ordinary-o-global/combined-export.stdout.log.gz",
+    "original_sha256": "6a9b427eb024f793f683ba644cabe66435d92fa4b37a19e8e341d14b15c7e5d9",
+    "retained_sha256": "1494dac4f6f38c5ca2e4ce3e513bedf5dadb9e7a7c493ad87fcd2032f78b5f15",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-profile.command.json",
+    "retained": "ordinary-o-global/combined-profile.command.json",
+    "original_sha256": "7d1cae6cb65ec1b9085f644a9142a0a9b675acae75fab2e7ece79d44f7f862c8",
+    "retained_sha256": "7d1cae6cb65ec1b9085f644a9142a0a9b675acae75fab2e7ece79d44f7f862c8",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-profile.json",
+    "retained": "ordinary-o-global/combined-profile.json",
+    "original_sha256": "093a7142c8e4b16ca1e791f01501e559b975cffe6b5bd1f63820d23326a1d7f8",
+    "retained_sha256": "093a7142c8e4b16ca1e791f01501e559b975cffe6b5bd1f63820d23326a1d7f8",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-profile.stderr.log",
+    "retained": "ordinary-o-global/combined-profile.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-profile.stdout.log",
+    "retained": "ordinary-o-global/combined-profile.stdout.log.gz",
+    "original_sha256": "ca62ab7aadbacf845ca7bf65585918d3d666551cf156c3d3bfb7425469d75326",
+    "retained_sha256": "f9d97427fce62d1a14bf0036c03aab4dee23d4f4c44a2359437b993efa614033",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-profile.telemetry.csv",
+    "retained": "ordinary-o-global/combined-profile.telemetry.csv",
+    "original_sha256": "f0022def933dc912891e3662de7556f825bec30a184eb78eb8938d890c04af03",
+    "retained_sha256": "f0022def933dc912891e3662de7556f825bec30a184eb78eb8938d890c04af03",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-smoke.command.json",
+    "retained": "ordinary-o-global/combined-smoke.command.json",
+    "original_sha256": "36e1155500f8f1203f191785a2e6f80cace4ed98c36a9cf99abd1e11f30eea56",
+    "retained_sha256": "36e1155500f8f1203f191785a2e6f80cace4ed98c36a9cf99abd1e11f30eea56",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-smoke.json",
+    "retained": "ordinary-o-global/combined-smoke.json",
+    "original_sha256": "36feb55ca63614f35cfc1a727eecec1bb892637a3fa9f61f86798fc9a682ab76",
+    "retained_sha256": "36feb55ca63614f35cfc1a727eecec1bb892637a3fa9f61f86798fc9a682ab76",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-smoke.stderr.log",
+    "retained": "ordinary-o-global/combined-smoke.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined-smoke.stdout.log",
+    "retained": "ordinary-o-global/combined-smoke.stdout.log.gz",
+    "original_sha256": "33476af3356d2b192a2f554608ee043b7ae7c19c72837d3669cf4e4b91ec8ce4",
+    "retained_sha256": "736eaf7bd940ac6d622fa2f44edde53a0658b1622dd6d586ba116d0beb23d99f",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined.command.json",
+    "retained": "ordinary-o-global/combined.command.json",
+    "original_sha256": "b8d22d47df249807bdc30c69bbc53c75fd75bf11061c83c93a2ce8f0afdd1a44",
+    "retained_sha256": "b8d22d47df249807bdc30c69bbc53c75fd75bf11061c83c93a2ce8f0afdd1a44",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined.environment.json",
+    "retained": "ordinary-o-global/combined.environment.json",
+    "original_sha256": "e5119fd28a24c9f2bc291b3352095ef64011cd00380525d26e3bbb9928d91332",
+    "retained_sha256": "e5119fd28a24c9f2bc291b3352095ef64011cd00380525d26e3bbb9928d91332",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined.json",
+    "retained": "ordinary-o-global/combined.json",
+    "original_sha256": "aa3d9c448b1ca371a7da3456db6b70549ddc124e77d2b27756615ed14c1a1933",
+    "retained_sha256": "aa3d9c448b1ca371a7da3456db6b70549ddc124e77d2b27756615ed14c1a1933",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined.stderr.log",
+    "retained": "ordinary-o-global/combined.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined.stdout.log",
+    "retained": "ordinary-o-global/combined.stdout.log.gz",
+    "original_sha256": "fc37346a3bef9ed4fc5faf8c3e3b3c8f28eae8319b35713605d0633183b2c2a5",
+    "retained_sha256": "ce5696108938f55b8611badd79219c074ee9839f691db4016dad474c600a2b47",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/combined.telemetry.csv",
+    "retained": "ordinary-o-global/combined.telemetry.csv",
+    "original_sha256": "d1c0d628978db306b9aab5edd73169e1f86648b386962658eb6b3856fd2325da",
+    "retained_sha256": "d1c0d628978db306b9aab5edd73169e1f86648b386962658eb6b3856fd2325da",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/derivatives.json",
+    "retained": "ordinary-o-global/derivatives.json",
+    "original_sha256": "e782c5a6b5471247b55ad053cb0926d8807d650015822cfdfb98d6ad3d4ffd63",
+    "retained_sha256": "e782c5a6b5471247b55ad053cb0926d8807d650015822cfdfb98d6ad3d4ffd63",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/extended-build.command.json",
+    "retained": "ordinary-o-global/extended-build.command.json",
+    "original_sha256": "f7d38de5e95c817a676c4edd464b25da98b0bf0a87b35b0550fed5d0fb893ac5",
+    "retained_sha256": "f7d38de5e95c817a676c4edd464b25da98b0bf0a87b35b0550fed5d0fb893ac5",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/extended-build.stderr.log",
+    "retained": "ordinary-o-global/extended-build.stderr.log.gz",
+    "original_sha256": "4cb27306b63c86e093ec5cc185804d1c71b0d1e2360afce0f78547b006701277",
+    "retained_sha256": "a0616c7bbb325621e302f7a629852724e951771075148049625c9734985c0fdd",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/extended-build.stdout.log",
+    "retained": "ordinary-o-global/extended-build.stdout.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/extended-generate.command.json",
+    "retained": "ordinary-o-global/extended-generate.command.json",
+    "original_sha256": "69eeaf8866f0adb37d34e104e347c9c4bc8543377d98556b3798c102d59808bc",
+    "retained_sha256": "69eeaf8866f0adb37d34e104e347c9c4bc8543377d98556b3798c102d59808bc",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/extended-generate.stderr.log",
+    "retained": "ordinary-o-global/extended-generate.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/extended-generate.stdout.log",
+    "retained": "ordinary-o-global/extended-generate.stdout.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/generate.command.json",
+    "retained": "ordinary-o-global/generate.command.json",
+    "original_sha256": "22fb515664c9f90df4981308e3edeab1d553a0f6d7804d936b02a2bfbe85ad47",
+    "retained_sha256": "22fb515664c9f90df4981308e3edeab1d553a0f6d7804d936b02a2bfbe85ad47",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/generate.stderr.log",
+    "retained": "ordinary-o-global/generate.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/generate.stdout.log",
+    "retained": "ordinary-o-global/generate.stdout.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-binary.json",
+    "retained": "ordinary-o-global/global-binary.json",
+    "original_sha256": "0b413a51fd185606ebfaa3437fc5258b3ba84d81b00c868b5e95e8c6ea204318",
+    "retained_sha256": "0b413a51fd185606ebfaa3437fc5258b3ba84d81b00c868b5e95e8c6ea204318",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-build.command.json",
+    "retained": "ordinary-o-global/global-build.command.json",
+    "original_sha256": "29d0efb84f0499873cb6408a675aed4be1a05126fcd949570dbcb3e787b7fe2c",
+    "retained_sha256": "29d0efb84f0499873cb6408a675aed4be1a05126fcd949570dbcb3e787b7fe2c",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-build.stderr.log",
+    "retained": "ordinary-o-global/global-build.stderr.log.gz",
+    "original_sha256": "97389426cdcd0763de5f7d3e8def555c5475f623a97f692b6e69a0f4661f9ad6",
+    "retained_sha256": "d3b1bb8da33917c1939f957b501e8fc04e184308a0d69be410b554290222d483",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-build.stdout.log",
+    "retained": "ordinary-o-global/global-build.stdout.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-extended-numeric.command.json",
+    "retained": "ordinary-o-global/global-extended-numeric.command.json",
+    "original_sha256": "70a7e8c3eb3c2c1aaf7b0055dc1698352e1eb22a327962ba797084b4f52a7ab1",
+    "retained_sha256": "70a7e8c3eb3c2c1aaf7b0055dc1698352e1eb22a327962ba797084b4f52a7ab1",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-extended-numeric.json",
+    "retained": "ordinary-o-global/global-extended-numeric.json",
+    "original_sha256": "48eed4317d648e2910dc36f033f28450d9257d484b4fce03a81f8c7b824243fa",
+    "retained_sha256": "48eed4317d648e2910dc36f033f28450d9257d484b4fce03a81f8c7b824243fa",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-extended-numeric.stderr.log",
+    "retained": "ordinary-o-global/global-extended-numeric.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-extended-numeric.stdout.log",
+    "retained": "ordinary-o-global/global-extended-numeric.stdout.log.gz",
+    "original_sha256": "cfb383c88e04e081530c50d1a429a09b9059b87adbcc79b3b48ca2432502fb82",
+    "retained_sha256": "1804abe0fb4fe5e0cccd1c9fde8e4f43e42b67434b1de28802ef3b3198032383",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-memcheck.command.json",
+    "retained": "ordinary-o-global/global-memcheck.command.json",
+    "original_sha256": "b9f901f702c1676d213b209435f2c5ee5f75e89d4481a3523d1937abbc02894a",
+    "retained_sha256": "b9f901f702c1676d213b209435f2c5ee5f75e89d4481a3523d1937abbc02894a",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-memcheck.json",
+    "retained": "ordinary-o-global/global-memcheck.json",
+    "original_sha256": "0b880366544d4110d14632ccbea84c997b53257a8d8ef14dea99ec31a83c8c55",
+    "retained_sha256": "0b880366544d4110d14632ccbea84c997b53257a8d8ef14dea99ec31a83c8c55",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-memcheck.stderr.log",
+    "retained": "ordinary-o-global/global-memcheck.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-memcheck.stdout.log",
+    "retained": "ordinary-o-global/global-memcheck.stdout.log.gz",
+    "original_sha256": "0b01d3e13713a1113bd9f3dc1c3826dddea949308956b8baf76702f5d60fab4d",
+    "retained_sha256": "063586c16adb0147bd57e8566bdf71695b2718dfd93a2b0744d7a78478e0659a",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-numeric-timing.command.json",
+    "retained": "ordinary-o-global/global-numeric-timing.command.json",
+    "original_sha256": "e132ca2f57ceba8f655beec7b00478a9828b07ed9c3d140dc6638ec5b29dcdc3",
+    "retained_sha256": "e132ca2f57ceba8f655beec7b00478a9828b07ed9c3d140dc6638ec5b29dcdc3",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-numeric-timing.json",
+    "retained": "ordinary-o-global/global-numeric-timing.json",
+    "original_sha256": "d78011e8a74f8de97ba1397cdc71d6583d4e18081220d31e7d0431c54b0992e1",
+    "retained_sha256": "d78011e8a74f8de97ba1397cdc71d6583d4e18081220d31e7d0431c54b0992e1",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-numeric-timing.stderr.log",
+    "retained": "ordinary-o-global/global-numeric-timing.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-numeric-timing.stdout.log",
+    "retained": "ordinary-o-global/global-numeric-timing.stdout.log.gz",
+    "original_sha256": "436d5ba62fc13a3f06749685db8e8e9b78f4bbf4efbead4e8d738480807c4c0b",
+    "retained_sha256": "e3fba7b7865abc15e91d8073230f84c266ef13a089026bc2908a64615f2254d1",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-racecheck.command.json",
+    "retained": "ordinary-o-global/global-racecheck.command.json",
+    "original_sha256": "fd46b3d95cf1657959e70978bbb216f2bd996081bc8dff75bc76f628edb2dbe3",
+    "retained_sha256": "fd46b3d95cf1657959e70978bbb216f2bd996081bc8dff75bc76f628edb2dbe3",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-racecheck.json",
+    "retained": "ordinary-o-global/global-racecheck.json",
+    "original_sha256": "0b880366544d4110d14632ccbea84c997b53257a8d8ef14dea99ec31a83c8c55",
+    "retained_sha256": "0b880366544d4110d14632ccbea84c997b53257a8d8ef14dea99ec31a83c8c55",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-racecheck.stderr.log",
+    "retained": "ordinary-o-global/global-racecheck.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-racecheck.stdout.log",
+    "retained": "ordinary-o-global/global-racecheck.stdout.log.gz",
+    "original_sha256": "9ff72c088bed0b33396c5e17615797e526196bdac91dbef3fa2f37f990b6513b",
+    "retained_sha256": "03402388a8eff702c6d60441310cf08131c54cf3cebc7b3594f758e1984d8fa8",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-resources.command.json",
+    "retained": "ordinary-o-global/global-resources.command.json",
+    "original_sha256": "1b152647940c7bcccb6e35d4aa6035f683a090708726827fc07b22ade7d3d663",
+    "retained_sha256": "1b152647940c7bcccb6e35d4aa6035f683a090708726827fc07b22ade7d3d663",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-resources.stderr.log",
+    "retained": "ordinary-o-global/global-resources.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-resources.stdout.log",
+    "retained": "ordinary-o-global/global-resources.stdout.log.gz",
+    "original_sha256": "ce863398238d0938de1382c8dcd8e1546bad59cbda55141670ed2177fcd45fe9",
+    "retained_sha256": "9e18df8b781e3f6f87c2aff7bd0522f7b901b263961fe204675419fa111ec732",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-sass.command.json",
+    "retained": "ordinary-o-global/global-sass.command.json",
+    "original_sha256": "efd7eef80de248e614b876205c4616654fbe44db906f58a2e68f84d98fbc1302",
+    "retained_sha256": "efd7eef80de248e614b876205c4616654fbe44db906f58a2e68f84d98fbc1302",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-sass.stderr.log",
+    "retained": "ordinary-o-global/global-sass.stderr.log.gz",
+    "original_sha256": "ad530d47e4ebaecf4d25190dd6495863d7a0afa557550d51c94b0b5bcdc5894a",
+    "retained_sha256": "6e7e18bfb356217819530229ace205867c494fefb81a32e547dea2e8f4e73ea6",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-sass.stdout.log",
+    "retained": "ordinary-o-global/global-sass.stdout.log.gz",
+    "original_sha256": "4e736859300677cded4861bc1ce080bbecd67942ecb6694aad1e1ab9b57f4ca7",
+    "retained_sha256": "1c1322ca44d09bdb404b80657daf554688b47dedea99bd41adfd02aff1ccb9bc",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-synccheck.command.json",
+    "retained": "ordinary-o-global/global-synccheck.command.json",
+    "original_sha256": "3529b0636c95a0f1b44a8bc4e8fa4ea15ea8554ff481e3d0de8ed395a1623a68",
+    "retained_sha256": "3529b0636c95a0f1b44a8bc4e8fa4ea15ea8554ff481e3d0de8ed395a1623a68",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-synccheck.json",
+    "retained": "ordinary-o-global/global-synccheck.json",
+    "original_sha256": "0b880366544d4110d14632ccbea84c997b53257a8d8ef14dea99ec31a83c8c55",
+    "retained_sha256": "0b880366544d4110d14632ccbea84c997b53257a8d8ef14dea99ec31a83c8c55",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-synccheck.stderr.log",
+    "retained": "ordinary-o-global/global-synccheck.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/global-synccheck.stdout.log",
+    "retained": "ordinary-o-global/global-synccheck.stdout.log.gz",
+    "original_sha256": "0b01d3e13713a1113bd9f3dc1c3826dddea949308956b8baf76702f5d60fab4d",
+    "retained_sha256": "063586c16adb0147bd57e8566bdf71695b2718dfd93a2b0744d7a78478e0659a",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/host-unit-tests.command.json",
+    "retained": "ordinary-o-global/host-unit-tests.command.json",
+    "original_sha256": "e1176b66e059d49c03eb96bb6c0f9e5eace146286a8264dec7e68a78e31bc1c7",
+    "retained_sha256": "e1176b66e059d49c03eb96bb6c0f9e5eace146286a8264dec7e68a78e31bc1c7",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/host-unit-tests.stderr.log",
+    "retained": "ordinary-o-global/host-unit-tests.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/host-unit-tests.stdout.log",
+    "retained": "ordinary-o-global/host-unit-tests.stdout.log.gz",
+    "original_sha256": "46dd6ff401a949467f4977eeae72f05e78ff193fc1a0f7586c987173ef7ef3b6",
+    "retained_sha256": "2acfd346c51dae265883c25d83488b77e69efdcd4d051d7fc7fb07e317fd2807",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/instruction-validation.json",
+    "retained": "ordinary-o-global/instruction-validation.json",
+    "original_sha256": "4a987832d697bd9c06b89334f993261c590ac098dc5d3406c62f7c40919bfa48",
+    "retained_sha256": "4a987832d697bd9c06b89334f993261c590ac098dc5d3406c62f7c40919bfa48",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/integrity-validation.json",
+    "retained": "ordinary-o-global/integrity-validation.json",
+    "original_sha256": "b8132edb900e47f3eac13b6c4d2352fbf1724fcad85e15fb4a6d8f8ed28d8a4c",
+    "retained_sha256": "b8132edb900e47f3eac13b6c4d2352fbf1724fcad85e15fb4a6d8f8ed28d8a4c",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/kernel-accounting.json",
+    "retained": "ordinary-o-global/kernel-accounting.json",
+    "original_sha256": "a2238dc4c02ffdde79b2dba6f31c20b5032565869cebb240ae0d38fb022b090f",
+    "retained_sha256": "a2238dc4c02ffdde79b2dba6f31c20b5032565869cebb240ae0d38fb022b090f",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/measure_mtp.py",
+    "retained": "ordinary-o-global/measure_mtp.py",
+    "original_sha256": "3fb22978db6e8e8909b1856a047dc3d90baa9a866e52ce96c2f94b93cc88ce6a",
+    "retained_sha256": "3fb22978db6e8e8909b1856a047dc3d90baa9a866e52ce96c2f94b93cc88ce6a",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-primary-comparison.json",
+    "retained": "ordinary-o-global/mtp-d2-primary-comparison.json",
+    "original_sha256": "80553279be4000c7730a9f0a27c84eb17b7fe926403bcb4e8e57605f29f36489",
+    "retained_sha256": "80553279be4000c7730a9f0a27c84eb17b7fe926403bcb4e8e57605f29f36489",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-primary.command.json",
+    "retained": "ordinary-o-global/mtp-d2-primary.command.json",
+    "original_sha256": "7ac8fc03447e100977ec0c8bca0d070cc6d378575e4420f26d4467de805e299f",
+    "retained_sha256": "7ac8fc03447e100977ec0c8bca0d070cc6d378575e4420f26d4467de805e299f",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-primary.json",
+    "retained": "ordinary-o-global/mtp-d2-primary.json",
+    "original_sha256": "5f8dae7d77002fd57a126a78708e9bc2fb0c489eb762f57bde25d8619744bdae",
+    "retained_sha256": "5f8dae7d77002fd57a126a78708e9bc2fb0c489eb762f57bde25d8619744bdae",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-primary.stderr.log",
+    "retained": "ordinary-o-global/mtp-d2-primary.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-primary.stdout.log",
+    "retained": "ordinary-o-global/mtp-d2-primary.stdout.log.gz",
+    "original_sha256": "8fd2aebb899243a323be49454199124305448e2e0124c0970736cbe4d7b56253",
+    "retained_sha256": "31e4bfb546bfc5ca7ab0fa44e7e5a028ff74afe18128115fa1768520619efebd",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-primary.telemetry.csv",
+    "retained": "ordinary-o-global/mtp-d2-primary.telemetry.csv",
+    "original_sha256": "86308db461c64ddfb74979c371facaca962bfbfabb9d42d7af9f0c9004af1569",
+    "retained_sha256": "86308db461c64ddfb74979c371facaca962bfbfabb9d42d7af9f0c9004af1569",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-regression.command.json",
+    "retained": "ordinary-o-global/mtp-d2-regression.command.json",
+    "original_sha256": "eb6765fb2882d2205d40778327e888c9109760b6fba0496a4d405de52299b774",
+    "retained_sha256": "eb6765fb2882d2205d40778327e888c9109760b6fba0496a4d405de52299b774",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-regression.json",
+    "retained": "ordinary-o-global/mtp-d2-regression.json",
+    "original_sha256": "330d2dbc8bfba3c8c3df52dc2cde04641167fa054f5fb3e693095004b4217dff",
+    "retained_sha256": "330d2dbc8bfba3c8c3df52dc2cde04641167fa054f5fb3e693095004b4217dff",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-regression.stderr.log",
+    "retained": "ordinary-o-global/mtp-d2-regression.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-regression.stdout.log",
+    "retained": "ordinary-o-global/mtp-d2-regression.stdout.log.gz",
+    "original_sha256": "41659128313a0b55da7cd46ff1c2cbe8e0ac83d8d156c24abdca948d1af16f4f",
+    "retained_sha256": "b94ff1f667627a5a4f86ff5a5ce2478a10942d3e894aef5c54282686fa269615",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-primary-comparison.json",
+    "retained": "ordinary-o-global/mtp-d3-primary-comparison.json",
+    "original_sha256": "d0f43581268966c48f77142f31b3218248fc0aced4febc4493ef060687359b0e",
+    "retained_sha256": "d0f43581268966c48f77142f31b3218248fc0aced4febc4493ef060687359b0e",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-primary.command.json",
+    "retained": "ordinary-o-global/mtp-d3-primary.command.json",
+    "original_sha256": "1c248477310026652157588ca0171cc50a14b903e4898a1c01c29504869b9d3d",
+    "retained_sha256": "1c248477310026652157588ca0171cc50a14b903e4898a1c01c29504869b9d3d",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-primary.json",
+    "retained": "ordinary-o-global/mtp-d3-primary.json",
+    "original_sha256": "9712fb4100c0117110a79d05d08466fff20e4cf687ffa9eeff1fd92d70cf7245",
+    "retained_sha256": "9712fb4100c0117110a79d05d08466fff20e4cf687ffa9eeff1fd92d70cf7245",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-primary.stderr.log",
+    "retained": "ordinary-o-global/mtp-d3-primary.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-primary.stdout.log",
+    "retained": "ordinary-o-global/mtp-d3-primary.stdout.log.gz",
+    "original_sha256": "796d3af6fed679cdeb90f98d9b04eb445229d3e0bed18de812b207959f0b8b82",
+    "retained_sha256": "36a97f888468266e94e56327a5ba6b24f7d074f90534a5371e719133adea062a",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-primary.telemetry.csv",
+    "retained": "ordinary-o-global/mtp-d3-primary.telemetry.csv",
+    "original_sha256": "ca05199c1011531a1f5953ff70d70ee438d72fb060557a018e246e24d44ff46a",
+    "retained_sha256": "ca05199c1011531a1f5953ff70d70ee438d72fb060557a018e246e24d44ff46a",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-regression.command.json",
+    "retained": "ordinary-o-global/mtp-d3-regression.command.json",
+    "original_sha256": "17eab5ef30a224491b813cf276dac011f56e6c2e8612051f2422a21fd3690ca1",
+    "retained_sha256": "17eab5ef30a224491b813cf276dac011f56e6c2e8612051f2422a21fd3690ca1",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-regression.json",
+    "retained": "ordinary-o-global/mtp-d3-regression.json",
+    "original_sha256": "d19572c8e86be6ed86019561a989b5d0ad264182e314600bfb0b6f5df77f723c",
+    "retained_sha256": "d19572c8e86be6ed86019561a989b5d0ad264182e314600bfb0b6f5df77f723c",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-regression.stderr.log",
+    "retained": "ordinary-o-global/mtp-d3-regression.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-regression.stdout.log",
+    "retained": "ordinary-o-global/mtp-d3-regression.stdout.log.gz",
+    "original_sha256": "b1c78332f1dd900a04d53e8acbfd0b2dd5d7ba29c3f00ddfd5919f15997b53c0",
+    "retained_sha256": "b943316e2bc2872b41f7d2118bfa2af74180b35ec73118c33998708adcc84eea",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-primary-comparison.json",
+    "retained": "ordinary-o-global/mtp-d4-primary-comparison.json",
+    "original_sha256": "29d80700797e8b35a7bb6a34e4e0b2f3ad06c3cbde5b52d8832a5cd084110b02",
+    "retained_sha256": "29d80700797e8b35a7bb6a34e4e0b2f3ad06c3cbde5b52d8832a5cd084110b02",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-primary.command.json",
+    "retained": "ordinary-o-global/mtp-d4-primary.command.json",
+    "original_sha256": "c39ee811eb181bff0fb39e21d19fad2fe81afff1407c0ff04c14e375fcfb1073",
+    "retained_sha256": "c39ee811eb181bff0fb39e21d19fad2fe81afff1407c0ff04c14e375fcfb1073",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-primary.json",
+    "retained": "ordinary-o-global/mtp-d4-primary.json",
+    "original_sha256": "17c3960e505dbec95054cc95c1466d4421bfd42351fbeb1caf11d0070c7b46a3",
+    "retained_sha256": "17c3960e505dbec95054cc95c1466d4421bfd42351fbeb1caf11d0070c7b46a3",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-primary.stderr.log",
+    "retained": "ordinary-o-global/mtp-d4-primary.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-primary.stdout.log",
+    "retained": "ordinary-o-global/mtp-d4-primary.stdout.log.gz",
+    "original_sha256": "e088858df3f020f89ddd78b7be96f44d6d206f2dc8bf7971d75a875e22b40858",
+    "retained_sha256": "f6e38b3584c5222eb377dd6a8994a1c7eb964de6f64ef48944cdb62bad6931bf",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-primary.telemetry.csv",
+    "retained": "ordinary-o-global/mtp-d4-primary.telemetry.csv",
+    "original_sha256": "d1a28a21497f6f2cdd9bd5f010fce2c58ebc45fef32acbdf3701c1c9b2db170e",
+    "retained_sha256": "d1a28a21497f6f2cdd9bd5f010fce2c58ebc45fef32acbdf3701c1c9b2db170e",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-regression.command.json",
+    "retained": "ordinary-o-global/mtp-d4-regression.command.json",
+    "original_sha256": "59c09a6d72235fc99788d4442ae0399bb6103b2421c140f7aa117e959ce2e023",
+    "retained_sha256": "59c09a6d72235fc99788d4442ae0399bb6103b2421c140f7aa117e959ce2e023",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-regression.json",
+    "retained": "ordinary-o-global/mtp-d4-regression.json",
+    "original_sha256": "0bb37b3cf69882ca9b97f465314e10de6e703519518e026209a033046aeb97a2",
+    "retained_sha256": "0bb37b3cf69882ca9b97f465314e10de6e703519518e026209a033046aeb97a2",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-regression.stderr.log",
+    "retained": "ordinary-o-global/mtp-d4-regression.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-regression.stdout.log",
+    "retained": "ordinary-o-global/mtp-d4-regression.stdout.log.gz",
+    "original_sha256": "d769f7973fe6629fe4eaa547acbb9c88266760e3544b4e5ead7f24394180bb03",
+    "retained_sha256": "0141917b5c7697e158c733cae76284a291f4d65b7f6c233295316452ae58370f",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/mtp-primary-summary.json",
+    "retained": "ordinary-o-global/mtp-primary-summary.json",
+    "original_sha256": "b2b250bf5c511ca81af77b2fe3d35a83b7f59bd436b57c5ef724ad7b4912652a",
+    "retained_sha256": "b2b250bf5c511ca81af77b2fe3d35a83b7f59bd436b57c5ef724ad7b4912652a",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-binary.json",
+    "retained": "ordinary-o-global/o-binary.json",
+    "original_sha256": "042c2a12e6d7642c347ea4097252c4d8ee8def280171e6f69376ba7c00994155",
+    "retained_sha256": "042c2a12e6d7642c347ea4097252c4d8ee8def280171e6f69376ba7c00994155",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-build.command.json",
+    "retained": "ordinary-o-global/o-build.command.json",
+    "original_sha256": "71444c6c4c3a888165a290fd662170bba63978232e8530a002392cc32fd4ab5d",
+    "retained_sha256": "71444c6c4c3a888165a290fd662170bba63978232e8530a002392cc32fd4ab5d",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-build.stderr.log",
+    "retained": "ordinary-o-global/o-build.stderr.log.gz",
+    "original_sha256": "e22e8dc4c80c761ec6e15bec7347cf9956077d8791829c023dc3fddb7e31a9f1",
+    "retained_sha256": "b707d9d0e8989d448bc27a1d80d55028fb8adf844963adb509f8d720b4535a2d",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-build.stdout.log",
+    "retained": "ordinary-o-global/o-build.stdout.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-memcheck.command.json",
+    "retained": "ordinary-o-global/o-memcheck.command.json",
+    "original_sha256": "5b0255282de2aa4d3c2552ae7e3c4257736f9af597ae5f91427a24e823aa8f12",
+    "retained_sha256": "5b0255282de2aa4d3c2552ae7e3c4257736f9af597ae5f91427a24e823aa8f12",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-memcheck.json",
+    "retained": "ordinary-o-global/o-memcheck.json",
+    "original_sha256": "1cb1be3d1eb512964383b9096ab1541ff611da91c571bd387ae6b25e4a73c93a",
+    "retained_sha256": "1cb1be3d1eb512964383b9096ab1541ff611da91c571bd387ae6b25e4a73c93a",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-memcheck.stderr.log",
+    "retained": "ordinary-o-global/o-memcheck.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-memcheck.stdout.log",
+    "retained": "ordinary-o-global/o-memcheck.stdout.log.gz",
+    "original_sha256": "12fac2c53d65ebe1e6da678db4886fbfe179fcba75bcae8481f59cba57f2c72f",
+    "retained_sha256": "74368266e5e5dab0ec457d74663dcf6e39a1c2bea8e46cb0072a2e8191afd5c0",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-numeric-timing.command.json",
+    "retained": "ordinary-o-global/o-numeric-timing.command.json",
+    "original_sha256": "ebc52502b5b0f20aa126f83e1989b0a31f46353e054c1f6ba1ac07427ef8a62a",
+    "retained_sha256": "ebc52502b5b0f20aa126f83e1989b0a31f46353e054c1f6ba1ac07427ef8a62a",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-numeric-timing.json",
+    "retained": "ordinary-o-global/o-numeric-timing.json",
+    "original_sha256": "b6355ed48eefab2c0a9da1983642a4f391b6e098ef1ff6772584497e2527d565",
+    "retained_sha256": "b6355ed48eefab2c0a9da1983642a4f391b6e098ef1ff6772584497e2527d565",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-numeric-timing.stderr.log",
+    "retained": "ordinary-o-global/o-numeric-timing.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-numeric-timing.stdout.log",
+    "retained": "ordinary-o-global/o-numeric-timing.stdout.log.gz",
+    "original_sha256": "a305c49a3bd3d91e259f6ad902191731c79cbb7dd27a4d1350b934bbaa4584f7",
+    "retained_sha256": "e3e37872d175899de6c6b575ef510caaa9103bc0b16a6406ecd08c105b3d9c9d",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-racecheck.command.json",
+    "retained": "ordinary-o-global/o-racecheck.command.json",
+    "original_sha256": "93817af371c1d3d6da826124095e8f43df99ba6074f99fa1b715e208f654b638",
+    "retained_sha256": "93817af371c1d3d6da826124095e8f43df99ba6074f99fa1b715e208f654b638",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-racecheck.json",
+    "retained": "ordinary-o-global/o-racecheck.json",
+    "original_sha256": "1cb1be3d1eb512964383b9096ab1541ff611da91c571bd387ae6b25e4a73c93a",
+    "retained_sha256": "1cb1be3d1eb512964383b9096ab1541ff611da91c571bd387ae6b25e4a73c93a",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-racecheck.stderr.log",
+    "retained": "ordinary-o-global/o-racecheck.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-racecheck.stdout.log",
+    "retained": "ordinary-o-global/o-racecheck.stdout.log.gz",
+    "original_sha256": "dc948cb3798c7fe7c84229629c3d5768474a6d6a82dc95aa902adccd2d955b25",
+    "retained_sha256": "765ca94ffe16a58e809035f1196cfdcf9411bb8d2dba096ba4d6c3c5f0c9d054",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-resources.command.json",
+    "retained": "ordinary-o-global/o-resources.command.json",
+    "original_sha256": "43ec652ec0fd840a00448ac1aa27bb64463155efd42d8bd60c675627619951c4",
+    "retained_sha256": "43ec652ec0fd840a00448ac1aa27bb64463155efd42d8bd60c675627619951c4",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-resources.stderr.log",
+    "retained": "ordinary-o-global/o-resources.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-resources.stdout.log",
+    "retained": "ordinary-o-global/o-resources.stdout.log.gz",
+    "original_sha256": "cb0c84d1a2f9abc23dcd786a0bdf69c1a5f0a44eeff48cb94711bd8be26b5f37",
+    "retained_sha256": "498ea9fa06b30f29673ae2a712a4a48cc680f3674c4f7515df97192592eac5a1",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-sass.command.json",
+    "retained": "ordinary-o-global/o-sass.command.json",
+    "original_sha256": "bf9373242c9b9455d0a122037b5bcba94ff46c979e5077322e72995be9429e34",
+    "retained_sha256": "bf9373242c9b9455d0a122037b5bcba94ff46c979e5077322e72995be9429e34",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-sass.stderr.log",
+    "retained": "ordinary-o-global/o-sass.stderr.log.gz",
+    "original_sha256": "aecc224a88502a3b9f76bd8b9a3691104143d5047518402d53a3ef6103de80b6",
+    "retained_sha256": "3f1a35fed84ef33e931dcd9dc05c5eda9746d7978c6bd321c2732088499ffd77",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-sass.stdout.log",
+    "retained": "ordinary-o-global/o-sass.stdout.log.gz",
+    "original_sha256": "4e736859300677cded4861bc1ce080bbecd67942ecb6694aad1e1ab9b57f4ca7",
+    "retained_sha256": "1c1322ca44d09bdb404b80657daf554688b47dedea99bd41adfd02aff1ccb9bc",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-synccheck.command.json",
+    "retained": "ordinary-o-global/o-synccheck.command.json",
+    "original_sha256": "c32fda0551c3165a557d3203aad37b9dd216d2f0bc9d919f3706e6cccab67aae",
+    "retained_sha256": "c32fda0551c3165a557d3203aad37b9dd216d2f0bc9d919f3706e6cccab67aae",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-synccheck.json",
+    "retained": "ordinary-o-global/o-synccheck.json",
+    "original_sha256": "1cb1be3d1eb512964383b9096ab1541ff611da91c571bd387ae6b25e4a73c93a",
+    "retained_sha256": "1cb1be3d1eb512964383b9096ab1541ff611da91c571bd387ae6b25e4a73c93a",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-synccheck.stderr.log",
+    "retained": "ordinary-o-global/o-synccheck.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/o-synccheck.stdout.log",
+    "retained": "ordinary-o-global/o-synccheck.stdout.log.gz",
+    "original_sha256": "12fac2c53d65ebe1e6da678db4886fbfe179fcba75bcae8481f59cba57f2c72f",
+    "retained_sha256": "74368266e5e5dab0ec457d74663dcf6e39a1c2bea8e46cb0072a2e8191afd5c0",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/offline.py",
+    "retained": "ordinary-o-global/offline.py",
+    "original_sha256": "9bef08056f4f5558b4922dc59b849de6244708da091d5bc1151acf08439d6f56",
+    "retained_sha256": "9bef08056f4f5558b4922dc59b849de6244708da091d5bc1151acf08439d6f56",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/ordinary_global_gqa4.cuh",
+    "retained": "ordinary-o-global/ordinary_global_gqa4.cuh",
+    "original_sha256": "ebabc9dee6d7ac8b92bae8feb4a361273c459d35badb5e761c3eef254aa222a8",
+    "retained_sha256": "ebabc9dee6d7ac8b92bae8feb4a361273c459d35badb5e761c3eef254aa222a8",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/ordinary_o.cuh",
+    "retained": "ordinary-o-global/ordinary_o.cuh",
+    "original_sha256": "0360d1d30d131603fb94fbd6aaeeb2e4b8462bb14684c847828150e34bcde511",
+    "retained_sha256": "0360d1d30d131603fb94fbd6aaeeb2e4b8462bb14684c847828150e34bcde511",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent-export.command.json",
+    "retained": "ordinary-o-global/parent-export.command.json",
+    "original_sha256": "132c02ab7a6dee9e5606a650d84749efbec2711f1414619e6d73f114a0300b9a",
+    "retained_sha256": "132c02ab7a6dee9e5606a650d84749efbec2711f1414619e6d73f114a0300b9a",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent-export.stderr.log",
+    "retained": "ordinary-o-global/parent-export.stderr.log.gz",
+    "original_sha256": "355ec7de2cfa58d21bdf4ea428d71d66f8374dd4645008f8521b4d923f2e751a",
+    "retained_sha256": "b58f7839cd1ccf025a2b1a1c9c387fc1e5c7ebd01fac0c71c5b554e9da8eb9fa",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent-export.stdout.log",
+    "retained": "ordinary-o-global/parent-export.stdout.log.gz",
+    "original_sha256": "6618a86135aeb45da1554e1d55de60f6ac9b6cecf60b2acdf14076056aefbc40",
+    "retained_sha256": "e7759925427e55cca0b8e4888c5be95df667027d46b953a42bddba077e198fcb",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent-profile.command.json",
+    "retained": "ordinary-o-global/parent-profile.command.json",
+    "original_sha256": "c8f7f00eecc41ddb3dd0172ce631cdd21e8e26db0c3c512fdeb249baf5411284",
+    "retained_sha256": "c8f7f00eecc41ddb3dd0172ce631cdd21e8e26db0c3c512fdeb249baf5411284",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent-profile.json",
+    "retained": "ordinary-o-global/parent-profile.json",
+    "original_sha256": "427ee869d2e20d2b61eeee7aae42b5a59f280321aff470fc59b51f299c3dbf05",
+    "retained_sha256": "427ee869d2e20d2b61eeee7aae42b5a59f280321aff470fc59b51f299c3dbf05",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent-profile.stderr.log",
+    "retained": "ordinary-o-global/parent-profile.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent-profile.stdout.log",
+    "retained": "ordinary-o-global/parent-profile.stdout.log.gz",
+    "original_sha256": "6a54f6971f6aeea13f53def205c31c667ce97668bc90d89146030f401e1775fe",
+    "retained_sha256": "481c04b6593cbd62206a37aee53a5fdb3d1a7eea6717a44ad68a8813414d6afd",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent-profile.telemetry.csv",
+    "retained": "ordinary-o-global/parent-profile.telemetry.csv",
+    "original_sha256": "85cef4722767d01e51e92618f451960d4e2a846f9692c785b7d185ea5cdb72b7",
+    "retained_sha256": "85cef4722767d01e51e92618f451960d4e2a846f9692c785b7d185ea5cdb72b7",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent.command.json",
+    "retained": "ordinary-o-global/parent.command.json",
+    "original_sha256": "995f7cd4df6bd07d6f0d4bfd15a3013006486cbc1671c913f5764541020da011",
+    "retained_sha256": "995f7cd4df6bd07d6f0d4bfd15a3013006486cbc1671c913f5764541020da011",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent.environment.json",
+    "retained": "ordinary-o-global/parent.environment.json",
+    "original_sha256": "279c6c8996528fbd90a4cf560691b6c5ded922abce24b298b8a7f3aa0c00e938",
+    "retained_sha256": "279c6c8996528fbd90a4cf560691b6c5ded922abce24b298b8a7f3aa0c00e938",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent.json",
+    "retained": "ordinary-o-global/parent.json",
+    "original_sha256": "7348ea3be4d92c1866da46bd4d6371e2eb375e4f522454385c9969ab33676124",
+    "retained_sha256": "7348ea3be4d92c1866da46bd4d6371e2eb375e4f522454385c9969ab33676124",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent.stderr.log",
+    "retained": "ordinary-o-global/parent.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent.stdout.log",
+    "retained": "ordinary-o-global/parent.stdout.log.gz",
+    "original_sha256": "97b81f38c1983eee431505f31467a8c5646ae49307d36d5415e748bd741bfdb1",
+    "retained_sha256": "149537b0b450576bd80c8a064c53461fa390fa1eb570dc5a0833bccdc0adba68",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/parent.telemetry.csv",
+    "retained": "ordinary-o-global/parent.telemetry.csv",
+    "original_sha256": "c24ae93a0a0b9557bf93508c2e01c027858c1455fd3d4b449d79594b4a9f3641",
+    "retained_sha256": "c24ae93a0a0b9557bf93508c2e01c027858c1455fd3d4b449d79594b4a9f3641",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/production-build.log",
+    "retained": "ordinary-o-global/production-build.log.gz",
+    "original_sha256": "f349aad2628b602974fdddfaefefa330346e8e22c7813fe8108069c03cd1d357",
+    "retained_sha256": "6e6d1d5849ab5cbd95eb3570bec42e36388ea6c810bb8afe5df253099bea851f",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/profile-accounting.command.json",
+    "retained": "ordinary-o-global/profile-accounting.command.json",
+    "original_sha256": "daf102146a527f6551dcb79a45ef087b856f3555428053664912ec041321e44a",
+    "retained_sha256": "daf102146a527f6551dcb79a45ef087b856f3555428053664912ec041321e44a",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/profile-accounting.stderr.log",
+    "retained": "ordinary-o-global/profile-accounting.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/profile-accounting.stdout.log",
+    "retained": "ordinary-o-global/profile-accounting.stdout.log.gz",
+    "original_sha256": "ab028b5bc7e4d417ffb1998d22448c6bbfcc7069d0219f055707ae5f965a22d0",
+    "retained_sha256": "f4d08439325b58da6078b241db0f998ff63376159feb15aeb447c167f03cf27b",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/qualification-summary.json",
+    "retained": "ordinary-o-global/qualification-summary.json",
+    "original_sha256": "bf6fd0f4961922835487642ec1a87f6c1b7a4b4fccff8d1e3bf4cc95e1a7894f",
+    "retained_sha256": "bf6fd0f4961922835487642ec1a87f6c1b7a4b4fccff8d1e3bf4cc95e1a7894f",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/qualify.py",
+    "retained": "ordinary-o-global/qualify.py",
+    "original_sha256": "d032ae58a8d2ea862e05cf2e9e23297a0075ac763ad37938c33d501b486381cc",
+    "retained_sha256": "d032ae58a8d2ea862e05cf2e9e23297a0075ac763ad37938c33d501b486381cc",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/resources.command.json",
+    "retained": "ordinary-o-global/resources.command.json",
+    "original_sha256": "dfb5e85c0f5c759b9a151e89e31eeeefbfc86b1a0b3b42874d062a6c718ec81b",
+    "retained_sha256": "dfb5e85c0f5c759b9a151e89e31eeeefbfc86b1a0b3b42874d062a6c718ec81b",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/resources.stderr.log",
+    "retained": "ordinary-o-global/resources.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/resources.stdout.log",
+    "retained": "ordinary-o-global/resources.stdout.log.gz",
+    "original_sha256": "54542f3a827c619866bc08a0752bdeccb0b1c7dfe400dafb7303124923a4625c",
+    "retained_sha256": "92dcc3313b4a29fa3aeced3bc4c4871a766ad51123371d15c7c2af4099c96e41",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/retained-traces.json",
+    "retained": "ordinary-o-global/retained-traces.json",
+    "original_sha256": "5bdf710dde26ef902bc017be177a7debb70767a4e4fa62308969bd6136b4ad9c",
+    "retained_sha256": "5bdf710dde26ef902bc017be177a7debb70767a4e4fa62308969bd6136b4ad9c",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/run_primary.py",
+    "retained": "ordinary-o-global/run_primary.py",
+    "original_sha256": "391b88c958522d79bcfa1967bc5890a40296bac58b241dfcc658fcd66dc78307",
+    "retained_sha256": "391b88c958522d79bcfa1967bc5890a40296bac58b241dfcc658fcd66dc78307",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/scratch.json",
+    "retained": "ordinary-o-global/scratch.json",
+    "original_sha256": "9204a8810539e1ace0863a7088e2f01652712bdbc92f89d68bc294ff2e5c7d83",
+    "retained_sha256": "9204a8810539e1ace0863a7088e2f01652712bdbc92f89d68bc294ff2e5c7d83",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/ordinary-o-global/source-manifest.json",
+    "retained": "ordinary-o-global/source-manifest.json",
+    "original_sha256": "f9a0f59536b0a03726adb8fe3d5856ace5a7d6db1e9a45ca360766f8069be9c6",
+    "retained_sha256": "f9a0f59536b0a03726adb8fe3d5856ace5a7d6db1e9a45ca360766f8069be9c6",
+    "lossless_gzip": false
+  },
+  {
+    "identical_sources": [
+      "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-regression.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/ordinary-o-global/combined-profile.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d2-primary.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/ordinary-o-global/combined.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-regression.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-regression.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d4-primary.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/ordinary-o-global/parent.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/ordinary-o-global/combined-smoke.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/ordinary-o-global/parent-profile.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/ordinary-o-global/mtp-d3-primary.prompt-token-ids.txt"
+    ],
+    "retained": "ordinary-o-global/prompt-token-ids.txt.gz",
+    "original_sha256": "da918dc1e14950e5cd06e77145e15912bef6bac7cd6be2d88b367d5b77709eb0",
+    "retained_sha256": "e8c1354f7d917fa56824d5dfa6c66ddc10bfd44be633c9f261ceac308e4c2eb7",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/binary.json",
+    "retained": "mtp-ordinary-only/binary.json",
+    "original_sha256": "eb281fb5c3f7b71ae3b06f00131e3d22b4084802ac640490fd1ba628a1d791ae",
+    "retained_sha256": "eb281fb5c3f7b71ae3b06f00131e3d22b4084802ac640490fd1ba628a1d791ae",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/d3-dispatch-export.command.json",
+    "retained": "mtp-ordinary-only/d3-dispatch-export.command.json",
+    "original_sha256": "f416862d6258cde86343b61c9eea3cfa6af90c2b2e92b5cc86d7aa8e30aee4a1",
+    "retained_sha256": "f416862d6258cde86343b61c9eea3cfa6af90c2b2e92b5cc86d7aa8e30aee4a1",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/d3-dispatch-export.stderr.log",
+    "retained": "mtp-ordinary-only/d3-dispatch-export.stderr.log.gz",
+    "original_sha256": "355ec7de2cfa58d21bdf4ea428d71d66f8374dd4645008f8521b4d923f2e751a",
+    "retained_sha256": "b58f7839cd1ccf025a2b1a1c9c387fc1e5c7ebd01fac0c71c5b554e9da8eb9fa",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/d3-dispatch-export.stdout.log",
+    "retained": "mtp-ordinary-only/d3-dispatch-export.stdout.log.gz",
+    "original_sha256": "2bc2bd1048df51553e849a2cb03815786228eae35a3de448344d8b01d7fb520b",
+    "retained_sha256": "56923766e578b3c4a2e0414aa7520f01687f0c8d4b67509a495dde40d9dcf403",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/d3-dispatch.command.json",
+    "retained": "mtp-ordinary-only/d3-dispatch.command.json",
+    "original_sha256": "b2909fb412f301dc54c3bf5d1b4516f1c7ec80ec5612b8ff467579f976f9b0ee",
+    "retained_sha256": "b2909fb412f301dc54c3bf5d1b4516f1c7ec80ec5612b8ff467579f976f9b0ee",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/d3-dispatch.json",
+    "retained": "mtp-ordinary-only/d3-dispatch.json",
+    "original_sha256": "6c061e754907de94fe3f9a5f69e7d8541adece8c430fe0be05c110f9e220c91a",
+    "retained_sha256": "6c061e754907de94fe3f9a5f69e7d8541adece8c430fe0be05c110f9e220c91a",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/d3-dispatch.stderr.log",
+    "retained": "mtp-ordinary-only/d3-dispatch.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/d3-dispatch.stdout.log",
+    "retained": "mtp-ordinary-only/d3-dispatch.stdout.log.gz",
+    "original_sha256": "a88db8b054bb1aa68723d095c2280b3e65e0564db0ce7049e3bc4f1f776abf2f",
+    "retained_sha256": "b46518b526f445afde86676ae8f2a2854d1970158ec72dfe94ce744d63c7c630",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/dispatch-summary.json",
+    "retained": "mtp-ordinary-only/dispatch-summary.json",
+    "original_sha256": "b062467845b38fc60273b02b3681d32ee416e8e5648baefa035d70a44b9af76b",
+    "retained_sha256": "b062467845b38fc60273b02b3681d32ee416e8e5648baefa035d70a44b9af76b",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/environment.json",
+    "retained": "mtp-ordinary-only/environment.json",
+    "original_sha256": "e5119fd28a24c9f2bc291b3352095ef64011cd00380525d26e3bbb9928d91332",
+    "retained_sha256": "e5119fd28a24c9f2bc291b3352095ef64011cd00380525d26e3bbb9928d91332",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/host-unit.log",
+    "retained": "mtp-ordinary-only/host-unit.log.gz",
+    "original_sha256": "46dd6ff401a949467f4977eeae72f05e78ff193fc1a0f7586c987173ef7ef3b6",
+    "retained_sha256": "2acfd346c51dae265883c25d83488b77e69efdcd4d051d7fc7fb07e317fd2807",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/measure.py",
+    "retained": "mtp-ordinary-only/measure.py",
+    "original_sha256": "064269085ae86dddbff3c2e3cad57ed534093cf46da6762773adf6821055cf06",
+    "retained_sha256": "064269085ae86dddbff3c2e3cad57ed534093cf46da6762773adf6821055cf06",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d2-primary-comparison.json",
+    "retained": "mtp-ordinary-only/mtp-d2-primary-comparison.json",
+    "original_sha256": "82a787cd45ef5523f2620f01f3a09807f65c22de6a5a2ae7ee656cc13a309dbd",
+    "retained_sha256": "82a787cd45ef5523f2620f01f3a09807f65c22de6a5a2ae7ee656cc13a309dbd",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d2-primary.command.json",
+    "retained": "mtp-ordinary-only/mtp-d2-primary.command.json",
+    "original_sha256": "e44cc853c7bcfdbd67f4b9ab217bb5702ea8a9d8600f8ca0ffaed1bd63147306",
+    "retained_sha256": "e44cc853c7bcfdbd67f4b9ab217bb5702ea8a9d8600f8ca0ffaed1bd63147306",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d2-primary.json",
+    "retained": "mtp-ordinary-only/mtp-d2-primary.json",
+    "original_sha256": "73b630cf6975d49c57b1b19d19e24cd549c8cc94fc80ff1b16c3a42eace35d39",
+    "retained_sha256": "73b630cf6975d49c57b1b19d19e24cd549c8cc94fc80ff1b16c3a42eace35d39",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d2-primary.stderr.log",
+    "retained": "mtp-ordinary-only/mtp-d2-primary.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d2-primary.stdout.log",
+    "retained": "mtp-ordinary-only/mtp-d2-primary.stdout.log.gz",
+    "original_sha256": "cb3246c7461918792e2ee363773451301d198b057419a8d3ff0d253fff5c92aa",
+    "retained_sha256": "ff2edb39330e535858ba60aa171a4c3965afe27a1f1d0d26f830fbe9115a7ffa",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d2-primary.telemetry.csv",
+    "retained": "mtp-ordinary-only/mtp-d2-primary.telemetry.csv",
+    "original_sha256": "37e90605cf3c139984ac35d3e6bd486d3b227240c49e4cfc26e28340c3e7830b",
+    "retained_sha256": "37e90605cf3c139984ac35d3e6bd486d3b227240c49e4cfc26e28340c3e7830b",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d3-primary-comparison.json",
+    "retained": "mtp-ordinary-only/mtp-d3-primary-comparison.json",
+    "original_sha256": "abd6cefb2909ddee26b95914745049dbf3e4434f8f20cb50d851c345f2a029e5",
+    "retained_sha256": "abd6cefb2909ddee26b95914745049dbf3e4434f8f20cb50d851c345f2a029e5",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d3-primary.command.json",
+    "retained": "mtp-ordinary-only/mtp-d3-primary.command.json",
+    "original_sha256": "431f83c9d51affdfdcd0c1b0df9c270fa88f37cfed1226cdf249afaf11371ab6",
+    "retained_sha256": "431f83c9d51affdfdcd0c1b0df9c270fa88f37cfed1226cdf249afaf11371ab6",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d3-primary.json",
+    "retained": "mtp-ordinary-only/mtp-d3-primary.json",
+    "original_sha256": "a1dbe3d559070ad59521be52d7bdee85ce2373e0a344c990066cf60a9d6dbe41",
+    "retained_sha256": "a1dbe3d559070ad59521be52d7bdee85ce2373e0a344c990066cf60a9d6dbe41",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d3-primary.stderr.log",
+    "retained": "mtp-ordinary-only/mtp-d3-primary.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d3-primary.stdout.log",
+    "retained": "mtp-ordinary-only/mtp-d3-primary.stdout.log.gz",
+    "original_sha256": "c8580df42a7a7fc9abc8b21669d958f3c9238b8c07ef64519098463b5d3f1e8e",
+    "retained_sha256": "9c97298d5aa35ed48797f9a6e557b1828557e0cec0e4cf4119652a62296aed39",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d3-primary.telemetry.csv",
+    "retained": "mtp-ordinary-only/mtp-d3-primary.telemetry.csv",
+    "original_sha256": "107824d804b78bf58a1f9f2154327ef70a3fd7a93b6653410e459f7cf64060f9",
+    "retained_sha256": "107824d804b78bf58a1f9f2154327ef70a3fd7a93b6653410e459f7cf64060f9",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d4-primary-comparison.json",
+    "retained": "mtp-ordinary-only/mtp-d4-primary-comparison.json",
+    "original_sha256": "a9ec5d026cce4d9a263911a30efa397f45c7ab2ad69449a118a7280cbbb1b04c",
+    "retained_sha256": "a9ec5d026cce4d9a263911a30efa397f45c7ab2ad69449a118a7280cbbb1b04c",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d4-primary.command.json",
+    "retained": "mtp-ordinary-only/mtp-d4-primary.command.json",
+    "original_sha256": "66ed1b0a3b25dd0b670e6c1875d4719bf930f2e92adffaf53e38c1aec81f860f",
+    "retained_sha256": "66ed1b0a3b25dd0b670e6c1875d4719bf930f2e92adffaf53e38c1aec81f860f",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d4-primary.json",
+    "retained": "mtp-ordinary-only/mtp-d4-primary.json",
+    "original_sha256": "26872a2b7c897617e64726768c1d8dd9a781f70f9afa56b733e724eeabccefb6",
+    "retained_sha256": "26872a2b7c897617e64726768c1d8dd9a781f70f9afa56b733e724eeabccefb6",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d4-primary.stderr.log",
+    "retained": "mtp-ordinary-only/mtp-d4-primary.stderr.log.gz",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d4-primary.stdout.log",
+    "retained": "mtp-ordinary-only/mtp-d4-primary.stdout.log.gz",
+    "original_sha256": "9580af67b040677bd85cf3b634a99b0ce2d1940259d98493c0bc615d797cb41e",
+    "retained_sha256": "cbb5706ed06d751e66440734121481791af4db7eee98191dc741c202c4bb7536",
+    "lossless_gzip": true
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d4-primary.telemetry.csv",
+    "retained": "mtp-ordinary-only/mtp-d4-primary.telemetry.csv",
+    "original_sha256": "f70b5853cc20b8c962fa27090600eeb1cf94a848b374c342fc672cf5b814d01e",
+    "retained_sha256": "f70b5853cc20b8c962fa27090600eeb1cf94a848b374c342fc672cf5b814d01e",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/qualification-summary.json",
+    "retained": "mtp-ordinary-only/qualification-summary.json",
+    "original_sha256": "6ff1d43585f5cd95d76b9162bac8ebc837ee0d0e037b20367a2b3517de84a0e8",
+    "retained_sha256": "6ff1d43585f5cd95d76b9162bac8ebc837ee0d0e037b20367a2b3517de84a0e8",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/source-integrity.json",
+    "retained": "mtp-ordinary-only/source-integrity.json",
+    "original_sha256": "592343be5b3701e69c98304b88bd04895ca3ce5da91df5f9d3fa1c29b652ea7c",
+    "retained_sha256": "592343be5b3701e69c98304b88bd04895ca3ce5da91df5f9d3fa1c29b652ea7c",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/source-manifest.json",
+    "retained": "mtp-ordinary-only/source-manifest.json",
+    "original_sha256": "432d780481a08256c0564e30d0be7832fa4413e29c03bcda5c8e70b5dd7f2b48",
+    "retained_sha256": "432d780481a08256c0564e30d0be7832fa4413e29c03bcda5c8e70b5dd7f2b48",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/summarize.py",
+    "retained": "mtp-ordinary-only/summarize.py",
+    "original_sha256": "a426f4cf6a93ffe04142c717ec95102b98ba2aa478972b09b9eb4e62b0f4943d",
+    "retained_sha256": "a426f4cf6a93ffe04142c717ec95102b98ba2aa478972b09b9eb4e62b0f4943d",
+    "lossless_gzip": false
+  },
+  {
+    "source": "benchmarks/results/2026-11-17/mtp-ordinary-only/trace.py",
+    "retained": "mtp-ordinary-only/trace.py",
+    "original_sha256": "9d73699b12b47e79fd4c5185d4654692812bc386b104b5c43f0700259f8ce763",
+    "retained_sha256": "9d73699b12b47e79fd4c5185d4654692812bc386b104b5c43f0700259f8ce763",
+    "lossless_gzip": false
+  },
+  {
+    "identical_sources": [
+      "benchmarks/results/2026-11-17/mtp-ordinary-only/d3-dispatch.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d2-primary.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d4-primary.prompt-token-ids.txt",
+      "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d3-primary.prompt-token-ids.txt"
+    ],
+    "retained": "mtp-ordinary-only/prompt-token-ids.txt.gz",
+    "original_sha256": "da918dc1e14950e5cd06e77145e15912bef6bac7cd6be2d88b367d5b77709eb0",
+    "retained_sha256": "e8c1354f7d917fa56824d5dfa6c66ddc10bfd44be633c9f261ceac308e4c2eb7",
+    "lossless_gzip": true
+  }
+]

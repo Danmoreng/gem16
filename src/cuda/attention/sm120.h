@@ -59,6 +59,13 @@ struct DecodeControl;
 // tiers preserve scalar dimension order; 64K and above use E4M3x4 loads.
 // Shorter tiers keep the four-query-head grouped path. `workspace` requires
 // DecodeAttentionWorkspaceElements(max_context) floats.
+//12B Ordinary long-context global GQA only; existing partial/merge layout.
+[[nodiscard]] Status LaunchTwelveBOrdinaryGlobalAttentionFp8Sm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint16_t* key_scale,
+    const std::uint16_t* value_scale, float* workspace, float* output,
+    const DecodeControl* control, std::uint64_t capacity, cudaStream_t stream);
+
 [[nodiscard]] Status LaunchOnlineAttentionDecodeFp8Sm120(
     const float* query, const std::uint8_t* key_cache,
     const std::uint8_t* value_cache,

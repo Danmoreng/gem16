@@ -271,6 +271,8 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* activation,
 #endif
 }
 
+#include "cuda/fp8/detail/twelve_b_ordinary_o.cuh"
+
 // The 25 local 26B layers project Q4096/K2048/V2048 from the same K2816
 // activation. The generic grouped launch uses the Q-sized X grid for all three
 // Z planes, leaving half of both K/V planes empty. Flatten the three exact
@@ -863,6 +865,25 @@ __global__ void Sm120MatrixProjectionKernel(
 #include "cuda/fp8/detail/decode_t3_rows.cuh"
 
 }  // namespace
+
+Status LaunchTwelveBOrdinaryFp8OProjection(
+    const std::uint8_t* activation, const float* activation_scale,
+    const std::uint8_t* weight, const std::uint16_t* weight_scales,
+    float* output, std::uint64_t rows, std::uint64_t contracting,
+    cudaStream_t stream) {
+  if (activation == nullptr || activation_scale == nullptr || weight == nullptr ||
+      weight_scales == nullptr || output == nullptr || rows != 3840U ||
+      (contracting != 4096U && contracting != 8192U)) {
+    return Invalid("12B Ordinary FP8 O requires3840 rows and K4096/8192");
+  }
+  const Fp8MatrixBinding binding{weight, weight_scales, output, rows};
+  const Fp8MatrixBinding empty{};
+  TwelveBOrdinaryOPipelineKernel<4U><<<120U, 128U, 0U, stream>>>(
+      activation, activation_scale, binding, empty, empty, 1U, 1U, contracting);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess ? Status::Ok()
+      : CudaFailure("launch12B Ordinary FP8 O load bundle4", error);
+}
 
 Status LaunchFp8Sm120DirectProjection(const std::uint8_t* activation_e4m3fn,
                                       const float* activation_scale,

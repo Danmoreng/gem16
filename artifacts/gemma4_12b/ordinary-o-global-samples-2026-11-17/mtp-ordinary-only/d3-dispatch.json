@@ -1,0 +1,734 @@
+{
+  "benchmark_source": {
+    "git_commit": "c9b95271b8c9d628deb207aee97721f4267d362c",
+    "worktree_dirty_at_start": true
+  },
+  "configuration": {
+    "batch_size": 1,
+    "kv_cache": "checkpoint_fp8",
+    "measured_repetitions": 1,
+    "mtp_adaptive": false,
+    "mtp_draft_tokens": 3,
+    "mtp_verification_mode": "batched_exact_target",
+    "primary_statistic": "median",
+    "warmups": 0
+  },
+  "engine": "gem16",
+  "gpu_telemetry_csv": null,
+  "limitations": [
+    "No continuous power, clock, or thermal telemetry was captured.",
+    "TTFT includes prompt processing and first-token selection.",
+    "Decode throughput uses generated_tokens - 1 intervals after the first token.",
+    "Engine checkpoint and KV precisions must be read from configuration before comparison."
+  ],
+  "representative_output_token_ids": [
+    61684,
+    3526,
+    1778,
+    48903,
+    113684,
+    853,
+    24612,
+    236772,
+    9175,
+    727,
+    1416,
+    8046,
+    203191,
+    9561,
+    216559,
+    236802,
+    568,
+    41410,
+    1473,
+    108,
+    10354,
+    5213,
+    16716,
+    941,
+    48745,
+    16705,
+    236802,
+    145711,
+    1018,
+    107,
+    236855,
+    49451,
+    9561,
+    216559,
+    236802,
+    77113,
+    1778,
+    121587,
+    23998,
+    3564,
+    4899,
+    7919,
+    998,
+    501,
+    236764,
+    104063,
+    3818,
+    191314,
+    236764,
+    1778,
+    199092,
+    127266,
+    9561,
+    216559,
+    236802,
+    2087,
+    208763,
+    236764,
+    8880,
+    228044,
+    236764,
+    2212,
+    41024,
+    128687
+  ],
+  "runs": [
+    {
+      "average_inter_token_latency_ms": 9.983761904761904,
+      "decode_ms": 628.977,
+      "decode_tokens_per_second": 100.16264505697347,
+      "engine_result": {
+        "artifact_profile": "native-checkpoint",
+        "assistant": {
+          "arena_bytes": 845714944,
+          "attention_path": "fp8_online_split_long_reference_short",
+          "device_memory_delta_bytes": 847249408,
+          "execution_enabled": true,
+          "loaded": true,
+          "source_bytes": 845713928,
+          "tensor_count": 48,
+          "workspace_bytes": 23620864
+        },
+        "benchmark_qualified": false,
+        "decode_attention_path": "fp8_online_split_global_gqa_shared_scalar",
+        "decode_graph_device_bytes": 48234496,
+        "decode_graphs": true,
+        "decode_ms": 628.977,
+        "decode_tokens_per_second": 100.163,
+        "decoding_mode": "greedy",
+        "fallbacks": 0,
+        "finish_reason": "length",
+        "fp8_prefill_output": "scaled_bf16",
+        "fp8_prefill_pipeline_stages": 0,
+        "fp8_prefill_schedule": "cutlass_auto",
+        "fp8_prefill_storage": "physical_bf16",
+        "fp8_prefill_tile": "cutlass_m128n128k64",
+        "fused_gate_up": false,
+        "fused_output_head": true,
+        "fused_prefill_attention": true,
+        "fused_prefill_gated_gelu_routed_activation_quantization": true,
+        "fused_prefill_qk_rmsnorm_rope": true,
+        "fused_prefill_rmsnorm_fp8_quantization": true,
+        "fused_prefill_rmsnorm_routed_activation_quantization": true,
+        "fused_prefill_up_epilogue_gated_gelu_routed": true,
+        "fused_rmsnorm_boundaries": true,
+        "global_prefill_fp8_staging": "async_contiguous_fp8x16_fp8x4_bf16x2",
+        "global_prefill_query_heads_per_cta": 4,
+        "grouped_qkv_decode": true,
+        "grouped_qkv_prefill": false,
+        "image_decode_ms": 0,
+        "image_resize_patchify_ms": 0,
+        "kv_cache_bytes": 302514176,
+        "kv_cache_layout": "hybrid_local_ring_global_contiguous",
+        "kv_cache_mode": "checkpoint_fp8",
+        "kv_cache_storage": "uint8_e4m3fn",
+        "load_time_scale_swizzle": true,
+        "load_time_weight_swizzle": true,
+        "local_attention_window": 1024,
+        "local_prefill_fp8_staging": "async_fp8x16_fp8x4_bf16x2",
+        "local_prefill_query_heads_per_cta": 2,
+        "logits_dump_format": "raw_float32_little_endian",
+        "logits_dump_steps": 0,
+        "logits_dump_vocabulary": 262144,
+        "logits_dumped": false,
+        "model_load_ms": 1315.83,
+        "mtp": {
+          "acceptance_path": "gpu_accept_commit",
+          "accepted_tokens": 38,
+          "adaptive": false,
+          "d1_groups": 0,
+          "d2_attention_path": "inactive",
+          "d2_groups": 0,
+          "d2_output_head_path": "inactive",
+          "d3_groups": 23,
+          "d4_groups": 0,
+          "device_control": "host_gpu_transition_parity",
+          "draft_tokens": 3,
+          "enabled": true,
+          "group_execution": "gpu_chained_fixed_d3_conditional_graph",
+          "host_synchronizations_per_chain": 0,
+          "host_synchronizations_per_group": 0,
+          "mean_accepted_length": 1.65217,
+          "ordinary_fallback_tokens": 0,
+          "proposed_token_ids": [
+            3526,
+            5723,
+            48903,
+            48903,
+            113684,
+            1556,
+            199068,
+            1416,
+            4238,
+            236772,
+            9175,
+            727,
+            8046,
+            203191,
+            9561,
+            236802,
+            568,
+            12553,
+            1473,
+            108,
+            10354,
+            236824,
+            3094,
+            4436,
+            501,
+            1018,
+            107,
+            48745,
+            16705,
+            236802,
+            1018,
+            107,
+            236855,
+            9561,
+            216559,
+            236802,
+            1778,
+            121587,
+            23998,
+            10006,
+            1446,
+            9552,
+            789,
+            9731,
+            501,
+            998,
+            507,
+            236764,
+            236764,
+            104063,
+            3818,
+            236764,
+            1778,
+            4238,
+            127266,
+            9561,
+            216559,
+            177749,
+            91113,
+            24509,
+            208763,
+            568,
+            236802,
+            8880,
+            3438,
+            228044,
+            236764,
+            3171,
+            170048
+          ],
+          "proposed_tokens": 69,
+          "rejected_tokens": 31,
+          "short_batch_projection_path": "decode_order_fp8_qkv_nvfp4_down_t_le_5",
+          "streaming": "mapped_pinned_spsc_ring_256",
+          "target_batches": 25,
+          "target_forwards": 94,
+          "verification_groups": 23,
+          "verification_mode": "batched_exact_target"
+        },
+        "mtp_router_overlap_diagnostic": {
+          "enabled": false,
+          "potential_reused_assignments": 0,
+          "routed_assignments": 0,
+          "row01_intersection_sum": 0,
+          "row02_intersection_sum": 0,
+          "row12_intersection_sum": 0,
+          "triple_intersection_sum": 0,
+          "union_size_histogram": [],
+          "unique_experts_sum": 0,
+          "verifier_layer_samples": 0
+        },
+        "nvfp4_down_prefill_tile": "cutlass_m128n128k128",
+        "nvfp4_gate_up_prefill_tile": "cutlass_m128n128k128",
+        "nvfp4_gate_up_prefill_weight_scratch": true,
+        "output_token_ids": [
+          61684,
+          3526,
+          1778,
+          48903,
+          113684,
+          853,
+          24612,
+          236772,
+          9175,
+          727,
+          1416,
+          8046,
+          203191,
+          9561,
+          216559,
+          236802,
+          568,
+          41410,
+          1473,
+          108,
+          10354,
+          5213,
+          16716,
+          941,
+          48745,
+          16705,
+          236802,
+          145711,
+          1018,
+          107,
+          236855,
+          49451,
+          9561,
+          216559,
+          236802,
+          77113,
+          1778,
+          121587,
+          23998,
+          3564,
+          4899,
+          7919,
+          998,
+          501,
+          236764,
+          104063,
+          3818,
+          191314,
+          236764,
+          1778,
+          199092,
+          127266,
+          9561,
+          216559,
+          236802,
+          2087,
+          208763,
+          236764,
+          8880,
+          228044,
+          236764,
+          2212,
+          41024,
+          128687
+        ],
+        "packed_weight_source_layout_direct": false,
+        "persistent_repack_bytes": 0,
+        "precision": "bf16_state_fp8_attention_nvfp4_mlp",
+        "prefill_chunk_tokens": 8192,
+        "prefill_down_activation_scales": "cutlass_epilogue_interleaved",
+        "prefill_hidden_storage": "physical_bf16",
+        "prefill_residual_storage": "physical_bf16",
+        "prefill_rope_table": "precomputed_exact_max_context",
+        "projection_path": "native_sm120",
+        "prompt_ms": 2778.77,
+        "routed_expert_path": "native_nvfp4",
+        "sampling": {
+          "enabled": false,
+          "frequency_penalty": 0,
+          "min_p": 0,
+          "presence_penalty": 0,
+          "repetition_penalty": 1,
+          "seed": 0,
+          "temperature": 1,
+          "top_k": 0,
+          "top_p": 1
+        },
+        "schema_version": 1,
+        "state_dump_format": "gem16_layer_state_v5",
+        "state_dump_position": null,
+        "state_dumped": false,
+        "status": "characterization",
+        "stop_token_id": null,
+        "teacher_forced_matches": 0,
+        "teacher_forced_token_ids": [],
+        "text_prefill_ms": 0,
+        "token_loop_allocations": false,
+        "vision_pool_project_ms": 0,
+        "vision_tower_ms": 0,
+        "vision_upload_ms": 0,
+        "weight_arena_bytes": 9304895488,
+        "weight_layout": "sm120_row8_k64",
+        "weight_scale_layout": "sm120_row8_k64",
+        "workspace_bytes": 1608445696
+      },
+      "first_output_token_id": 61684,
+      "generated_tokens": 64,
+      "inference_end_to_end_ms": 3407.747,
+      "kv_cache_bytes": 302514176,
+      "last_output_token_id": 128687,
+      "measured_decode_intervals": 63,
+      "model_load_ms": 1315.83,
+      "mtp": {
+        "accepted_tokens": 38,
+        "d1_groups": 0,
+        "d2_groups": 0,
+        "d3_groups": 23,
+        "d4_groups": 0,
+        "mean_accepted_length": 1.65217,
+        "ordinary_fallback_tokens": 0,
+        "proposed_tokens": 69,
+        "rejected_tokens": 31,
+        "target_batches": 25,
+        "target_forwards": 94,
+        "verification_groups": 23
+      },
+      "output_token_sha256": "6650c52a93498b06838f6b9041138adc3f288c503723214a844192f5eb2e169c",
+      "process_wall_ms": 4875.06398700134,
+      "prompt_ms": 2778.77,
+      "prompt_tokens": 16384,
+      "prompt_tokens_per_second": 5896.133900970573,
+      "stop_reason": "length",
+      "workspace_bytes": 1608445696
+    }
+  ],
+  "runtime": {
+    "assistant_checkpoint": "/home/sebastian/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345",
+    "checkpoint": "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+    "executable": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/mtp-ordinary-only/gem16-run",
+    "prompt_token_file": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/mtp-ordinary-only/d3-dispatch.prompt-token-ids.txt"
+  },
+  "schema_version": 1,
+  "status": "development_characterization",
+  "summary": {
+    "average_inter_token_latency_ms": {
+      "confidence_interval_95": [
+        9.983761904761904,
+        9.983761904761904
+      ],
+      "maximum": 9.983761904761904,
+      "mean": 9.983761904761904,
+      "median": 9.983761904761904,
+      "minimum": 9.983761904761904,
+      "sample_count": 1,
+      "samples": [
+        9.983761904761904
+      ],
+      "standard_deviation": 0.0
+    },
+    "decode_tokens_per_second": {
+      "confidence_interval_95": [
+        100.16264505697347,
+        100.16264505697347
+      ],
+      "maximum": 100.16264505697347,
+      "mean": 100.16264505697347,
+      "median": 100.16264505697347,
+      "minimum": 100.16264505697347,
+      "sample_count": 1,
+      "samples": [
+        100.16264505697347
+      ],
+      "standard_deviation": 0.0
+    },
+    "deterministic_outputs": true,
+    "generated_tokens": {
+      "confidence_interval_95": [
+        64.0,
+        64.0
+      ],
+      "maximum": 64.0,
+      "mean": 64.0,
+      "median": 64.0,
+      "minimum": 64.0,
+      "sample_count": 1,
+      "samples": [
+        64.0
+      ],
+      "standard_deviation": 0.0
+    },
+    "inference_end_to_end_ms": {
+      "confidence_interval_95": [
+        3407.747,
+        3407.747
+      ],
+      "maximum": 3407.747,
+      "mean": 3407.747,
+      "median": 3407.747,
+      "minimum": 3407.747,
+      "sample_count": 1,
+      "samples": [
+        3407.747
+      ],
+      "standard_deviation": 0.0
+    },
+    "measured_decode_intervals": {
+      "confidence_interval_95": [
+        63.0,
+        63.0
+      ],
+      "maximum": 63.0,
+      "mean": 63.0,
+      "median": 63.0,
+      "minimum": 63.0,
+      "sample_count": 1,
+      "samples": [
+        63.0
+      ],
+      "standard_deviation": 0.0
+    },
+    "mtp": {
+      "acceptance_rate": {
+        "confidence_interval_95": [
+          0.5507246376811594,
+          0.5507246376811594
+        ],
+        "maximum": 0.5507246376811594,
+        "mean": 0.5507246376811594,
+        "median": 0.5507246376811594,
+        "minimum": 0.5507246376811594,
+        "sample_count": 1,
+        "samples": [
+          0.5507246376811594
+        ],
+        "standard_deviation": 0.0
+      },
+      "accepted_tokens": {
+        "confidence_interval_95": [
+          38.0,
+          38.0
+        ],
+        "maximum": 38.0,
+        "mean": 38.0,
+        "median": 38.0,
+        "minimum": 38.0,
+        "sample_count": 1,
+        "samples": [
+          38.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "d1_groups": {
+        "confidence_interval_95": [
+          0.0,
+          0.0
+        ],
+        "maximum": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "minimum": 0.0,
+        "sample_count": 1,
+        "samples": [
+          0.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "d2_groups": {
+        "confidence_interval_95": [
+          0.0,
+          0.0
+        ],
+        "maximum": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "minimum": 0.0,
+        "sample_count": 1,
+        "samples": [
+          0.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "d3_groups": {
+        "confidence_interval_95": [
+          23.0,
+          23.0
+        ],
+        "maximum": 23.0,
+        "mean": 23.0,
+        "median": 23.0,
+        "minimum": 23.0,
+        "sample_count": 1,
+        "samples": [
+          23.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "d4_groups": {
+        "confidence_interval_95": [
+          0.0,
+          0.0
+        ],
+        "maximum": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "minimum": 0.0,
+        "sample_count": 1,
+        "samples": [
+          0.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "mean_accepted_length": {
+        "confidence_interval_95": [
+          1.65217,
+          1.65217
+        ],
+        "maximum": 1.65217,
+        "mean": 1.65217,
+        "median": 1.65217,
+        "minimum": 1.65217,
+        "sample_count": 1,
+        "samples": [
+          1.65217
+        ],
+        "standard_deviation": 0.0
+      },
+      "ordinary_fallback_tokens": {
+        "confidence_interval_95": [
+          0.0,
+          0.0
+        ],
+        "maximum": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "minimum": 0.0,
+        "sample_count": 1,
+        "samples": [
+          0.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "proposed_tokens": {
+        "confidence_interval_95": [
+          69.0,
+          69.0
+        ],
+        "maximum": 69.0,
+        "mean": 69.0,
+        "median": 69.0,
+        "minimum": 69.0,
+        "sample_count": 1,
+        "samples": [
+          69.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "rejected_tokens": {
+        "confidence_interval_95": [
+          31.0,
+          31.0
+        ],
+        "maximum": 31.0,
+        "mean": 31.0,
+        "median": 31.0,
+        "minimum": 31.0,
+        "sample_count": 1,
+        "samples": [
+          31.0
+        ],
+        "standard_deviation": 0.0
+      },
+      "target_batches": {
+        "confidence_interval_95": [
+          25.0,
+          25.0
+        ],
+        "maximum": 25.0,
+        "mean": 25.0,
+        "median": 25.0,
+        "minimum": 25.0,
+        "sample_count": 1,
+        "samples": [
+          25.0
+        ],
+        "standard_deviation": 0.0
+      }
+    },
+    "output_token_sha256_values": [
+      "6650c52a93498b06838f6b9041138adc3f288c503723214a844192f5eb2e169c"
+    ],
+    "process_wall_ms": {
+      "confidence_interval_95": [
+        4875.06398700134,
+        4875.06398700134
+      ],
+      "maximum": 4875.06398700134,
+      "mean": 4875.06398700134,
+      "median": 4875.06398700134,
+      "minimum": 4875.06398700134,
+      "sample_count": 1,
+      "samples": [
+        4875.06398700134
+      ],
+      "standard_deviation": 0.0
+    },
+    "prompt_tokens_per_second": {
+      "confidence_interval_95": [
+        5896.133900970573,
+        5896.133900970573
+      ],
+      "maximum": 5896.133900970573,
+      "mean": 5896.133900970573,
+      "median": 5896.133900970573,
+      "minimum": 5896.133900970573,
+      "sample_count": 1,
+      "samples": [
+        5896.133900970573
+      ],
+      "standard_deviation": 0.0
+    },
+    "stop_reason_values": [
+      "length"
+    ],
+    "time_to_first_token_ms": {
+      "confidence_interval_95": [
+        2778.77,
+        2778.77
+      ],
+      "maximum": 2778.77,
+      "mean": 2778.77,
+      "median": 2778.77,
+      "minimum": 2778.77,
+      "sample_count": 1,
+      "samples": [
+        2778.77
+      ],
+      "standard_deviation": 0.0
+    }
+  },
+  "workload": {
+    "fixed_output_tokens": 64,
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "ignore_eos": true,
+    "max_new_tokens": 64,
+    "path": "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "prompt_tokens": 16384,
+    "seed": 0,
+    "source": {
+      "api_url": "https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=extracts%7Crevisions&explaintext=1&exsectionformat=plain&revids=1366077412&rvprop=ids%7Ctimestamp",
+      "article_url": "https://en.wikipedia.org/w/index.php?title=Artificial+intelligence&oldid=1366077412",
+      "extract_characters": 86450,
+      "extract_utf8_sha256": "2724cd80c72f6ba5ef4b6ae05ed0ff1af172ebdc2d660c506fe4b49828139056",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "page_id": 1164,
+      "revision": 1366077412,
+      "revision_timestamp": "2026-07-26T03:46:54Z",
+      "title": "Artificial intelligence"
+    },
+    "stop_token_ids": [],
+    "suppress_token_ids": [
+      1,
+      50,
+      106,
+      258882,
+      258883
+    ],
+    "temperature": 0.0
+  }
+}

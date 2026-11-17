@@ -75,6 +75,11 @@
             layer.k_cache_scale, layer.v_cache_scale, scores, attention,
             control, kQueryHeads, layer.kv_heads, layer.head_dimension,
             capacity, !layer.global, stream_);
+      } else if (ordinary_global_ && layer.global) {
+        status = internal::LaunchTwelveBOrdinaryGlobalAttentionFp8Sm120(
+            q_norm, layer.key_cache_fp8, layer.value_cache_fp8,
+            layer.k_cache_scale, layer.v_cache_scale, scores, attention,
+            control, capacity, stream_);
       } else {
         status = internal::LaunchOnlineAttentionDecodeFp8Sm120(
             q_norm, layer.key_cache_fp8, layer.value_cache_fp8,
@@ -296,7 +301,11 @@
         : internal::LaunchFp8ReferenceTokenQuantization(
               attention, o_activation, o_scale, layer.query_elements, stream_);
     if (!status.ok()) return status;
-    status = LaunchFp8Projection(o_activation, o_scale, layer.o, projection, stream_);
+    status = ordinary_o_ && capture == nullptr
+        ? internal::LaunchTwelveBOrdinaryFp8OProjection(
+              o_activation, o_scale, layer.o.weight, layer.o.scales,
+              projection, layer.o.rows, layer.o.contracting, stream_)
+        : LaunchFp8Projection(o_activation, o_scale, layer.o, projection, stream_);
     if (!status.ok()) return status;
     if (capture == nullptr && kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
       status = ordinary_norms_
@@ -536,6 +545,8 @@
   GraphExecutable fixed_mtp_chain_graph_;
   bool ordinary_norms_ = false;
   bool ordinary_overlap_ = false;
+  bool ordinary_o_ = false;
+  bool ordinary_global_ = false;
   OrdinaryDecodeFork ordinary_fork_;
   cudaStream_t stream_ = nullptr;
   std::uint64_t max_context_ = 0;

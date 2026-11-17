@@ -1,0 +1,60 @@
+{
+  "reason": "owner requested current D2/D3/D4 speed after Ordinary changes",
+  "results": [
+    {
+      "depth": 2,
+      "median_tps": 98.30437948611255,
+      "samples_tps": [
+        98.65931216885184,
+        98.30437948611255,
+        98.2524238197146
+      ],
+      "previous_median_tps": 98.72630873301237,
+      "all_outputs_exact": true,
+      "binary_sha256": "65a29c15188f14468155ad5daab4374c72f54988097023f67f699802b859248b",
+      "new_ordinary_specializations_enabled_in_mtp": false,
+      "peak_sampled_vram_mib": 11763.0,
+      "acceptance_and_execution_counters_unchanged": true,
+      "warmups": 1,
+      "retained_requests": 3,
+      "relative_change_percent": -0.4273726550851342
+    },
+    {
+      "depth": 3,
+      "median_tps": 100.14748350745808,
+      "samples_tps": [
+        100.18729900696188,
+        100.14748350745808,
+        99.92510023351103
+      ],
+      "previous_median_tps": 100.31758388549287,
+      "all_outputs_exact": true,
+      "binary_sha256": "65a29c15188f14468155ad5daab4374c72f54988097023f67f699802b859248b",
+      "new_ordinary_specializations_enabled_in_mtp": false,
+      "peak_sampled_vram_mib": 11767.0,
+      "acceptance_and_execution_counters_unchanged": true,
+      "warmups": 1,
+      "retained_requests": 3,
+      "relative_change_percent": -0.16956187683800916
+    },
+    {
+      "depth": 4,
+      "median_tps": 97.0283983469236,
+      "samples_tps": [
+        97.16890595009598,
+        97.0283983469236,
+        96.87008815690562
+      ],
+      "previous_median_tps": 97.17973108465948,
+      "all_outputs_exact": true,
+      "binary_sha256": "65a29c15188f14468155ad5daab4374c72f54988097023f67f699802b859248b",
+      "new_ordinary_specializations_enabled_in_mtp": false,
+      "peak_sampled_vram_mib": 11771.0,
+      "acceptance_and_execution_counters_unchanged": true,
+      "warmups": 1,
+      "retained_requests": 3,
+      "relative_change_percent": -0.15572458993948768
+    }
+  ],
+  "conclusion": "No observed MTP gain; new Ordinary operators are gated off for activeMTP. Same output, acceptance counters and GPU-chained execution. Prior cohort comparison is not an AB/BA causal claim."
+}

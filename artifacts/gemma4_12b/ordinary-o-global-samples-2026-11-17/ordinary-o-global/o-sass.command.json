@@ -1,0 +1,7 @@
+[
+  "/opt/cuda/bin/cuobjdump",
+  "--dump-sass",
+  "--function",
+  "TwelveBOrdinaryOProjectionKernel",
+  "/tmp/gem16-experiments/ordinary-o-global-kgug71an/o.so"
+]

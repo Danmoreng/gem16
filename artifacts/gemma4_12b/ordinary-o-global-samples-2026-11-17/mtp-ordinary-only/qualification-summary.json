@@ -1,0 +1,350 @@
+{
+  "scope": "12B optimized Ordinary kernels enabled inside MTP; verifier and Assistant unchanged",
+  "warmups_per_depth": 1,
+  "retained_per_depth": 3,
+  "binary": {
+    "sha256": "4ea22a29324d7e45fda0dfe21df636702f85205bd41aa691b5c5a6ea0d214f2d",
+    "git_revision": "c9b95271b8c9d628deb207aee97721f4267d362c",
+    "dirty": true
+  },
+  "source": {
+    "src/cuda/fp8/sm120.cu": "2ca2f0b47d35b6fe814f296af0787fd9ee3c83b4f7bb7e6e6fd7d53b118f031a",
+    "src/cuda/fp8/sm120.h": "718b1e53a615f46ad04c8773f329edc0b118664fe8909c72e14115bd567f9f6c",
+    "src/cuda/attention/decode_sm120.cu": "72821c34bb20fda38d4c00f00196322360e39a68a96af6e82c832695369b5cbc",
+    "src/cuda/attention/sm120.h": "ad6e56dd7375eb3f5e3b0dd80319a69097a3dd3343689bde7ff7189ef659bb0b",
+    "src/cuda/norm/twelve_b_ordinary.cu": "cc6add72e1fcd35e88f213b7b9c35c8d8d9bc42d3f2bf039f4494194ba96ae56",
+    "src/cuda/norm/twelve_b_ordinary.h": "998b854a1cb1a522bde86b0e11cbabbd2b65409d7108c94449c7e023a8169d75",
+    "src/cuda/mtp/assistant.cu": "9619b51c795f7696470ed99dabaa9e8437402d746631aa37d8c5084a0c41388a",
+    "src/cuda/engine/inference_engine_prefill_layers.cuh": "85489185c7a1e657640dbfff6f74c149a86406ef31d79157dda67538366a1742",
+    "src/cuda/engine/inference_engine_initialize.cuh": "9b417bfd811b970024c500d44889d3f05dbd571e27d04655acf52045a73e6840",
+    "src/cuda/engine/inference_engine_decode_graphs.cuh": "10dd6758da01f5646f9e94bfc86942bc5681c3923c29cab4a1d80f65daf82022",
+    "src/cuda/fp8/detail/twelve_b_ordinary_o.cuh": "c893b78cce178d39fe2f1ac8078d850219f36808c12bfe7c45f94e90a41aee8f",
+    "src/cuda/attention/detail/twelve_b_ordinary_global_gqa4.cuh": "ebabc9dee6d7ac8b92bae8feb4a361273c459d35badb5e761c3eef254aa222a8"
+  },
+  "source_integrity": {
+    "src/cuda/fp8/sm120.cu_unchanged": true,
+    "src/cuda/fp8/sm120.h_unchanged": true,
+    "src/cuda/attention/decode_sm120.cu_unchanged": true,
+    "src/cuda/attention/sm120.h_unchanged": true,
+    "src/cuda/norm/twelve_b_ordinary.cu_unchanged": true,
+    "src/cuda/norm/twelve_b_ordinary.h_unchanged": true,
+    "src/cuda/mtp/assistant.cu_unchanged": true,
+    "src/cuda/engine/inference_engine_prefill_layers.cuh_unchanged": true,
+    "only_four_ordinary_mtp_exclusions_removed": true,
+    "src/cuda/engine/inference_engine_decode_graphs.cuh_unchanged": true,
+    "assistant_verifier_norm_cuda_sources_match_committed_parent": true,
+    "unrelated_dirty_patches_preserved": true
+  },
+  "environment": {
+    "GEM16_12B_ORDINARY_NORMS": "1",
+    "GEM16_12B_ORDINARY_OVERLAP": "1",
+    "GEM16_12B_ORDINARY_O": "1",
+    "GEM16_12B_ORDINARY_GLOBAL": "1"
+  },
+  "workload": {
+    "fixed_output_tokens": 1135,
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "ignore_eos": true,
+    "max_new_tokens": 1135,
+    "path": "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "prompt_tokens": 16384,
+    "seed": 0,
+    "source": {
+      "api_url": "https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=extracts%7Crevisions&explaintext=1&exsectionformat=plain&revids=1366077412&rvprop=ids%7Ctimestamp",
+      "article_url": "https://en.wikipedia.org/w/index.php?title=Artificial+intelligence&oldid=1366077412",
+      "extract_characters": 86450,
+      "extract_utf8_sha256": "2724cd80c72f6ba5ef4b6ae05ed0ff1af172ebdc2d660c506fe4b49828139056",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "page_id": 1164,
+      "revision": 1366077412,
+      "revision_timestamp": "2026-07-26T03:46:54Z",
+      "title": "Artificial intelligence"
+    },
+    "stop_token_ids": [],
+    "suppress_token_ids": [
+      1,
+      50,
+      106,
+      258882,
+      258883
+    ],
+    "temperature": 0.0
+  },
+  "runtime": {
+    "assistant_checkpoint": "/home/sebastian/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345",
+    "checkpoint": "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+    "executable": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/mtp-ordinary-only/gem16-run",
+    "prompt_token_file": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d3-primary.prompt-token-ids.txt"
+  },
+  "cohorts": {
+    "2": {
+      "depth": 2,
+      "median_tps": 98.67648210509829,
+      "samples_tps": [
+        98.67648210509829,
+        98.73834339001645,
+        98.27200721008025
+      ],
+      "previous_median_tps": 98.30437948611255,
+      "all_outputs_exact": true,
+      "binary_sha256": "4ea22a29324d7e45fda0dfe21df636702f85205bd41aa691b5c5a6ea0d214f2d",
+      "ordinary_kernels_enabled_in_mtp": true,
+      "assistant_and_verifier_unchanged": true,
+      "delta_percent": 0.3785208969640186,
+      "ordinary_tail_steps": 1,
+      "mtp_counters": {
+        "accepted_tokens": 626,
+        "proposed_tokens": 1014,
+        "verification_groups": 507,
+        "target_batches": 508,
+        "target_forwards": 1522
+      },
+      "proposed_ids_exact_to_parent": true,
+      "output_sha256_values": [
+        "adadc4849d7f6d53134f393390ea483f1c220cd60a1520417ee859ef29687563"
+      ],
+      "parent_telemetry": {
+        "sampled_whole_process_peak_mib": 11763.0,
+        "high_utilization_sm_median_mhz": 2415.0
+      },
+      "candidate_telemetry": {
+        "sampled_whole_process_peak_mib": 11769.0,
+        "high_utilization_sm_median_mhz": 2415.0
+      },
+      "raw_result": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d2-primary.json"
+    },
+    "3": {
+      "depth": 3,
+      "median_tps": 100.17579350005742,
+      "samples_tps": [
+        100.27855153203343,
+        100.17579350005742,
+        99.97178926581563
+      ],
+      "previous_median_tps": 100.14748350745808,
+      "all_outputs_exact": true,
+      "binary_sha256": "4ea22a29324d7e45fda0dfe21df636702f85205bd41aa691b5c5a6ea0d214f2d",
+      "ordinary_kernels_enabled_in_mtp": true,
+      "assistant_and_verifier_unchanged": true,
+      "delta_percent": 0.02826830151676507,
+      "ordinary_tail_steps": 3,
+      "mtp_counters": {
+        "accepted_tokens": 694,
+        "proposed_tokens": 1311,
+        "verification_groups": 437,
+        "target_batches": 440,
+        "target_forwards": 1751
+      },
+      "proposed_ids_exact_to_parent": true,
+      "output_sha256_values": [
+        "adadc4849d7f6d53134f393390ea483f1c220cd60a1520417ee859ef29687563"
+      ],
+      "parent_telemetry": {
+        "sampled_whole_process_peak_mib": 11767.0,
+        "high_utilization_sm_median_mhz": 2490.0
+      },
+      "candidate_telemetry": {
+        "sampled_whole_process_peak_mib": 11773.0,
+        "high_utilization_sm_median_mhz": 2490.0
+      },
+      "raw_result": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d3-primary.json"
+    },
+    "4": {
+      "depth": 4,
+      "median_tps": 97.05995634869689,
+      "samples_tps": [
+        97.16474307893994,
+        97.05995634869689,
+        96.88664092136291
+      ],
+      "previous_median_tps": 97.0283983469236,
+      "all_outputs_exact": true,
+      "binary_sha256": "4ea22a29324d7e45fda0dfe21df636702f85205bd41aa691b5c5a6ea0d214f2d",
+      "ordinary_kernels_enabled_in_mtp": true,
+      "assistant_and_verifier_unchanged": true,
+      "delta_percent": 0.032524500363750874,
+      "ordinary_tail_steps": 3,
+      "mtp_counters": {
+        "accepted_tokens": 721,
+        "proposed_tokens": 1640,
+        "verification_groups": 410,
+        "target_batches": 413,
+        "target_forwards": 2053
+      },
+      "proposed_ids_exact_to_parent": true,
+      "output_sha256_values": [
+        "adadc4849d7f6d53134f393390ea483f1c220cd60a1520417ee859ef29687563"
+      ],
+      "parent_telemetry": {
+        "sampled_whole_process_peak_mib": 11771.0,
+        "high_utilization_sm_median_mhz": 2512.0
+      },
+      "candidate_telemetry": {
+        "sampled_whole_process_peak_mib": 11781.0,
+        "high_utilization_sm_median_mhz": 2512.0
+      },
+      "raw_result": "benchmarks/results/2026-11-17/mtp-ordinary-only/mtp-d4-primary.json"
+    }
+  },
+  "dispatch": {
+    "diagnostic_not_primary_throughput": true,
+    "all64output_ids_exact": true,
+    "actual_dispatch_counts": {
+      "TwelveBOrdinaryOPipelineKernel": 96,
+      "TwelveBOrdinaryGlobalGqa4Kernel": 16,
+      "TwelveBOrdinaryInputNormFp8Kernel": 96,
+      "TwelveBOrdinaryAttentionQuantizeKernel": 96,
+      "TwelveBOrdinaryPostAttentionKernel": 96,
+      "TwelveBOrdinaryPostMlpKernel": 96,
+      "Bf16GemvExactTreeKernel": 1449,
+      "TwelveBPackedFp8ProjectionKernel": 2208
+    },
+    "rejected_dispatch_counts": {
+      "TwelveBMtpPackedFp8OPipelineKernel": 0,
+      "TwelveBMtpGlobalGqa4Kernel": 0,
+      "TwelveBMtpInputNormFp8Kernel": 0,
+      "Bf16GemvLoad4Kernel": 0,
+      "TwelveBAssistantNormKernel": 0
+    },
+    "ordinary_tail_steps": 2,
+    "verification_groups": 23,
+    "dispatch_geometries": [
+      [
+        "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+        1024,
+        1,
+        1,
+        256,
+        36,
+        0
+      ],
+      [
+        "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+        3840,
+        1,
+        1,
+        256,
+        36,
+        0
+      ],
+      [
+        "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+        4096,
+        1,
+        1,
+        256,
+        36,
+        0
+      ],
+      [
+        "gem16::internal::<unnamed>::Bf16GemvExactTreeKernel(const float *, const unsigned short *, float *, unsigned long, unsigned long)",
+        8192,
+        1,
+        1,
+        256,
+        36,
+        0
+      ],
+      [
+        "gem16::internal::<unnamed>::TwelveBOrdinaryInputNormFp8Kernel(const float *, const unsigned short *, unsigned char *, float *)",
+        1,
+        1,
+        1,
+        256,
+        38,
+        0
+      ],
+      [
+        "gem16::internal::<unnamed>::TwelveBOrdinaryPostAttentionKernel(float *, const unsigned short *, const float *, float *, float *, const unsigned short *, unsigned char *, unsigned char *, float)",
+        1,
+        1,
+        1,
+        256,
+        44,
+        0
+      ],
+      [
+        "gem16::internal::<unnamed>::TwelveBOrdinaryPostMlpKernel(const float *, const unsigned short *, const float *, float *, float *, const unsigned short *)",
+        1,
+        1,
+        1,
+        256,
+        35,
+        0
+      ],
+      [
+        "void gem16::internal::<unnamed>::TwelveBOrdinaryAttentionQuantizeKernel<(unsigned int)4096>(const float *, unsigned char *, float *)",
+        1,
+        1,
+        1,
+        256,
+        39,
+        0
+      ],
+      [
+        "void gem16::internal::<unnamed>::TwelveBOrdinaryAttentionQuantizeKernel<(unsigned int)8192>(const float *, unsigned char *, float *)",
+        1,
+        1,
+        1,
+        256,
+        54,
+        0
+      ],
+      [
+        "void gem16::internal::<unnamed>::TwelveBOrdinaryGlobalGqa4Kernel<(bool)0, (bool)0, (bool)1>(const float *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, float *, const gem16::internal::DecodeControl *, unsigned long, const gem16::internal::DecodeControl *, unsigned long, int)",
+        33,
+        4,
+        1,
+        256,
+        64,
+        0
+      ],
+      [
+        "void gem16::internal::<unnamed>::TwelveBOrdinaryOPipelineKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long, unsigned long)",
+        120,
+        1,
+        1,
+        128,
+        46,
+        0
+      ],
+      [
+        "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+        120,
+        1,
+        1,
+        128,
+        36,
+        0
+      ],
+      [
+        "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+        128,
+        1,
+        3,
+        128,
+        36,
+        0
+      ],
+      [
+        "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)4>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)",
+        256,
+        1,
+        2,
+        128,
+        36,
+        0
+      ]
+    ]
+  },
+  "host_units_passed": true,
+  "unchanged_operator_qualification": "benchmarks/results/2026-11-17/ordinary-o-global/qualification-summary.json",
+  "limitations": [
+    "Separate chronological cohorts; no AB/BA or locked-clock confidence claim. Small deltas do not prove a speedup.",
+    "NVML peaks are 200ms sampled whole-process values, not allocator-exact decode peaks.",
+    "Ordinary single-row optimizations affect only the small tail in these fixed-D requests.",
+    "Rejected MTP row/Assistant ports are completely removed; their measurements are not final runtime evidence."
+  ]
+}

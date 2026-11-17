@@ -1264,6 +1264,8 @@ void SplitOnlineDecodeAttentionFp8GlobalGqaKernel(
   }
 }
 
+#include "cuda/attention/detail/twelve_b_ordinary_global_gqa4.cuh"
+
 // Gemma 4 26B global attention maps eight adjacent query heads to each of two
 // physical KV heads. The generic group-four kernel consequently reads every
 // physical K/V row twice. This long-context specialization assigns one query
@@ -2188,6 +2190,32 @@ std::uint64_t DecodeAttentionFixedWorkspaceElements(
     return std::numeric_limits<std::uint64_t>::max();
   }
   return per_row * rows;
+}
+
+Status LaunchTwelveBOrdinaryGlobalAttentionFp8Sm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint16_t* key_scale,
+    const std::uint16_t* value_scale, float* workspace, float* output,
+    const DecodeControl* control, std::uint64_t capacity, cudaStream_t stream) {
+  if (query == nullptr || key_cache == nullptr || value_cache == nullptr ||
+      key_scale == nullptr || value_scale == nullptr || workspace == nullptr ||
+      output == nullptr || control == nullptr || capacity < 16384U ||
+      capacity > 17519U) {
+    return Invalid("12B Ordinary GQA4 requires valid buffers and context16384..17519");
+  }
+  const int splits = static_cast<int>((capacity + 511U) / 512U);
+  float* lse = workspace + static_cast<std::uint64_t>(splits) * 16U * 512U;
+  TwelveBOrdinaryGlobalGqa4Kernel<false>
+      <<<dim3(static_cast<unsigned>(splits), 4U), 256U, 0U, stream>>>(
+          query, key_cache, value_cache, key_scale, value_scale, workspace,
+          lse, nullptr, control, 0U, nullptr, capacity, splits);
+  cudaError_t error = cudaGetLastError();
+  if (error != cudaSuccess) return CudaFailure("launch12B Ordinary GQA4", error);
+  MergeOnlineDecodeAttentionKernel<512, 512><<<16U, 256U, 0U, stream>>>(
+      workspace, lse, output, control, capacity, false, splits);
+  error = cudaGetLastError();
+  return error == cudaSuccess ? Status::Ok()
+      : CudaFailure("merge12B Ordinary GQA4", error);
 }
 
 Status LaunchOnlineAttentionDecodeFp8Sm120(

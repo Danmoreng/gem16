@@ -115,10 +115,19 @@
     if (!status.ok()) return status;
     status = flag("GEM16_12B_ORDINARY_OVERLAP", &ordinary_overlap_);
     if (!status.ok()) return status;
-    ordinary_norms_ = ordinary_norms_ && mtp_draft_tokens == 0U &&
+    status = flag("GEM16_12B_ORDINARY_O", &ordinary_o_);
+    if (!status.ok()) return status;
+    status = flag("GEM16_12B_ORDINARY_GLOBAL", &ordinary_global_);
+    if (!status.ok()) return status;
+    ordinary_norms_ = ordinary_norms_ &&
                       kv_cache_mode_ == KvCacheMode::kCheckpointFp8;
-    ordinary_overlap_ = ordinary_overlap_ && mtp_draft_tokens == 0U &&
+    ordinary_overlap_ = ordinary_overlap_ &&
                         kv_cache_mode_ == KvCacheMode::kCheckpointFp8;
+    ordinary_o_ = ordinary_o_ &&
+                  kv_cache_mode_ == KvCacheMode::kCheckpointFp8;
+    ordinary_global_ = ordinary_global_ &&
+                       kv_cache_mode_ == KvCacheMode::kCheckpointFp8 &&
+                       max_context_ >= 16384U && max_context_ <= 17519U;
     if (ordinary_overlap_) {
       status = ordinary_fork_.Initialize();
       if (!status.ok()) return status;

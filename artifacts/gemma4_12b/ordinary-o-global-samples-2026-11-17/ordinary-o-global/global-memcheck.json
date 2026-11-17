@@ -1,0 +1,17 @@
+{
+  "diagnostic_only": true,
+  "family": "global",
+  "checks": 2,
+  "cases": [
+    {
+      "case": 0,
+      "position": 16384,
+      "bit_exact": true,
+      "timing": null
+    }
+  ],
+  "warmups_per_timed_variant": 1,
+  "retained_samples_per_timed_variant": 3,
+  "timing_boundary": "single CUDA graph event interval;256MiB cache eviction before event; no primary throughput claim",
+  "finite_and_guards": true
+}

@@ -1,0 +1,9 @@
+[
+  "nsys",
+  "export",
+  "--type",
+  "sqlite",
+  "--output",
+  "/tmp/gem16-experiments/ordinary-o-global-qualify-ccfsi6p1/parent.sqlite",
+  "/tmp/gem16-experiments/ordinary-o-global-qualify-ccfsi6p1/parent.nsys-rep"
+]

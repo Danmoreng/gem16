@@ -1,0 +1,14 @@
+{
+  "src/cuda/fp8/sm120.cu_unchanged": true,
+  "src/cuda/fp8/sm120.h_unchanged": true,
+  "src/cuda/attention/decode_sm120.cu_unchanged": true,
+  "src/cuda/attention/sm120.h_unchanged": true,
+  "src/cuda/norm/twelve_b_ordinary.cu_unchanged": true,
+  "src/cuda/norm/twelve_b_ordinary.h_unchanged": true,
+  "src/cuda/mtp/assistant.cu_unchanged": true,
+  "src/cuda/engine/inference_engine_prefill_layers.cuh_unchanged": true,
+  "only_four_ordinary_mtp_exclusions_removed": true,
+  "src/cuda/engine/inference_engine_decode_graphs.cuh_unchanged": true,
+  "assistant_verifier_norm_cuda_sources_match_committed_parent": true,
+  "unrelated_dirty_patches_preserved": true
+}
