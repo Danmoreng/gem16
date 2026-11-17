@@ -8,6 +8,14 @@ The [pre-consolidation record](archive/ACTIVE_DECISIONS_2026-09-04_BEFORE_CONSOL
 preserves the complete decision history, including superseded intermediate stages.
 The existing numbered decisions retain their identities below.
 
+### Minimal evidence for future work (2026-11-17)
+
+The owner adopts the [testing and evidence rules](../AGENTS.md#testing-and-evidence) for all new work.
+Routine checks are reported in the PR or final response. Development runs stay local. Published performance
+claims and accepted kernel or model qualifications share one compact record per result across all citations.
+This supersedes older instructions to archive every attempt, transcript or export. The checks required to
+support a claim still apply.
+
 ### Owner update: 12B fixed D3 sampling and selectable context (2026-11-17)
 
 The owner requests optimized fixed-D3 with checkpoint sampling and selectable

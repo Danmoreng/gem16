@@ -1,8 +1,8 @@
 # Artifact retention policy
 
-`artifacts/mNN/` retains only compact, reviewable milestone evidence: acceptance
-records, immutable contracts/configuration, hash summaries, short verification
-or diagnostic reports, and command transcripts.
+New work follows the [testing and evidence rules](../AGENTS.md#testing-and-evidence).
+Existing `artifacts/mNN/` directories contain historical milestone acceptance
+records, contracts, hash summaries, diagnostic reports and command transcripts.
 
 High-cardinality compiler reports, full compilation manifests, expanded plans,
 model payloads, and other reproducible raw outputs belong under

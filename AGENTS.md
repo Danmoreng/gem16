@@ -17,7 +17,7 @@ For every task:
 3. state the smallest change and any uncertainty;
 4. implement only the owned slice, preserving unrelated dirty files;
 5. run the smallest proportional checks, then widen them when shared runtime/CUDA behavior is affected;
-6. report files, exact commands/results, limitations and evidence.
+6. report the changed files, checks run, results and limitations in the PR or final response.
 
 For product work, the default task entry is `docs/PRODUCT_CONTRACT.md`; API work additionally reads
 `docs/OPENAI_AGENT_CORE_V1.md`. Use `docs/plans/gemma4-26b/START_HERE_CODEX.md` only for 26B model-specific work.
@@ -77,8 +77,19 @@ or silently fall back to another precision or kernel.
 Use tests proportional to risk: parser/host tests for host changes, operator and sanitizer tests for CUDA changes,
 model/reference tests for numerical changes, and 12B regressions whenever shared runtime/loader/CUDA code changes.
 Do not weaken tolerances to make a test pass. Hot-path changes additionally need a measured parent, numerical and
-memory boundary, actual dispatch facts and adjacent end-to-end evidence. Record benchmark results as new evidence;
-never overwrite prior results.
+memory boundary, actual dispatch facts and adjacent end-to-end evidence.
+
+Routine tasks produce zero new tracked evidence files. Add a regression test when the change warrants one.
+Keep development measurements in the ignored `benchmarks/results/` directory. For a rejected experiment,
+report the outcome in the PR or final response. Add a brief reason to an existing decision record only if
+it will prevent repeating the experiment.
+
+For a published performance claim or an accepted kernel or model qualification, retain one compact record
+with the baseline, workload, individual measurements, correctness result, peak VRAM, actual dispatch and
+exact code, model and toolchain identities. Include the tested diff if the commit alone cannot identify
+the measured source. Link to that record wherever the result is cited. Keep any
+fixture a regression test needs as small as the test allows. Generate logs, transcripts, plots and alternate
+exports only when needed for the task. Keep them out of Git by default.
 
 ## Collaboration and hygiene
 
@@ -98,8 +109,8 @@ Details and examples: `docs/EXPERIMENT_STORAGE.md`.
   expected capacity and available RAM before starting; remove the owned run
   directory after analysis. Keep GPU/pinned-host memory needs in the budget.
   The helper's capacity checks are preflight checks, not a hard memory quota.
-- Keep compact primary samples, telemetry, correctness/dispatch summaries and
-  exact source/model/toolchain identities on SSD. Retain large raw traces only
+- Use SSD for samples and telemetry that the task needs beyond the lifetime of
+  the RAM scratch directory. Retain large raw traces only
   when deliberately needed as non-regenerable evidence; prefer compact raw
   reports or verified lossless compression over duplicate SQLite exports.
 - RAM scratch is ephemeral across reboot. Persist required evidence before

@@ -1,5 +1,10 @@
 # Benchmarking
 
+For routine changes, run the checks appropriate to the change and report the outcome in the PR or final
+response. For exploratory comparisons, write only the outputs needed for the decision under the ignored
+`benchmarks/results/` directory. Apply the [retention policy](../AGENTS.md#testing-and-evidence) when
+publishing a result or qualifying a kernel or model.
+
 ## Gemma 4 26B Fast-Track benchmark policy
 
 M21 qualifies one frozen current 26B candidate first; M20 then consumes that evidence and benchmarks the same
@@ -32,11 +37,12 @@ sampling controls, template, cache state, and timing boundary. Any necessary dif
 format, K/V precision, runtime feature support, or output semantics is stated beside the result. CPU weight offload,
 prompt-cache asymmetry, reduced output, and hidden fallback invalidate a primary performance claim.
 
-Unless a stricter feature plan applies, use three warm-ups and ten retained runs, retain every raw sample, and
-report the median as primary plus mean, standard deviation, and a 95% confidence interval. Noisy results require
+For a promoted comparison, use three warm-ups and ten retained runs unless a stricter feature plan applies.
+Retain every raw sample and report the median as primary plus mean, standard deviation, and a 95% confidence interval. Noisy results require
 more repetitions, not selection of the best run. Record peak and steady VRAM, power, clocks, thermals, exact
-commands, code/model/toolchain revisions, and actual kernel/graph dispatch. Results are stored below
-`benchmarks/results/<date>/<git-sha>/<machine-id>/` and never overwritten.
+commands, code/model/toolchain revisions, and actual kernel/graph dispatch. Capture the run under
+`benchmarks/results/<date>/<git-sha>/<machine-id>/`. For publication, put the required samples and provenance
+in one compact record and cite it from the relevant documentation. Preserve the original published measurements.
 
 Keep prompt processing, ordinary decode, speculative decode, and end-to-end timing distinct. Report TTFT and
 prompt tok/s for prefill; output tok/s and median/p95/p99 ITL for decode. Speculative proposed tokens are not output
