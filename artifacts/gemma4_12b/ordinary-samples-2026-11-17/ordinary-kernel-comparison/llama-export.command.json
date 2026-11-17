@@ -1,9 +1,0 @@
-[
-  "nsys",
-  "export",
-  "--type",
-  "sqlite",
-  "--output",
-  "/tmp/gem16-ordinary-traces-jru_l9hb/llama.sqlite",
-  "/tmp/gem16-ordinary-traces-jru_l9hb/llama.nsys-rep"
-]

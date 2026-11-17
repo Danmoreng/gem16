@@ -82,6 +82,6 @@ are `build/windows_cuda_budget_probe.cpp`, `.exe`, and
 installed CUDA 13.3 include/lib paths, linking `cudart.lib` and `dxgi.lib`.
 The compact comparison is `build/windows-linux-vram-comparison-20260905.json`;
 process counters are `build/windows-gpu-process-memory-20260905.json`.
-Linux sources are `artifacts/agent-core/2026-09-04-linux-verified/result.json`
+Linux sources are [`artifacts/agent-core/2026-09-04-linux-verified/result.json`](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/agent-core/2026-09-04-linux-verified/result.json)
 and `artifacts/vision/v19-capacity.json`. This is capacity/debugging evidence,
 not a benchmark, peak-memory measurement or Windows release qualification.

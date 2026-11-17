@@ -56,4 +56,4 @@ and final binary: `benchmarks/results/2026-11-17/mtp-ordinary-only/`.
 Portable summary: `artifacts/gemma4_12b/mtp-ordinary-only-2026-11-17.json`.
 
 Portable lossless primary samples, commands and diagnostic summaries:
-`artifacts/gemma4_12b/ordinary-o-global-samples-2026-11-17/`.
+[`artifacts/gemma4_12b/ordinary-o-global-samples-2026-11-17/`](https://github.com/Danmoreng/gem16/tree/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/gemma4_12b/ordinary-o-global-samples-2026-11-17).

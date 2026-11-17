@@ -1,5 +1,0 @@
-{
-  "returncode": 2,
-  "stdout": "",
-  "stderr": "error: central llama.cpp e8fbcad855c5d8c315aa1dde231836ae472f5779 is behind official master d92ea9bb126ab957849dd0c0f1f881a64de7dc86\nRun benchmarks/baselines/llama_cpp/build.sh to update the central build.\n"
-}

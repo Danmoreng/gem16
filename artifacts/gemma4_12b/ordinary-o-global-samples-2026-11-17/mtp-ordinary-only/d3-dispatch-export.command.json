@@ -1,9 +1,0 @@
-[
-  "nsys",
-  "export",
-  "--type",
-  "sqlite",
-  "--output",
-  "/tmp/gem16-experiments/mtp-ordinary-only-trace-pd_2ckho/d3-dispatch.sqlite",
-  "/tmp/gem16-experiments/mtp-ordinary-only-trace-pd_2ckho/d3-dispatch.nsys-rep"
-]

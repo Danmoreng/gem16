@@ -131,4 +131,4 @@ The earlier requested checkpoint commit is complete. After this evidence was
 reported, the owner explicitly requested a second local checkpoint of these
 Ordinary changes before the next FP8-O/global-attention slice. Portable raw
 samples, compressed trace exports and real norm fixtures are additionally
-retained under `artifacts/gemma4_12b/ordinary-samples-2026-11-17/`. No push.
+retained under [`artifacts/gemma4_12b/ordinary-samples-2026-11-17/`](https://github.com/Danmoreng/gem16/tree/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/gemma4_12b/ordinary-samples-2026-11-17). No push.

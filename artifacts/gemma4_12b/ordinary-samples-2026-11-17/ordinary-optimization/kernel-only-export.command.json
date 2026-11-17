@@ -1,9 +1,0 @@
-[
-  "nsys",
-  "export",
-  "--type",
-  "sqlite",
-  "--output",
-  "/tmp/gem16-ordinary-optimized-w5gzijcf/kernel-only.sqlite",
-  "/tmp/gem16-ordinary-optimized-w5gzijcf/kernel-only.nsys-rep"
-]

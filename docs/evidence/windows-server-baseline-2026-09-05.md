@@ -35,13 +35,13 @@ Hub cache. No new model downloads or lock changes were made.
 ## Reproduction and retained evidence
 
 Build logs, Studio tests, compiler versions and the package manifest smoke are in
-[`windows-host`](../../artifacts/server-hardening/2026-09-05-195025-windows-host/).
+[`windows-host`](https://github.com/Danmoreng/gem16/tree/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05-195025-windows-host).
 The matrix includes exact server/client commands, source/binary/lock hashes,
 health/memory data, transcripts, negative API responses and artifact hashes:
-[`matrix result`](../../artifacts/server-hardening/2026-09-05-195025-windows-baseline/result.json).
+[`matrix result`](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05-195025-windows-baseline/result.json).
 Additional results:
-[`manual compaction`](../../artifacts/server-hardening/2026-09-05-195025-windows-compaction/result.json),
-[`12B product`](../../artifacts/server-hardening/2026-09-05-195025-windows-12b-product/m22-12b-product.json).
+[`manual compaction`](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05-195025-windows-compaction/result.json),
+[`12B product`](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05-195025-windows-12b-product/m22-12b-product.json).
 
 ```powershell
 py -3.14 -m venv .venv-agent-core

@@ -1,8 +1,0 @@
-{
-  "path": "artifacts/dflash/2026-11-16/gemma4-12B-it-DFlash-bf16.gguf",
-  "bytes": 1470874944,
-  "allocated_bytes": 1470881792,
-  "sha256": "0c22f3898c3308601a2ac9882cf091c9a370dbf16f837ea2c85857f1ad55b126",
-  "owner_authorized": true,
-  "deleted": true
-}

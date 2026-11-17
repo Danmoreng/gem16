@@ -1,7 +1,0 @@
-{
-  "reason": "owner explicitly authorizes removal of old unique profiling raw data; stop redundant compaction before purging",
-  "pids": [
-    103087
-  ],
-  "signal": "SIGINT"
-}

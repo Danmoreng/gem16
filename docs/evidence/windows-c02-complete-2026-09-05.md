@@ -40,7 +40,7 @@ chain replacement and allocation-free index cleanup remain in place.
 
 ## Reproduction and evidence
 
-On Windows import the environment using `scripts/windows-toolchain.ps1`, then:
+These historical commands read the saved matrix baseline from the [archive revision](https://github.com/Danmoreng/gem16/tree/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05-c02-windows-agent-fix). Run them in a checkout of that revision. On Windows import the environment using `scripts/windows-toolchain.ps1`, then:
 
 ```powershell
 .\scripts\build.ps1 -Cuda -ConfigureOnly
@@ -53,12 +53,12 @@ executable and port, refuses an occupied listener and never overwrites evidence.
 Both profiles use context 16,384, fixed-D2 and one execution slot. This is fault
 recovery evidence, not a latency or long-context performance claim.
 
-- [Initial complete injection run](../../artifacts/server-hardening/2026-09-05-c02-injection-01/result.json)
-- [Final reservation-handoff injection run](../../artifacts/server-hardening/2026-09-05-c02-injection-final/result.json)
-- [Production SDK/agent/hardening matrix](../../artifacts/server-hardening/2026-09-05-c02-complete-production/result.json)
-- [Final production hook-exclusion/recovery smoke](../../artifacts/server-hardening/2026-09-05-c02-production-final/result.json):
+- [Initial complete injection run](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05-c02-injection-01/result.json)
+- [Final reservation-handoff injection run](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05-c02-injection-final/result.json)
+- [Production SDK/agent/hardening matrix](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05-c02-complete-production/result.json)
+- [Final production hook-exclusion/recovery smoke](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05-c02-production-final/result.json):
   eight cases per profile passed against the final normal server binary.
-- [Source/binary hashes and host logs](../../artifacts/server-hardening/2026-09-05-c02-complete-host/provenance.json)
+- [Source/binary hashes and host logs](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05-c02-complete-host/provenance.json)
 
 Host debug tests: six passed (30.29 seconds), the MSVC debug-STL allocation test explicitly
 skipped (covered by Release instead). Release unit/allocation/process-cleanup

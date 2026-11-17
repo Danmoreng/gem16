@@ -2,7 +2,7 @@
 
 This is a bounded development matrix, not full Agent Core v1 release qualification.
 The [contract](OPENAI_AGENT_CORE_V1.md) retains the two-platform release gate.
-The [retained Linux run](../artifacts/agent-core/2026-09-04-linux-verified/result.json)
+The [retained Linux run](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/agent-core/2026-09-04-linux-verified/result.json)
 records commands, source and binary hashes, locks, hardware, health, sampling and raw outputs.
 
 Windows C05/C06 follow-up (2026-09-12):
@@ -125,7 +125,7 @@ and [Pi model configuration](https://github.com/badlogic/pi-mono/blob/main/packa
 
 ## Server-first hardening (2026-09-05)
 
-The new [bounded reconciliation matrix](../artifacts/server-hardening/2026-09-05/agent-matrix-reconciliation/result.json)
+The new [bounded reconciliation matrix](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05/agent-matrix-reconciliation/result.json)
 passes on Linux for both public fixed-D2 profiles: pinned Python/Node/Pi, HTTP
 policy, bounded inference saturation, history/tool reset and multi-image/tool-image
 continuation. It records its own binary/source hashes and is not a Windows pass
@@ -147,7 +147,7 @@ visibly. Thinking remains off in the tested preset. The initial actual Pi RPC
 compaction probes exposed adjacent user messages; their failed evidence is retained
 under `artifacts/server-hardening/2026-09-05/compaction-*`.
 
-The [corrected real compaction runs](../artifacts/server-hardening/2026-09-05/compaction-normalized-provenance.json)
+The [corrected real compaction runs](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05/compaction-normalized-provenance.json)
 pass for both Linux profiles: three turns, manual Pi compaction, retained-codeword
 follow-up and a new conversation. `tools/check_pi_compaction.py` exercises the
 unmodified RPC client with the saved Pi model configuration. This is bounded

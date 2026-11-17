@@ -1,12 +1,7 @@
 # Retained Ordinary evidence
 
-Portable copies of the new2026-11-17 Ordinary primary samples, telemetry,
-commands, qualification logs and compressed trace exports. Source paths in
-immutable JSON/logs identify the original result directories. Equivalent
-files are retained here by result-directory name. Large executable/Nsight
-report derivatives remain in the original ignored result roots; compressed
-SQLite/torch exports and their hashes are included here. Real norm fixtures
-are copied byte-for-byte; screen metadata omits old timing samples.
+The real norm inputs below are used by the CUDA replay. The [original run directory](https://github.com/Danmoreng/gem16/tree/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/gemma4_12b/ordinary-samples-2026-11-17)
+contains the primary samples, command lines, hashes, logs and compressed profiler traces.
 
 Replay example from the repository root:
 

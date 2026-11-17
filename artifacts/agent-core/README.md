@@ -1,6 +1,6 @@
 # Agent Core development evidence
 
-The [2026-09-04 Linux matrix](2026-09-04-linux-verified/result.json) passed
+The [2026-09-04 Linux matrix](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/agent-core/2026-09-04-linux-verified/result.json) passed
 22 Python and 18 TypeScript cases per public profile plus an unmodified Pi
 coding workflow per profile. Each profile directory retains SDK results,
 server logs, final metrics, the Pi transcript and independently checked edits.

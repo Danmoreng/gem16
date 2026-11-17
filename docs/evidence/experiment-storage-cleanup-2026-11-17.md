@@ -24,7 +24,7 @@ RAM/filesystem startup checks and automatic owned-directory cleanup. Actual CLI
 child-failure cleanup and SSD-root refusal also pass. The12B vLLM diagnostic
 now rejects non-tmpfs trace directories. Details:`docs/EXPERIMENT_STORAGE.md`.
 
-Audit:`artifacts/maintenance/disk-cleanup-2026-11-17/`; fuller working records:
+Audit:[`artifacts/maintenance/disk-cleanup-2026-11-17/`](https://github.com/Danmoreng/gem16/tree/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/maintenance/disk-cleanup-2026-11-17); fuller working records:
 `benchmarks/results/2026-11-17/disk-cleanup/`. The compaction process was stopped
 before the authorized old-raw purge; no exporter/cleanup job remains active.
 

@@ -1,7 +1,0 @@
-[
-  "bash",
-  "-c",
-  "source \"$1\"; gem16_resolve_central_llama_server \"\"",
-  "gem16-resolve",
-  "/home/sebastian/Development/gem16gb/scripts/central-llama.sh"
-]

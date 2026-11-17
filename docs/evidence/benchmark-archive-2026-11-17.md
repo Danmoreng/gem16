@@ -62,11 +62,11 @@ qualification records are retained byte-identically.
 
 Four obsolete intermediate measurement files are removed from their former
 active locations, but their exact bytes remain losslessly archived in
-`artifacts/maintenance/worktree-cleanup-2026-11-17/historical-intermediate-measurements.json.gz`.
+[`artifacts/maintenance/worktree-cleanup-2026-11-17/historical-intermediate-measurements.json.gz`](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/maintenance/worktree-cleanup-2026-11-17/historical-intermediate-measurements.json.gz).
 The original filenames and hashes are recorded. They are historical screens,
 not pending qualification. Progress narratives now point to final results.
 
-The [cleanup manifest](../../artifacts/maintenance/worktree-cleanup-2026-11-17/removed-files.json)
+The [cleanup manifest](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/maintenance/worktree-cleanup-2026-11-17/removed-files.json)
 records each removed file/hash. Adjacent receipts record the two deleted DFlash
 weight files (2.926 GB total), reference checks, retained-evidence hashes,
 validation and the compile-only replay check. No other model was deleted.

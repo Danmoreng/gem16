@@ -76,4 +76,4 @@ Complete Nsight reports remain `.nsys-rep`. SQLite exports are losslessly compre
 
 These are sampled peaks, not proof of the absolute instantaneous maximum. All per-token weights remain resident; zero fallback, recurring allocation and persistent repack are reported at all depths. No formal speedup claim is made for D2. D3 is the best depth measured on this fixture; other workloads/acceptance patterns may differ.
 
-Machine-readable result: `artifacts/gemma4_12b/mtp-parity-2026-11-17.json`.
+[Machine-readable result](../../../artifacts/gemma4_12b/mtp-parity-2026-11-17.json) · [Original run samples](https://github.com/Danmoreng/gem16/tree/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/gemma4_12b/mtp-parity-samples-2026-11-17).

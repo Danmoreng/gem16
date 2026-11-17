@@ -35,7 +35,7 @@ was tested on all four profile/mode combinations.
 RTX 5080 Laptop GPU, driver 596.49, 16,303 MiB; pinned local models, 32K capacity,
 12B with two slots / 26B with one slot, ordinary and fixed-D2. Exact launch commands,
 binary hashes, working-tree source hashes and retained evidence hashes are in
-[provenance.json](../../artifacts/server-hardening/2026-09-12-c03-windows-complete/provenance.json).
+[provenance.json](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-12-c03-windows-complete/provenance.json).
 
 All **158 controlled cases and 64 production cases passed**. Measurements below
 are observed samples, not universal limits or a throughput benchmark.

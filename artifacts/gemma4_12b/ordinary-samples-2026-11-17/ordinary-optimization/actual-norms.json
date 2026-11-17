@@ -1,7 +1,0 @@
-{
-  "diagnostic_only": true,
-  "real_fixture_cases": 12,
-  "alias_optional_post_combinations": 48,
-  "post_hidden_fp4_scales_bit_exact": true,
-  "guards_and_finite": true
-}

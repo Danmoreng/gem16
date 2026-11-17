@@ -17,5 +17,5 @@ The initial task contract is [retained](../../plans/gemma4-12b/DECODE_FIVE_STEPS
 Final E1/E2 records, with their own timing/numerical boundaries, take precedence
 over preliminary screens. Historical intermediate measurement bytes are
 losslessly retained in
-`artifacts/maintenance/worktree-cleanup-2026-11-17/historical-intermediate-measurements.json.gz`.
+[`artifacts/maintenance/worktree-cleanup-2026-11-17/historical-intermediate-measurements.json.gz`](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/maintenance/worktree-cleanup-2026-11-17/historical-intermediate-measurements.json.gz).
 No old measurement is relabeled as a new result.

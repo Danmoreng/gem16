@@ -14,3 +14,10 @@ milestone acceptance record.
 Do not remove an accepted hash record when its raw output is pruned. Do not use
 an ignored raw report as a CI fixture; tests must use compact checked evidence or
 small purpose-built fixtures.
+
+## Historical captures
+
+The [artifact tree at the archive revision](https://github.com/Danmoreng/gem16/tree/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts)
+contains the complete September server and Pi runs, November maintenance receipts, closed DFlash trials
+and detailed 12B Ordinary and MTP captures. Paths in dated reports refer to that tree. For local replay
+with the original paths, use a separate checkout at `9f7f7a6555ac`.

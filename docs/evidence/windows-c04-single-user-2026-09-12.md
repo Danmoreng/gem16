@@ -77,9 +77,9 @@ never overwritten. The report deliberately retains `passed: false` alongside
 `completed_scope: true`. Process termination is test cleanup, not new shutdown
 qualification.
 
-- [Initial failed result](../../artifacts/server-hardening/2026-09-12-c04-single-user/result.json)
-- [Combined eight-case result](../../artifacts/server-hardening/2026-09-12-c04-single-user-remaining/result.json)
-- [Source, binary and evidence hashes](../../artifacts/server-hardening/2026-09-12-c04-single-user-remaining/provenance.json)
+- [Initial failed result](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-12-c04-single-user/result.json)
+- [Combined eight-case result](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-12-c04-single-user-remaining/result.json)
+- [Source, binary and evidence hashes](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-12-c04-single-user-remaining/provenance.json)
 
 Both directories retain server output and raw timestamped memory samples. Existing
 C03 malformed-input, size-limit, abort/recovery and history tests are reused from

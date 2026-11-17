@@ -1,9 +1,0 @@
-[
-  "cmake",
-  "--build",
-  "build/Linux/blackwell-release",
-  "--target",
-  "gem16-run",
-  "-j",
-  "4"
-]

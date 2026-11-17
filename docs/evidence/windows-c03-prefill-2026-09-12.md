@@ -24,7 +24,7 @@ cannot clear a shutdown cancellation already set by the monitor.
 
 ## Final live probe
 
-[Raw summary, source/binary hashes and retained-file hashes](../../artifacts/server-hardening/2026-09-12-c03-summary/result.json)
+[Raw summary, source/binary hashes and retained-file hashes](https://github.com/Danmoreng/gem16/blob/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-12-c03-summary/result.json)
 bind the final server to four `2026-09-12-c03-final-*` result directories. Each
 includes the exact command, raw responses, metrics and `server.txt`.
 

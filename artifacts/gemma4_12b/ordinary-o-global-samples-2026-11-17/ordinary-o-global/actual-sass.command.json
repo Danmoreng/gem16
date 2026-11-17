@@ -1,7 +1,0 @@
-[
-  "/opt/cuda/bin/cuobjdump",
-  "--dump-sass",
-  "--function",
-  "__nv_static_29__fdbc63a0_8_sm120_cu_616b74b3__ZN5gem168internal40_GLOBAL__N__fdbc63a0_8_sm120_cu_616b74b330TwelveBOrdinaryOPipelineKernelILj4EEEvPKhPKfNS1_16Fp8MatrixBindingES7_S7_jmm,__nv_static_37__7c8b3686_15_decode_sm120_cu_0b78d427__ZN5gem168internal48_GLOBAL__N__7c8b3686_15_decode_sm120_cu_0b78d42731TwelveBOrdinaryGlobalGqa4KernelILb0ELb0ELb1EEEvPKfPKhS6_PKtS8_PfS9_S9_PKNS0_13DecodeControlEmSC_mi",
-  "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/ordinary-o-global/candidate/gem16-run"
-]

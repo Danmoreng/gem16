@@ -119,7 +119,7 @@ retain Linux ASan/UBSan evidence and report the Windows coverage limitation.
 Then run the existing matrix into a **new** directory (port must be free):
 
 ```powershell
-$handoffEvidence = "artifacts/server-hardening/" + (Get-Date -Format "yyyy-MM-dd-HHmmss") + "-windows"
+$handoffEvidence = "benchmarks/results/server-hardening/" + (Get-Date -Format "yyyy-MM-dd-HHmmss") + "-windows"
 .\.venv-agent-core\Scripts\python.exe tools/run_agent_core_matrix.py --server build/Windows/blackwell-release/bin/gem16-server.exe --pi-cli tools/pi-agent/node_modules/@earendil-works/pi-coding-agent/dist/cli.js --output-dir $handoffEvidence --port 18083
 ```
 

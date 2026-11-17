@@ -173,4 +173,4 @@ This supersedes the earlier MTP gating described above; prior results remain
 historical evidence for their original configuration.
 
 Portable lossless primary samples, commands and diagnostic summaries:
-`artifacts/gemma4_12b/ordinary-o-global-samples-2026-11-17/`.
+[`artifacts/gemma4_12b/ordinary-o-global-samples-2026-11-17/`](https://github.com/Danmoreng/gem16/tree/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/gemma4_12b/ordinary-o-global-samples-2026-11-17).

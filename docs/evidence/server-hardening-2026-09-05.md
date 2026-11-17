@@ -20,7 +20,7 @@ not a new Windows run. Server/CLI is the primary entry; Studio remains optional.
 ## Retained evidence
 
 Raw logs and results are under
-[artifacts/server-hardening/2026-09-05](../../artifacts/server-hardening/2026-09-05/).
+[artifacts/server-hardening/2026-09-05](https://github.com/Danmoreng/gem16/tree/9f7f7a6555ac169a9e49580f11824eef0e55fd85/artifacts/server-hardening/2026-09-05).
 
 - `agent-matrix-final`: both public fixed-D2 profiles passed Python SDK, TypeScript
   SDK, unmodified Pi, HTTP/cache/saturation checks and multi-image checks. Binary
