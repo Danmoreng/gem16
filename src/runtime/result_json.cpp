@@ -261,7 +261,11 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (!result.mtp_enabled
                  ? "disabled"
                  : result.mtp_gpu_chained
-                       ? "gpu_chained_fixed_d2_conditional_graph"
+                       ? (result.mtp_draft_tokens == 4U
+                              ? "gpu_chained_fixed_d4_conditional_graph"
+                              : result.mtp_draft_tokens == 3U
+                                    ? "gpu_chained_fixed_d3_conditional_graph"
+                              : "gpu_chained_fixed_d2_conditional_graph")
                  : result.mtp_fixed_d2_graph
                        ? "complete_fixed_d2_cuda_graph_host_replay"
                        : "direct_launch")
@@ -302,6 +306,7 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << ",\"draft_tokens\":" << result.mtp_draft_tokens
          << ",\"d1_groups\":" << result.mtp_d1_groups
          << ",\"d2_groups\":" << result.mtp_d2_groups
+         << ",\"d3_groups\":" << result.mtp_d3_groups
          << ",\"d4_groups\":" << result.mtp_d4_groups
          << ",\"ordinary_fallback_tokens\":"
          << result.mtp_ordinary_fallback_tokens

@@ -1,6 +1,7 @@
 #include "gem16/engine.h"
 #include "cuda/engine/inference_engine.h"
 #include "cuda/engine/media_chunk_plan.h"
+#include "cuda/engine/prefill_chunk_plan.h"
 
 #include "cuda/attention/sm120.h"
 #include "cuda/audio/projection.h"
@@ -38,6 +39,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <functional>
@@ -111,6 +113,16 @@ std::uint64_t PrefillChunkTokensForContext(
   const std::uint64_t quantized =
       (bounded / kPrefillChunkQuantum) * kPrefillChunkQuantum;
   return std::max(kMinimumPrefillChunkTokens, quantized);
+}
+
+Result<std::uint64_t> ConfiguredPrefillChunkTokensForContext(
+    std::uint64_t max_context, KvCacheMode kv_cache_mode) {
+  const char* requested = std::getenv("GEM16_12B_PREFILL_CHUNK_TOKENS");
+  return internal::ResolveTwelveBPrefillChunkTokens(
+      PrefillChunkTokensForContext(max_context, kv_cache_mode),
+      kv_cache_mode == KvCacheMode::kCheckpointFp8,
+      requested == nullptr ? std::nullopt
+                           : std::optional<std::string_view>(requested));
 }
 
 Result<std::uint64_t> AlignUp(std::uint64_t value, std::uint64_t alignment) {
@@ -549,9 +561,9 @@ Result<std::uint32_t> InferenceEngine::PrefillAt(std::span<const std::uint32_t> 
 Status InferenceEngine::GenerateAssistantDraftsDevice(std::uint32_t input_token, std::uint64_t processed_position, std::uint32_t draft_count) { return impl_->GenerateAssistantDraftsDevice(input_token, processed_position, draft_count); }
 Status InferenceEngine::PrepareMtpDeviceControl(std::uint32_t input_token, std::uint64_t processed_position, std::uint64_t remaining_output_capacity, std::uint64_t output_write_position, bool stopped, std::uint32_t stop_token, const internal::MtpReasoningState& reasoning) { return impl_->PrepareMtpDeviceControl(input_token, processed_position, remaining_output_capacity, output_write_position, stopped, stop_token, reasoning); }
 Status InferenceEngine::VerifyAcceptCommitAssistantBatch(std::uint32_t input_token, std::uint64_t start_position, std::uint32_t proposal_count, internal::MtpGroupResult* host_result) { return impl_->VerifyAcceptCommitAssistantBatch(input_token, start_position, proposal_count, host_result); }
-Status InferenceEngine::ExecuteFixedD2GraphGroup(std::uint32_t input_token, std::uint64_t start_position, internal::MtpGroupResult* host_result) { return impl_->ExecuteFixedD2GraphGroup(input_token, start_position, host_result); }
-Status InferenceEngine::PrepareFixedD2Graph() { return impl_->PrepareFixedD2Graph(); }
-Status InferenceEngine::ExecuteFixedD2GraphChain(internal::MtpChainResult* host_result, GeneratedTokenCallback callback, void* callback_context) { return impl_->ExecuteFixedD2GraphChain(host_result, callback, callback_context); }
+Status InferenceEngine::ExecuteFixedMtpGraphGroup(std::uint32_t input_token, std::uint64_t start_position, internal::MtpGroupResult* host_result) { return impl_->ExecuteFixedMtpGraphGroup(input_token, start_position, host_result); }
+Status InferenceEngine::PrepareFixedMtpGraph() { return impl_->PrepareFixedMtpGraph(); }
+Status InferenceEngine::ExecuteFixedMtpGraphChain(internal::MtpChainResult* host_result, GeneratedTokenCallback callback, void* callback_context) { return impl_->ExecuteFixedMtpGraphChain(host_result, callback, callback_context); }
 const std::uint32_t* InferenceEngine::mtp_chain_outputs() const { return impl_->mtp_chain_outputs(); }
 const std::uint32_t* InferenceEngine::mtp_chain_proposals() const { return impl_->mtp_chain_proposals(); }
 Status InferenceEngine::CheckMtpDeviceControlParity(std::uint32_t input_token, std::uint64_t processed_position, std::uint64_t remaining_output_capacity, std::uint64_t output_write_position, bool stopped, std::uint32_t stop_token) const { return impl_->CheckMtpDeviceControlParity(input_token, processed_position, remaining_output_capacity, output_write_position, stopped, stop_token); }

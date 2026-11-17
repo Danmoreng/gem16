@@ -573,6 +573,7 @@ void RecordGeneration(ServerState& state,
       response.inference.mtp_verification_groups);
   state.metrics.mtp_d1_groups.fetch_add(response.inference.mtp_d1_groups);
   state.metrics.mtp_d2_groups.fetch_add(response.inference.mtp_d2_groups);
+  state.metrics.mtp_d3_groups.fetch_add(response.inference.mtp_d3_groups);
   state.metrics.mtp_d4_groups.fetch_add(response.inference.mtp_d4_groups);
   state.metrics.mtp_ordinary_fallback_tokens.fetch_add(
       response.inference.mtp_ordinary_fallback_tokens);
@@ -753,6 +754,8 @@ std::string MetricsText(ServerState& state) {
                        state.metrics.mtp_d1_groups.load()));
   output.append(metric("gem16_mtp_d2_groups_total",
                        state.metrics.mtp_d2_groups.load()));
+  output.append(metric("gem16_mtp_d3_groups_total",
+                       state.metrics.mtp_d3_groups.load()));
   output.append(metric("gem16_mtp_d4_groups_total",
                        state.metrics.mtp_d4_groups.load()));
   output.append(metric("gem16_mtp_ordinary_fallback_tokens_total",

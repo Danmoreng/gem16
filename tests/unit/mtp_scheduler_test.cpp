@@ -4,6 +4,13 @@
 void RunMtpSchedulerTests() {
   using gem16::internal::AdaptiveMtpScheduler;
 
+  AdaptiveMtpScheduler explicit_d3(3U, 16384U, false);
+  for (unsigned index = 0U; index < 32U; ++index) {
+    explicit_d3.Observe(16384U + index, 0U);
+  }
+  GEM16_CHECK(explicit_d3.active_drafts() == 3U);
+  GEM16_CHECK(!explicit_d3.use_ordinary_fallback());
+
   AdaptiveMtpScheduler explicit_d4(4U, 16384U, false);
   for (unsigned index = 0U; index < 32U; ++index) {
     explicit_d4.Observe(16384U + index, 0U);

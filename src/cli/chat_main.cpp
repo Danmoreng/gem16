@@ -81,7 +81,7 @@ void PrintUsage() {
       << "                [--assistant-model <official-mtp-checkpoint>]\n"
       << "                [--vision-model <compiled-vision-module>]\n"
       << "                [--vision-max-soft-token-budget 70|140|280]\n"
-      << "                [--mtp-draft-tokens 1|2|4] [--mtp-adaptive]\n"
+      << "                [--mtp-draft-tokens 1|2|3|4] [--mtp-adaptive]\n"
       << "                [--stats]\n"
       << "                [--thinking-budget off|small|medium|high] [--thinking|--no-thinking]\n"
       << "                [--show-thinking|--hide-thinking] [--system <text>]\n"
@@ -285,9 +285,9 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
     } else if (argument == "--mtp-draft-tokens" && index + 1 < argc) {
       std::uint64_t value = 0U;
       if (!ParseUnsigned(argv[++index], value) ||
-          (value != 1U && value != 2U && value != 4U)) {
+          (value != 1U && value != 2U && value != 3U && value != 4U)) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
-                             "--mtp-draft-tokens must be 1, 2, or 4");
+                             "--mtp-draft-tokens must be 1, 2, 3, or 4");
       }
       options.mtp_draft_tokens = static_cast<std::uint32_t>(value);
     } else if (argument == "--mtp-adaptive") {
@@ -912,8 +912,9 @@ int ChatMain(int argc, char** argv) {
         << ",\"profile_id\":"
         << JsonEscape(runtime.value()->profile_id())
         << ",\"decode_mode\":"
-        << JsonEscape(options.mtp_draft_tokens == 2U ? "fixed-d2"
-                                                     : "ordinary")
+        << JsonEscape(options.mtp_draft_tokens == 0U
+                               ? "ordinary"
+                               : ("fixed-d" + std::to_string(options.mtp_draft_tokens)))
         << ",\"text_artifact_profile\":"
         << JsonEscape(runtime.value()->text_artifact_profile())
         << ",\"vision_artifact_profile\":"

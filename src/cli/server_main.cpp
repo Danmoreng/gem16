@@ -132,7 +132,7 @@ void PrintUsage() {
       << "  --model-integrity structural|sha256 (default: structural)\n"
       << "  --greedy                Disable checkpoint-recommended sampling\n"
       << "  --seed <integer>        Sampling seed (default: 0)\n"
-      << "  --assistant-model <checkpoint> --mtp-draft-tokens 1|2|4 [--mtp-adaptive]\n"
+      << "  --assistant-model <checkpoint> --mtp-draft-tokens 1|2|3|4 [--mtp-adaptive]\n"
       << "  --vision-model <compiled-vision-module>\n"
       << "  --vision-max-soft-token-budget 70|140|280 (default: 280)\n";
 }
@@ -220,9 +220,9 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
     } else if (argument == "--mtp-draft-tokens" && index + 1 < argc) {
       std::uint64_t value = 0U;
       if (!ParseUnsigned(argv[++index], value) ||
-          (value != 1U && value != 2U && value != 4U)) {
+          (value != 1U && value != 2U && value != 3U && value != 4U)) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
-                             "--mtp-draft-tokens must be 1, 2, or 4");
+                             "--mtp-draft-tokens must be 1, 2, 3, or 4");
       }
       options.mtp_draft_tokens = static_cast<std::uint32_t>(value);
     } else if (argument == "--model-integrity" && index + 1 < argc) {
@@ -1247,9 +1247,9 @@ int ServerMain(int argc, char** argv) {
                        gem16::json::Quote(state.runtime->profile_id()) +
                        ",\"decode_mode\":" +
                        gem16::json::Quote(
-                           state.session_options.mtp_draft_tokens == 2U
-                               ? "fixed-d2"
-                               : "ordinary") +
+                           state.session_options.mtp_draft_tokens == 0U
+                               ? "ordinary"
+                               : ("fixed-d" + std::to_string(state.session_options.mtp_draft_tokens))) +
                        ",\"text_artifact_profile\":" +
                        gem16::json::Quote(
                            state.runtime->text_artifact_profile()) +

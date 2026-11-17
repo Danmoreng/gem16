@@ -1,0 +1,263 @@
+{
+  "schema_version": 1,
+  "status": "local_experimental_scoped_qualification",
+  "scope": "12B fixed D3; owner excludes new26B checks",
+  "base_commit": "81118043fb526a8f86f07f030d53d9ddbd5b7104",
+  "branch": "main",
+  "source_sha256": "37f9cc48cfda701c1d71f6a220047d68b295684e028f3aa1f216bf1d5fedd588",
+  "binaries": {
+    "gem16-unit-tests": "1d988e8fe91103ddf15faf7c36beed0c4d82c95c1006e5ace78b98cf489f12c2",
+    "libgem16_core.a": "7b59e8ddbac74592d6100d35d2c06f525ec5e7cdf216eb3963a65d8589db008e",
+    "gem16-server": "ccc92b850c6fe8307317bbd34e6751d61e7caea02f07739ba2c46412c9365c4d",
+    "gem16-run": "e73efc35f9a9113103ec2f046aba9ee57f9fb4bc2ba01a401a990ad0ea4211b5",
+    "gem16-cuda-tests": "817b54e75a60589f68dd47ddb05534a58d8764bed5234dbb9daf4cb99c9254fe",
+    "gem16-chat": "baf762652be36a6a31b4a69217608ab6ae8b53d213a99485d1bd49c9ed5fa27c"
+  },
+  "models": {
+    "assistant_checkpoint": "/home/sebastian/.cache/huggingface/hub/models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345",
+    "checkpoint": "/home/sebastian/.cache/huggingface/hub/.gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+    "executable": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fp8-packed/production-candidate/gem16-run",
+    "prompt_token_file": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fp8-packed/gpu-d3.prompt-token-ids.txt"
+  },
+  "toolchain_reference": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/vllm-alignment/toolchain.json",
+  "workload": "16384 exact prompt IDs;1135 outputs;1134 timed intervals; context17519; greedy; FP8 KV; batch1; no reuse/offload",
+  "cohorts": {
+    "D2_reused": {
+      "rate": 99.00644327646721,
+      "samples": [
+        99.15621037904954,
+        99.00644327646721,
+        98.9563335543998
+      ],
+      "source": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/vllm-alignment/down-fixed/integration/screen-d2-candidate.json"
+    },
+    "D3_parent": {
+      "rate": 94.55594560114734,
+      "samples": [
+        94.71389554744465,
+        94.55594560114734,
+        94.53545079404776
+      ],
+      "source": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-chain/final/gpu-d3.json"
+    },
+    "D3_packed": {
+      "rate": 100.33000964371344,
+      "samples": [
+        100.39218463663163,
+        100.33000964371344,
+        100.2501834383868
+      ],
+      "source": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fp8-packed/gpu-d3.json",
+      "warmups": 1,
+      "repetitions": 3,
+      "telemetry": {
+        "sample_period_ms": 200,
+        "sampled_peak_mib": 11767.0,
+        "temperature_min_c": 48.0,
+        "temperature_max_c": 73.03,
+        "max_sm_clock_mhz": 2640.0,
+        "max_power_w": 176.48
+      }
+    },
+    "D4": {
+      "rate": 86.03488433846456,
+      "samples": [
+        86.17676115206322,
+        86.03488433846456,
+        85.88566754521494
+      ],
+      "source": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-chain/final/gpu-d4.json"
+    }
+  },
+  "gain_over_parent": 0.06106505525228467,
+  "gain_over_D2": 0.013368487175630328,
+  "correctness": {
+    "all1135output_ids_exact": true,
+    "all1311proposal_ids_exact": true,
+    "whole_kv_sha256": "6b03676412022f6be775dfec7ec4e9e68ef3d997a28e6f5f3f100ff36c577231",
+    "whole_kv_bytes": 311287808,
+    "counters": {
+      "acceptance_path": "gpu_accept_commit",
+      "accepted_tokens": 694,
+      "adaptive": false,
+      "d1_groups": 0,
+      "d2_attention_path": "inactive",
+      "d2_groups": 0,
+      "d2_output_head_path": "inactive",
+      "d3_groups": 437,
+      "d4_groups": 0,
+      "device_control": "host_gpu_transition_parity",
+      "draft_tokens": 3,
+      "enabled": true,
+      "group_execution": "gpu_chained_fixed_d3_conditional_graph",
+      "host_synchronizations_per_chain": 0,
+      "host_synchronizations_per_group": 0,
+      "mean_accepted_length": 1.5881,
+      "ordinary_fallback_tokens": 0,
+      "proposed_tokens": 1311,
+      "rejected_tokens": 617,
+      "short_batch_projection_path": "decode_order_fp8_qkv_nvfp4_down_t_le_5",
+      "streaming": "mapped_pinned_spsc_ring_256",
+      "target_batches": 440,
+      "target_forwards": 1751,
+      "verification_groups": 437,
+      "verification_mode": "batched_exact_target"
+    },
+    "diagnostic_only": true
+  },
+  "source_validation": {
+    "parent_source": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-chain/final/source.tar.gz",
+    "changed": [
+      "src/cuda/fp8/sm120.cu"
+    ],
+    "unchanged": 246,
+    "all_archived_source_matches": true,
+    "canonical_binaries_match_measured_snapshot": true,
+    "primary_executable_sha256": "e73efc35f9a9113103ec2f046aba9ee57f9fb4bc2ba01a401a990ad0ea4211b5",
+    "native_mma_static_count_parent": 20,
+    "native_mma_static_count_candidate": 5,
+    "packed_dispatch_calls_in_16_groups": 1536,
+    "no_weight_repack": true,
+    "D2_D4_launch_branches_preserved": true
+  },
+  "protected": {
+    "protected": {
+      "protected-text-12b-candidate-0": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-text-12b-candidate-1": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-text-12b-candidate-2": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-text-12b-candidate-4": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-bf16kv-12b-candidate-0": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-bf16kv-12b-candidate-2": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-media-12b-image-candidate-0": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-media-12b-image-candidate-2": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-media-12b-audio-candidate-0": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-media-12b-audio-candidate-2": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-media-12b-image-candidate-3": {
+        "exact": true
+      },
+      "protected-media-12b-audio-candidate-3": {
+        "exact": true
+      },
+      "protected-bf16kv-12b-candidate-3": {
+        "exact": true
+      },
+      "protected-media-12b-image-candidate-4": {
+        "exact": true
+      },
+      "protected-media-12b-audio-candidate-4": {
+        "exact": true
+      },
+      "protected-bf16kv-12b-candidate-4": {
+        "exact": true
+      },
+      "protected-text-12b-candidate-3": {
+        "exact": true
+      },
+      "small-context": {
+        "pass": true
+      },
+      "adaptive-rejected": {
+        "pass": true
+      },
+      "chat-d2-sampled0": {
+        "all17cases_exact": true
+      },
+      "chat-d3-sampled0": {
+        "all17cases_exact": true
+      },
+      "chat-d4-sampled0": {
+        "all17cases_exact": true
+      },
+      "chat-d2-sampled1": {
+        "all17cases_exact": true
+      },
+      "chat-d3-sampled1": {
+        "all17cases_exact": true
+      },
+      "chat-d4-sampled1": {
+        "all17cases_exact": true
+      }
+    },
+    "cuda_tests": "pass",
+    "host_tests": "see host-tests.log",
+    "sampled_seeds": [
+      0,
+      1,
+      42
+    ],
+    "interactive_two_turn_sampled_chat": "pass"
+  },
+  "sanitizers": {
+    "passed": [
+      "mtp-control-memcheck",
+      "operator-memcheck",
+      "mtp-control-synccheck",
+      "operator-synccheck",
+      "mtp-control-racecheck",
+      "operator-racecheck",
+      "wrapped-d3-model-memcheck"
+    ],
+    "full_conditional_synccheck": "not passed: inherited Assistant PreProjection report reproduced with old D2",
+    "full_conditional_racecheck": "not claimed; prior direct D4 run timed out at600s"
+  },
+  "server": {
+    "health_fixed_d3": true,
+    "two_http_turns": true,
+    "frequency_presence_penalties": true,
+    "d3_group_metric_positive": true
+  },
+  "dispatch": {
+    "family_ms_per_group": {
+      "assistant_all": 4.557146687499976,
+      "commit_control": 0.09510037499999956,
+      "target_attention": 4.979531375000001,
+      "target_down": 2.692986937500002,
+      "target_fp8_qkv_o": 3.530827999999999,
+      "target_gateup": 4.175122874999997,
+      "target_head_selection": 2.825267375,
+      "target_kv": 0.271333812500003,
+      "target_norm_quant_rotary": 2.196605749999972,
+      "target_other": 0.0015520000000000002
+    },
+    "capture_runtime_api_counts": {
+      "cudaStreamBeginCapture_v10000": 100,
+      "cudaLaunchKernel_v7000": 4947,
+      "cudaStreamEndCapture_v10000": 102,
+      "cudaGraphInstantiate_v12000": 99,
+      "cudaMemcpyAsync_v3020": 238,
+      "cudaGraphCreate_v10000": 1,
+      "cudaGraphAddNode_v12030": 3,
+      "cudaGraphAddChildGraphNode_v10000": 2,
+      "cudaMemsetAsync_v3020": 1,
+      "cudaGraphLaunch_v10000": 1,
+      "cudaMemcpy_v3020": 4
+    },
+    "reference_D2_reused": true
+  },
+  "limitations": [
+    "Unfiltered full conditional-model synccheck remains unresolved in unchanged Assistant PreProjection; pinned old D2 reproduces. Not classified as a false positive.",
+    "Full conditional-model racecheck not claimed. The preceding direct D4 model racecheck timed out at600s. New operators/control pass all three scoped tools; fixed-chain model memcheck passes.",
+    "One warmup and three retained requests per changed build; fresh prior D2 is reused; no formal fresh paired AB/BA inference or new vLLM primary cohort.",
+    "HTTP two-turn checks do not establish prefix-KV reuse (reported cached_tokens=0); SDK cached continuation/reset/reasoning/cancel cases do establish exact cached behavior."
+  ]
+}

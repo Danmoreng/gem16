@@ -55,7 +55,7 @@ def main() -> int:
     parser.add_argument("--target", type=Path, default=default_target_model())
     parser.add_argument("--assistant", type=Path, default=default_assistant_model())
     parser.add_argument("--input-token", type=int, default=2)
-    parser.add_argument("--draft-tokens", type=int, choices=(1, 2, 4), default=4)
+    parser.add_argument("--draft-tokens", type=int, choices=(1, 2, 3, 4), default=4)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 

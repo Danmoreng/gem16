@@ -74,6 +74,7 @@ struct ServerMetrics {
   std::atomic<std::uint64_t> mtp_verification_groups{0U};
   std::atomic<std::uint64_t> mtp_d1_groups{0U};
   std::atomic<std::uint64_t> mtp_d2_groups{0U};
+  std::atomic<std::uint64_t> mtp_d3_groups{0U};
   std::atomic<std::uint64_t> mtp_d4_groups{0U};
   std::atomic<std::uint64_t> mtp_ordinary_fallback_tokens{0U};
   std::atomic<std::uint64_t> fallback_count{0U};

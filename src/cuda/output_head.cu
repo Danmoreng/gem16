@@ -363,6 +363,16 @@ Status LaunchFusedOutputHeadBatchCandidates(
         <<<kOutputHeadCandidateBlocks, kThreads, 0, stream>>>(
             weights, hidden, suppressed, suppressed_count, candidates,
             diagnostic_logits);
+  } else if (rows == 4U) {
+    FusedOutputHeadFixedBatchCandidatesKernel<4U>
+        <<<kOutputHeadCandidateBlocks, kThreads, 0, stream>>>(
+            weights, hidden, suppressed, suppressed_count, candidates,
+            diagnostic_logits);
+  } else if (rows == 5U) {
+    FusedOutputHeadFixedBatchCandidatesKernel<5U>
+        <<<kOutputHeadCandidateBlocks, kThreads, 0, stream>>>(
+            weights, hidden, suppressed, suppressed_count, candidates,
+            diagnostic_logits);
   } else {
     FusedOutputHeadBatchCandidatesKernel<<<kOutputHeadCandidateBlocks,
                                            kThreads, 0, stream>>>(

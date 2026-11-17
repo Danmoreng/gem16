@@ -1,0 +1,25 @@
+{
+  "passed": [
+    "mtp-control-memcheck",
+    "operator-t3-memcheck",
+    "operator-t4-memcheck",
+    "operator-t5-memcheck",
+    "attention-t3-memcheck",
+    "mtp-control-synccheck",
+    "operator-t3-synccheck",
+    "operator-t4-synccheck",
+    "operator-t5-synccheck",
+    "attention-t3-synccheck",
+    "mtp-control-racecheck",
+    "operator-t3-racecheck",
+    "operator-t4-racecheck",
+    "operator-t5-racecheck",
+    "attention-t3-racecheck",
+    "wrapped-d2-model-memcheck",
+    "wrapped-d3-model-memcheck",
+    "wrapped-d4-model-memcheck"
+  ],
+  "full_conditional_synccheck": "not passed: inherited Assistant PreProjection report reproduced by old D2",
+  "full_conditional_racecheck": "not claimed; earlier direct model racecheck timed out",
+  "unchanged_T4_T5_attention_scoped_reference": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-chain/final/sanitizer-validation.json"
+}

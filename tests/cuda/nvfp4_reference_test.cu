@@ -3821,13 +3821,12 @@ void TestOnlineFp8DecodeGlobalD2Gqa() {
       }));
 }
 
-void TestOnlineFp8DecodeGlobalD2Kvh2() {
-  constexpr std::uint64_t rows = 3;
+template <std::uint64_t rows = 3, std::uint64_t kv_heads = 2,
+          std::uint64_t start_position = 1024>
+void TestOnlineFp8DecodeGlobalFixedControlled() {
   constexpr std::uint64_t query_heads = 16;
-  constexpr std::uint64_t kv_heads = 2;
   constexpr std::uint64_t head_dimension = 512;
   constexpr std::uint64_t capacity = 16384;
-  constexpr std::uint64_t start_position = 1024;
   constexpr std::array<std::uint16_t, 1> key_scale = {0x3F00U};
   constexpr std::array<std::uint16_t, 1> value_scale = {0x3F40U};
   const std::size_t query_elements = query_heads * head_dimension;
@@ -3978,7 +3977,9 @@ void TestOnlineFp8DecodeAttention() {
   TestOnlineFp8DecodeAttentionShape(1, 512, 65536, 65535, false,
                                     "vectorized 64K global FP8 decode");
   TestOnlineFp8DecodeGlobalD2Gqa();
-  TestOnlineFp8DecodeGlobalD2Kvh2();
+  TestOnlineFp8DecodeGlobalFixedControlled<>();
+  TestOnlineFp8DecodeGlobalFixedControlled<4, 1, 16374>();
+  TestOnlineFp8DecodeGlobalFixedControlled<5, 1, 16374>();
 }
 
 void TestVectorizedFp8CausalPrefill() {
@@ -4861,7 +4862,7 @@ void TestGpuSamplingPenalties() {
   (void)cudaStreamDestroy(stream);
 }
 
-void TestMtpDeviceControlTransitions() {
+void TestMtpDeviceControlTransitions(std::uint32_t draft_count) {
   DeviceBuffer<std::uint32_t> drafts(
       gem16::internal::kMaximumMtpDraftTokens);
   DeviceBuffer<std::uint32_t> verified(
@@ -4875,7 +4876,7 @@ void TestMtpDeviceControlTransitions() {
 
   const std::array<std::uint32_t,
                    gem16::internal::kMaximumMtpDraftTokens>
-      host_drafts{10U, 20U, 0U, 0U};
+      host_drafts{10U, 20U, 30U, 40U};
   const std::uint32_t stop = 99U;
   if (!CudaOk(cudaMemcpy(drafts.get(), host_drafts.data(), drafts.bytes(),
                          cudaMemcpyHostToDevice),
@@ -4899,7 +4900,7 @@ void TestMtpDeviceControlTransitions() {
     host_transaction.control.current.output_write_position = 4U;
     host_transaction.control.current.sampling_step = 17U;
     host_transaction.control.next = host_transaction.control.current;
-    host_transaction.control.fixed_draft_tokens = 2U;
+    host_transaction.control.fixed_draft_tokens = draft_count;
     host_transaction.control.sampling_enabled = 1U;
     if (!CudaOk(cudaMemcpy(verified.get(), host_verified.data(),
                            verified.bytes(), cudaMemcpyHostToDevice),
@@ -4910,7 +4911,7 @@ void TestMtpDeviceControlTransitions() {
       return;
     }
     auto status = gem16::internal::LaunchAcceptMtpGroup(
-        drafts.get(), verified.get(), 2U, stop_tokens.get(), stop_count,
+        drafts.get(), verified.get(), draft_count, stop_tokens.get(), stop_count,
         &transaction.get()->result, &transaction.get()->control, nullptr);
     CUDA_TEST_CHECK(status.ok());
     if (!status.ok() ||
@@ -4925,7 +4926,7 @@ void TestMtpDeviceControlTransitions() {
     CUDA_TEST_CHECK(result.output_count == expected_output);
     CUDA_TEST_CHECK(result.stopped == (expected_stopped ? 1U : 0U));
     CUDA_TEST_CHECK(control.transition_valid == 1U);
-    CUDA_TEST_CHECK(control.proposal_count == 2U);
+    CUDA_TEST_CHECK(control.proposal_count == draft_count);
     CUDA_TEST_CHECK(control.next.input_token ==
                     host_verified[expected_output - 1U]);
     CUDA_TEST_CHECK(control.next.processed_position ==
@@ -4943,8 +4944,19 @@ void TestMtpDeviceControlTransitions() {
 
   run_case({30U, 40U, 50U, 0U, 0U}, 0U, 0U, 1U, false);
   run_case({10U, 30U, 50U, 0U, 0U}, 0U, 1U, 2U, false);
-  run_case({10U, 20U, 30U, 0U, 0U}, 0U, 2U, 3U, false);
+  run_case({10U, 20U, 50U, 0U, 0U}, 0U, 2U, 3U, false);
   run_case({10U, 99U, 30U, 0U, 0U}, 1U, 1U, 2U, true);
+  if (draft_count == 3U) {
+    run_case({10U,20U,30U,40U,50U},0U,3U,4U,false);
+    run_case({10U,20U,30U,99U,50U},1U,3U,4U,true);
+    run_case({10U,20U,99U,40U,50U},1U,2U,3U,true);
+  }
+  if (draft_count == 4U) {
+    run_case({10U, 20U, 30U, 50U, 60U}, 0U, 3U, 4U, false);
+    run_case({10U, 20U, 30U, 40U, 50U}, 0U, 4U, 5U, false);
+    run_case({10U, 20U, 30U, 99U, 60U}, 1U, 3U, 4U, true);
+    run_case({10U, 20U, 30U, 40U, 99U}, 1U, 4U, 5U, true);
+  }
 }
 
 void TestMtpReasoningTransitions() {
@@ -5109,11 +5121,13 @@ void TestMtpReasoningTransitions() {
   CUDA_TEST_CHECK(host_chain.reasoning_budget_forced == 1U);
 }
 
-void TestMtpConditionalD2Chain() {
-  DeviceBuffer<std::uint32_t> drafts(2U);
-  DeviceBuffer<std::uint32_t> verified(3U);
+void TestMtpConditionalFixedChain(std::uint32_t draft_count) {
+  CUDA_TEST_CHECK(draft_count == 2U || draft_count == 3U || draft_count == 4U);
+  const std::uint32_t outputs_per_group = draft_count >= 3U ? draft_count + 1U : 2U;
+  DeviceBuffer<std::uint32_t> drafts(draft_count);
+  DeviceBuffer<std::uint32_t> verified(draft_count + 1U);
   DeviceBuffer<std::uint32_t> outputs(512U);
-  DeviceBuffer<std::uint32_t> proposals(512U);
+  DeviceBuffer<std::uint32_t> proposals(2048U);
   DeviceBuffer<gem16::internal::MtpGroupTransaction> transaction(1U);
   DeviceBuffer<gem16::internal::MtpChainResult> chain_result(1U);
   if (drafts.get() == nullptr || verified.get() == nullptr ||
@@ -5121,15 +5135,15 @@ void TestMtpConditionalD2Chain() {
       transaction.get() == nullptr || chain_result.get() == nullptr) {
     return;
   }
-  const std::array<std::uint32_t, 2U> host_drafts{11U, 99U};
-  const std::array<std::uint32_t, 3U> host_verified{11U, 12U, 13U};
+  const std::array<std::uint32_t, 4U> host_drafts{11U, draft_count >= 3U ? 12U : 99U, 13U, 14U};
+  const std::array<std::uint32_t, 5U> host_verified{11U, 12U, 13U, 14U, 15U};
   gem16::internal::MtpGroupTransaction host_transaction{};
   host_transaction.control.current.input_token = 7U;
   host_transaction.control.current.processed_position = 20U;
-  host_transaction.control.current.remaining_output_capacity = 4U;
+  host_transaction.control.current.remaining_output_capacity = 2U * outputs_per_group;
   host_transaction.control.current.output_write_position = 4U;
   host_transaction.control.next = host_transaction.control.current;
-  host_transaction.control.fixed_draft_tokens = 2U;
+  host_transaction.control.fixed_draft_tokens = draft_count;
   if (!CudaOk(cudaMemcpy(drafts.get(), host_drafts.data(), drafts.bytes(),
                          cudaMemcpyHostToDevice),
               "copy MTP chain drafts") ||
@@ -5197,13 +5211,13 @@ void TestMtpConditionalD2Chain() {
   }
   if (graph_ok) {
     auto status = gem16::internal::LaunchAcceptMtpGroup(
-        drafts.get(), verified.get(), 2U, nullptr, 0U,
+        drafts.get(), verified.get(), draft_count, nullptr, 0U,
         &transaction.get()->result, &transaction.get()->control, stream);
     CUDA_TEST_CHECK(status.ok());
     graph_ok = status.ok();
   }
   if (graph_ok) {
-    auto status = gem16::internal::LaunchAdvanceMtpD2Chain(
+    auto status = gem16::internal::LaunchAdvanceMtpChain(
         transaction.get(), chain_result.get(), outputs.get(), proposals.get(),
         device_streaming_ring, stream);
     if (status.ok()) {
@@ -5246,46 +5260,45 @@ void TestMtpConditionalD2Chain() {
                       "synchronize MTP conditional graph");
   }
   gem16::internal::MtpChainResult host_result{};
-  std::array<std::uint32_t, 4U> host_outputs{};
-  std::array<std::uint32_t, 4U> host_proposals{};
+  std::array<std::uint32_t, 10U> host_outputs{};
+  std::array<std::uint32_t, 8U> host_proposals{};
   if (graph_ok) {
     graph_ok = CudaOk(cudaMemcpy(&host_result, chain_result.get(),
                                  sizeof(host_result), cudaMemcpyDeviceToHost),
                       "copy MTP chain result") &&
                CudaOk(cudaMemcpy(host_outputs.data(), outputs.get() + 4U,
-                                 sizeof(host_outputs), cudaMemcpyDeviceToHost),
+                                 2U * outputs_per_group * sizeof(std::uint32_t), cudaMemcpyDeviceToHost),
                       "copy MTP chain outputs") &&
                CudaOk(cudaMemcpy(host_proposals.data(), proposals.get(),
-                                 sizeof(host_proposals),
+                                 2U * draft_count * sizeof(std::uint32_t),
                                  cudaMemcpyDeviceToHost),
                       "copy MTP chain proposals");
   }
   if (graph_ok) {
     CUDA_TEST_CHECK(host_result.group_count == 2U);
-    CUDA_TEST_CHECK(host_result.output_count == 4U);
-    CUDA_TEST_CHECK(host_result.proposed_count == 4U);
-    CUDA_TEST_CHECK(host_result.accepted_count == 2U);
-    CUDA_TEST_CHECK(host_result.rejected_count == 2U);
-    CUDA_TEST_CHECK((host_outputs ==
-                     std::array<std::uint32_t, 4U>{11U, 12U, 11U, 12U}));
-    CUDA_TEST_CHECK((host_proposals ==
-                     std::array<std::uint32_t, 4U>{11U, 99U, 11U, 99U}));
-    CUDA_TEST_CHECK(host_streaming_ring->producer == 4U);
+    CUDA_TEST_CHECK(host_result.output_count == 2U * outputs_per_group);
+    CUDA_TEST_CHECK(host_result.proposed_count == 2U * draft_count);
+    CUDA_TEST_CHECK(host_result.accepted_count == 2U * (outputs_per_group - 1U));
+    CUDA_TEST_CHECK(host_result.rejected_count == 2U * (draft_count + 1U - outputs_per_group));
+    for (std::uint32_t i = 0U; i < 2U * outputs_per_group; ++i) {
+      CUDA_TEST_CHECK(host_outputs[i] == host_verified[i % outputs_per_group]);
+      CUDA_TEST_CHECK(host_streaming_ring->tokens[i] == host_outputs[i]);
+    }
+    for (std::uint32_t i = 0U; i < 2U * draft_count; ++i) {
+      CUDA_TEST_CHECK(host_proposals[i] == host_drafts[i % draft_count]);
+    }
+    CUDA_TEST_CHECK(host_streaming_ring->producer == 2U * outputs_per_group);
     CUDA_TEST_CHECK(host_streaming_ring->consumer == 0U);
     CUDA_TEST_CHECK(host_streaming_ring->backpressure_events == 0U);
-    CUDA_TEST_CHECK((std::array<std::uint32_t, 4U>{
-                         host_streaming_ring->tokens[0],
-                         host_streaming_ring->tokens[1],
-                         host_streaming_ring->tokens[2],
-                         host_streaming_ring->tokens[3]} == host_outputs));
+
   }
   if (graph_ok) {
     host_transaction = {};
     host_transaction.control.current.input_token = 7U;
     host_transaction.control.current.processed_position = 30U;
-    host_transaction.control.current.remaining_output_capacity = 4U;
+    host_transaction.control.current.remaining_output_capacity = 2U * outputs_per_group;
     host_transaction.control.next = host_transaction.control.current;
-    host_transaction.control.fixed_draft_tokens = 2U;
+    host_transaction.control.fixed_draft_tokens = draft_count;
     *host_streaming_ring = {};
     graph_ok = CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
                                  sizeof(host_transaction),
@@ -5308,11 +5321,11 @@ void TestMtpConditionalD2Chain() {
   }
   if (graph_ok) {
     CUDA_TEST_CHECK(host_result.group_count == 2U);
-    CUDA_TEST_CHECK(host_result.output_count == 4U);
+    CUDA_TEST_CHECK(host_result.output_count == 2U * outputs_per_group);
     CUDA_TEST_CHECK(
         host_transaction.control.current.remaining_output_capacity == 0U);
     CUDA_TEST_CHECK(host_transaction.control.current.processed_position ==
-                    34U);
+                    30U + 2U * outputs_per_group);
   }
   if (graph_ok) {
     host_transaction = {};
@@ -5320,7 +5333,7 @@ void TestMtpConditionalD2Chain() {
     host_transaction.control.current.processed_position = 40U;
     host_transaction.control.current.remaining_output_capacity = 260U;
     host_transaction.control.next = host_transaction.control.current;
-    host_transaction.control.fixed_draft_tokens = 2U;
+    host_transaction.control.fixed_draft_tokens = draft_count;
     *host_streaming_ring = {};
     graph_ok = CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
                                  sizeof(host_transaction),
@@ -5359,7 +5372,7 @@ void TestMtpConditionalD2Chain() {
     }
   }
   if (graph_ok) {
-    CUDA_TEST_CHECK(host_result.group_count == 130U);
+    CUDA_TEST_CHECK(host_result.group_count == 260U / outputs_per_group);
     CUDA_TEST_CHECK(host_result.output_count == 260U);
     CUDA_TEST_CHECK(host_streaming_ring->producer == 260U);
     CUDA_TEST_CHECK(host_streaming_ring->backpressure_events == 1U);
@@ -5370,7 +5383,7 @@ void TestMtpConditionalD2Chain() {
     host_transaction.control.current.processed_position = 40U;
     host_transaction.control.current.remaining_output_capacity = 260U;
     host_transaction.control.next = host_transaction.control.current;
-    host_transaction.control.fixed_draft_tokens = 2U;
+    host_transaction.control.fixed_draft_tokens = draft_count;
     *host_streaming_ring = {};
     graph_ok = CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
                                  sizeof(host_transaction),
@@ -5405,10 +5418,11 @@ void TestMtpConditionalD2Chain() {
     }
   }
   if (graph_ok) {
-    CUDA_TEST_CHECK(host_streaming_ring->producer == 256U);
+    CUDA_TEST_CHECK(host_streaming_ring->producer ==
+                    (256U / outputs_per_group) * outputs_per_group);
     CUDA_TEST_CHECK(host_streaming_ring->consumer == 0U);
     CUDA_TEST_CHECK(host_streaming_ring->backpressure_events == 1U);
-    CUDA_TEST_CHECK(host_result.group_count == 129U);
+    CUDA_TEST_CHECK(host_result.group_count == 256U / outputs_per_group + 1U);
   }
   if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
   if (body_source != nullptr) (void)cudaGraphDestroy(body_source);
@@ -5513,12 +5527,27 @@ int main(int argc, char** argv) {
   }
   if (argc == 2 &&
       std::string_view(argv[1]) == "online-decode-kvh2-d2-memcheck") {
-    TestOnlineFp8DecodeGlobalD2Kvh2();
+    TestOnlineFp8DecodeGlobalFixedControlled<>();
     if (failures != 0) {
       std::cerr << failures << " CUDA test assertion(s) failed\n";
       return 1;
     }
     std::cout << "online decode KVH2 D2 CUDA memcheck tests passed\n";
+    return 0;
+  }
+  if (argc == 2 && std::string_view(argv[1]) == "online-decode-d3-memcheck") {
+    TestOnlineFp8DecodeGlobalFixedControlled<4, 1, 16374>();
+    if (failures != 0) return 1;
+    std::cout << "global D3 controlled attention tests passed\n";
+    return 0;
+  }
+  if (argc == 2 && std::string_view(argv[1]) == "online-decode-d4-memcheck") {
+    TestOnlineFp8DecodeGlobalFixedControlled<5, 1, 16374>();
+    if (failures != 0) {
+      std::cerr << failures << " CUDA test assertion(s) failed\n";
+      return 1;
+    }
+    std::cout << "global D4 controlled attention tests passed\n";
     return 0;
   }
   if (argc == 2 && std::string_view(argv[1]) == "decode-fusion") {
@@ -5569,9 +5598,13 @@ int main(int argc, char** argv) {
     return 0;
   }
   if (argc == 2 && std::string_view(argv[1]) == "mtp-control") {
-    TestMtpDeviceControlTransitions();
+    TestMtpDeviceControlTransitions(2U);
+    TestMtpDeviceControlTransitions(3U);
+    TestMtpDeviceControlTransitions(4U);
     TestMtpReasoningTransitions();
-    TestMtpConditionalD2Chain();
+    TestMtpConditionalFixedChain(2U);
+    TestMtpConditionalFixedChain(3U);
+    TestMtpConditionalFixedChain(4U);
     if (failures != 0) {
       std::cerr << failures << " CUDA test assertion(s) failed\n";
       return 1;
@@ -5580,7 +5613,9 @@ int main(int argc, char** argv) {
     return 0;
   }
   if (argc == 2 && std::string_view(argv[1]) == "mtp-reasoning") {
-    TestMtpDeviceControlTransitions();
+    TestMtpDeviceControlTransitions(2U);
+    TestMtpDeviceControlTransitions(3U);
+    TestMtpDeviceControlTransitions(4U);
     TestMtpReasoningTransitions();
     if (failures != 0) {
       std::cerr << failures << " CUDA test assertion(s) failed\n";
@@ -5608,9 +5643,13 @@ int main(int argc, char** argv) {
   TestVectorizedFp8CausalPrefill();
   TestOnlineLocalFp8CausalPrefill();
   TestOnlineGlobalFp8CausalPrefill();
-  TestMtpDeviceControlTransitions();
+  TestMtpDeviceControlTransitions(2U);
+  TestMtpDeviceControlTransitions(3U);
+  TestMtpDeviceControlTransitions(4U);
   TestMtpReasoningTransitions();
-  TestMtpConditionalD2Chain();
+  TestMtpConditionalFixedChain(2U);
+  TestMtpConditionalFixedChain(3U);
+  TestMtpConditionalFixedChain(4U);
   TestGpuSampling();
   TestGpuSamplingPenalties();
   if (failures != 0) {

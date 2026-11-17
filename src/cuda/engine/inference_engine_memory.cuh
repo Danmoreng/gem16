@@ -51,12 +51,12 @@
       std::size_t free_before = 0U, total_bytes = 0U;
       error = cudaMemGetInfo(&free_before, &total_bytes);
       if (error != cudaSuccess) return CudaFailure("measure sampling change", error);
-      const bool recapture_d2 = mtp_d2_graph_.get() != nullptr;
+      const bool recapture_fixed_mtp = fixed_mtp_graph_.get() != nullptr;
       sampling_.penalties = penalties;
       // Only these executables capture sampling scalars. Layer graphs, KV,
       // committed Target hidden state, and RNG position are preserved.
-      mtp_d2_graph_.Reset();
-      mtp_d2_chain_graph_.Reset();
+      fixed_mtp_graph_.Reset();
+      fixed_mtp_chain_graph_.Reset();
       full_decode_graph_.Reset();
       status = CaptureDecodeGraph(
           full_decode_graph_, [this]() { return LaunchFullDecodeGraphBody(); },
@@ -74,8 +74,8 @@
       } else {
         decode_graph_device_bytes_ += free_before - free_after;
       }
-      if (recapture_d2) {
-        status = PrepareFixedD2Graph();
+      if (recapture_fixed_mtp) {
+        status = PrepareFixedMtpGraph();
         if (!status.ok()) return status;
       }
     }
@@ -323,10 +323,12 @@
             : 0U);
     auto stop_tokens = layout.Add<std::uint32_t>(kMaximumSuppressedTokens);
     auto transaction = layout.Add<internal::MtpGroupTransaction>(1U);
-    auto row_controls = layout.Add<internal::DecodeControl>(3U);
+    auto row_controls = layout.Add<internal::DecodeControl>(
+        std::max(2U, mtp_draft_tokens_) + 1U);
     auto chain_result = layout.Add<internal::MtpChainResult>(1U);
     auto chain_outputs = layout.Add<std::uint32_t>(max_context_);
-    auto chain_proposals = layout.Add<std::uint32_t>(2U * max_context_);
+    auto chain_proposals = layout.Add<std::uint32_t>(
+        std::max(2U, mtp_draft_tokens_) * max_context_);
     auto committed_hidden = layout.Add<float>(kHidden);
     if (!attention_workspace.ok()) return attention_workspace.status();
     if (!candidates.ok()) return candidates.status();

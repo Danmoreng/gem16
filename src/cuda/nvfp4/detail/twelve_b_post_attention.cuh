@@ -75,3 +75,216 @@ __global__ void TwelveBPostAttentionQuantizeKernel(
     }
   }
 }
+
+
+__global__ void TwelveBPostAttentionQuantizeT3Kernel(
+ float*projection,const std::uint16_t*post_weight,const float*residual,
+ float*post_output,float*hidden_output,const std::uint16_t*weight,
+ std::uint8_t*packed_e2m1,std::uint8_t*block_scales_e4m3fn,
+ float global_divisor){
+ const std::uint64_t row=blockIdx.x;
+ projection+=row*3840U;residual+=row*3840U;
+ if(post_output!=nullptr)post_output+=row*3840U;
+ hidden_output+=row*3840U;packed_e2m1+=row*1920U;
+ block_scales_e4m3fn+=row*240U;
+
+ constexpr std::uint64_t elements=3840U;constexpr float epsilon=1.0e-6F;
+ float*const normalized_output=nullptr;
+ float squared_sum=0.0F;
+ for(std::uint64_t index=threadIdx.x;index<elements;index+=blockDim.x){
+  const float value=static_cast<float>(__float2bfloat16_rn(projection[index]));
+  projection[index]=value;
+  squared_sum=fmaf(value,value,squared_sum);
+ }
+ const float first_inverse=rsqrtf(TwelveBPostAttentionBlockSum(squared_sum)/static_cast<float>(elements)+epsilon);
+ // Every lane consumes the first result before its shared reduction is reused.
+ __syncthreads();
+ squared_sum=0.0F;
+ for(std::uint64_t index=threadIdx.x;index<elements;index+=blockDim.x){
+  const float normalized=static_cast<float>(__float2bfloat16_rn(projection[index]*first_inverse*static_cast<float>(__ushort_as_bfloat16(post_weight[index]))));
+  if(post_output!=nullptr)post_output[index]=normalized;
+  const float value=static_cast<float>(__float2bfloat16_rn(normalized+residual[index]));
+  hidden_output[index]=value;
+  squared_sum=fmaf(value,value,squared_sum);
+ }
+ const float inverse_rms=rsqrtf(TwelveBPostAttentionBlockSum(squared_sum)/static_cast<float>(elements)+epsilon);
+  const std::uint64_t blocks = elements / kBlockElements;
+  for (std::uint64_t block = threadIdx.x; block < blocks;
+       block += blockDim.x) {
+    const std::uint64_t begin = block * kBlockElements;
+    float normalized[kBlockElements];
+    float amax = 0.0F;
+#pragma unroll
+    for (std::uint64_t local = 0; local < kBlockElements; ++local) {
+      const std::uint64_t index = begin + local;
+      const float norm_scale =
+          weight == nullptr
+              ? 1.0F
+              : static_cast<float>(__ushort_as_bfloat16(weight[index]));
+      normalized[local] = static_cast<float>(__float2bfloat16_rn(
+          hidden_output[index] * inverse_rms * norm_scale));
+      if (normalized_output != nullptr) {
+        normalized_output[index] = normalized[local];
+      }
+      amax = fmaxf(amax, fabsf(normalized[local]));
+    }
+    const __nv_fp8_e4m3 scale(
+        (amax * ReciprocalApproximateFtz(6.0F)) * global_divisor);
+    block_scales_e4m3fn[block] = scale.__x;
+    const float decoded_scale = static_cast<float>(scale);
+    const float output_scale =
+        decoded_scale == 0.0F
+            ? 0.0F
+            : ReciprocalApproximateFtz(
+                  decoded_scale * ReciprocalApproximateFtz(global_divisor));
+#pragma unroll
+    for (std::uint64_t pair = 0; pair < kBlockElements / 2U; ++pair) {
+      const __nv_fp4_e2m1 low(normalized[pair * 2U] * output_scale);
+      const __nv_fp4_e2m1 high(normalized[pair * 2U + 1U] * output_scale);
+      packed_e2m1[begin / 2U + pair] = static_cast<std::uint8_t>(
+          (low.__x & 0x0FU) | ((high.__x & 0x0FU) << 4U));
+    }
+  }
+}
+
+
+__global__ void TwelveBPostAttentionQuantizeT5Kernel(
+ float*projection,const std::uint16_t*post_weight,const float*residual,
+ float*post_output,float*hidden_output,const std::uint16_t*weight,
+ std::uint8_t*packed_e2m1,std::uint8_t*block_scales_e4m3fn,
+ float global_divisor){
+ const std::uint64_t row=blockIdx.x;
+ projection+=row*3840U;residual+=row*3840U;
+ if(post_output!=nullptr)post_output+=row*3840U;
+ hidden_output+=row*3840U;packed_e2m1+=row*1920U;
+ block_scales_e4m3fn+=row*240U;
+
+ constexpr std::uint64_t elements=3840U;constexpr float epsilon=1.0e-6F;
+ float*const normalized_output=nullptr;
+ float squared_sum=0.0F;
+ for(std::uint64_t index=threadIdx.x;index<elements;index+=blockDim.x){
+  const float value=static_cast<float>(__float2bfloat16_rn(projection[index]));
+  projection[index]=value;
+  squared_sum=fmaf(value,value,squared_sum);
+ }
+ const float first_inverse=rsqrtf(TwelveBPostAttentionBlockSum(squared_sum)/static_cast<float>(elements)+epsilon);
+ // Every lane consumes the first result before its shared reduction is reused.
+ __syncthreads();
+ squared_sum=0.0F;
+ for(std::uint64_t index=threadIdx.x;index<elements;index+=blockDim.x){
+  const float normalized=static_cast<float>(__float2bfloat16_rn(projection[index]*first_inverse*static_cast<float>(__ushort_as_bfloat16(post_weight[index]))));
+  if(post_output!=nullptr)post_output[index]=normalized;
+  const float value=static_cast<float>(__float2bfloat16_rn(normalized+residual[index]));
+  hidden_output[index]=value;
+  squared_sum=fmaf(value,value,squared_sum);
+ }
+ const float inverse_rms=rsqrtf(TwelveBPostAttentionBlockSum(squared_sum)/static_cast<float>(elements)+epsilon);
+  const std::uint64_t blocks = elements / kBlockElements;
+  for (std::uint64_t block = threadIdx.x; block < blocks;
+       block += blockDim.x) {
+    const std::uint64_t begin = block * kBlockElements;
+    float normalized[kBlockElements];
+    float amax = 0.0F;
+#pragma unroll
+    for (std::uint64_t local = 0; local < kBlockElements; ++local) {
+      const std::uint64_t index = begin + local;
+      const float norm_scale =
+          weight == nullptr
+              ? 1.0F
+              : static_cast<float>(__ushort_as_bfloat16(weight[index]));
+      normalized[local] = static_cast<float>(__float2bfloat16_rn(
+          hidden_output[index] * inverse_rms * norm_scale));
+      if (normalized_output != nullptr) {
+        normalized_output[index] = normalized[local];
+      }
+      amax = fmaxf(amax, fabsf(normalized[local]));
+    }
+    const __nv_fp8_e4m3 scale(
+        (amax * ReciprocalApproximateFtz(6.0F)) * global_divisor);
+    block_scales_e4m3fn[block] = scale.__x;
+    const float decoded_scale = static_cast<float>(scale);
+    const float output_scale =
+        decoded_scale == 0.0F
+            ? 0.0F
+            : ReciprocalApproximateFtz(
+                  decoded_scale * ReciprocalApproximateFtz(global_divisor));
+#pragma unroll
+    for (std::uint64_t pair = 0; pair < kBlockElements / 2U; ++pair) {
+      const __nv_fp4_e2m1 low(normalized[pair * 2U] * output_scale);
+      const __nv_fp4_e2m1 high(normalized[pair * 2U + 1U] * output_scale);
+      packed_e2m1[begin / 2U + pair] = static_cast<std::uint8_t>(
+          (low.__x & 0x0FU) | ((high.__x & 0x0FU) << 4U));
+    }
+  }
+}
+
+
+__global__ void TwelveBPostAttentionQuantizeT4Kernel(
+ float*projection,const std::uint16_t*post_weight,const float*residual,
+ float*post_output,float*hidden_output,const std::uint16_t*weight,
+ std::uint8_t*packed_e2m1,std::uint8_t*block_scales_e4m3fn,
+ float global_divisor){
+ const std::uint64_t row=blockIdx.x;
+ projection+=row*3840U;residual+=row*3840U;
+ if(post_output!=nullptr)post_output+=row*3840U;
+ hidden_output+=row*3840U;packed_e2m1+=row*1920U;
+ block_scales_e4m3fn+=row*240U;
+
+ constexpr std::uint64_t elements=3840U;constexpr float epsilon=1.0e-6F;
+ float*const normalized_output=nullptr;
+ float squared_sum=0.0F;
+ for(std::uint64_t index=threadIdx.x;index<elements;index+=blockDim.x){
+  const float value=static_cast<float>(__float2bfloat16_rn(projection[index]));
+  projection[index]=value;
+  squared_sum=fmaf(value,value,squared_sum);
+ }
+ const float first_inverse=rsqrtf(TwelveBPostAttentionBlockSum(squared_sum)/static_cast<float>(elements)+epsilon);
+ // Every lane consumes the first result before its shared reduction is reused.
+ __syncthreads();
+ squared_sum=0.0F;
+ for(std::uint64_t index=threadIdx.x;index<elements;index+=blockDim.x){
+  const float normalized=static_cast<float>(__float2bfloat16_rn(projection[index]*first_inverse*static_cast<float>(__ushort_as_bfloat16(post_weight[index]))));
+  if(post_output!=nullptr)post_output[index]=normalized;
+  const float value=static_cast<float>(__float2bfloat16_rn(normalized+residual[index]));
+  hidden_output[index]=value;
+  squared_sum=fmaf(value,value,squared_sum);
+ }
+ const float inverse_rms=rsqrtf(TwelveBPostAttentionBlockSum(squared_sum)/static_cast<float>(elements)+epsilon);
+  const std::uint64_t blocks = elements / kBlockElements;
+  for (std::uint64_t block = threadIdx.x; block < blocks;
+       block += blockDim.x) {
+    const std::uint64_t begin = block * kBlockElements;
+    float normalized[kBlockElements];
+    float amax = 0.0F;
+#pragma unroll
+    for (std::uint64_t local = 0; local < kBlockElements; ++local) {
+      const std::uint64_t index = begin + local;
+      const float norm_scale =
+          weight == nullptr
+              ? 1.0F
+              : static_cast<float>(__ushort_as_bfloat16(weight[index]));
+      normalized[local] = static_cast<float>(__float2bfloat16_rn(
+          hidden_output[index] * inverse_rms * norm_scale));
+      if (normalized_output != nullptr) {
+        normalized_output[index] = normalized[local];
+      }
+      amax = fmaxf(amax, fabsf(normalized[local]));
+    }
+    const __nv_fp8_e4m3 scale(
+        (amax * ReciprocalApproximateFtz(6.0F)) * global_divisor);
+    block_scales_e4m3fn[block] = scale.__x;
+    const float decoded_scale = static_cast<float>(scale);
+    const float output_scale =
+        decoded_scale == 0.0F
+            ? 0.0F
+            : ReciprocalApproximateFtz(
+                  decoded_scale * ReciprocalApproximateFtz(global_divisor));
+#pragma unroll
+    for (std::uint64_t pair = 0; pair < kBlockElements / 2U; ++pair) {
+      const __nv_fp4_e2m1 low(normalized[pair * 2U] * output_scale);
+      const __nv_fp4_e2m1 high(normalized[pair * 2U + 1U] * output_scale);
+      packed_e2m1[begin / 2U + pair] = static_cast<std::uint8_t>(
+          (low.__x & 0x0FU) | ((high.__x & 0x0FU) << 4U));
+    }
+  }
+}

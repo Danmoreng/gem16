@@ -221,13 +221,17 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   const bool mtp_enabled = options.mtp_draft_tokens != 0U;
   if (mtp_enabled &&
       (options.mtp_draft_tokens != 1U && options.mtp_draft_tokens != 2U &&
-       options.mtp_draft_tokens != 4U)) {
+       options.mtp_draft_tokens != 3U && options.mtp_draft_tokens != 4U)) {
     return Error(StatusCode::kInvalidArgument,
-                 "active MTP requires draft length 1, 2, or 4");
+                 "active MTP requires draft length 1, 2, 3, or 4");
   }
   if (mtp_enabled && options.assistant_model_directory.empty()) {
     return Error(StatusCode::kInvalidArgument,
                  "active MTP requires --assistant-model");
+  }
+  if (options.mtp_adaptive && options.mtp_draft_tokens == 3U) {
+    return Error(StatusCode::kUnsupported,
+                 "D3 currently supports fixed-depth12B MTP only");
   }
   if (options.mtp_adaptive && !mtp_enabled) {
     return Error(StatusCode::kInvalidArgument,
@@ -390,11 +394,12 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
     state_captured = state_captured || capture_state;
     if (select) next_token = forwarded.value();
   }
-  if (mtp_enabled && options.mtp_draft_tokens == 2U &&
+  if (mtp_enabled &&
+      (options.mtp_draft_tokens >= 2U && options.mtp_draft_tokens <= 4U) &&
       !options.mtp_adaptive &&
       options.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
       options.max_context_tokens > kSlidingWindow) {
-    status = engine.PrepareFixedD2Graph();
+    status = engine.PrepareFixedMtpGraph();
     if (!status.ok()) return status;
   }
   const auto prompt_end = std::chrono::steady_clock::now();
@@ -444,28 +449,36 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
            !result.stopped) {
       const std::size_t remaining = static_cast<std::size_t>(
           generation_steps - result.output_token_ids.size());
-      const bool fixed_d2_chain =
-          remaining >= 3U && options.mtp_draft_tokens == 2U &&
+      const bool fixed_mtp_chain =
+          remaining >= options.mtp_draft_tokens + 1U &&
+          (options.mtp_draft_tokens >= 2U && options.mtp_draft_tokens <= 4U) &&
           !options.mtp_adaptive &&
           options.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
           options.max_context_tokens > kSlidingWindow;
-      if (fixed_d2_chain) {
+      if (fixed_mtp_chain) {
         status = engine.PrepareMtpDeviceControl(
             next_token, processed_position, remaining,
             result.output_token_ids.size(), result.stopped,
             result.stop_token_id);
         if (!status.ok()) return status;
         internal::MtpChainResult chain;
-        status = engine.ExecuteFixedD2GraphChain(
+        status = engine.ExecuteFixedMtpGraphChain(
             &chain, options.generated_token_callback,
             options.generated_token_callback_context);
         if (!status.ok()) return status;
-        result.mtp_fixed_d2_graph = true;
+        result.mtp_fixed_d2_graph = options.mtp_draft_tokens == 2U;
         result.mtp_gpu_chained = true;
         result.mtp_verification_groups += chain.group_count;
-        result.mtp_d2_groups += chain.group_count;
+        if (options.mtp_draft_tokens == 2U) {
+          result.mtp_d2_groups += chain.group_count;
+        } else if (options.mtp_draft_tokens == 3U) {
+          result.mtp_d3_groups += chain.group_count;
+        } else {
+          result.mtp_d4_groups += chain.group_count;
+        }
         result.mtp_proposed_tokens += chain.proposed_count;
-        result.mtp_target_forwards += 3U * chain.group_count;
+        result.mtp_target_forwards +=
+            (options.mtp_draft_tokens + 1U) * chain.group_count;
         result.mtp_target_batches += chain.group_count;
         result.mtp_target_forwards += chain.ordinary_tail_count;
         result.mtp_target_batches += chain.ordinary_tail_count;
@@ -507,12 +520,14 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
           result.stop_token_id);
       if (!status.ok()) return status;
       MtpGroupResult group;
-      if (proposal_count == 2U && options.mtp_draft_tokens == 2U &&
+      if (proposal_count == options.mtp_draft_tokens &&
+          (options.mtp_draft_tokens >= 2U && options.mtp_draft_tokens <= 4U) &&
           !options.mtp_adaptive) {
         result.mtp_fixed_d2_graph =
+            options.mtp_draft_tokens == 2U &&
             options.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
             options.max_context_tokens > kSlidingWindow;
-        status = engine.ExecuteFixedD2GraphGroup(
+        status = engine.ExecuteFixedMtpGraphGroup(
             next_token, processed_position + 1U, &group);
       } else {
         status = engine.GenerateAssistantDraftsDevice(
@@ -529,6 +544,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
         ++result.mtp_d1_groups;
       } else if (proposal_count == 2U) {
         ++result.mtp_d2_groups;
+      } else if (proposal_count == 3U) {
+        ++result.mtp_d3_groups;
       } else if (proposal_count == 4U) {
         ++result.mtp_d4_groups;
       }

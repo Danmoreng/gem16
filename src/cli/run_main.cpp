@@ -55,7 +55,7 @@ void PrintUsage() {
       << "  gem16-run --model <checkpoint> --input-token-ids <id,id,...>\n"
       << "              [--assistant-model <official-mtp-checkpoint>]\n"
       << "              [--vision-model <compiled-vision-module>]\n"
-      << "              [--mtp-draft-tokens 1|2|4] [--mtp-adaptive]\n"
+      << "              [--mtp-draft-tokens 1|2|3|4] [--mtp-adaptive]\n"
       << "              [--mtp-router-overlap-diagnostic]\n"
       << "              [--cuda-profile-phase prefill|decode]\n"
       << "              [--input-token-ids-file <comma-separated-token-file>]\n"
@@ -100,8 +100,8 @@ int main(int argc, char** argv) {
     } else if (argument == "--mtp-draft-tokens" && index + 1 < argc) {
       std::uint64_t value = 0U;
       if (!ParseUnsigned(argv[++index], value) ||
-          (value != 1U && value != 2U && value != 4U)) {
-        std::cerr << "error: --mtp-draft-tokens must be 1, 2, or 4\n";
+          (value != 1U && value != 2U && value != 3U && value != 4U)) {
+        std::cerr << "error: --mtp-draft-tokens must be 1, 2, 3, or 4\n";
         return 64;
       }
       options.mtp_draft_tokens = static_cast<std::uint32_t>(value);

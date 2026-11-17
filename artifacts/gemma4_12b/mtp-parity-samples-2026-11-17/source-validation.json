@@ -1,0 +1,69 @@
+{
+  "changed": [
+    "src/cuda/attention/decode_sm120.cu",
+    "src/cuda/attention/sm120.h",
+    "src/cuda/engine/inference_engine_prefill_layers.cuh",
+    "src/cuda/fp8/sm120.cu",
+    "tests/cuda/twelve_b_t5_ports.cu",
+    "tests/cuda/twelve_b_fixed_attention_ports.cu",
+    "tools/analyze_12b_d4_chain.py"
+  ],
+  "unchanged": 243,
+  "unrelated_dirty_patches_preserved": [
+    "README.md",
+    "docs/ACTIVE_DECISIONS.md",
+    "docs/BENCHMARKING.md",
+    "docs/MTP.md",
+    "include/gem16/engine.h",
+    "src/cli/chat_main.cpp",
+    "src/cli/run_main.cpp",
+    "src/cli/server_main.cpp",
+    "src/cuda/engine/inference_engine.cu",
+    "src/cuda/engine/inference_engine.h",
+    "src/cuda/engine/inference_engine_decode_graphs.cuh",
+    "src/cuda/engine/inference_engine_initialize.cuh",
+    "src/cuda/engine/inference_engine_memory.cuh",
+    "src/cuda/engine/inference_engine_mtp.cuh",
+    "src/cuda/inference.cu",
+    "src/cuda/inference_session.cuh",
+    "src/cuda/mtp/scheduler.h",
+    "src/cuda/nvfp4/detail/twelve_b_post_attention.cuh",
+    "src/cuda/nvfp4/reference.cu",
+    "src/cuda/nvfp4/reference.h",
+    "src/cuda/nvfp4/sm120.cu",
+    "src/cuda/output_head.cu",
+    "src/runtime/result_json.cpp",
+    "src/server/session_pool.cpp",
+    "src/server/session_pool.h",
+    "tests/cuda/generate_12b_post_attention.py",
+    "tests/cuda/llama_decode_replay_driver.cpp",
+    "tests/cuda/nvfp4_reference_test.cu",
+    "tests/python/test_benchmark_wikipedia_workload.py",
+    "tests/unit/mtp_scheduler_test.cpp",
+    "tools/benchmark_wikipedia_workload.py",
+    "tools/validate_mtp.py",
+    "tools/validate_sampled_mtp.py",
+    "tools/validate_sampled_mtp_chat.py"
+  ],
+  "all_archived_source_matches": true,
+  "canonical_binaries_match_measured_snapshot": true,
+  "other_shape_branch_preserved": true,
+  "instructions": {
+    "2": {
+      "parent_static_mma_count": 15,
+      "candidate_static_mma_count": 5,
+      "actual_packed_calls_in16groups": 1536
+    },
+    "3": {
+      "parent_static_mma_count": 5,
+      "candidate_static_mma_count": 5,
+      "actual_packed_calls_in16groups": 1536
+    },
+    "4": {
+      "parent_static_mma_count": 25,
+      "candidate_static_mma_count": 5,
+      "actual_packed_calls_in16groups": 1536
+    }
+  },
+  "source_sha256": "24d73ca31661307a544a2cc76a3bfaa15455c5ba6121a614ca0943b0d02b81bd"
+}

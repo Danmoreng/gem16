@@ -14,6 +14,99 @@ SPEC.loader.exec_module(MODULE)
 
 
 class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
+    def test_prefill_controls_are_explicit_and_engine_scoped(self) -> None:
+        argv = ["benchmark_wikipedia_workload.py", "--engine", "gem16",
+                "--workload", "workload.json", "--output", "output.json",
+                "--context-tokens", "17519", "--gem16-prefill-chunk-tokens", "1024"]
+        with mock.patch.object(MODULE.sys, "argv", argv):
+            args = MODULE.parse_args()
+        self.assertEqual(args.context_tokens, 17519)
+        self.assertEqual(args.gem16_prefill_chunk_tokens, 1024)
+        for bad in ("0", "31", "33", "8224"):
+            with mock.patch.object(MODULE.sys, "argv", [*argv[:-1], bad]):
+                with self.assertRaises(SystemExit):
+                    MODULE.parse_args()
+        with mock.patch.object(MODULE.sys, "argv", [*argv[:2], "vllm", *argv[3:]]):
+            with self.assertRaises(SystemExit):
+                MODULE.parse_args()
+
+    def test_prefill_context_cannot_shrink_below_prompt_plus_output(self) -> None:
+        workload = MODULE_PATH.parents[1] / "benchmarks/prompts/wikipedia-summary-16k.json"
+        argv = ["benchmark_wikipedia_workload.py", "--engine", "gem16",
+                "--workload", str(workload), "--output", "unused.json",
+                "--context-tokens", "16384", "--fixed-output-tokens", "1"]
+        with mock.patch.object(MODULE.sys, "argv", argv):
+            args = MODULE.parse_args()
+        with self.assertRaisesRegex(MODULE.BenchmarkError, "fit prompt plus requested output"):
+            MODULE.benchmark(args)
+
+    def test_one_output_prefill_probe_keeps_zero_decode_intervals(self) -> None:
+        row = MODULE.metric_run(16384, [42], 2000.0, 0.0, "length")
+        self.assertEqual(row["prompt_tokens_per_second"], 8192.0)
+        self.assertEqual(row["measured_decode_intervals"], 0)
+        self.assertEqual(row["decode_tokens_per_second"], 0.0)
+
+    def test_native_prefill_override_is_child_local_and_verified(self) -> None:
+        generation = {"suppress_token_ids": [], "max_new_tokens": 1, "stop_token_ids": []}
+        result = {"output_token_ids": [42], "prompt_ms": 2.0, "decode_ms": 0.0,
+                  "finish_reason": "length", "model_load_ms": 1.0,
+                  "workspace_bytes": 1, "kv_cache_bytes": 64,
+                  "fallbacks": 0, "token_loop_allocations": False,
+                  "prefill_chunk_tokens": 1024}
+        completed = MODULE.subprocess.CompletedProcess([], 0, json.dumps(result), "")
+        previous = MODULE.os.environ.get("GEM16_12B_PREFILL_CHUNK_TOKENS")
+        with mock.patch.object(MODULE.subprocess, "run", return_value=completed) as process:
+            MODULE.run_gem16(Path("runner"), Path("model"), Path("prompt"), 16384,
+                             generation, None, 0, False,
+                             context_tokens=17519, prefill_chunk_tokens=1024)
+        call = process.call_args
+        command = call.args[0]
+        self.assertEqual(command[command.index("--max-context") + 1], "17519")
+        self.assertEqual(call.kwargs["env"]["GEM16_12B_PREFILL_CHUNK_TOKENS"], "1024")
+        self.assertEqual(MODULE.os.environ.get("GEM16_12B_PREFILL_CHUNK_TOKENS"), previous)
+        result["prefill_chunk_tokens"] = 8192
+        completed = MODULE.subprocess.CompletedProcess([], 0, json.dumps(result), "")
+        with mock.patch.object(MODULE.subprocess, "run", return_value=completed):
+            with self.assertRaisesRegex(MODULE.BenchmarkError, "requested Prefill chunk"):
+                MODULE.run_gem16(Path("runner"), Path("model"), Path("prompt"), 16384,
+                                 generation, None, 0, False,
+                                 context_tokens=17519, prefill_chunk_tokens=1024)
+
+    def test_native_d3_requires_its_own_group_counter(self) -> None:
+        mtp = dict(enabled=True, draft_tokens=3, adaptive=False,
+                   verification_mode="batched_exact_target", proposed_tokens=3,
+                   accepted_tokens=2, rejected_tokens=1, verification_groups=1,
+                   target_forwards=4, target_batches=1, mean_accepted_length=2.0,
+                   d1_groups=0, d2_groups=0, d3_groups=1, d4_groups=0,
+                   ordinary_fallback_tokens=0)
+        result = dict(output_token_ids=[42], prompt_ms=2.0, decode_ms=0.0,
+                      model_load_ms=1.0, workspace_bytes=1, kv_cache_bytes=64,
+                      fallbacks=0, token_loop_allocations=False, mtp=mtp)
+        generation = dict(suppress_token_ids=[], max_new_tokens=1, stop_token_ids=[])
+        def run():
+            completed = MODULE.subprocess.CompletedProcess([], 0, json.dumps(result), "")
+            with mock.patch.object(MODULE.subprocess, "run", return_value=completed):
+                return MODULE.run_gem16(Path("runner"), Path("model"), Path("prompt"),
+                                        16, generation, Path("assistant"), 3, False)
+        row = run()[0]
+        self.assertEqual(row["mtp"]["d3_groups"], 1)
+        self.assertEqual(MODULE.summarize_runs([row])["mtp"]["d3_groups"]["median"], 1)
+        del mtp["d3_groups"]
+        with self.assertRaisesRegex(MODULE.BenchmarkError, "omitted D3"):
+            run()
+        mtp["d3_groups"] = -1
+        with self.assertRaisesRegex(MODULE.BenchmarkError, "malformed D3"):
+            run()
+
+    def test_prefill_controls_preserve_legacy_defaults(self) -> None:
+        argv = ["benchmark_wikipedia_workload.py", "--engine", "gem16",
+                "--workload", "workload.json", "--output", "output.json"]
+        with mock.patch.object(MODULE.sys, "argv", argv):
+            args = MODULE.parse_args()
+        self.assertIsNone(args.context_tokens)
+        self.assertIsNone(args.gem16_prefill_chunk_tokens)
+
+
     def test_direct_llama_benchmark_uses_verified_central_server(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             server = Path(directory) / "llama-server"
@@ -342,6 +435,73 @@ class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
         self.assertEqual(run["mtp"]["mean_accepted_length"], 0.0)
         self.assertEqual(run["mtp"]["conventional_mean_acceptance_length"], 0.0)
         self.assertEqual(run["decode_tokens_per_second"], 0.0)
+
+    def test_llama_mixed_depth_totals_do_not_invent_observations(self) -> None:
+        response = {
+            "tokens": list(range(1135)), "tokens_evaluated": 3,
+            "truncated": False, "tokens_cached": 0, "stop_type": "limit",
+            "timings": {"prompt_ms": 2.0, "predicted_ms": 5600.0,
+                        "predicted_n": 1135, "predicted_per_second": 202.5,
+                        "draft_n": 993, "draft_n_accepted": 637},
+        }
+        generation = {"max_new_tokens": 1135, "seed": 0, "ignore_eos": True,
+                      "suppress_token_ids": []}
+        with mock.patch.object(MODULE, "http_json", return_value=response):
+            run, _ = MODULE.run_llama_request("http://127.0.0.1:1", [1, 2, 3], generation, 2)
+        self.assertEqual(run["mtp"]["verification_groups"], 497)
+        self.assertIsNone(run["mtp"]["d2_groups"])
+        self.assertIsNone(run["mtp"]["ordinary_fallback_tokens"])
+        self.assertIsNone(run["speculative_work"]["observed"]["depth_histogram"])
+        self.assertFalse(run["speculative_work"]["derived"]["all_base_steps_at_max_depth"])
+        summary = MODULE.summarize_runs([run])
+        self.assertIsNone(summary["mtp"]["d2_groups"])
+        self.assertEqual(summary["measured_decode_intervals"]["median"], 1134)
+
+    def test_llama_ordinary_fallback_cannot_be_counted_from_http_totals(self) -> None:
+        response = {
+            "tokens": list(range(5)), "tokens_evaluated": 2,
+            "truncated": False, "tokens_cached": 0, "stop_type": "limit",
+            "timings": {"prompt_ms": 2.0, "predicted_ms": 3.0,
+                        "predicted_n": 5, "predicted_per_second": 1333.0,
+                        "draft_n": 0, "draft_n_accepted": 0},
+        }
+        generation = {"max_new_tokens": 5, "seed": 0, "ignore_eos": True,
+                      "suppress_token_ids": []}
+        with mock.patch.object(MODULE, "http_json", return_value=response):
+            run, _ = MODULE.run_llama_request("http://127.0.0.1:1", [1, 2], generation, 2)
+        self.assertEqual(run["speculative_work"]["derived"]["base_decode_steps"], 4)
+        self.assertIsNone(run["mtp"]["d1_groups"])
+        self.assertIsNone(run["mtp"]["ordinary_fallback_tokens"])
+
+    def test_llama_missing_counters_stay_missing(self) -> None:
+        response = {
+            "tokens": [42, 43], "tokens_evaluated": 2,
+            "truncated": False, "tokens_cached": 0, "stop_type": "limit",
+            "timings": {"prompt_ms": 2.0, "predicted_ms": 3.0,
+                        "predicted_n": 2, "predicted_per_second": 333.0},
+        }
+        generation = {"max_new_tokens": 2, "seed": 0, "ignore_eos": True,
+                      "suppress_token_ids": []}
+        with mock.patch.object(MODULE, "http_json", return_value=response):
+            run, _ = MODULE.run_llama_request("http://127.0.0.1:1", [1, 2], generation, 2)
+        self.assertNotIn("mtp", run)
+        self.assertNotIn("speculative_work", run)
+
+    def test_llama_rejects_inconsistent_speculative_totals(self) -> None:
+        response = {
+            "tokens": list(range(5)), "tokens_evaluated": 2,
+            "truncated": False, "tokens_cached": 0, "stop_type": "limit",
+            "timings": {"prompt_ms": 2.0, "predicted_ms": 3.0,
+                        "predicted_n": 5, "predicted_per_second": 1333.0},
+        }
+        generation = {"max_new_tokens": 5, "seed": 0, "ignore_eos": True,
+                      "suppress_token_ids": []}
+        for proposed, accepted in [(1, -1), (-1, 0), (9, 0), (2, 3), (5, 5)]:
+            response["timings"].update(draft_n=proposed, draft_n_accepted=accepted)
+            with self.subTest(proposed=proposed, accepted=accepted):
+                with mock.patch.object(MODULE, "http_json", return_value=response):
+                    with self.assertRaises(MODULE.BenchmarkError):
+                        MODULE.run_llama_request("http://127.0.0.1:1", [1, 2], generation, 2)
 
     def test_llama_ngram_counters_are_normalized(self) -> None:
         response = {

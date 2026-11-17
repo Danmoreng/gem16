@@ -74,15 +74,25 @@ Tentative Target K/V and hidden rows live in fixed workspace until a GPU transac
 prefix. Proposed tokens are never counted as output tokens. Every result reports proposal, acceptance, rejection,
 Target-batch, fallback, and effective verified-token counters.
 
-`--mtp-draft-tokens 1|2|4` selects a direct fixed draft length. `--mtp-adaptive` selects D4/D2/D1 or ordinary
+`--mtp-draft-tokens 1|2|3|4` selects a fixed12B draft length. Fixed D3 is a local experimental mode; adaptive D3 and26B D3 are explicitly unsupported. `--mtp-adaptive` selects D4/D2/D1 or ordinary
 fallback from context and recent acceptance. All modes must preserve the corresponding ordinary Target sequence.
 
-Fixed D2 uses one device-routed conditional CUDA Graph. The device owns current token, position, remaining length,
-stop state, sampling step, response-channel state, reasoning budget, and branch selection. D2 handles complete
-safe groups; an ordinary Target child handles partial response markers, exact reasoning-budget boundaries, stops,
-and short tails. A fixed mapped SPSC ring streams only verified IDs to the host without making generation depend on
-a per-group host decision. D1, D4, and the current adaptive route retain the direct transaction boundary and one
-host synchronization per verification group.
+Fixed D2, D3 and D4 use one device-routed conditional CUDA Graph for12B with checkpoint FP8 KV and contexts
+larger than the local sliding window. The device owns current token, position, remaining length, stop state,
+sampling step, response-channel state, reasoning budget, and branch selection. Complete safe groups use
+D+1-row verification; an ordinary Target child handles partial response markers, exact reasoning-budget
+boundaries, stops, and short tails. A fixed mapped SPSC ring streams only verified IDs to the host without a
+per-group host decision. D1, BF16-KV/small-context execution, and the adaptive route retain the direct transaction
+boundary. D3/D4 extend existing fixed-row attention, FP8 projections, head selection, norm/quantization fusion,
+NVFP4 Down and Gate/Up launch policies; D2 remains the selected depth. These local D3/D4 changes have scoped
+numerical/memory/dispatch evidence, with an inherited full conditional-model Assistant PreProjection synccheck
+report still unresolved. See [D3/D4 evidence](evidence/gemma4_12b/d3-chain-2026-11-17.md).
+
+The12B T3/T4/T5 FP8 QKV/O projections now share actual verifier rows in one
+native M16/K32 MMA, with32 ephemeral shared padding bytes per row. Fixed-row
+attention/head, norm fusion, Down and Gate/Up policies are present at all
+three depths. See [D2/D3/D4 parity evidence](evidence/gemma4_12b/mtp-parity-2026-11-17.md)
+for the unchanged output/KV checks, actual dispatch and per-depth timings.
 
 ## Sampled MTP
 

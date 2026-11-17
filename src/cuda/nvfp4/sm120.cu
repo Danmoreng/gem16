@@ -1513,6 +1513,8 @@ __global__ void Sm120GroupedExpertMatrixKernel(
 #endif
 }
 
+#include "cuda/nvfp4/detail/twelve_b_down_fixed_shape.cuh"
+
 }  // namespace
 
 Status LaunchNvfp4Sm120DirectProjection(const std::uint8_t* packed_activation_e2m1,
@@ -2067,6 +2069,36 @@ Status LaunchNvfp4Sm120DirectProjectionBf16Batch(
       activation_global_divisor * weight_global_divisor;
   if (!PositiveFinite(output_divisor)) {
     return Invalid("batched SM120 NVFP4 BF16 projection divisor product overflowed");
+  }
+  if (tokens == 3U && rows == 3840U && contracting_elements == 15360U) {
+    Sm120D2DownFixedShapeKernel<<<60U, 256U, 0U, stream>>>(
+        packed_activation_e2m1, activation_scales_e4m3fn,
+        packed_weight_e2m1, weight_scales_e4m3fn, output_bf16,
+        output_divisor);
+    const cudaError_t error = cudaGetLastError();
+    return error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure("launch fixed-shape 12B D2 NVFP4 Down", error);
+  }
+  if (tokens == 4U && rows == 3840U && contracting_elements == 15360U) {
+    Sm120D3DownFixedShapeKernel<<<60U, 256U, 0U, stream>>>(
+        packed_activation_e2m1, activation_scales_e4m3fn,
+        packed_weight_e2m1, weight_scales_e4m3fn, output_bf16,
+        output_divisor);
+    const cudaError_t error = cudaGetLastError();
+    return error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure("launch fixed-shape12B D3 NVFP4 Down", error);
+  }
+  if (tokens == 5U && rows == 3840U && contracting_elements == 15360U) {
+    Sm120D4DownFixedShapeKernel<<<60U, 256U, 0U, stream>>>(
+        packed_activation_e2m1, activation_scales_e4m3fn,
+        packed_weight_e2m1, weight_scales_e4m3fn, output_bf16,
+        output_divisor);
+    const cudaError_t error = cudaGetLastError();
+    return error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure("launch fixed-shape 12B D4 NVFP4 Down", error);
   }
   const std::uint64_t row_tiles =
       (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
@@ -2655,7 +2687,8 @@ Status LaunchNvfp4Sm120FusedGateUpBatch(
   }
   const std::uint64_t row_tiles = (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
   constexpr unsigned kShortBatchWarpsPerBlock = 2U;
-  const bool short_batch = tokens <= 3U;
+  const bool short_batch = tokens <= 3U ||
+      ((tokens == 4U || tokens == 5U) && rows == 15360U && contracting_elements == 3840U);
   const unsigned block_warps =
       short_batch ? kShortBatchWarpsPerBlock : kWarpsPerBlock;
   const std::uint64_t blocks =

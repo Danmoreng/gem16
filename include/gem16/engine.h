@@ -94,7 +94,8 @@ struct GreedyInferenceOptions {
   // enables Vision implicitly.
   std::filesystem::path vision_model_directory;
   // Zero keeps the residency-only gate. Active correctness generation
-  // supports exactly 1, 2, or 4 assistant drafts per verification group.
+  // supports1..4 assistant drafts on12B; D3 is fixed-depth only.
+  // The26B profile retains its separately qualified depths.
   std::uint32_t mtp_draft_tokens = 0;
   // Explicit opt-in for deterministic context/acceptance-based selection up
   // to mtp_draft_tokens, including ordinary decode fallback when proposals do
@@ -170,6 +171,7 @@ struct GreedyInferenceResult {
   std::uint64_t mtp_target_batches = 0;
   std::uint64_t mtp_d1_groups = 0;
   std::uint64_t mtp_d2_groups = 0;
+  std::uint64_t mtp_d3_groups = 0;
   std::uint64_t mtp_d4_groups = 0;
   std::uint64_t mtp_ordinary_fallback_tokens = 0;
   std::uint64_t reasoning_tokens = 0;

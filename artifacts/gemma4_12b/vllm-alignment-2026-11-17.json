@@ -1,0 +1,86 @@
+{
+  "status": "qualified_local_two_exact_changes",
+  "report": "docs/evidence/gemma4_12b/vllm-alignment-2026-11-17.md",
+  "raw_root": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/vllm-alignment",
+  "primary": {
+    "warmups_per_cohort": 1,
+    "retained_per_cohort": 3,
+    "starting_parent_pooled_median": 94.10594204225333,
+    "fusion_pooled_median": 94.70440433177475,
+    "combined": {
+      "confidence_interval_95": [
+        98.78129936300225,
+        99.29802544360878
+      ],
+      "maximum": 99.15621037904954,
+      "mean": 99.03966240330551,
+      "median": 99.00644327646721,
+      "minimum": 98.9563335543998,
+      "sample_count": 3,
+      "samples": [
+        99.15621037904954,
+        99.00644327646721,
+        98.9563335543998
+      ],
+      "standard_deviation": 0.10399672614529729
+    },
+    "gain_over_starting_parent": 0.052074301875789875,
+    "sampled_peak_vram_mib": 11763
+  },
+  "retained": [
+    "exact T3 post-attention boundary fusion",
+    "exact fixed-shape T3/N3840/K15360 Down"
+  ],
+  "rejected": [
+    "shared activation/SFA cache",
+    "dual N8 tile per warp"
+  ],
+  "correctness": {
+    "output_ids": 1135,
+    "proposals": 1014,
+    "accepted": 626,
+    "verification_groups": 507,
+    "whole_kv_bytes": 311287808,
+    "whole_kv_sha256": "6b03676412022f6be775dfec7ec4e9e68ef3d997a28e6f5f3f100ff36c577231",
+    "protected_executions": 36,
+    "protected_pairs": 18,
+    "scoped_sanitizers": "memcheck/synccheck/racecheck all zero",
+    "cuda_tests": "pass",
+    "host_tests": "pass",
+    "headers_regenerate_exact": true
+  },
+  "dispatch": {
+    "selected_groups": 16,
+    "removed_kernels_per_group": 96,
+    "fixed_down_per_group": 48,
+    "t3_fusion_per_group": 48
+  },
+  "binary_identities": {
+    "starting": {
+      "gem16-run": "23b9bbf01eea186553015c49005906145c7b55be615d7158a54ff0180733a38c",
+      "gem16-chat": "df8c207db2a470cd80f875a0cab967cc44a101c354e1d975a4e8fbd76c3cb365",
+      "gem16-cuda-tests": "42d4119ca088b3639fc5217586f412a227fb5ce5354e327ee1ebce6f247fb696",
+      "libgem16_core.a": "9ba246571eda27996dc6dc512ea16996904f975ba7760a77ea04e8dcbb772750"
+    },
+    "fusion": {
+      "libgem16_core.a": "d50f0c3cd6d4d03487e5382856836b7290834d7f8b6c0afe4dfb44d569535d3d",
+      "gem16-run": "f5ffd46abf61d5dc31394386af24fe066cd92f17472c2900e328d537ccbc636e",
+      "gem16-cuda-tests": "6d40e5d842351f237c1fae01be8078c9148cfa5dd06d796c69daeadbb7cc7851",
+      "gem16-chat": "a6c9fbc049a904486b14309e26ade1076bda3f899f772d952f9d1d53da548c55"
+    },
+    "final": {
+      "libgem16_core.a": "12f05220424095235d7b70e1281c119db680d30f7d82625386cabfb0c9b86f76",
+      "gem16-run": "4035ebba761e666fdd60ff3293bf27d780fff8347e3932087335856f8f683d10",
+      "gem16-cuda-tests": "c170addcf02009826344694db2739ba315f6e84be62a6370eaa3c8b4f9d9741e",
+      "gem16-chat": "f9e6626c696e7b2bf6937da98017eff6f4ffbed8054c8d1a89841e7b4f5cb623"
+    }
+  },
+  "limitations": [
+    "historical vLLM D3 117.4100 is not reached",
+    "profile rates are diagnostic and excluded from primary timing",
+    "cross-engine outputs/acceptance differ",
+    "final combination one 3-request cohort, fresh parent reused",
+    "isolated operator sanitizer scope; Linux only",
+    "no native D4 benchmark; no commit/push/release"
+  ]
+}

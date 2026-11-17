@@ -4,7 +4,7 @@
 
 namespace gem16::internal {
 
-// Deterministic host policy for optional MTP adaptation. Explicit D1/D2/D4
+// Deterministic host policy for optional MTP adaptation. Explicit fixed D1/D2/D3/D4
 // bypasses all transitions. Thresholds come from the qualified 16K cost
 // curve and are evaluated only after complete 16-group windows.
 class AdaptiveMtpScheduler {

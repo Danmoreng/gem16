@@ -34,6 +34,7 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=123)
     parser.add_argument("--max-context", type=int, default=2048)
     parser.add_argument("--max-tokens", type=int, default=16)
+    parser.add_argument("--draft-tokens", type=int, choices=(2, 3, 4), default=2)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -51,12 +52,13 @@ def main() -> int:
     ordinary, ordinary_stats = run(common, conversation)
     mtp, mtp_stats = run(
         common + ["--assistant-model", str(args.assistant),
-                  "--mtp-draft-tokens", "2"],
+                  "--mtp-draft-tokens", str(args.draft_tokens)],
         conversation,
     )
     result = {
         "schema_version": 1,
         "seed": args.seed,
+        "draft_tokens": args.draft_tokens,
         "sampling": {"temperature": 1.0, "top_k": 64, "top_p": 0.95},
         "ordinary_responses": ordinary,
         "mtp_responses": mtp,

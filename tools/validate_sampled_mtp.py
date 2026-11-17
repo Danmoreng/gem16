@@ -52,8 +52,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.max_tokens <= 0 or args.max_context <= 0:
         parser.error("token and context limits must be positive")
-    if any(length not in (1, 2, 4) for length in args.draft_lengths):
-        parser.error("draft lengths must be 1, 2, or 4")
+    if any(length not in (1, 2, 3, 4) for length in args.draft_lengths):
+        parser.error("draft lengths must be 1, 2, 3, or 4")
 
     common = [
         str(args.binary), "--model", str(args.target),
@@ -87,7 +87,7 @@ def main() -> int:
                 "rejected_tokens": mtp["mtp"]["rejected_tokens"],
                 "verification_groups": mtp["mtp"]["verification_groups"],
                 "gpu_chained": mtp["mtp"]["group_execution"]
-                == "gpu_chained_fixed_d2_conditional_graph",
+                == f"gpu_chained_fixed_d{draft_length}_conditional_graph",
                 "streaming": mtp["mtp"]["streaming"],
             }
             cases.append(case)

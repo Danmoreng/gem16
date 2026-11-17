@@ -1,0 +1,65 @@
+{
+  "cases": {
+    "prompt-1019-d2": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "8f09f98388ce8e873697ec5828cfbcbbb5b07daac8dd0ea5fac5a753c4248ffc"
+    },
+    "prompt-1020-d2": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "299115dda299458fb0fde4a5f18b17ee3119f34ded2c83acc5016d4645da6193"
+    },
+    "prompt-1021-d2": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "fc431b010e1177a5e2ad63cdb3f01a77af8204834bf6fec9ae8c9e9685f5820f"
+    },
+    "prompt-1022-d2": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "7462b0b488c5c469eaa88c577fefdee85a25b694673955ab10f66732c41e5e50"
+    },
+    "prompt-1023-d2": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "adf6db879c8e30ae6de36ddade74294045fe1c7f1b4d984baee2b3980b89590e"
+    },
+    "prompt-1019-d3": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "8f09f98388ce8e873697ec5828cfbcbbb5b07daac8dd0ea5fac5a753c4248ffc"
+    },
+    "prompt-1020-d3": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "299115dda299458fb0fde4a5f18b17ee3119f34ded2c83acc5016d4645da6193"
+    },
+    "prompt-1021-d3": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "fc431b010e1177a5e2ad63cdb3f01a77af8204834bf6fec9ae8c9e9685f5820f"
+    },
+    "prompt-1022-d3": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "7462b0b488c5c469eaa88c577fefdee85a25b694673955ab10f66732c41e5e50"
+    },
+    "prompt-1023-d3": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "adf6db879c8e30ae6de36ddade74294045fe1c7f1b4d984baee2b3980b89590e"
+    },
+    "prompt-1019-d4": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "8f09f98388ce8e873697ec5828cfbcbbb5b07daac8dd0ea5fac5a753c4248ffc"
+    },
+    "prompt-1020-d4": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "299115dda299458fb0fde4a5f18b17ee3119f34ded2c83acc5016d4645da6193"
+    },
+    "prompt-1021-d4": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "fc431b010e1177a5e2ad63cdb3f01a77af8204834bf6fec9ae8c9e9685f5820f"
+    },
+    "prompt-1022-d4": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "7462b0b488c5c469eaa88c577fefdee85a25b694673955ab10f66732c41e5e50"
+    },
+    "prompt-1023-d4": {
+      "output_and_whole_kv_exact": true,
+      "kv_sha256": "adf6db879c8e30ae6de36ddade74294045fe1c7f1b4d984baee2b3980b89590e"
+    }
+  },
+  "ordinary_reference": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-chain/final/window-boundary-validation.json"
+}

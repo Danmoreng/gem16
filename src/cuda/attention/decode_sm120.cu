@@ -537,7 +537,7 @@ void SplitOnlineDecodeAttentionFp8Kernel(
 }
 
 
-template <int kRows>
+template <int kRows, bool kTwelveBWindow = false>
 __launch_bounds__(kDecodeThreads, 1) __global__
 void SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel(
     const float* __restrict__ query,
@@ -657,7 +657,15 @@ void SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel(
       const int dimension = lane + element * 32;
 #pragma unroll
       for (int row = 0; row < kRows; ++row) {
-        const int staged_token = full_window ? token + row : token;
+        int staged_token = full_window ? token + row : token;
+        if constexpr (kRows >= 4 || kTwelveBWindow) {
+          // A group can first cross the circular-window boundary. Each row
+          // then drops its own oldest tokens from the staged union.
+          if (!full_window && start_position + row >= kDecodeLocalCapacity) {
+            staged_token += static_cast<int>(start_position + row + 1U -
+                                            kDecodeLocalCapacity);
+          }
+        }
         const float key_value = DecodeFp8(
             staged_kv[staged_token * kDecodeLocalHeadDimension +
                       dimension],
@@ -672,7 +680,10 @@ void SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel(
     }
 #pragma unroll
     for (int row = 0; row < kRows; ++row) {
-      const std::uint64_t row_tokens = start_position + row + 1U;
+      std::uint64_t row_tokens = start_position + row + 1U;
+      if constexpr (kRows >= 4 || kTwelveBWindow) {
+        row_tokens = min(row_tokens, static_cast<std::uint64_t>(kDecodeLocalCapacity));
+      }
       const int split_tokens = full_window
           ? kDecodeLocalChunk
           : static_cast<int>(min(
@@ -700,7 +711,10 @@ void SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel(
   int split_tokens[kRows];
 #pragma unroll
   for (int row = 0; row < kRows; ++row) {
-    const std::uint64_t row_tokens = start_position + row + 1U;
+    std::uint64_t row_tokens = start_position + row + 1U;
+      if constexpr (kRows >= 4 || kTwelveBWindow) {
+        row_tokens = min(row_tokens, static_cast<std::uint64_t>(kDecodeLocalCapacity));
+      }
     split_tokens[row] = full_window
         ? kDecodeLocalChunk
         : static_cast<int>(min(
@@ -710,20 +724,21 @@ void SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel(
                         static_cast<std::uint64_t>(split * kDecodeLocalChunk)
                   : 0U));
   }
-  if constexpr (kRows == 3) {
-    // Each active warp owns one row/head normalization item. Preserve the old
+  if constexpr (kRows >= 3 && kRows <= 5) {
+    // A warp owns each row/head item in strides of eight; four rows fit
+    // exactly in eight warps, while five rows give two warps a second item. Preserve the old
     // two-level block tree exactly: four active 32-token chunks, four empty
     // chunks, then the full 32-lane shuffle-down tree over their lane-0 values.
     // Do not sum four probabilities per lane before reducing (different tree).
-    if (warp < kReductionItems) {
-      const int row = warp / kDecodeLocalGroup;
-      const int group = warp % kDecodeLocalGroup;
+    for (int item = warp; item < kReductionItems; item += kDecodeWarps) {
+      const int row = item / kDecodeLocalGroup;
+      const int group = item % kDecodeLocalGroup;
       float chunk_maximum[4];
   #pragma unroll
       for (int chunk = 0; chunk < 4; ++chunk) {
         const int token = chunk * 32 + lane;
         float value = token < split_tokens[row]
-            ? fmaxf(-CUDART_INF_F, scores[warp *
+            ? fmaxf(-CUDART_INF_F, scores[item *
                                         kDecodeLocalChunk + token])
             : -CUDART_INF_F;
         for (int offset = 16; offset > 0; offset >>= 1)
@@ -741,7 +756,7 @@ void SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel(
   #pragma unroll
       for (int chunk = 0; chunk < 4; ++chunk) {
         const int token = chunk * 32 + lane;
-        const int index = warp * kDecodeLocalChunk + token;
+        const int index = item * kDecodeLocalChunk + token;
         const float probability = token < split_tokens[row]
             ? expf(scores[index] - maximum) : 0.0F;
         // Unlike global PV, local PV reads the entire fixed 128-token chunk.
@@ -891,7 +906,15 @@ void SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel(
     for (int token = 0; token < kDecodeLocalChunk; ++token) {
 #pragma unroll
       for (int row = 0; row < kRows; ++row) {
-        const int staged_token = full_window ? token + row : token;
+        int staged_token = full_window ? token + row : token;
+        if constexpr (kRows >= 4 || kTwelveBWindow) {
+          // A group can first cross the circular-window boundary. Each row
+          // then drops its own oldest tokens from the staged union.
+          if (!full_window && start_position + row >= kDecodeLocalCapacity) {
+            staged_token += static_cast<int>(start_position + row + 1U -
+                                            kDecodeLocalCapacity);
+          }
+        }
         const float value = DecodeFp8(
             staged_kv[staged_token * kDecodeLocalHeadDimension +
                       dimension],
@@ -1460,7 +1483,7 @@ void SplitOnlineDecodeAttentionFp8GlobalKvh2FixedRowsKernel(
     const std::uint16_t* __restrict__ value_scale_bf16,
     float* __restrict__ partial_output, float* __restrict__ partial_lse,
     const DecodeControl* __restrict__ row_controls, int max_splits) {
-  static_assert(kRows == 2 || kRows == 3 || kRows == 5);
+  static_assert(kRows >= 2 && kRows <= 5);
   constexpr int kQueriesPerKv =
       kDecodeQueryHeads / kDecodeGlobalKvHeads26B;
   constexpr int kFixedTileTokens = 32;
@@ -1772,7 +1795,7 @@ void SplitOnlineDecodeAttentionFp8GlobalBatchKernel(
     float* __restrict__ partial_output, float* __restrict__ partial_lse,
     std::uint64_t start_position, const DecodeControl* row_controls,
     std::uint64_t cache_capacity, int max_splits) {
-  static_assert(kRows == 2 || kRows == 3 || kRows == 5);
+  static_assert(kRows >= 2 && kRows <= 5);
   if (row_controls != nullptr) start_position = row_controls[0].position;
   constexpr int kGroups = kDecodeQueryHeads / kDecodeGlobalGroup;
   __shared__ float scores[kRows * kDecodeGlobalGroup * kDecodeGlobalChunk];
@@ -2433,7 +2456,7 @@ Status LaunchOnlineAttentionDecodeFp8Sm120Kvh2Group4ForTest(
                            error);
 }
 
-template <int kRows>
+template <int kRows, bool kTwelveBWindow = false>
 Status LaunchOnlineAttentionDecodeFp8LocalFixedControlledImpl(
     const float* query, const std::uint8_t* key_cache,
     const std::uint8_t* value_cache, const std::uint8_t* speculative_key,
@@ -2457,7 +2480,7 @@ Status LaunchOnlineAttentionDecodeFp8LocalFixedControlledImpl(
   float* partial_lse =
       workspace + kRows * kPartialElementsPerRow;
   constexpr unsigned kBlocks = kMaxSplits * kDecodeLocalKvHeads;
-  SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel<kRows>
+  SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel<kRows, kTwelveBWindow>
       <<<kBlocks, kDecodeThreads, 0, stream>>>(
           query, key_cache, value_cache, speculative_key, speculative_value,
           key_scale_bf16, value_scale_bf16, workspace, partial_lse,
@@ -2496,6 +2519,11 @@ Status LaunchOnlineAttentionDecodeFp8LocalFixedControlledSm120(
           query, key_cache, value_cache, speculative_key, speculative_value,
           key_scale_bf16, value_scale_bf16, workspace, output, row_controls,
           cache_capacity, stream);
+    case 4U:
+      return LaunchOnlineAttentionDecodeFp8LocalFixedControlledImpl<4>(
+          query, key_cache, value_cache, speculative_key, speculative_value,
+          key_scale_bf16, value_scale_bf16, workspace, output, row_controls,
+          cache_capacity, stream);
     case 5U:
       return LaunchOnlineAttentionDecodeFp8LocalFixedControlledImpl<5>(
           query, key_cache, value_cache, speculative_key, speculative_value,
@@ -2504,6 +2532,28 @@ Status LaunchOnlineAttentionDecodeFp8LocalFixedControlledSm120(
     default:
       return Invalid("controlled local fixed-D token count is unsupported");
   }
+}
+
+Status LaunchOnlineAttentionDecodeFp8LocalFixed12BControlledSm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint8_t* speculative_key,
+    const std::uint8_t* speculative_value,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* row_controls, std::uint32_t tokens,
+    std::uint64_t cache_capacity, cudaStream_t stream) {
+  //12B D2 also needs the row-wise shift/cap at the first window crossing.
+  // Other callers retain their existing three-row instantiation.
+  if (tokens == 3U) {
+    return LaunchOnlineAttentionDecodeFp8LocalFixedControlledImpl<3, true>(
+        query, key_cache, value_cache, speculative_key, speculative_value,
+        key_scale_bf16, value_scale_bf16, workspace, output, row_controls,
+        cache_capacity, stream);
+  }
+  return LaunchOnlineAttentionDecodeFp8LocalFixedControlledSm120(
+      query, key_cache, value_cache, speculative_key, speculative_value,
+      key_scale_bf16, value_scale_bf16, workspace, output, row_controls,
+      tokens, cache_capacity, stream);
 }
 
 Status LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(
@@ -2701,6 +2751,11 @@ Status LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(
           cache_capacity, stream);
     case 3U:
       return LaunchOnlineAttentionDecodeFp8GlobalFixedControlledImpl<3>(
+          query, key_cache, value_cache, key_scale_bf16,
+          value_scale_bf16, workspace, output, row_controls, kv_heads,
+          cache_capacity, stream);
+    case 4U:
+      return LaunchOnlineAttentionDecodeFp8GlobalFixedControlledImpl<4>(
           query, key_cache, value_cache, key_scale_bf16,
           value_scale_bf16, workspace, output, row_controls, kv_heads,
           cache_capacity, stream);

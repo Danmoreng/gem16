@@ -385,13 +385,17 @@ Result<ConversationSession> ConversationSession::Create(
   }
   const bool mtp_enabled = options.mtp_draft_tokens != 0U;
   if (mtp_enabled && options.mtp_draft_tokens != 1U &&
-      options.mtp_draft_tokens != 2U && options.mtp_draft_tokens != 4U) {
+      options.mtp_draft_tokens != 2U && options.mtp_draft_tokens != 3U && options.mtp_draft_tokens != 4U) {
     return Error(StatusCode::kInvalidArgument,
-                 "active MTP requires draft length 1, 2, or 4");
+                 "active MTP requires draft length 1, 2, 3, or 4");
   }
   if (mtp_enabled && options.assistant_model_directory.empty()) {
     return Error(StatusCode::kInvalidArgument,
                  "active MTP requires --assistant-model");
+  }
+  if (options.mtp_adaptive && options.mtp_draft_tokens == 3U) {
+    return Error(StatusCode::kUnsupported,
+                 "D3 currently supports fixed-depth12B MTP only");
   }
   if (options.mtp_adaptive && !mtp_enabled) {
     return Error(StatusCode::kInvalidArgument,
@@ -439,17 +443,24 @@ Result<ConversationSession> ConversationSession::Create(
   }
   const bool mtp_enabled = options.mtp_draft_tokens != 0U;
   if (mtp_enabled && options.mtp_draft_tokens != 1U &&
-      options.mtp_draft_tokens != 2U && options.mtp_draft_tokens != 4U) {
+      options.mtp_draft_tokens != 2U && options.mtp_draft_tokens != 3U && options.mtp_draft_tokens != 4U) {
     return Error(StatusCode::kInvalidArgument,
-                 "active MTP requires draft length 1, 2, or 4");
+                 "active MTP requires draft length 1, 2, 3, or 4");
   }
   if (mtp_enabled && !runtime->impl_->assistant_loaded) {
     return Error(StatusCode::kInvalidArgument,
                  "active MTP requires assistant weights in ModelRuntime");
   }
+  if (options.mtp_adaptive && options.mtp_draft_tokens == 3U) {
+    return Error(StatusCode::kUnsupported,
+                 "D3 currently supports fixed-depth12B MTP only");
+  }
   if (options.mtp_adaptive && !mtp_enabled) {
     return Error(StatusCode::kInvalidArgument,
                  "--mtp-adaptive requires active MTP");
+  }
+  if (moe26b && options.mtp_draft_tokens == 3U) {
+    return Error(StatusCode::kUnsupported, "D3 is currently specific to12B MTP");
   }
   if (moe26b && options.mtp_adaptive) {
     return Error(StatusCode::kUnsupported,
@@ -1179,11 +1190,12 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     result.stop_token_id = next_token;
   }
 
-  if (result.mtp_enabled && impl_->mtp_draft_tokens == 2U &&
+  if (result.mtp_enabled &&
+      (impl_->mtp_draft_tokens >= 2U && impl_->mtp_draft_tokens <= 4U) &&
       !impl_->mtp_adaptive &&
       impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
       impl_->max_context_tokens > kSlidingWindow) {
-    Status status = impl_->engine.PrepareFixedD2Graph();
+    Status status = impl_->engine.PrepareFixedMtpGraph();
     if (!status.ok()) {
       impl_->poisoned = true;
       return status;
@@ -1194,7 +1206,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   if (result.mtp_enabled) {
     std::uint64_t processed_position = impl_->cached_token_ids.size() - 1U;
     const bool reasoning_gpu_chain =
-        impl_->mtp_draft_tokens == 2U && !impl_->mtp_adaptive &&
+        (impl_->mtp_draft_tokens >= 2U && impl_->mtp_draft_tokens <= 4U) &&
+        !impl_->mtp_adaptive &&
         impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
         impl_->max_context_tokens > kSlidingWindow;
     while (!reasoning_gpu_chain &&
@@ -1271,12 +1284,13 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
            !result.stopped) {
       const std::size_t remaining = static_cast<std::size_t>(
           max_generated_tokens - result.output_token_ids.size());
-      const bool fixed_d2_chain =
-          remaining >= 3U && impl_->mtp_draft_tokens == 2U &&
+      const bool fixed_mtp_chain =
+          remaining >= impl_->mtp_draft_tokens + 1U &&
+          (impl_->mtp_draft_tokens >= 2U && impl_->mtp_draft_tokens <= 4U) &&
           !impl_->mtp_adaptive &&
           impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
           impl_->max_context_tokens > kSlidingWindow;
-      if (fixed_d2_chain) {
+      if (fixed_mtp_chain) {
         internal::MtpReasoningState device_reasoning{};
         device_reasoning.enabled = reasoning.enabled ? 1U : 0U;
         device_reasoning.started = reasoning_started ? 1U : 0U;
@@ -1304,19 +1318,26 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
           return status;
         }
         internal::MtpChainResult chain;
-        status = impl_->engine.ExecuteFixedD2GraphChain(
+        status = impl_->engine.ExecuteFixedMtpGraphChain(
             &chain, generated_token_callback,
             generated_token_callback_context);
         if (!status.ok()) {
           impl_->poisoned = true;
           return status;
         }
-        result.mtp_fixed_d2_graph = true;
+        result.mtp_fixed_d2_graph = impl_->mtp_draft_tokens == 2U;
         result.mtp_gpu_chained = true;
         result.mtp_verification_groups += chain.group_count;
-        result.mtp_d2_groups += chain.group_count;
+        if (impl_->mtp_draft_tokens == 2U) {
+          result.mtp_d2_groups += chain.group_count;
+        } else if (impl_->mtp_draft_tokens == 3U) {
+          result.mtp_d3_groups += chain.group_count;
+        } else {
+          result.mtp_d4_groups += chain.group_count;
+        }
         result.mtp_proposed_tokens += chain.proposed_count;
-        result.mtp_target_forwards += 3U * chain.group_count;
+        result.mtp_target_forwards +=
+            (impl_->mtp_draft_tokens + 1U) * chain.group_count;
         result.mtp_target_batches += chain.group_count;
         result.mtp_target_forwards += chain.ordinary_tail_count;
         result.mtp_target_batches += chain.ordinary_tail_count;
@@ -1379,12 +1400,14 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
         return status;
       }
       MtpGroupResult group;
-      if (proposal_count == 2U && impl_->mtp_draft_tokens == 2U &&
+      if (proposal_count == impl_->mtp_draft_tokens &&
+          (impl_->mtp_draft_tokens >= 2U && impl_->mtp_draft_tokens <= 4U) &&
           !impl_->mtp_adaptive) {
         result.mtp_fixed_d2_graph =
+            impl_->mtp_draft_tokens == 2U &&
             impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
             impl_->max_context_tokens > kSlidingWindow;
-        status = impl_->engine.ExecuteFixedD2GraphGroup(
+        status = impl_->engine.ExecuteFixedMtpGraphGroup(
             next_token, processed_position + 1U, &group);
       } else {
         status = impl_->engine.GenerateAssistantDraftsDevice(
@@ -1405,6 +1428,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
         ++result.mtp_d1_groups;
       } else if (proposal_count == 2U) {
         ++result.mtp_d2_groups;
+      } else if (proposal_count == 3U) {
+        ++result.mtp_d3_groups;
       } else if (proposal_count == 4U) {
         ++result.mtp_d4_groups;
       }

@@ -49,6 +49,28 @@ namespace gem16::internal {
     std::uint8_t* packed, std::uint8_t* scales, float divisor,
     cudaStream_t stream);
 
+// Exact 12B D2 boundary for three FP32-container rows, width 3840. Each CTA
+// preserves the existing row's reductions/rounding; post_output may be null.
+[[nodiscard]] Status LaunchTwelveBPostAttentionNvfp4BoundaryT3(
+    float* projection, const std::uint16_t* post_weight, const float* residual,
+    float* post_output, float* hidden_output, const std::uint16_t* pre_weight,
+    std::uint8_t* packed, std::uint8_t* scales, float divisor,
+    cudaStream_t stream);
+
+// Same exact per-row boundary for the four D3 verifier rows.
+[[nodiscard]] Status LaunchTwelveBPostAttentionNvfp4BoundaryT4(
+    float* projection, const std::uint16_t* post_weight, const float* residual,
+    float* post_output, float* hidden_output, const std::uint16_t* pre_weight,
+    std::uint8_t* packed, std::uint8_t* scales, float divisor,
+    cudaStream_t stream);
+
+// Same exact per-row boundary for the five D4 verifier rows.
+[[nodiscard]] Status LaunchTwelveBPostAttentionNvfp4BoundaryT5(
+    float* projection, const std::uint16_t* post_weight, const float* residual,
+    float* post_output, float* hidden_output, const std::uint16_t* pre_weight,
+    std::uint8_t* packed, std::uint8_t* scales, float divisor,
+    cudaStream_t stream);
+
 // Exact MTP final boundary: emit the BF16-rounded normalized hidden state and
 // its blockwise NVFP4 Head activation from the same RMS reduction.
 [[nodiscard]] Status LaunchRmsNormBf16Nvfp4ActivationQuantizationBatch(

@@ -13,6 +13,7 @@ import hashlib
 import importlib.metadata
 import json
 import math
+import os
 from pathlib import Path
 import platform
 import statistics
@@ -106,7 +107,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", type=Path, default=default_target_model())
     parser.add_argument("--assistant-model", type=Path)
     parser.add_argument(
-        "--mtp-draft-tokens", type=int, choices=(0, 1, 2, 4), default=0
+        "--mtp-draft-tokens", type=int, choices=(0, 1, 2, 3, 4), default=0
     )
     parser.add_argument("--mtp-adaptive", action="store_true")
     parser.add_argument(
@@ -121,6 +122,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gguf", type=Path)
     parser.add_argument("--warmups", type=nonnegative_int, default=3)
     parser.add_argument("--repetitions", type=positive_int, default=10)
+    parser.add_argument(
+        "--context-tokens", type=positive_int,
+        help="explicit engine context capacity; must fit prompt plus requested output",
+    )
+    parser.add_argument(
+        "--gem16-prefill-chunk-tokens", type=positive_int,
+        help="explicit 12B FP8-KV startup chunk control, 32-token multiples up to 8192",
+    )
     parser.add_argument(
         "--fixed-output-tokens",
         type=positive_int,
@@ -197,6 +206,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--llama-ngram-mod-n-max", type=positive_int, default=64)
     parser.add_argument("--enforce-eager", action="store_true")
     args = parser.parse_args()
+    if args.gem16_prefill_chunk_tokens is not None:
+        if args.engine != "gem16":
+            parser.error("--gem16-prefill-chunk-tokens requires --engine gem16")
+        if not 32 <= args.gem16_prefill_chunk_tokens <= 8192 or args.gem16_prefill_chunk_tokens % 32:
+            parser.error("--gem16-prefill-chunk-tokens must be a 32-token multiple from 32 to 8192")
     if args.llama_ubatch_size > args.llama_batch_size:
         parser.error("--llama-ubatch-size must not exceed --llama-batch-size")
     if (
@@ -454,34 +468,16 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
             [float(run["process_wall_ms"]) for run in runs]
         )
     def summarize_speculation(field: str) -> dict[str, Any]:
+        fields = (
+            "proposed_tokens", "accepted_tokens", "rejected_tokens",
+            "mean_accepted_length", "target_batches", "d1_groups", "d2_groups",
+            "d3_groups", "d4_groups", "ordinary_fallback_tokens",
+        )
         result = {
-            "proposed_tokens": summarize(
-                [float(run[field]["proposed_tokens"]) for run in runs]
-            ),
-            "accepted_tokens": summarize(
-                [float(run[field]["accepted_tokens"]) for run in runs]
-            ),
-            "rejected_tokens": summarize(
-                [float(run[field]["rejected_tokens"]) for run in runs]
-            ),
-            "mean_accepted_length": summarize(
-                [float(run[field]["mean_accepted_length"]) for run in runs]
-            ),
-            "target_batches": summarize(
-                [float(run[field]["target_batches"]) for run in runs]
-            ),
-            "d1_groups": summarize(
-                [float(run[field]["d1_groups"]) for run in runs]
-            ),
-            "d2_groups": summarize(
-                [float(run[field]["d2_groups"]) for run in runs]
-            ),
-            "d4_groups": summarize(
-                [float(run[field]["d4_groups"]) for run in runs]
-            ),
-            "ordinary_fallback_tokens": summarize(
-                [float(run[field]["ordinary_fallback_tokens"]) for run in runs]
-            ),
+            name: (summarize([float(run[field][name]) for run in runs])
+                   if all(run[field].get(name) is not None for run in runs)
+                   else None)
+            for name in fields
         }
         result["acceptance_rate"] = summarize(
             [
@@ -511,6 +507,8 @@ def run_gem16(
     mtp_draft_tokens: int,
     mtp_adaptive: bool,
     sampling: dict[str, Any] | None = None,
+    context_tokens: int | None = None,
+    prefill_chunk_tokens: int | None = None,
 ) -> tuple[dict[str, Any], list[int]]:
     command = [
         str(executable),
@@ -525,7 +523,7 @@ def run_gem16(
         "--max-tokens",
         str(generation["max_new_tokens"]),
         "--max-context",
-        str(prompt_tokens + generation["max_new_tokens"]),
+        str(context_tokens if context_tokens is not None else prompt_tokens + generation["max_new_tokens"]),
     ]
     if sampling is None:
         command.append("--greedy")
@@ -561,7 +559,14 @@ def run_gem16(
         if mtp_adaptive:
             command.append("--mtp-adaptive")
     process_started = time.perf_counter()
-    completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    process_options: dict[str, Any] = {}
+    if prefill_chunk_tokens is not None:
+        environment = dict(os.environ)
+        environment["GEM16_12B_PREFILL_CHUNK_TOKENS"] = str(prefill_chunk_tokens)
+        process_options["env"] = environment
+    completed = subprocess.run(
+        command, check=False, capture_output=True, text=True, **process_options
+    )
     process_wall_ms = (time.perf_counter() - process_started) * 1000.0
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
@@ -569,6 +574,8 @@ def run_gem16(
             f"gem16 exited with {completed.returncode}: {detail[-2000:]}"
         )
     result = json.loads(completed.stdout)
+    if prefill_chunk_tokens is not None and result.get("prefill_chunk_tokens") != prefill_chunk_tokens:
+        raise BenchmarkError("gem16 did not use the requested Prefill chunk size")
     output_tokens = result.get("output_token_ids")
     if not isinstance(output_tokens, list) or not all(
         isinstance(token, int) for token in output_tokens
@@ -616,6 +623,12 @@ def run_gem16(
                 "ordinary_fallback_tokens",
             )
         }
+        d3_groups = mtp.get("d3_groups", 0)
+        if type(d3_groups) is not int or d3_groups < 0:
+            raise BenchmarkError("gem16 returned malformed D3 group telemetry")
+        if mtp_draft_tokens == 3 and "d3_groups" not in mtp:
+            raise BenchmarkError("gem16 omitted D3 group telemetry")
+        run["mtp"]["d3_groups"] = d3_groups
     return run, output_tokens
 
 
@@ -726,6 +739,7 @@ def run_vllm_request(
             "conventional_mean_acceptance_length": 1.0 + accepted / drafts,
             "d1_groups": drafts if mtp_draft_tokens == 1 else 0,
             "d2_groups": drafts if mtp_draft_tokens == 2 else 0,
+            "d3_groups": drafts if mtp_draft_tokens == 3 else 0,
             "d4_groups": drafts if mtp_draft_tokens == 4 else 0,
             "ordinary_fallback_tokens": 0,
         }
@@ -844,14 +858,23 @@ def run_llama_request(
         if (
             maximum_draft_tokens == 0
             or groups < 0
+            or accepted < 0
             or proposed < accepted
             or proposed > groups * maximum_draft_tokens
         ):
             raise BenchmarkError("llama.cpp returned malformed speculative counters")
         fixed_mtp = (
             speculative_types == ("draft-mtp",)
-            and maximum_draft_tokens in (1, 2, 4)
+            and maximum_draft_tokens in (1, 2, 3, 4)
         )
+        all_max = proposed == groups * maximum_draft_tokens
+        # Equality proves maximum depth at every base step; otherwise the HTTP
+        # totals cannot separate shorter speculative groups from ordinary steps.
+        depth_counts = {
+            str(depth): (groups if depth == maximum_draft_tokens else 0)
+            if all_max else None
+            for depth in (1, 2, 3, 4)
+        }
         counters = {
             "proposed_tokens": proposed,
             "accepted_tokens": accepted,
@@ -863,16 +886,30 @@ def run_llama_request(
             "conventional_mean_acceptance_length": (
                 1.0 + accepted / groups if groups else 0.0
             ),
-            "d1_groups": groups if fixed_mtp and maximum_draft_tokens == 1 else 0,
-            "d2_groups": groups if fixed_mtp and maximum_draft_tokens == 2 else 0,
-            "d4_groups": groups if fixed_mtp and maximum_draft_tokens == 4 else 0,
-            "ordinary_fallback_tokens": 0,
+            "d1_groups": depth_counts["1"],
+            "d2_groups": depth_counts["2"],
+            "d3_groups": depth_counts["3"],
+            "d4_groups": depth_counts["4"],
+            "ordinary_fallback_tokens": 0 if all_max else None,
         }
         run["speculative"] = counters
         run["speculative_group_count_source"] = "inferred_base_steps_after_prefill"
         run["speculative_all_base_steps_at_max_depth"] = (
             proposed == groups * maximum_draft_tokens
         )
+        run["speculative_work"] = {
+            "configured": {"types": list(speculative_types),
+                           "maximum_draft_tokens": maximum_draft_tokens},
+            "observed": {"proposed_tokens": proposed, "accepted_tokens": accepted,
+                         "verification_groups": None, "depth_histogram": None,
+                         "acceptance_histogram": None, "ordinary_steps": None},
+            "derived": {"base_decode_steps": groups,
+                        "base_step_formula": "generated_tokens - 1 - accepted_drafts",
+                        "all_base_steps_at_max_depth": all_max,
+                        "depth_histogram": depth_counts,
+                        "ordinary_steps": 0 if all_max else None},
+            "source": "HTTP aggregate counters; no group event observer",
+        }
         if fixed_mtp:
             run["mtp"] = dict(counters)
     return run, output_tokens
@@ -895,6 +932,12 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
     generation = dict(generation)
     if args.fixed_output_tokens is not None:
         generation = fixed_output_generation(generation, args.fixed_output_tokens)
+    minimum_context = len(prompt) + generation["max_new_tokens"]
+    context_tokens = args.context_tokens if args.context_tokens is not None else minimum_context
+    if context_tokens < minimum_context:
+        raise BenchmarkError("--context-tokens must fit prompt plus requested output")
+    if args.engine == "gem16" and args.gem16_prefill_chunk_tokens is None and "GEM16_12B_PREFILL_CHUNK_TOKENS" in os.environ:
+        raise BenchmarkError("use --gem16-prefill-chunk-tokens to record the environment override")
     all_runs: list[dict[str, Any]] = []
     representative: list[int] | None = None
     runtime: dict[str, Any]
@@ -935,6 +978,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
                 assistant_model,
                 args.mtp_draft_tokens,
                 args.mtp_adaptive,
+                context_tokens=context_tokens,
+                prefill_chunk_tokens=args.gem16_prefill_chunk_tokens,
             )
 
         runtime = {
@@ -1007,7 +1052,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         ]
         if not all(suppressed_token_strings):
             raise BenchmarkError("cannot decode one or more suppressed token IDs")
-        max_model_len = len(prompt) + generation["max_new_tokens"]
+        max_model_len = context_tokens
         llm = LLM(
             model=str(model),
             tokenizer=str(model),
@@ -1153,7 +1198,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "--model",
             str(gguf),
             "--ctx-size",
-            str(len(prompt) + generation["max_new_tokens"]),
+            str(context_tokens),
             "--n-gpu-layers",
             "all",
             "--split-mode",
@@ -1321,6 +1366,10 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
 
     if representative is None:
         raise BenchmarkError("benchmark produced no representative output")
+    if args.context_tokens is not None:
+        configuration["context_tokens_requested"] = args.context_tokens
+    if args.gem16_prefill_chunk_tokens is not None:
+        configuration["prefill_chunk_tokens_requested"] = args.gem16_prefill_chunk_tokens
     return {
         "schema_version": 1,
         "status": "development_characterization",

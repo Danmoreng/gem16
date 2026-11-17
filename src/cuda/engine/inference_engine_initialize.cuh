@@ -9,8 +9,10 @@
     if (!sampling_status.ok()) return sampling_status;
     kv_cache_mode_ = kv_cache_mode;
     max_context_ = max_context;
-    prefill_chunk_tokens_ =
-        PrefillChunkTokensForContext(max_context_, kv_cache_mode_);
+    const auto chunk =
+        ConfiguredPrefillChunkTokensForContext(max_context_, kv_cache_mode_);
+    if (!chunk.ok()) return chunk.status();
+    prefill_chunk_tokens_ = chunk.value();
     cudaDeviceProp properties{};
     cudaError_t error = cudaGetDeviceProperties(&properties, 0);
     if (error != cudaSuccess) return CudaFailure("cudaGetDeviceProperties", error);
@@ -65,8 +67,10 @@
     if (!status.ok()) return status;
     kv_cache_mode_ = kv_cache_mode;
     max_context_ = max_context;
-    prefill_chunk_tokens_ =
-        PrefillChunkTokensForContext(max_context_, kv_cache_mode_);
+    const auto chunk =
+        ConfiguredPrefillChunkTokensForContext(max_context_, kv_cache_mode_);
+    if (!chunk.ok()) return chunk.status();
+    prefill_chunk_tokens_ = chunk.value();
     cudaDeviceProp properties{};
     cudaError_t error = cudaGetDeviceProperties(&properties, 0);
     if (error != cudaSuccess) {
@@ -117,7 +121,8 @@
       if (!status.ok()) return status;
       const std::size_t chain_host_bytes =
           sizeof(internal::MtpChainResult) +
-          static_cast<std::size_t>(3U * max_context_) *
+          static_cast<std::size_t>(
+              (std::max(2U, mtp_draft_tokens_) + 1U) * max_context_) *
               sizeof(std::uint32_t);
       status = mtp_host_chain_.Allocate(
           (chain_host_bytes + sizeof(float) - 1U) / sizeof(float),

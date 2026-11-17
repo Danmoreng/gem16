@@ -62,11 +62,11 @@ class InferenceEngine {
   [[nodiscard]] Status VerifyAcceptCommitAssistantBatch(
       std::uint32_t input_token, std::uint64_t start_position,
       std::uint32_t proposal_count, internal::MtpGroupResult* host_result);
-  [[nodiscard]] Status ExecuteFixedD2GraphGroup(
+  [[nodiscard]] Status ExecuteFixedMtpGraphGroup(
       std::uint32_t input_token, std::uint64_t start_position,
       internal::MtpGroupResult* host_result);
-  [[nodiscard]] Status PrepareFixedD2Graph();
-  [[nodiscard]] Status ExecuteFixedD2GraphChain(
+  [[nodiscard]] Status PrepareFixedMtpGraph();
+  [[nodiscard]] Status ExecuteFixedMtpGraphChain(
       internal::MtpChainResult* host_result,
       GeneratedTokenCallback callback = nullptr,
       void* callback_context = nullptr);

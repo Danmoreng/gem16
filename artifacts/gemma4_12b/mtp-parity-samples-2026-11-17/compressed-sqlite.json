@@ -1,0 +1,20 @@
+{
+  "dispatch-d2.sqlite": {
+    "uncompressed_bytes": 149250048,
+    "sha256": "0b1addcc98cc04263e8e9801aac4ba3e4e5bde595835c9ac3e1e41cfa8cabd98",
+    "lossless_file": "dispatch-d2.sqlite.gz",
+    "compressed_bytes": 38992177
+  },
+  "dispatch-d3.sqlite": {
+    "uncompressed_bytes": 153251840,
+    "sha256": "45edd6f417434687fc0839c860776aed64bb1d7a1b1d67e754d2883fb89a2adc",
+    "lossless_file": "dispatch-d3.sqlite.gz",
+    "compressed_bytes": 40016135
+  },
+  "dispatch-d4.sqlite": {
+    "uncompressed_bytes": 148709376,
+    "sha256": "29044519b996626f6529104e899bbecde5d0e2e010527bf494143ed3720f0fec",
+    "lossless_file": "dispatch-d4.sqlite.gz",
+    "compressed_bytes": 38850508
+  }
+}

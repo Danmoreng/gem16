@@ -576,6 +576,48 @@ void Sm120DirectProjectionSplitK2FixedT3Kernel(
 #endif
 }
 
+//12B fixed D2/D3/D4: three to five verifier rows share one M16/K32 MMA.
+// The32-byte ephemeral row padding avoids shared-memory bank conflicts;
+// weight storage, K accumulation and FP32 scale ordering are unchanged.
+template <unsigned kTokens>
+__launch_bounds__(kThreadsPerBlock,1) __global__
+void TwelveBPackedFp8ProjectionKernel(const std::uint8_t* activation,
+    const float* activation_scale,Fp8MatrixBinding first,Fp8MatrixBinding second,
+    Fp8MatrixBinding third,unsigned binding_count,std::uint64_t contracting_elements){
+  static_assert(kTokens >= 3U && kTokens <= 5U);
+  constexpr unsigned Padding=32U;
+  if(blockIdx.z>=binding_count)return;
+  const auto binding=blockIdx.z==0?first:blockIdx.z==1?second:third;
+  const unsigned warp=threadIdx.x/32U,lane=threadIdx.x&31U,group=lane>>2U,quarter=lane&3U;
+  const std::uint64_t global_warp=std::uint64_t(blockIdx.x)*kWarpsPerBlock+warp;
+  const std::uint64_t row_tiles=(binding.rows+7U)/8U;
+  extern __shared__ __align__(16) std::uint8_t staged[];
+  const std::uint64_t stride=contracting_elements+Padding;
+  const std::uint64_t vectors_per_row=contracting_elements/16U;
+  for(std::uint64_t vector=threadIdx.x;vector<kTokens*vectors_per_row;vector+=blockDim.x){
+    const auto token=vector/vectors_per_row,chunk=vector%vectors_per_row;
+    *reinterpret_cast<uint4*>(staged+token*stride+chunk*16U)=
+        *reinterpret_cast<const uint4*>(activation+token*contracting_elements+chunk*16U);
+  }
+  __syncthreads();if(global_warp>=row_tiles)return;
+  const auto source_row=global_warp*8U+group;
+  Fp8Accumulator accumulator{};
+  for(std::uint64_t k=0;k<contracting_elements/32U;++k){
+    const auto byte=k*32U+quarter*4U;
+    std::uint32_t b0=0,b1=0,a0=0,a2=0;
+    if(source_row<binding.rows){b0=LoadU32(binding.weight+source_row*contracting_elements+byte);b1=LoadU32(binding.weight+source_row*contracting_elements+byte+16U);}
+    if(group<kTokens){a0=LoadU32(staged+group*stride+byte);a2=LoadU32(staged+group*stride+byte+16U);}
+    AccumulateFp8(a0,0U,a2,0U,b0,b1,accumulator);
+  }
+  if(group<kTokens){
+    const auto column=global_warp*8U+quarter*2U;
+    const float scale=activation_scale[group];
+    if(column<binding.rows)binding.output[std::uint64_t(group)*binding.rows+column]=accumulator.x0*scale*DecodeBf16(binding.weight_scales+column);
+    if(column+1U<binding.rows)binding.output[std::uint64_t(group)*binding.rows+column+1U]=accumulator.x1*scale*DecodeBf16(binding.weight_scales+column+1U);
+  }
+}
+
+
 template <unsigned kTokens>
 __global__ void Sm120DirectProjectionFixedBatchKernel(
     const std::uint8_t* activation, const float* activation_scale,
@@ -583,7 +625,7 @@ __global__ void Sm120DirectProjectionFixedBatchKernel(
     Fp8MatrixBinding third, unsigned binding_count,
     std::uint64_t contracting_elements) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
-  static_assert(kTokens == 3U);
+  static_assert(kTokens >= 3U && kTokens <= 5U);
   if (blockIdx.z >= binding_count) return;
   const Fp8MatrixBinding binding =
       blockIdx.z == 0U ? first : (blockIdx.z == 1U ? second : third);
@@ -1116,7 +1158,30 @@ Status LaunchFp8Sm120DirectProjectionBatch(
     const Fp8MatrixBinding binding{weight_e4m3fn, weight_scales_bf16,
                                    output, rows};
     const Fp8MatrixBinding empty{};
-    if (tokens == 3U) {
+    if (tokens >= 3U && tokens <= 5U && rows == 3840U &&
+        (contracting_elements == 4096U || contracting_elements == 8192U)) {
+      const std::size_t shared_bytes =
+          static_cast<std::size_t>(tokens * (contracting_elements + 32U));
+      if (tokens == 3U) {
+        TwelveBPackedFp8ProjectionKernel<3U><<<
+            dim3(static_cast<unsigned>(direct_blocks), 1U), kThreadsPerBlock,
+            shared_bytes, stream>>>(activation_e4m3fn, activation_scales,
+                                    binding, empty, empty, 1U,
+                                    contracting_elements);
+      } else if (tokens == 4U) {
+        TwelveBPackedFp8ProjectionKernel<4U><<<
+            dim3(static_cast<unsigned>(direct_blocks), 1U), kThreadsPerBlock,
+            shared_bytes, stream>>>(activation_e4m3fn, activation_scales,
+                                    binding, empty, empty, 1U,
+                                    contracting_elements);
+      } else {
+        TwelveBPackedFp8ProjectionKernel<5U><<<
+            dim3(static_cast<unsigned>(direct_blocks), 1U), kThreadsPerBlock,
+            shared_bytes, stream>>>(activation_e4m3fn, activation_scales,
+                                    binding, empty, empty, 1U,
+                                    contracting_elements);
+      }
+    } else if (tokens == 3U) {
       const std::size_t shared_bytes =
           static_cast<std::size_t>(tokens * contracting_elements);
       Sm120DirectProjectionFixedBatchKernel<3U><<<
@@ -1240,7 +1305,31 @@ Status LaunchFp8Sm120GroupedQkvProjectionBatch(
                              k_rows};
     const Fp8MatrixBinding v{v_weight_e4m3fn, v_weight_scales_bf16, v_output,
                              v_rows};
-    if (tokens == 3U) {
+    if (tokens >= 3U && tokens <= 5U && contracting_elements == 3840U &&
+        ((has_v && q_rows == 4096U && k_rows == 2048U && v_rows == 2048U) ||
+         (!has_v && q_rows == 8192U && k_rows == 512U))) {
+      const std::size_t shared_bytes =
+          static_cast<std::size_t>(tokens * (contracting_elements + 32U));
+      if (tokens == 3U) {
+        TwelveBPackedFp8ProjectionKernel<3U><<<
+            dim3(static_cast<unsigned>(direct_blocks), 1U, has_v ? 3U : 2U),
+            kThreadsPerBlock, shared_bytes, stream>>>(
+            activation_e4m3fn, activation_scales, q, k, v,
+            has_v ? 3U : 2U, contracting_elements);
+      } else if (tokens == 4U) {
+        TwelveBPackedFp8ProjectionKernel<4U><<<
+            dim3(static_cast<unsigned>(direct_blocks), 1U, has_v ? 3U : 2U),
+            kThreadsPerBlock, shared_bytes, stream>>>(
+            activation_e4m3fn, activation_scales, q, k, v,
+            has_v ? 3U : 2U, contracting_elements);
+      } else {
+        TwelveBPackedFp8ProjectionKernel<5U><<<
+            dim3(static_cast<unsigned>(direct_blocks), 1U, has_v ? 3U : 2U),
+            kThreadsPerBlock, shared_bytes, stream>>>(
+            activation_e4m3fn, activation_scales, q, k, v,
+            has_v ? 3U : 2U, contracting_elements);
+      }
+    } else if (tokens == 3U) {
       const bool native_26b_qkv = contracting_elements == kGemma4Moe26BHidden &&
           ((has_v && q_rows == 4096U && k_rows == 2048U && v_rows == 2048U) ||
            (!has_v && q_rows == 8192U && k_rows == 1024U));

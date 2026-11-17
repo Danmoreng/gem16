@@ -4,17 +4,17 @@
       const internal::DecodeControl* mtp_row_controls = nullptr,
       std::uint64_t vision_begin = 0U, std::uint64_t vision_end = 0U) {
     const bool mtp_verification = mtp_layer_index < kLayers;
-    const bool controlled_mtp_d2 = mtp_row_controls != nullptr;
+    const bool controlled_mtp = mtp_row_controls != nullptr;
     if (vision_begin < vision_end &&
         kv_cache_mode_ != KvCacheMode::kCheckpointFp8) {
       return Error(StatusCode::kUnsupported,
                    "vision bidirectional prefill currently requires checkpoint FP8 KV cache");
     }
-    if (controlled_mtp_d2 &&
-        (!mtp_verification || tokens != 3U ||
+    if (controlled_mtp &&
+        (!mtp_verification || (tokens < 3U || tokens > 5U) ||
          kv_cache_mode_ != KvCacheMode::kCheckpointFp8)) {
       return Error(StatusCode::kInvalidArgument,
-                   "controlled MTP D2 layer geometry is invalid");
+                   "controlled fixed MTP layer geometry is invalid");
     }
     const NvtxRange range(mtp_verification ? "gem16.mtp.verify.layer"
                                            : "gem16.prefill.layer");
@@ -98,7 +98,7 @@
           layer.head_dimension, kEpsilon, stream_);
     }
     if (!status.ok()) return status;
-    if (controlled_mtp_d2) {
+    if (controlled_mtp) {
       status = internal::LaunchProjectionRmsNormRotaryBf16BatchControlled(
           q, layer.q_norm, q_norm, k, layer.k_norm, k_norm,
           layer.global
@@ -180,8 +180,8 @@
           return CudaFailure("retain speculative FP8 KV", copy_error);
         }
         if (!layer.global) {
-          status = controlled_mtp_d2
-                       ? internal::LaunchCopyCircularMtpKvFp8ControlledD2(
+          status = controlled_mtp
+                       ? internal::LaunchCopyCircularMtpKvFp8Controlled(
                              layer.key_cache_fp8, layer.value_cache_fp8,
                              Pointer<std::uint8_t>(
                                  mtp_workspace_,
@@ -189,6 +189,7 @@
                              Pointer<std::uint8_t>(
                                  mtp_workspace_,
                                  mtp_offsets_.layers[mtp_layer_index].backup_value),
+                             static_cast<std::uint32_t>(tokens),
                              layer.kv_elements, capacity, false,
                              &Pointer<internal::MtpGroupTransaction>(
                                   mtp_workspace_, mtp_offsets_.transaction)
@@ -207,7 +208,7 @@
           if (!status.ok()) return status;
         }
         if (layer.global) {
-          status = controlled_mtp_d2
+          status = controlled_mtp
                        ? internal::LaunchAppendKvFp8BatchControlled(
                              k_fp8, v_fp8, layer.key_cache_fp8,
                              layer.value_cache_fp8, mtp_row_controls, tokens,
@@ -221,29 +222,33 @@
         float* decode_scores = Pointer<float>(workspace_, offsets_.scores);
         auto* direct_control = Pointer<internal::DecodeControl>(
             workspace_, offsets_.decode_control);
-        if (!layer.global && controlled_mtp_d2 &&
+        if (!layer.global && controlled_mtp &&
             capacity == kSlidingWindow &&
-            tokens == 3U) {
-          status = internal::LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(
+            (tokens >= 3U && tokens <= 5U)) {
+          status = internal::LaunchOnlineAttentionDecodeFp8LocalFixed12BControlledSm120(
               q_norm, layer.key_cache_fp8, layer.value_cache_fp8, k_fp8,
               v_fp8, layer.k_cache_scale, layer.v_cache_scale,
               Pointer<float>(mtp_workspace_, mtp_offsets_.attention_workspace),
-              attention, mtp_row_controls, capacity, stream_);
+              attention, mtp_row_controls, static_cast<std::uint32_t>(tokens),
+              capacity, stream_);
           if (!status.ok()) return status;
           status = internal::LaunchAppendKvFp8BatchControlled(
               k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
               mtp_row_controls, tokens, layer.kv_elements, capacity, stream_);
           if (!status.ok()) return status;
-        } else if (layer.global && capacity > 512U && tokens == 3U) {
-          status = controlled_mtp_d2
-                       ? internal::LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
+        } else if (layer.global && capacity > 512U &&
+                   (tokens == 3U || (controlled_mtp && (tokens == 4U || tokens == 5U)))) {
+          status = controlled_mtp
+                       ? internal::LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(
                              q_norm, layer.key_cache_fp8,
                              layer.value_cache_fp8, layer.k_cache_scale,
                              layer.v_cache_scale,
                              Pointer<float>(
                                  mtp_workspace_,
                                  mtp_offsets_.attention_workspace),
-                             attention, mtp_row_controls, capacity, stream_)
+                             attention, mtp_row_controls,
+                             static_cast<std::uint32_t>(tokens), layer.kv_heads,
+                             capacity, stream_)
                        : internal::LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
                              q_norm, layer.key_cache_fp8,
                              layer.value_cache_fp8, layer.k_cache_scale,
@@ -257,7 +262,7 @@
           for (std::uint64_t row = 0U; row < tokens; ++row) {
             const std::uint64_t position = start_position + row;
             if (!layer.global) {
-              status = controlled_mtp_d2
+              status = controlled_mtp
                            ? internal::LaunchAppendKvFp8BatchControlled(
                                  k_fp8 + row * layer.kv_elements,
                                  v_fp8 + row * layer.kv_elements,
@@ -290,7 +295,7 @@
             } else {
               const internal::DecodeControl* attention_control =
                   direct_control;
-              if (controlled_mtp_d2) {
+              if (controlled_mtp) {
                 attention_control = mtp_row_controls + row;
               } else {
                 status = internal::LaunchSetMtpAttentionPosition(
@@ -309,8 +314,8 @@
           }
         }
         if (!layer.global) {
-          status = controlled_mtp_d2
-                       ? internal::LaunchCopyCircularMtpKvFp8ControlledD2(
+          status = controlled_mtp
+                       ? internal::LaunchCopyCircularMtpKvFp8Controlled(
                              layer.key_cache_fp8, layer.value_cache_fp8,
                              Pointer<std::uint8_t>(
                                  mtp_workspace_,
@@ -318,6 +323,7 @@
                              Pointer<std::uint8_t>(
                                  mtp_workspace_,
                                  mtp_offsets_.layers[mtp_layer_index].backup_value),
+                             static_cast<std::uint32_t>(tokens),
                              layer.kv_elements, capacity, true,
                              &Pointer<internal::MtpGroupTransaction>(
                                   mtp_workspace_, mtp_offsets_.transaction)
@@ -492,46 +498,65 @@
                        o_activation, o_scales, layer.o, projection_bf16, tokens,
                        cutlass_workspace, kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
-    if (mtp_verification) {
+    auto* mlp_packed = Pointer<std::uint8_t>(
+        prefill_workspace_, prefill_offsets_.mlp_packed);
+    auto* mlp_scales = Pointer<std::uint8_t>(
+        prefill_workspace_, prefill_offsets_.mlp_scales);
+    const bool fused_fixed_boundary =
+        mtp_verification && (tokens >= 3U && tokens <= 5U) &&
+        kv_cache_mode_ == KvCacheMode::kCheckpointFp8;
+    if (fused_fixed_boundary) {
+      const auto launch = tokens == 3U
+          ? internal::LaunchTwelveBPostAttentionNvfp4BoundaryT3
+          : tokens == 4U ? internal::LaunchTwelveBPostAttentionNvfp4BoundaryT4
+                         : internal::LaunchTwelveBPostAttentionNvfp4BoundaryT5;
+      status = launch(
+          projection, layer.post_attention_norm, hidden_a, nullptr, hidden_b,
+          layer.pre_mlp_norm, mlp_packed, mlp_scales,
+          layer.gate.input_divisor, stream_);
+      if (!status.ok()) return status;
+    } else if (mtp_verification) {
       // The direct verifier O projection also writes FP32; ordinary decode
       // closes this projection at BF16 before the residual boundary.
       status = LaunchRoundBf16(projection, tokens * kHidden, stream_);
       if (!status.ok()) return status;
     }
-    status = mtp_verification
-                 ? internal::LaunchRmsNormResidualBf16(
-                       projection, layer.post_attention_norm, hidden_a,
-                       nullptr, hidden_b, tokens, kHidden, kEpsilon, nullptr,
-                       stream_)
-             : physical_hidden
-                 ? internal::LaunchRmsNormResidualPhysicalBf16(
-                       projection_bf16, layer.post_attention_norm,
-                       hidden_a_bf16, hidden_b_bf16, tokens, kHidden,
-                       kEpsilon, nullptr, stream_)
-                 : internal::LaunchRmsNormResidualBf16Input(
-                       projection_bf16, layer.post_attention_norm, hidden_a,
-                       nullptr, hidden_b, tokens, kHidden, kEpsilon, nullptr,
-                       stream_);
-    if (!status.ok()) return status;
+    if (!fused_fixed_boundary) {
+      status = mtp_verification
+                   ? internal::LaunchRmsNormResidualBf16(
+                         projection, layer.post_attention_norm, hidden_a,
+                         nullptr, hidden_b, tokens, kHidden, kEpsilon, nullptr,
+                         stream_)
+               : physical_hidden
+                   ? internal::LaunchRmsNormResidualPhysicalBf16(
+                         projection_bf16, layer.post_attention_norm,
+                         hidden_a_bf16, hidden_b_bf16, tokens, kHidden,
+                         kEpsilon, nullptr, stream_)
+                   : internal::LaunchRmsNormResidualBf16Input(
+                         projection_bf16, layer.post_attention_norm, hidden_a,
+                         nullptr, hidden_b, tokens, kHidden, kEpsilon, nullptr,
+                         stream_);
+      if (!status.ok()) return status;
+    }
 
-    auto* mlp_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.mlp_packed);
-    auto* mlp_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.mlp_scales);
     auto* gate = Pointer<std::uint16_t>(prefill_workspace_, prefill_offsets_.gate);
     auto* down_packed = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.down_packed);
     auto* down_scales = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.down_scales);
-    status =
-        physical_hidden
-            ? internal::LaunchRmsNormNvfp4ActivationQuantizationBf16Batch(
-                  hidden_b_bf16, layer.pre_mlp_norm, mlp_packed, mlp_scales,
-                  tokens, kHidden, kEpsilon, layer.gate.input_divisor,
-                  stream_)
-            : internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
-                  hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales,
-                  tokens, kHidden, kEpsilon, layer.gate.input_divisor,
-                  stream_);
-    if (!status.ok()) return status;
+    if (!fused_fixed_boundary) {
+      status =
+          physical_hidden
+              ? internal::LaunchRmsNormNvfp4ActivationQuantizationBf16Batch(
+                    hidden_b_bf16, layer.pre_mlp_norm, mlp_packed, mlp_scales,
+                    tokens, kHidden, kEpsilon, layer.gate.input_divisor,
+                    stream_)
+              : internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
+                    hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales,
+                    tokens, kHidden, kEpsilon, layer.gate.input_divisor,
+                    stream_);
+      if (!status.ok()) return status;
+    }
     auto* cutlass_activation_scales = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_activation_scales);
     auto* cutlass_product_scales = Pointer<std::uint8_t>(

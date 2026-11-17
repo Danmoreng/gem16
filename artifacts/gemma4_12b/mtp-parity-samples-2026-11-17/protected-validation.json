@@ -1,0 +1,92 @@
+{
+  "protected": {
+    "protected-text-12b-candidate-0": {
+      "exact_to_fresh_parent_reference": true
+    },
+    "protected-text-12b-candidate-1": {
+      "exact_to_fresh_parent_reference": true
+    },
+    "protected-text-12b-candidate-2": {
+      "exact_to_fresh_parent_reference": true
+    },
+    "protected-text-12b-candidate-4": {
+      "exact_to_fresh_parent_reference": true
+    },
+    "protected-bf16kv-12b-candidate-0": {
+      "exact_to_fresh_parent_reference": true
+    },
+    "protected-bf16kv-12b-candidate-2": {
+      "exact_to_fresh_parent_reference": true
+    },
+    "protected-media-12b-image-candidate-0": {
+      "exact_to_fresh_parent_reference": true
+    },
+    "protected-media-12b-image-candidate-2": {
+      "exact_to_fresh_parent_reference": true
+    },
+    "protected-media-12b-audio-candidate-0": {
+      "exact_to_fresh_parent_reference": true
+    },
+    "protected-media-12b-audio-candidate-2": {
+      "exact_to_fresh_parent_reference": true
+    },
+    "protected-media-12b-image-candidate-3": {
+      "exact": true
+    },
+    "protected-media-12b-audio-candidate-3": {
+      "exact": true
+    },
+    "protected-bf16kv-12b-candidate-3": {
+      "exact": true
+    },
+    "protected-media-12b-image-candidate-4": {
+      "exact": true
+    },
+    "protected-media-12b-audio-candidate-4": {
+      "exact": true
+    },
+    "protected-bf16kv-12b-candidate-4": {
+      "exact": true
+    },
+    "protected-text-12b-candidate-3": {
+      "exact": true
+    },
+    "small-context": {
+      "pass": true
+    },
+    "adaptive-rejected": {
+      "pass": true
+    },
+    "chat-d2-sampled0": {
+      "all17cases_exact": true
+    },
+    "chat-d3-sampled0": {
+      "all17cases_exact": true
+    },
+    "chat-d4-sampled0": {
+      "all17cases_exact": true
+    },
+    "chat-d2-sampled1": {
+      "all17cases_exact": true
+    },
+    "chat-d3-sampled1": {
+      "all17cases_exact": true
+    },
+    "chat-d4-sampled1": {
+      "all17cases_exact": true
+    }
+  },
+  "cuda_tests": "pass",
+  "host_tests": "see host-tests.log",
+  "sampled_seeds": [
+    0,
+    1,
+    42
+  ],
+  "sampled_depths": [
+    2,
+    3,
+    4
+  ],
+  "interactive_two_turn_sampled_chat": "pass"
+}

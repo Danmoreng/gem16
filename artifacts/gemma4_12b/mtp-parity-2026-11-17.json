@@ -1,0 +1,1414 @@
+{
+  "schema_version": 1,
+  "status": "local_experimental_scoped_qualification",
+  "scope": "12B D2/D3/D4 parity; no new other-model work or reference-engine cohort",
+  "base_commit": "81118043fb526a8f86f07f030d53d9ddbd5b7104",
+  "branch": "main",
+  "binaries": {
+    "gem16-unit-tests": "aad89c145d84ed1070912594483775e91e7cf7a9812855d06bc9d9eee22583a8",
+    "libgem16_core.a": "8af8c84c0b6356d710143aae907f004fa522d08add2b93d21649f522d20619f0",
+    "gem16-server": "e2ae206d405594425b02bc84b11f83b870d64688f1231f459af79b8ff78fb3f2",
+    "gem16-run": "b979998e11d4ee9016ea35a693de5dac991863bcc3072c2c747e4c54524e2e53",
+    "gem16-cuda-tests": "e1480b266ce695d1eeea62f04b111702a83ac57caf142f66ac3fd2a68f0634e8",
+    "gem16-chat": "d517e13f2b425a793d8cb79e942241ebf30d15c16e2bde924856329f376c1f18"
+  },
+  "source_validation": {
+    "changed": [
+      "src/cuda/attention/decode_sm120.cu",
+      "src/cuda/attention/sm120.h",
+      "src/cuda/engine/inference_engine_prefill_layers.cuh",
+      "src/cuda/fp8/sm120.cu",
+      "tests/cuda/twelve_b_t5_ports.cu",
+      "tests/cuda/twelve_b_fixed_attention_ports.cu",
+      "tools/analyze_12b_d4_chain.py"
+    ],
+    "unchanged": 243,
+    "unrelated_dirty_patches_preserved": [
+      "README.md",
+      "docs/ACTIVE_DECISIONS.md",
+      "docs/BENCHMARKING.md",
+      "docs/MTP.md",
+      "include/gem16/engine.h",
+      "src/cli/chat_main.cpp",
+      "src/cli/run_main.cpp",
+      "src/cli/server_main.cpp",
+      "src/cuda/engine/inference_engine.cu",
+      "src/cuda/engine/inference_engine.h",
+      "src/cuda/engine/inference_engine_decode_graphs.cuh",
+      "src/cuda/engine/inference_engine_initialize.cuh",
+      "src/cuda/engine/inference_engine_memory.cuh",
+      "src/cuda/engine/inference_engine_mtp.cuh",
+      "src/cuda/inference.cu",
+      "src/cuda/inference_session.cuh",
+      "src/cuda/mtp/scheduler.h",
+      "src/cuda/nvfp4/detail/twelve_b_post_attention.cuh",
+      "src/cuda/nvfp4/reference.cu",
+      "src/cuda/nvfp4/reference.h",
+      "src/cuda/nvfp4/sm120.cu",
+      "src/cuda/output_head.cu",
+      "src/runtime/result_json.cpp",
+      "src/server/session_pool.cpp",
+      "src/server/session_pool.h",
+      "tests/cuda/generate_12b_post_attention.py",
+      "tests/cuda/llama_decode_replay_driver.cpp",
+      "tests/cuda/nvfp4_reference_test.cu",
+      "tests/python/test_benchmark_wikipedia_workload.py",
+      "tests/unit/mtp_scheduler_test.cpp",
+      "tools/benchmark_wikipedia_workload.py",
+      "tools/validate_mtp.py",
+      "tools/validate_sampled_mtp.py",
+      "tools/validate_sampled_mtp_chat.py"
+    ],
+    "all_archived_source_matches": true,
+    "canonical_binaries_match_measured_snapshot": true,
+    "other_shape_branch_preserved": true,
+    "instructions": {
+      "2": {
+        "parent_static_mma_count": 15,
+        "candidate_static_mma_count": 5,
+        "actual_packed_calls_in16groups": 1536
+      },
+      "3": {
+        "parent_static_mma_count": 5,
+        "candidate_static_mma_count": 5,
+        "actual_packed_calls_in16groups": 1536
+      },
+      "4": {
+        "parent_static_mma_count": 25,
+        "candidate_static_mma_count": 5,
+        "actual_packed_calls_in16groups": 1536
+      }
+    },
+    "source_sha256": "24d73ca31661307a544a2cc76a3bfaa15455c5ba6121a614ca0943b0d02b81bd"
+  },
+  "toolchain_reference": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/vllm-alignment/toolchain.json",
+  "model_target_revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+  "assistant_revision": "364bd03c9952e5b7da73665ee30c9eccfc408345",
+  "workload": {
+    "fixed_output_tokens": 1135,
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "ignore_eos": true,
+    "max_new_tokens": 1135,
+    "path": "/home/sebastian/Development/gem16gb/benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "prompt_tokens": 16384,
+    "seed": 0,
+    "source": {
+      "api_url": "https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=extracts%7Crevisions&explaintext=1&exsectionformat=plain&revids=1366077412&rvprop=ids%7Ctimestamp",
+      "article_url": "https://en.wikipedia.org/w/index.php?title=Artificial+intelligence&oldid=1366077412",
+      "extract_characters": 86450,
+      "extract_utf8_sha256": "2724cd80c72f6ba5ef4b6ae05ed0ff1af172ebdc2d660c506fe4b49828139056",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "page_id": 1164,
+      "revision": 1366077412,
+      "revision_timestamp": "2026-07-26T03:46:54Z",
+      "title": "Artificial intelligence"
+    },
+    "stop_token_ids": [],
+    "suppress_token_ids": [
+      1,
+      50,
+      106,
+      258882,
+      258883
+    ],
+    "temperature": 0.0
+  },
+  "configuration": {
+    "prompt_tokens": 16384,
+    "output_tokens": 1135,
+    "timed_intervals": 1134,
+    "context_tokens": 17519,
+    "batch": 1,
+    "greedy": true,
+    "kv": "FP8",
+    "prefix_reuse": false,
+    "weight_offload": false
+  },
+  "cohorts": {
+    "2": {
+      "previous_source": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/vllm-alignment/down-fixed/integration/screen-d2-candidate.json",
+      "previous_median": 99.00644327646721,
+      "median": 98.72630873301237,
+      "relative_change": -0.0028294577017838884,
+      "samples": [
+        98.59926441818608,
+        98.72630873301237,
+        98.73834339001645
+      ],
+      "warmups": 1,
+      "repetitions": 3,
+      "telemetry": {
+        "sample_period_ms": 200,
+        "sampled_peak_mib": 11763.0,
+        "temperature_min_c": 44.84,
+        "temperature_max_c": 70.78,
+        "sm_clock_max_mhz": 2640.0,
+        "power_peak_w": 175.06
+      },
+      "state": {
+        "all1135output_ids_exact": true,
+        "all_proposals_exact": true,
+        "whole_kv_bytes": 311287808,
+        "whole_kv_sha256": "6b03676412022f6be775dfec7ec4e9e68ef3d997a28e6f5f3f100ff36c577231",
+        "counters": {
+          "acceptance_path": "gpu_accept_commit",
+          "accepted_tokens": 626,
+          "adaptive": false,
+          "d1_groups": 0,
+          "d2_attention_path": "global_t3_kvh2_shared_kv_tile32_local_t3_shared_kv_exact",
+          "d2_groups": 507,
+          "d2_output_head_path": "fixed_rows_3_exact_softcap",
+          "d3_groups": 0,
+          "d4_groups": 0,
+          "device_control": "host_gpu_transition_parity",
+          "draft_tokens": 2,
+          "enabled": true,
+          "group_execution": "gpu_chained_fixed_d2_conditional_graph",
+          "host_synchronizations_per_chain": 0,
+          "host_synchronizations_per_group": 0,
+          "mean_accepted_length": 1.23471,
+          "ordinary_fallback_tokens": 0,
+          "proposed_tokens": 1014,
+          "rejected_tokens": 388,
+          "short_batch_projection_path": "decode_order_fp8_t3_vector_stage_scale_store_qkv_o_nvfp4_down8",
+          "streaming": "mapped_pinned_spsc_ring_256",
+          "target_batches": 508,
+          "target_forwards": 1522,
+          "verification_groups": 507,
+          "verification_mode": "batched_exact_target"
+        },
+        "reference": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/vllm-alignment/down-fixed/integration/screen-d2-candidate.json",
+        "diagnostic_only": true
+      }
+    },
+    "3": {
+      "previous_source": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fp8-packed/gpu-d3.json",
+      "previous_median": 100.33000964371344,
+      "median": 100.31758388549287,
+      "relative_change": -0.00012384886899441394,
+      "samples": [
+        100.3797434739889,
+        100.31758388549287,
+        100.27057138309725
+      ],
+      "warmups": 1,
+      "repetitions": 3,
+      "telemetry": {
+        "sample_period_ms": 200,
+        "sampled_peak_mib": 11767.0,
+        "temperature_min_c": 49.16,
+        "temperature_max_c": 71.69,
+        "sm_clock_max_mhz": 2610.0,
+        "power_peak_w": 174.28
+      },
+      "state": {
+        "all1135output_ids_exact": true,
+        "all_proposals_exact": true,
+        "whole_kv_bytes": 311287808,
+        "whole_kv_sha256": "6b03676412022f6be775dfec7ec4e9e68ef3d997a28e6f5f3f100ff36c577231",
+        "counters": {
+          "acceptance_path": "gpu_accept_commit",
+          "accepted_tokens": 694,
+          "adaptive": false,
+          "d1_groups": 0,
+          "d2_attention_path": "inactive",
+          "d2_groups": 0,
+          "d2_output_head_path": "inactive",
+          "d3_groups": 437,
+          "d4_groups": 0,
+          "device_control": "host_gpu_transition_parity",
+          "draft_tokens": 3,
+          "enabled": true,
+          "group_execution": "gpu_chained_fixed_d3_conditional_graph",
+          "host_synchronizations_per_chain": 0,
+          "host_synchronizations_per_group": 0,
+          "mean_accepted_length": 1.5881,
+          "ordinary_fallback_tokens": 0,
+          "proposed_tokens": 1311,
+          "rejected_tokens": 617,
+          "short_batch_projection_path": "decode_order_fp8_qkv_nvfp4_down_t_le_5",
+          "streaming": "mapped_pinned_spsc_ring_256",
+          "target_batches": 440,
+          "target_forwards": 1751,
+          "verification_groups": 437,
+          "verification_mode": "batched_exact_target"
+        },
+        "reference": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-fp8-packed/state-d3.json",
+        "diagnostic_only": true
+      }
+    },
+    "4": {
+      "previous_source": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-chain/final/gpu-d4.json",
+      "previous_median": 86.03488433846456,
+      "median": 97.17973108465948,
+      "relative_change": 0.12953869621478953,
+      "samples": [
+        97.3073160685785,
+        97.17973108465948,
+        97.12895710565985
+      ],
+      "warmups": 1,
+      "repetitions": 3,
+      "telemetry": {
+        "sample_period_ms": 200,
+        "sampled_peak_mib": 11771.0,
+        "temperature_min_c": 49.41,
+        "temperature_max_c": 74.94,
+        "sm_clock_max_mhz": 2632.0,
+        "power_peak_w": 176.63
+      },
+      "state": {
+        "all1135output_ids_exact": true,
+        "all_proposals_exact": true,
+        "whole_kv_bytes": 311287808,
+        "whole_kv_sha256": "6b03676412022f6be775dfec7ec4e9e68ef3d997a28e6f5f3f100ff36c577231",
+        "counters": {
+          "acceptance_path": "gpu_accept_commit",
+          "accepted_tokens": 721,
+          "adaptive": false,
+          "d1_groups": 0,
+          "d2_attention_path": "inactive",
+          "d2_groups": 0,
+          "d2_output_head_path": "inactive",
+          "d3_groups": 0,
+          "d4_groups": 410,
+          "device_control": "host_gpu_transition_parity",
+          "draft_tokens": 4,
+          "enabled": true,
+          "group_execution": "gpu_chained_fixed_d4_conditional_graph",
+          "host_synchronizations_per_chain": 0,
+          "host_synchronizations_per_group": 0,
+          "mean_accepted_length": 1.75854,
+          "ordinary_fallback_tokens": 0,
+          "proposed_tokens": 1640,
+          "rejected_tokens": 919,
+          "short_batch_projection_path": "decode_order_fp8_qkv_nvfp4_down_t_le_5",
+          "streaming": "mapped_pinned_spsc_ring_256",
+          "target_batches": 413,
+          "target_forwards": 2053,
+          "verification_groups": 410,
+          "verification_mode": "batched_exact_target"
+        },
+        "reference": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-chain/final/state-d4.json",
+        "diagnostic_only": true
+      }
+    }
+  },
+  "best_measured_depth": 3,
+  "dispatch": {
+    "d2": {
+      "diagnostic_only": true,
+      "groups": 16,
+      "kernel_events": 17616,
+      "wall_ms": 363.03875400000004,
+      "kernel_busy_union_ms": 356.91697900000327,
+      "non_kernel_interval_ms": 6.121774999996764,
+      "kernel_duration_sum_ms": 356.91697899999997,
+      "overlapping_kernel_ms": -3.259629011154175e-12,
+      "family_ms_per_group": {
+        "assistant_all": 3.141784187499981,
+        "commit_control": 0.09547243749999962,
+        "target_attention": 3.4374963124999875,
+        "target_down": 2.7224248750000037,
+        "target_fp8_qkv_o": 3.535705812499995,
+        "target_gateup": 4.294419375000002,
+        "target_head_selection": 2.5692877500000004,
+        "target_kv": 0.2861769375000015,
+        "target_norm_quant_rotary": 2.222889562499997,
+        "target_other": 0.0016539375000000005
+      },
+      "family_kernel_counts": {
+        "assistant_all": 2368,
+        "target_other": 16,
+        "target_norm_quant_rotary": 6928,
+        "target_fp8_qkv_o": 1536,
+        "target_kv": 2816,
+        "target_attention": 1536,
+        "target_gateup": 768,
+        "target_down": 768,
+        "target_head_selection": 32,
+        "commit_control": 848
+      },
+      "kernels": [
+        {
+          "name": "Sm120MatrixProjectionKernel",
+          "calls": 768,
+          "total_ms": 68.71071000000003
+        },
+        {
+          "name": "TwelveBPackedFp8ProjectionKernel",
+          "calls": 1536,
+          "total_ms": 56.57129299999992
+        },
+        {
+          "name": "Sm120D2DownFixedShapeKernel",
+          "calls": 768,
+          "total_ms": 43.55879800000006
+        },
+        {
+          "name": "FusedOutputHeadFixedBatchCandidatesKernel",
+          "calls": 16,
+          "total_ms": 41.04278200000001
+        },
+        {
+          "name": "SplitOnlineDecodeAttentionFp8GlobalGqaKernel",
+          "calls": 160,
+          "total_ms": 37.646887
+        },
+        {
+          "name": "SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel",
+          "calls": 640,
+          "total_ms": 21.020165
+        },
+        {
+          "name": "AssistantOutputCandidatesKernel",
+          "calls": 32,
+          "total_ms": 20.861405
+        },
+        {
+          "name": "Bf16GemvExactTreeKernel",
+          "calls": 672,
+          "total_ms": 15.603694000000004
+        },
+        {
+          "name": "TwelveBPostAttentionQuantizeT3Kernel",
+          "calls": 768,
+          "total_ms": 9.393419999999994
+        },
+        {
+          "name": "RmsNormResidualBf16Kernel",
+          "calls": 1024,
+          "total_ms": 9.080742999999977
+        },
+        {
+          "name": "RmsNormQuantizeTokenKernel",
+          "calls": 768,
+          "total_ms": 8.862846000000005
+        },
+        {
+          "name": "QuantizeTokenReferenceKernel",
+          "calls": 768,
+          "total_ms": 3.8349870000000066
+        },
+        {
+          "name": "SplitOnlineDecodeAttentionFp8Kernel",
+          "calls": 96,
+          "total_ms": 2.819686000000001
+        },
+        {
+          "name": "RmsNormKernel",
+          "calls": 1200,
+          "total_ms": 2.4377579999999996
+        },
+        {
+          "name": "CopyCircularMtpKvControlledKernel",
+          "calls": 1280,
+          "total_ms": 2.3287859999999996
+        },
+        {
+          "name": "ProjectionRmsNormRotaryBf16BatchControlledKernel",
+          "calls": 768,
+          "total_ms": 1.668961000000003
+        },
+        {
+          "name": "MergeOnlineDecodeAttentionFp8LocalFixedKernel",
+          "calls": 640,
+          "total_ms": 1.4255080000000044
+        },
+        {
+          "name": "RoundBf16Kernel",
+          "calls": 1920,
+          "total_ms": 1.3628980000000086
+        },
+        {
+          "name": "QuantizeActivationReferenceKernel",
+          "calls": 768,
+          "total_ms": 1.3555639999999964
+        },
+        {
+          "name": "CommitMtpKvControlledD2Kernel",
+          "calls": 768,
+          "total_ms": 1.319115999999995
+        },
+        {
+          "name": "ControlledRotaryKernel",
+          "calls": 128,
+          "total_ms": 1.2888510000000009
+        },
+        {
+          "name": "QuantizeKvBatchKernel",
+          "calls": 768,
+          "total_ms": 1.1259980000000038
+        },
+        {
+          "name": "AppendKvBatchControlledKernel",
+          "calls": 768,
+          "total_ms": 1.1240470000000005
+        },
+        {
+          "name": "PreProjectionKernel",
+          "calls": 32,
+          "total_ms": 1.095373
+        },
+        {
+          "name": "MergeOnlineDecodeAttentionGlobalBatchKernel",
+          "calls": 128,
+          "total_ms": 0.5223550000000001
+        },
+        {
+          "name": "MergeOnlineDecodeAttentionKernel",
+          "calls": 128,
+          "total_ms": 0.30047000000000024
+        },
+        {
+          "name": "AssistantOutputArgmaxKernel",
+          "calls": 32,
+          "total_ms": 0.11747100000000002
+        },
+        {
+          "name": "GeluTanhProductKernel",
+          "calls": 128,
+          "total_ms": 0.09596699999999994
+        },
+        {
+          "name": "AdvanceMtpD2ChainKernel",
+          "calls": 16,
+          "total_ms": 0.08905400000000001
+        },
+        {
+          "name": "OutputHeadArgmaxKernel",
+          "calls": 16,
+          "total_ms": 0.065822
+        },
+        {
+          "name": "AcceptMtpGroupKernel",
+          "calls": 16,
+          "total_ms": 0.051902000000000004
+        },
+        {
+          "name": "ContinueMtpChainKernel",
+          "calls": 16,
+          "total_ms": 0.031616
+        },
+        {
+          "name": "BuildControlledMtpInputsKernel",
+          "calls": 16,
+          "total_ms": 0.02649600000000001
+        },
+        {
+          "name": "EmbeddingBatchKernel",
+          "calls": 16,
+          "total_ms": 0.026463000000000007
+        },
+        {
+          "name": "CommitMtpHiddenKernel",
+          "calls": 16,
+          "total_ms": 0.018654999999999998
+        },
+        {
+          "name": "SelectMtpChainBranchKernel",
+          "calls": 16,
+          "total_ms": 0.01721600000000001
+        },
+        {
+          "name": "InitializeControlledAssistantKernel",
+          "calls": 16,
+          "total_ms": 0.013216000000000004
+        }
+      ],
+      "all_group_boundaries": 57,
+      "capture_runtime_api_counts": {
+        "cudaStreamBeginCapture_v10000": 100,
+        "cudaLaunchKernel_v7000": 4801,
+        "cudaStreamEndCapture_v10000": 102,
+        "cudaGraphInstantiate_v12000": 99,
+        "cudaMemcpyAsync_v3020": 238,
+        "cudaGraphCreate_v10000": 1,
+        "cudaGraphAddNode_v12030": 3,
+        "cudaGraphAddChildGraphNode_v10000": 2,
+        "cudaMemsetAsync_v3020": 1,
+        "cudaGraphLaunch_v10000": 1,
+        "cudaMemcpy_v3020": 4
+      },
+      "engine_mtp": {
+        "enabled": true,
+        "verification_mode": "batched_exact_target",
+        "acceptance_path": "gpu_accept_commit",
+        "device_control": "host_gpu_transition_parity",
+        "group_execution": "gpu_chained_fixed_d2_conditional_graph",
+        "host_synchronizations_per_group": 0,
+        "host_synchronizations_per_chain": 0,
+        "streaming": "mapped_pinned_spsc_ring_256",
+        "short_batch_projection_path": "decode_order_fp8_t3_vector_stage_scale_store_qkv_o_nvfp4_down8",
+        "d2_attention_path": "global_t3_kvh2_shared_kv_tile32_local_t3_shared_kv_exact",
+        "d2_output_head_path": "fixed_rows_3_exact_softcap",
+        "adaptive": false,
+        "draft_tokens": 2,
+        "d1_groups": 0,
+        "d2_groups": 57,
+        "d3_groups": 0,
+        "d4_groups": 0,
+        "ordinary_fallback_tokens": 0,
+        "proposed_tokens": 114,
+        "accepted_tokens": 68,
+        "rejected_tokens": 46,
+        "verification_groups": 57,
+        "target_forwards": 173,
+        "target_batches": 59,
+        "mean_accepted_length": 1.19298
+      }
+    },
+    "d3": {
+      "diagnostic_only": true,
+      "groups": 16,
+      "kernel_events": 18784,
+      "wall_ms": 412.858732,
+      "kernel_busy_union_ms": 406.7098439999826,
+      "non_kernel_interval_ms": 6.148888000017381,
+      "kernel_duration_sum_ms": 406.709844,
+      "overlapping_kernel_ms": 1.7404090613126754e-11,
+      "family_ms_per_group": {
+        "assistant_all": 4.572529624999985,
+        "commit_control": 0.09553412499999972,
+        "target_attention": 5.010274000000002,
+        "target_down": 2.702063000000002,
+        "target_fp8_qkv_o": 3.5355955625000037,
+        "target_gateup": 4.181788062500004,
+        "target_head_selection": 2.8410553125,
+        "target_kv": 0.2719733750000028,
+        "target_norm_quant_rotary": 2.2070381874999723,
+        "target_other": 0.0015140000000000002
+      },
+      "family_kernel_counts": {
+        "assistant_all": 3536,
+        "target_other": 16,
+        "target_norm_quant_rotary": 6928,
+        "target_fp8_qkv_o": 1536,
+        "target_kv": 2816,
+        "target_attention": 1536,
+        "target_gateup": 768,
+        "target_down": 768,
+        "target_head_selection": 32,
+        "commit_control": 848
+      },
+      "kernels": [
+        {
+          "name": "Sm120MatrixProjectionKernel",
+          "calls": 768,
+          "total_ms": 66.90860900000007
+        },
+        {
+          "name": "SplitOnlineDecodeAttentionFp8GlobalGqaKernel",
+          "calls": 176,
+          "total_ms": 60.27829500000002
+        },
+        {
+          "name": "TwelveBPackedFp8ProjectionKernel",
+          "calls": 1536,
+          "total_ms": 56.56952900000006
+        },
+        {
+          "name": "FusedOutputHeadFixedBatchCandidatesKernel",
+          "calls": 16,
+          "total_ms": 45.393301
+        },
+        {
+          "name": "Sm120D3DownFixedShapeKernel",
+          "calls": 768,
+          "total_ms": 43.233008000000034
+        },
+        {
+          "name": "AssistantOutputCandidatesKernel",
+          "calls": 48,
+          "total_ms": 30.408243999999996
+        },
+        {
+          "name": "SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel",
+          "calls": 640,
+          "total_ms": 26.02521200000002
+        },
+        {
+          "name": "Bf16GemvExactTreeKernel",
+          "calls": 1008,
+          "total_ms": 22.721600999999954
+        },
+        {
+          "name": "RmsNormResidualBf16Kernel",
+          "calls": 1152,
+          "total_ms": 9.436441999999978
+        },
+        {
+          "name": "TwelveBPostAttentionQuantizeT4Kernel",
+          "calls": 768,
+          "total_ms": 9.19731200000001
+        },
+        {
+          "name": "RmsNormQuantizeTokenKernel",
+          "calls": 768,
+          "total_ms": 8.64407600000002
+        },
+        {
+          "name": "SplitOnlineDecodeAttentionFp8Kernel",
+          "calls": 144,
+          "total_ms": 4.129436999999999
+        },
+        {
+          "name": "QuantizeTokenReferenceKernel",
+          "calls": 768,
+          "total_ms": 3.758303000000008
+        },
+        {
+          "name": "RmsNormKernel",
+          "calls": 1408,
+          "total_ms": 2.9093659999999995
+        },
+        {
+          "name": "CopyCircularMtpKvControlledKernel",
+          "calls": 1280,
+          "total_ms": 2.344150000000012
+        },
+        {
+          "name": "ControlledRotaryKernel",
+          "calls": 192,
+          "total_ms": 1.8556089999999994
+        },
+        {
+          "name": "ProjectionRmsNormRotaryBf16BatchControlledKernel",
+          "calls": 768,
+          "total_ms": 1.746432000000008
+        },
+        {
+          "name": "PreProjectionKernel",
+          "calls": 48,
+          "total_ms": 1.6196850000000003
+        },
+        {
+          "name": "RoundBf16Kernel",
+          "calls": 2112,
+          "total_ms": 1.6132480000000153
+        },
+        {
+          "name": "QuantizeActivationReferenceKernel",
+          "calls": 768,
+          "total_ms": 1.5488110000000017
+        },
+        {
+          "name": "MergeOnlineDecodeAttentionFp8LocalFixedKernel",
+          "calls": 640,
+          "total_ms": 1.4104780000000046
+        },
+        {
+          "name": "CommitMtpKvControlledD2Kernel",
+          "calls": 768,
+          "total_ms": 1.3140919999999967
+        },
+        {
+          "name": "QuantizeKvBatchKernel",
+          "calls": 768,
+          "total_ms": 1.095440000000002
+        },
+        {
+          "name": "AppendKvBatchControlledKernel",
+          "calls": 768,
+          "total_ms": 0.9119840000000002
+        },
+        {
+          "name": "MergeOnlineDecodeAttentionGlobalBatchKernel",
+          "calls": 128,
+          "total_ms": 0.5581019999999997
+        },
+        {
+          "name": "MergeOnlineDecodeAttentionKernel",
+          "calls": 192,
+          "total_ms": 0.42539499999999975
+        },
+        {
+          "name": "AssistantOutputArgmaxKernel",
+          "calls": 48,
+          "total_ms": 0.17209500000000003
+        },
+        {
+          "name": "GeluTanhProductKernel",
+          "calls": 192,
+          "total_ms": 0.1372779999999996
+        },
+        {
+          "name": "AdvanceMtpD2ChainKernel",
+          "calls": 16,
+          "total_ms": 0.08940599999999999
+        },
+        {
+          "name": "OutputHeadArgmaxKernel",
+          "calls": 16,
+          "total_ms": 0.06358400000000002
+        },
+        {
+          "name": "AcceptMtpGroupKernel",
+          "calls": 16,
+          "total_ms": 0.05887600000000001
+        },
+        {
+          "name": "ContinueMtpChainKernel",
+          "calls": 16,
+          "total_ms": 0.030846000000000005
+        },
+        {
+          "name": "BuildControlledMtpInputsKernel",
+          "calls": 16,
+          "total_ms": 0.026304000000000008
+        },
+        {
+          "name": "EmbeddingBatchKernel",
+          "calls": 16,
+          "total_ms": 0.024224000000000002
+        },
+        {
+          "name": "CommitMtpHiddenKernel",
+          "calls": 16,
+          "total_ms": 0.018238
+        },
+        {
+          "name": "SelectMtpChainBranchKernel",
+          "calls": 16,
+          "total_ms": 0.017088000000000002
+        },
+        {
+          "name": "InitializeControlledAssistantKernel",
+          "calls": 16,
+          "total_ms": 0.015744000000000008
+        }
+      ],
+      "all_group_boundaries": 52,
+      "capture_runtime_api_counts": {
+        "cudaStreamBeginCapture_v10000": 100,
+        "cudaLaunchKernel_v7000": 4947,
+        "cudaStreamEndCapture_v10000": 102,
+        "cudaGraphInstantiate_v12000": 99,
+        "cudaMemcpyAsync_v3020": 238,
+        "cudaGraphCreate_v10000": 1,
+        "cudaGraphAddNode_v12030": 3,
+        "cudaGraphAddChildGraphNode_v10000": 2,
+        "cudaMemsetAsync_v3020": 1,
+        "cudaGraphLaunch_v10000": 1,
+        "cudaMemcpy_v3020": 4
+      },
+      "engine_mtp": {
+        "enabled": true,
+        "verification_mode": "batched_exact_target",
+        "acceptance_path": "gpu_accept_commit",
+        "device_control": "host_gpu_transition_parity",
+        "group_execution": "gpu_chained_fixed_d3_conditional_graph",
+        "host_synchronizations_per_group": 0,
+        "host_synchronizations_per_chain": 0,
+        "streaming": "mapped_pinned_spsc_ring_256",
+        "short_batch_projection_path": "decode_order_fp8_qkv_nvfp4_down_t_le_5",
+        "d2_attention_path": "inactive",
+        "d2_output_head_path": "inactive",
+        "adaptive": false,
+        "draft_tokens": 3,
+        "d1_groups": 0,
+        "d2_groups": 0,
+        "d3_groups": 52,
+        "d4_groups": 0,
+        "ordinary_fallback_tokens": 0,
+        "proposed_tokens": 156,
+        "accepted_tokens": 74,
+        "rejected_tokens": 82,
+        "verification_groups": 52,
+        "target_forwards": 209,
+        "target_batches": 53,
+        "mean_accepted_length": 1.42308
+      }
+    },
+    "d4": {
+      "diagnostic_only": true,
+      "groups": 16,
+      "kernel_events": 19952,
+      "wall_ms": 452.48234599999995,
+      "kernel_busy_union_ms": 446.19507500002373,
+      "non_kernel_interval_ms": 6.287270999976201,
+      "kernel_duration_sum_ms": 446.19507500000003,
+      "overlapping_kernel_ms": -2.37487256526947e-11,
+      "family_ms_per_group": {
+        "assistant_all": 6.061869624999966,
+        "commit_control": 0.09503662499999964,
+        "target_attention": 5.564934874999997,
+        "target_down": 2.711916999999999,
+        "target_fp8_qkv_o": 3.6023201874999944,
+        "target_gateup": 4.162950125,
+        "target_head_selection": 3.242552124999999,
+        "target_kv": 0.2799787499999999,
+        "target_norm_quant_rotary": 2.1639209374999693,
+        "target_other": 0.0017119375000000006
+      },
+      "family_kernel_counts": {
+        "assistant_all": 4704,
+        "target_other": 16,
+        "target_norm_quant_rotary": 6928,
+        "target_fp8_qkv_o": 1536,
+        "target_kv": 2816,
+        "target_attention": 1536,
+        "target_gateup": 768,
+        "target_down": 768,
+        "target_head_selection": 32,
+        "commit_control": 848
+      },
+      "kernels": [
+        {
+          "name": "Sm120MatrixProjectionKernel",
+          "calls": 768,
+          "total_ms": 66.607202
+        },
+        {
+          "name": "SplitOnlineDecodeAttentionFp8GlobalGqaKernel",
+          "calls": 192,
+          "total_ms": 62.46762399999999
+        },
+        {
+          "name": "TwelveBPackedFp8ProjectionKernel",
+          "calls": 1536,
+          "total_ms": 57.63712299999991
+        },
+        {
+          "name": "FusedOutputHeadFixedBatchCandidatesKernel",
+          "calls": 16,
+          "total_ms": 51.818180999999996
+        },
+        {
+          "name": "Sm120D4DownFixedShapeKernel",
+          "calls": 768,
+          "total_ms": 43.39067199999998
+        },
+        {
+          "name": "AssistantOutputCandidatesKernel",
+          "calls": 64,
+          "total_ms": 40.62179899999999
+        },
+        {
+          "name": "SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel",
+          "calls": 640,
+          "total_ms": 35.232720999999984
+        },
+        {
+          "name": "Bf16GemvExactTreeKernel",
+          "calls": 1344,
+          "total_ms": 30.000099999999968
+        },
+        {
+          "name": "RmsNormResidualBf16Kernel",
+          "calls": 1280,
+          "total_ms": 9.766426999999988
+        },
+        {
+          "name": "TwelveBPostAttentionQuantizeT5Kernel",
+          "calls": 768,
+          "total_ms": 9.077217000000019
+        },
+        {
+          "name": "RmsNormQuantizeTokenKernel",
+          "calls": 768,
+          "total_ms": 8.472586000000014
+        },
+        {
+          "name": "SplitOnlineDecodeAttentionFp8Kernel",
+          "calls": 192,
+          "total_ms": 5.455490999999996
+        },
+        {
+          "name": "QuantizeTokenReferenceKernel",
+          "calls": 768,
+          "total_ms": 3.656997000000001
+        },
+        {
+          "name": "RmsNormKernel",
+          "calls": 1616,
+          "total_ms": 3.4235500000000156
+        },
+        {
+          "name": "ControlledRotaryKernel",
+          "calls": 256,
+          "total_ms": 2.425521999999999
+        },
+        {
+          "name": "CopyCircularMtpKvControlledKernel",
+          "calls": 1280,
+          "total_ms": 2.3588689999999928
+        },
+        {
+          "name": "PreProjectionKernel",
+          "calls": 64,
+          "total_ms": 2.1518050000000004
+        },
+        {
+          "name": "ProjectionRmsNormRotaryBf16BatchControlledKernel",
+          "calls": 768,
+          "total_ms": 1.7103370000000044
+        },
+        {
+          "name": "RoundBf16Kernel",
+          "calls": 2304,
+          "total_ms": 1.654921000000021
+        },
+        {
+          "name": "QuantizeActivationReferenceKernel",
+          "calls": 768,
+          "total_ms": 1.5268249999999992
+        },
+        {
+          "name": "MergeOnlineDecodeAttentionFp8LocalFixedKernel",
+          "calls": 640,
+          "total_ms": 1.4442270000000055
+        },
+        {
+          "name": "CommitMtpKvControlledD2Kernel",
+          "calls": 768,
+          "total_ms": 1.3041099999999957
+        },
+        {
+          "name": "QuantizeKvBatchKernel",
+          "calls": 768,
+          "total_ms": 1.0810710000000006
+        },
+        {
+          "name": "AppendKvBatchControlledKernel",
+          "calls": 768,
+          "total_ms": 1.0397200000000046
+        },
+        {
+          "name": "MergeOnlineDecodeAttentionKernel",
+          "calls": 256,
+          "total_ms": 0.5644359999999993
+        },
+        {
+          "name": "MergeOnlineDecodeAttentionGlobalBatchKernel",
+          "calls": 128,
+          "total_ms": 0.5516089999999997
+        },
+        {
+          "name": "AssistantOutputArgmaxKernel",
+          "calls": 64,
+          "total_ms": 0.22847400000000004
+        },
+        {
+          "name": "GeluTanhProductKernel",
+          "calls": 256,
+          "total_ms": 0.18114899999999967
+        },
+        {
+          "name": "AdvanceMtpD2ChainKernel",
+          "calls": 16,
+          "total_ms": 0.098558
+        },
+        {
+          "name": "OutputHeadArgmaxKernel",
+          "calls": 16,
+          "total_ms": 0.062653
+        },
+        {
+          "name": "AcceptMtpGroupKernel",
+          "calls": 16,
+          "total_ms": 0.05247900000000001
+        },
+        {
+          "name": "ContinueMtpChainKernel",
+          "calls": 16,
+          "total_ms": 0.031136000000000004
+        },
+        {
+          "name": "EmbeddingBatchKernel",
+          "calls": 16,
+          "total_ms": 0.02739100000000001
+        },
+        {
+          "name": "BuildControlledMtpInputsKernel",
+          "calls": 16,
+          "total_ms": 0.025055000000000008
+        },
+        {
+          "name": "CommitMtpHiddenKernel",
+          "calls": 16,
+          "total_ms": 0.018527
+        },
+        {
+          "name": "SelectMtpChainBranchKernel",
+          "calls": 16,
+          "total_ms": 0.015776000000000005
+        },
+        {
+          "name": "InitializeControlledAssistantKernel",
+          "calls": 16,
+          "total_ms": 0.012735000000000003
+        }
+      ],
+      "all_group_boundaries": 47,
+      "capture_runtime_api_counts": {
+        "cudaStreamBeginCapture_v10000": 100,
+        "cudaLaunchKernel_v7000": 5093,
+        "cudaStreamEndCapture_v10000": 102,
+        "cudaGraphInstantiate_v12000": 99,
+        "cudaMemcpyAsync_v3020": 238,
+        "cudaGraphCreate_v10000": 1,
+        "cudaGraphAddNode_v12030": 3,
+        "cudaGraphAddChildGraphNode_v10000": 2,
+        "cudaMemsetAsync_v3020": 1,
+        "cudaGraphLaunch_v10000": 1,
+        "cudaMemcpy_v3020": 4
+      },
+      "engine_mtp": {
+        "enabled": true,
+        "verification_mode": "batched_exact_target",
+        "acceptance_path": "gpu_accept_commit",
+        "device_control": "host_gpu_transition_parity",
+        "group_execution": "gpu_chained_fixed_d4_conditional_graph",
+        "host_synchronizations_per_group": 0,
+        "host_synchronizations_per_chain": 0,
+        "streaming": "mapped_pinned_spsc_ring_256",
+        "short_batch_projection_path": "decode_order_fp8_qkv_nvfp4_down_t_le_5",
+        "d2_attention_path": "inactive",
+        "d2_output_head_path": "inactive",
+        "adaptive": false,
+        "draft_tokens": 4,
+        "d1_groups": 0,
+        "d2_groups": 0,
+        "d3_groups": 0,
+        "d4_groups": 47,
+        "ordinary_fallback_tokens": 0,
+        "proposed_tokens": 188,
+        "accepted_tokens": 80,
+        "rejected_tokens": 108,
+        "verification_groups": 47,
+        "target_forwards": 235,
+        "target_batches": 47,
+        "mean_accepted_length": 1.70213
+      }
+    },
+    "d2_dispatch_changes": {
+      "removed": [
+        {
+          "identity": [
+            "target_fp8_qkv_o",
+            "[128, 1, 3]",
+            "[128, 1, 1]",
+            "46",
+            "11520",
+            "void gem16::internal::<unnamed>::Sm120DirectProjectionFixedBatchKernel<(unsigned int)3>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)"
+          ],
+          "calls": 640
+        },
+        {
+          "identity": [
+            "target_attention",
+            "[64, 1, 1]",
+            "[256, 1, 1]",
+            "108",
+            "36376",
+            "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel<(int)3>(const float *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, const gem16::internal::DecodeControl *, int)"
+          ],
+          "calls": 640
+        },
+        {
+          "identity": [
+            "target_fp8_qkv_o",
+            "[120, 1, 1]",
+            "[128, 1, 1]",
+            "46",
+            "12288",
+            "void gem16::internal::<unnamed>::Sm120DirectProjectionFixedBatchKernel<(unsigned int)3>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)"
+          ],
+          "calls": 640
+        },
+        {
+          "identity": [
+            "target_fp8_qkv_o",
+            "[256, 1, 2]",
+            "[128, 1, 1]",
+            "46",
+            "11520",
+            "void gem16::internal::<unnamed>::Sm120DirectProjectionFixedBatchKernel<(unsigned int)3>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)"
+          ],
+          "calls": 128
+        },
+        {
+          "identity": [
+            "target_fp8_qkv_o",
+            "[120, 1, 1]",
+            "[128, 1, 1]",
+            "46",
+            "24576",
+            "void gem16::internal::<unnamed>::Sm120DirectProjectionFixedBatchKernel<(unsigned int)3>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)"
+          ],
+          "calls": 128
+        }
+      ],
+      "added": [
+        {
+          "identity": [
+            "target_fp8_qkv_o",
+            "[128, 1, 3]",
+            "[128, 1, 1]",
+            "36",
+            "11616",
+            "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)3>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)"
+          ],
+          "calls": 640
+        },
+        {
+          "identity": [
+            "target_attention",
+            "[64, 1, 1]",
+            "[256, 1, 1]",
+            "103",
+            "36376",
+            "void gem16::internal::<unnamed>::SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel<(int)3, (bool)1>(const float *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *, const unsigned short *, const unsigned short *, float *, float *, const gem16::internal::DecodeControl *, int)"
+          ],
+          "calls": 640
+        },
+        {
+          "identity": [
+            "target_fp8_qkv_o",
+            "[120, 1, 1]",
+            "[128, 1, 1]",
+            "36",
+            "12384",
+            "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)3>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)"
+          ],
+          "calls": 640
+        },
+        {
+          "identity": [
+            "target_fp8_qkv_o",
+            "[256, 1, 2]",
+            "[128, 1, 1]",
+            "36",
+            "11616",
+            "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)3>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)"
+          ],
+          "calls": 128
+        },
+        {
+          "identity": [
+            "target_fp8_qkv_o",
+            "[120, 1, 1]",
+            "[128, 1, 1]",
+            "36",
+            "24672",
+            "void gem16::internal::<unnamed>::TwelveBPackedFp8ProjectionKernel<(unsigned int)3>(const unsigned char *, const float *, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, gem16::internal::<unnamed>::Fp8MatrixBinding, unsigned int, unsigned long)"
+          ],
+          "calls": 128
+        }
+      ]
+    },
+    "d2_prior_dispatch_identities_exact": false
+  },
+  "window_boundary": {
+    "cases": {
+      "prompt-1019-d2": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "8f09f98388ce8e873697ec5828cfbcbbb5b07daac8dd0ea5fac5a753c4248ffc"
+      },
+      "prompt-1020-d2": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "299115dda299458fb0fde4a5f18b17ee3119f34ded2c83acc5016d4645da6193"
+      },
+      "prompt-1021-d2": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "fc431b010e1177a5e2ad63cdb3f01a77af8204834bf6fec9ae8c9e9685f5820f"
+      },
+      "prompt-1022-d2": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "7462b0b488c5c469eaa88c577fefdee85a25b694673955ab10f66732c41e5e50"
+      },
+      "prompt-1023-d2": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "adf6db879c8e30ae6de36ddade74294045fe1c7f1b4d984baee2b3980b89590e"
+      },
+      "prompt-1019-d3": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "8f09f98388ce8e873697ec5828cfbcbbb5b07daac8dd0ea5fac5a753c4248ffc"
+      },
+      "prompt-1020-d3": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "299115dda299458fb0fde4a5f18b17ee3119f34ded2c83acc5016d4645da6193"
+      },
+      "prompt-1021-d3": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "fc431b010e1177a5e2ad63cdb3f01a77af8204834bf6fec9ae8c9e9685f5820f"
+      },
+      "prompt-1022-d3": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "7462b0b488c5c469eaa88c577fefdee85a25b694673955ab10f66732c41e5e50"
+      },
+      "prompt-1023-d3": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "adf6db879c8e30ae6de36ddade74294045fe1c7f1b4d984baee2b3980b89590e"
+      },
+      "prompt-1019-d4": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "8f09f98388ce8e873697ec5828cfbcbbb5b07daac8dd0ea5fac5a753c4248ffc"
+      },
+      "prompt-1020-d4": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "299115dda299458fb0fde4a5f18b17ee3119f34ded2c83acc5016d4645da6193"
+      },
+      "prompt-1021-d4": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "fc431b010e1177a5e2ad63cdb3f01a77af8204834bf6fec9ae8c9e9685f5820f"
+      },
+      "prompt-1022-d4": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "7462b0b488c5c469eaa88c577fefdee85a25b694673955ab10f66732c41e5e50"
+      },
+      "prompt-1023-d4": {
+        "output_and_whole_kv_exact": true,
+        "kv_sha256": "adf6db879c8e30ae6de36ddade74294045fe1c7f1b4d984baee2b3980b89590e"
+      }
+    },
+    "ordinary_reference": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-chain/final/window-boundary-validation.json"
+  },
+  "protected": {
+    "protected": {
+      "protected-text-12b-candidate-0": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-text-12b-candidate-1": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-text-12b-candidate-2": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-text-12b-candidate-4": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-bf16kv-12b-candidate-0": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-bf16kv-12b-candidate-2": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-media-12b-image-candidate-0": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-media-12b-image-candidate-2": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-media-12b-audio-candidate-0": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-media-12b-audio-candidate-2": {
+        "exact_to_fresh_parent_reference": true
+      },
+      "protected-media-12b-image-candidate-3": {
+        "exact": true
+      },
+      "protected-media-12b-audio-candidate-3": {
+        "exact": true
+      },
+      "protected-bf16kv-12b-candidate-3": {
+        "exact": true
+      },
+      "protected-media-12b-image-candidate-4": {
+        "exact": true
+      },
+      "protected-media-12b-audio-candidate-4": {
+        "exact": true
+      },
+      "protected-bf16kv-12b-candidate-4": {
+        "exact": true
+      },
+      "protected-text-12b-candidate-3": {
+        "exact": true
+      },
+      "small-context": {
+        "pass": true
+      },
+      "adaptive-rejected": {
+        "pass": true
+      },
+      "chat-d2-sampled0": {
+        "all17cases_exact": true
+      },
+      "chat-d3-sampled0": {
+        "all17cases_exact": true
+      },
+      "chat-d4-sampled0": {
+        "all17cases_exact": true
+      },
+      "chat-d2-sampled1": {
+        "all17cases_exact": true
+      },
+      "chat-d3-sampled1": {
+        "all17cases_exact": true
+      },
+      "chat-d4-sampled1": {
+        "all17cases_exact": true
+      }
+    },
+    "cuda_tests": "pass",
+    "host_tests": "see host-tests.log",
+    "sampled_seeds": [
+      0,
+      1,
+      42
+    ],
+    "sampled_depths": [
+      2,
+      3,
+      4
+    ],
+    "interactive_two_turn_sampled_chat": "pass"
+  },
+  "sanitizers": {
+    "passed": [
+      "mtp-control-memcheck",
+      "operator-t3-memcheck",
+      "operator-t4-memcheck",
+      "operator-t5-memcheck",
+      "attention-t3-memcheck",
+      "mtp-control-synccheck",
+      "operator-t3-synccheck",
+      "operator-t4-synccheck",
+      "operator-t5-synccheck",
+      "attention-t3-synccheck",
+      "mtp-control-racecheck",
+      "operator-t3-racecheck",
+      "operator-t4-racecheck",
+      "operator-t5-racecheck",
+      "attention-t3-racecheck",
+      "wrapped-d2-model-memcheck",
+      "wrapped-d3-model-memcheck",
+      "wrapped-d4-model-memcheck"
+    ],
+    "full_conditional_synccheck": "not passed: inherited Assistant PreProjection report reproduced by old D2",
+    "full_conditional_racecheck": "not claimed; earlier direct model racecheck timed out",
+    "unchanged_T4_T5_attention_scoped_reference": "/home/sebastian/Development/gem16gb/benchmarks/results/2026-11-17/d3-chain/final/sanitizer-validation.json"
+  },
+  "server": {
+    "2": {
+      "health_fixed_depth": 2,
+      "two_http_turns": true,
+      "frequency_presence_penalties": true,
+      "d3_group_metric_positive": true
+    },
+    "3": {
+      "health_fixed_depth": 3,
+      "two_http_turns": true,
+      "frequency_presence_penalties": true,
+      "d3_group_metric_positive": true
+    },
+    "4": {
+      "health_fixed_depth": 4,
+      "two_http_turns": true,
+      "frequency_presence_penalties": true,
+      "d3_group_metric_positive": true
+    }
+  },
+  "limitations": [
+    "D2 has no demonstrated throughput gain; old/new medians are descriptive separate cohorts, not fresh paired AB/BA significance tests.",
+    "Unfiltered full conditional-model synccheck remains unresolved in unchanged Assistant PreProjection; pinned old D2 reproduces it. New operators and12B boundary path pass scoped checks; full-model memcheck passes.",
+    "Full conditional-model racecheck is not claimed; earlier direct D4 run hit600s. No false-positive waiver.",
+    "Short diagnostic traces use128 outputs and the same selected16 complete groups; primary cohorts remain1135 outputs.",
+    "SQLite traces retained as losslessly compressed payloads with uncompressed SHA256; NVML peaks sampled every200ms, not instantaneous maxima."
+  ]
+}
