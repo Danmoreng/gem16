@@ -675,8 +675,9 @@ void TestCutlassSm120Projection() {
         (((index * 7U + 9U) & 0x0FU) << 4U));
   }
   for (std::size_t index = 0; index < activation_scales.size(); ++index) {
+    const std::size_t row = index / (k_size / 16U);
     activation_scales[index] =
-        std::array<std::uint8_t, 3>{0x30U, 0x38U, 0x40U}[index % 3U];
+        std::array<std::uint8_t, 3>{0x30U, 0x38U, 0x40U}[(index + row) % 3U];
   }
   for (std::size_t index = 0; index < weight_scales.size(); ++index) {
     weight_scales[index] =
@@ -882,6 +883,53 @@ void TestCutlassSm120Projection() {
   }
   CUDA_TEST_CHECK(product_reference == product_fused);
   CUDA_TEST_CHECK(product_scales_reference == product_scales_fused);
+
+  if (rows == 3840U && k_size == 15360U) {
+    // The direct path reads two 16-token MMA tiles from the CUTLASS scale
+    // layout. Use non-power-of-two divisors to cover its exact BF16 epilogue.
+    constexpr float short_activation_divisor = 53.44140625F;
+    constexpr float short_weight_divisor = 23.8125F;
+    for (const std::size_t short_tokens : {1U, 16U, 17U, 31U, 32U}) {
+      const auto short_interleave =
+          gem16::internal::LaunchNvfp4CutlassInterleaveActivationScales(
+              device_activation_scales.get(),
+              device_interleaved_activation_scales.get(), short_tokens,
+              k_size, nullptr);
+      const auto short_direct =
+          gem16::internal::LaunchTwelveBNvfp4ShortPrefillDown(
+              device_activation.get(), device_interleaved_activation_scales.get(),
+              device_weight.get(), device_weight_scales.get(), device_reference.get(),
+              short_tokens, short_activation_divisor, short_weight_divisor,
+              nullptr);
+      const auto short_cutlass =
+          gem16::internal::LaunchNvfp4CutlassProjectionBf16Batch(
+              device_activation.get(), device_interleaved_activation_scales.get(),
+              device_weight.get(), device_weight_scales.get(),
+              device_weight_scratch.get(), device_weight_scale_scratch.get(),
+              device_workspace.get(), workspace_bytes, device_cutlass.get(),
+              short_tokens, rows, k_size, short_activation_divisor,
+              short_weight_divisor, nullptr);
+      CUDA_TEST_CHECK(short_interleave.ok());
+      CUDA_TEST_CHECK(short_direct.ok());
+      CUDA_TEST_CHECK(short_cutlass.ok());
+      if (!short_interleave.ok() || !short_direct.ok() || !short_cutlass.ok()) {
+        return;
+      }
+      const std::size_t compared = short_tokens * rows;
+      const std::size_t bytes = compared * sizeof(std::uint16_t);
+      if (!CudaOk(cudaMemcpy(reference_bits.data(), device_reference.get(),
+                             bytes, cudaMemcpyDeviceToHost),
+                  "copy direct short Down output") ||
+          !CudaOk(cudaMemcpy(cutlass_bits.data(), device_cutlass.get(), bytes,
+                             cudaMemcpyDeviceToHost),
+                  "copy CUTLASS short Down output")) {
+        return;
+      }
+      CUDA_TEST_CHECK(std::equal(reference_bits.begin(),
+                                 reference_bits.begin() + compared,
+                                 cutlass_bits.begin()));
+    }
+  }
   };
   run_case(2048U, 128U, 3840U, "CUTLASS NVFP4 Gate/Up projection");
   run_case(129U, 15360U, 3840U,

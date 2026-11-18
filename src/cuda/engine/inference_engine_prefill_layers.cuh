@@ -639,6 +639,11 @@
           layer.down.scales, down_bf16, tokens, layer.down.rows,
           layer.down.contracting, layer.down.input_divisor,
           layer.down.weight_divisor, stream_);
+    } else if (tokens <= internal::kTwelveBShortPrefillDownMaxTokens) {
+      status = internal::LaunchTwelveBNvfp4ShortPrefillDown(
+          down_packed, cutlass_product_scales, layer.down.packed_weight,
+          layer.down.scales, down_bf16, tokens, layer.down.input_divisor,
+          layer.down.weight_divisor, stream_);
     } else {
       status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
           down_packed, cutlass_product_scales, layer.down.packed_weight,

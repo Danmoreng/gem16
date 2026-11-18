@@ -957,7 +957,7 @@ void Sm120FusedGateUpKernel(
 
 template <bool kFusedGateUp, std::uint64_t kTokenTiles,
           unsigned kBlockWarps, bool kStageActivation,
-          typename Output = float>
+          typename Output = float, bool kTwelveBShortPrefillDown = false>
 __global__ void Sm120MatrixProjectionKernel(
     const std::uint8_t* packed_activation_e2m1,
     const std::uint8_t* activation_scales_e4m3fn,
@@ -971,6 +971,9 @@ __global__ void Sm120MatrixProjectionKernel(
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
   static_assert(kTokenTiles >= 1U);
   static_assert(kBlockWarps >= 1U);
+  static_assert(!kTwelveBShortPrefillDown ||
+                (!kFusedGateUp && !kStageActivation &&
+                 std::is_same_v<Output, std::uint16_t>));
   constexpr unsigned kStagedTokens =
       static_cast<unsigned>(kTokensPerMma * kTokenTiles);
   constexpr unsigned kPackedWordsPerKBlock =
@@ -1108,11 +1111,21 @@ __global__ void Sm120MatrixProjectionKernel(
         const std::uint64_t scale_token =
             token_low + static_cast<std::uint64_t>(thread_in_group) * 8U;
         if (scale_token < tokens) {
-          scale_a = kStageActivation
-              ? staged_activation_scales[current_stage]
-                    [staged_low + thread_in_group * 8U]
-              : LoadU32(activation_scales_e4m3fn +
-                        scale_token * activation_scale_row_bytes + k_block * 4U);
+          if constexpr (kTwelveBShortPrefillDown) {
+            // The first 32 rows of each 128-row CUTLASS scale tile
+            // occupy every fourth word. Each K64 block owns one tile.
+            constexpr unsigned kScaleTileBytes = 128U * 4U;
+            constexpr unsigned kScaleRowStride = 4U * 4U;
+            scale_a = LoadU32(activation_scales_e4m3fn +
+                              k_block * kScaleTileBytes +
+                              scale_token * kScaleRowStride);
+          } else {
+            scale_a = kStageActivation
+                ? staged_activation_scales[current_stage]
+                      [staged_low + thread_in_group * 8U]
+                : LoadU32(activation_scales_e4m3fn +
+                          scale_token * activation_scale_row_bytes + k_block * 4U);
+          }
         }
       }
       MmaNvfp4(accumulator[tile][0], accumulator[tile][1],
@@ -1143,10 +1156,17 @@ __global__ void Sm120MatrixProjectionKernel(
             token_base + tile * kTokensPerMma + group + token_half * 8U;
         if (token >= tokens || output_column + 1U >= rows) continue;
         const unsigned pair = token_half * 2U;
-        const std::uint32_t low = __bfloat16_as_ushort(__float2bfloat16_rn(
-            accumulator[tile][pair] / output_divisor));
-        const std::uint32_t high = __bfloat16_as_ushort(__float2bfloat16_rn(
-            accumulator[tile][pair + 1U] / output_divisor));
+        // The prefill caller passes the CUTLASS epilogue's reciprocal.
+        const float low_value = kTwelveBShortPrefillDown
+            ? accumulator[tile][pair] * output_divisor
+            : accumulator[tile][pair] / output_divisor;
+        const float high_value = kTwelveBShortPrefillDown
+            ? accumulator[tile][pair + 1U] * output_divisor
+            : accumulator[tile][pair + 1U] / output_divisor;
+        const std::uint32_t low =
+            __bfloat16_as_ushort(__float2bfloat16_rn(low_value));
+        const std::uint32_t high =
+            __bfloat16_as_ushort(__float2bfloat16_rn(high_value));
         *reinterpret_cast<std::uint32_t*>(
             output + token * rows + output_column) = low | (high << 16U);
       }
@@ -2155,6 +2175,36 @@ Status LaunchNvfp4Sm120DirectProjectionBf16Batch(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch batched SM120 NVFP4 BF16 projection", error);
+}
+
+Status LaunchTwelveBNvfp4ShortPrefillDown(
+    const std::uint8_t* activation, const std::uint8_t* interleaved_scales,
+    const std::uint8_t* weight, const std::uint8_t* weight_scales,
+    std::uint16_t* output_bf16, std::uint64_t tokens,
+    float activation_divisor, float weight_divisor, cudaStream_t stream) {
+  constexpr unsigned kRows = 3840U;
+  constexpr unsigned kContractingElements = 15360U;
+  static_assert(kTwelveBShortPrefillDownMaxTokens <= 32U);
+  static_assert(kRows % (kWarpsPerBlock * kRowsPerWarp) == 0U);
+  if (activation == nullptr || interleaved_scales == nullptr ||
+      weight == nullptr || weight_scales == nullptr || output_bf16 == nullptr ||
+      tokens == 0U || tokens > kTwelveBShortPrefillDownMaxTokens ||
+      !PositiveFinite(activation_divisor) || !PositiveFinite(weight_divisor)) {
+    return Invalid("invalid NVFP4 12B short prefill Down arguments");
+  }
+  const float alpha = 1.0F / (activation_divisor * weight_divisor);
+  const dim3 grid(static_cast<unsigned>(kRows / (kWarpsPerBlock * kRowsPerWarp)),
+                  static_cast<unsigned>((tokens + kTokensPerMma - 1U) /
+                                        kTokensPerMma));
+  Sm120MatrixProjectionKernel<false, 1U, kWarpsPerBlock, false, std::uint16_t,
+                              true><<<grid, kThreadsPerBlock, 0, stream>>>(
+      activation, interleaved_scales, weight, weight_scales,
+      nullptr, nullptr, nullptr, nullptr, output_bf16, tokens, kRows,
+      kContractingElements, alpha, 1.0F);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch NVFP4 12B short prefill Down", error);
 }
 
 Status LaunchNvfp4Sm120FusedGateUp(

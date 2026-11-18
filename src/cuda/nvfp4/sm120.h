@@ -15,6 +15,16 @@ struct Nvfp4ProjectionCandidate {
   std::uint32_t token = 0U;
 };
 
+inline constexpr std::uint64_t kTwelveBShortPrefillDownMaxTokens = 32U;
+
+// Fixed 12B Down geometry. Consume the resident Row8/K64 weights directly
+// and the CUTLASS-interleaved activation scales from the gated Up epilogue.
+[[nodiscard]] Status LaunchTwelveBNvfp4ShortPrefillDown(
+    const std::uint8_t* activation, const std::uint8_t* interleaved_scales,
+    const std::uint8_t* weight, const std::uint8_t* weight_scales,
+    std::uint16_t* output_bf16, std::uint64_t tokens,
+    float activation_divisor, float weight_divisor, cudaStream_t stream);
+
 // Native SM120a W4A4 projection. Packed weight and weight-scale bytes must use
 // TileSm120Nvfp4Weights/TileSm120Nvfp4WeightScales' exact 8-row/K64 runtime order. Nibbles remain
 // low-first within each packed byte; activation values and scales remain compact row-major.
