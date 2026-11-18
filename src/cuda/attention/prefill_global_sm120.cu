@@ -305,6 +305,50 @@ __device__ __forceinline__ void ConvertGlobalFp8Value(
   }
 }
 
+__device__ __forceinline__ void StoreScaledGlobalFp8x4(
+    __nv_bfloat16* output, std::uint32_t word, __nv_bfloat16 scale) {
+  // E4M3 widens exactly to BF16. Its product with a BF16 scale fits in
+  // FP32's significand, so rounding both lanes directly to BF16 gives
+  // the same stored values as the scalar FP32 multiply and BF16 store.
+  const auto scales = __halves2bfloat162(scale, scale);
+  const auto lower = __nv_bfloat162(__nv_cvt_fp8x2_to_bf162raw(
+      static_cast<std::uint16_t>(word), __NV_E4M3));
+  const auto upper = __nv_bfloat162(__nv_cvt_fp8x2_to_bf162raw(
+      static_cast<std::uint16_t>(word >> 16U), __NV_E4M3));
+  *reinterpret_cast<__nv_bfloat162*>(output) = __hmul2_rn(lower, scales);
+  *reinterpret_cast<__nv_bfloat162*>(output + 2) = __hmul2_rn(upper, scales);
+}
+
+template <bool kValue>
+__device__ __forceinline__ void ConvertGlobalPackedFp8(
+    __nv_bfloat16* destination, const std::uint8_t* source,
+    __nv_bfloat16 scale, int thread) {
+  constexpr int kElementsPerVector = 16;
+  constexpr int kVectorsPerRow = kGlobalHeadDimension / kElementsPerVector;
+  for (int index = thread; index < kGlobalKeyColumns * kVectorsPerRow;
+       index += kGlobalThreads) {
+    const int row = index / kVectorsPerRow;
+    const int dimension = (index % kVectorsPerRow) * kElementsPerVector;
+    const uint4 packed = *reinterpret_cast<const uint4*>(
+        source + row * kGlobalHeadDimension + dimension);
+    const std::uint32_t words[4] = {packed.x, packed.y, packed.z, packed.w};
+#pragma unroll
+    for (int word = 0; word < 4; ++word) {
+      __nv_bfloat16* output;
+      if constexpr (kValue) {
+        const int half = dimension / kGlobalOutputHalf;
+        output = destination +
+            (half * kGlobalKeyColumns + row) * kGlobalOutputHalf +
+            Swizzle(row, dimension % kGlobalOutputHalf + word * 4);
+      } else {
+        output = destination + row * kGlobalHeadDimension +
+            Swizzle(row, dimension + word * 4);
+      }
+      StoreScaledGlobalFp8x4(output, words[word], scale);
+    }
+  }
+}
+
 template <int KvHeads>
 __global__ void PrepareGlobalBf16KvKernel(
     const std::uint8_t* chunk_key, const std::uint8_t* chunk_value,
@@ -516,7 +560,12 @@ __launch_bounds__(kGlobalThreads, 1) __global__
   WaitForAsyncCopies();
   __syncthreads();
   if constexpr (!kPrepared) {
-    ConvertGlobalFp8Key(key_shared, raw_shared, key_scale, thread);
+    if constexpr (kShareQk) {
+      ConvertGlobalPackedFp8<false>(
+          key_shared, raw_shared, __ushort_as_bfloat16(key_scale_bf16[0]), thread);
+    } else {
+      ConvertGlobalFp8Key(key_shared, raw_shared, key_scale, thread);
+    }
     __syncthreads();
   }
 
@@ -783,9 +832,15 @@ __launch_bounds__(kGlobalThreads, 1) __global__
       }
     }
     if constexpr (!kPrepared) {
-      ConvertGlobalFp8Value(
-          value_shared, raw_shared + current_raw * kGlobalRawBytes,
-          value_scale, thread);
+      if constexpr (kShareQk) {
+        ConvertGlobalPackedFp8<true>(
+            value_shared, raw_shared + current_raw * kGlobalRawBytes,
+            __ushort_as_bfloat16(value_scale_bf16[0]), thread);
+      } else {
+        ConvertGlobalFp8Value(
+            value_shared, raw_shared + current_raw * kGlobalRawBytes,
+            value_scale, thread);
+      }
       __syncthreads();
     }
 
@@ -846,9 +901,15 @@ __launch_bounds__(kGlobalThreads, 1) __global__
       WaitForAsyncCopies();
       __syncthreads();
       if constexpr (!kPrepared) {
-        ConvertGlobalFp8Key(
-            key_shared, raw_shared + next_raw * kGlobalRawBytes, key_scale,
-            thread);
+        if constexpr (kShareQk) {
+          ConvertGlobalPackedFp8<false>(
+              key_shared, raw_shared + next_raw * kGlobalRawBytes,
+              __ushort_as_bfloat16(key_scale_bf16[0]), thread);
+        } else {
+          ConvertGlobalFp8Key(
+              key_shared, raw_shared + next_raw * kGlobalRawBytes, key_scale,
+              thread);
+        }
         __syncthreads();
       }
     }
