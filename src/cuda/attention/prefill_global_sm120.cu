@@ -199,12 +199,32 @@ __device__ __forceinline__ void StageGlobalQuery(
   }
 }
 
-template <int KvHeads>
+template <int KvHeads, bool kContiguousTiles>
 __device__ __forceinline__ void StageGlobalFp8RawAsync(
     std::uint8_t* destination, const std::uint8_t* chunk,
     const std::uint8_t* cache, int key_start,
     int max_query_position, int chunk_start, int kv_head, int thread) {
   constexpr int kElementsPerVector = 16;
+  if constexpr (kContiguousTiles) {
+    static_assert(KvHeads == 1);
+    const int last_key = key_start + kGlobalKeyColumns - 1;
+    if (last_key <= max_query_position &&
+        (last_key < chunk_start || key_start >= chunk_start)) {
+      // A full tile wholly in the prefix or current chunk is contiguous with
+      // one K/V head. Retain per-row addressing for the split and causal tail.
+      const bool in_chunk = key_start >= chunk_start;
+      const int first_token = in_chunk ? key_start - chunk_start : key_start;
+      const std::uint8_t* source = (in_chunk ? chunk : cache) +
+          static_cast<std::int64_t>(first_token) * kGlobalHeadDimension;
+#pragma unroll
+      for (int byte = 0; byte < kGlobalRawBytes;
+           byte += kGlobalThreads * kElementsPerVector) {
+        const int offset = byte + thread * kElementsPerVector;
+        CopyAsync16(destination + offset, source + offset, kElementsPerVector);
+      }
+      return;
+    }
+  }
   constexpr int kVectorsPerRow =
       kGlobalHeadDimension / kElementsPerVector;
   for (int chunk_index = thread;
@@ -305,18 +325,23 @@ __device__ __forceinline__ void ConvertGlobalFp8Value(
   }
 }
 
-__device__ __forceinline__ void StoreScaledGlobalFp8x4(
-    __nv_bfloat16* output, std::uint32_t word, __nv_bfloat16 scale) {
-  // E4M3 widens exactly to BF16. Its product with a BF16 scale fits in
-  // FP32's significand, so rounding both lanes directly to BF16 gives
-  // the same stored values as the scalar FP32 multiply and BF16 store.
-  const auto scales = __halves2bfloat162(scale, scale);
-  const auto lower = __nv_bfloat162(__nv_cvt_fp8x2_to_bf162raw(
-      static_cast<std::uint16_t>(word), __NV_E4M3));
-  const auto upper = __nv_bfloat162(__nv_cvt_fp8x2_to_bf162raw(
-      static_cast<std::uint16_t>(word >> 16U), __NV_E4M3));
-  *reinterpret_cast<__nv_bfloat162*>(output) = __hmul2_rn(lower, scales);
-  *reinterpret_cast<__nv_bfloat162*>(output + 2) = __hmul2_rn(upper, scales);
+// FP8 E4M3 widens exactly to BF16 and the product of two BF16 inputs
+// fits in FP32's significand before rounding to BF16.
+__device__ __forceinline__ unsigned ScaleGlobalFp8Pair(
+    std::uint16_t packed, __nv_bfloat162 scales) {
+  const auto pair = __nv_bfloat162(__nv_cvt_fp8x2_to_bf162raw(packed, __NV_E4M3));
+  const auto scaled = static_cast<__nv_bfloat162_raw>(__hmul2_rn(pair, scales));
+  return static_cast<unsigned>(scaled.x) |
+         (static_cast<unsigned>(scaled.y) << 16U);
+}
+
+__device__ __forceinline__ uint4 ScaleGlobalFp8x8(
+    unsigned lower, unsigned upper, __nv_bfloat162 scales) {
+  return make_uint4(
+      ScaleGlobalFp8Pair(static_cast<std::uint16_t>(lower), scales),
+      ScaleGlobalFp8Pair(static_cast<std::uint16_t>(lower >> 16U), scales),
+      ScaleGlobalFp8Pair(static_cast<std::uint16_t>(upper), scales),
+      ScaleGlobalFp8Pair(static_cast<std::uint16_t>(upper >> 16U), scales));
 }
 
 template <bool kValue>
@@ -325,27 +350,29 @@ __device__ __forceinline__ void ConvertGlobalPackedFp8(
     __nv_bfloat16 scale, int thread) {
   constexpr int kElementsPerVector = 16;
   constexpr int kVectorsPerRow = kGlobalHeadDimension / kElementsPerVector;
+  const auto scales = __halves2bfloat162(scale, scale);
+#pragma unroll
   for (int index = thread; index < kGlobalKeyColumns * kVectorsPerRow;
        index += kGlobalThreads) {
     const int row = index / kVectorsPerRow;
     const int dimension = (index % kVectorsPerRow) * kElementsPerVector;
     const uint4 packed = *reinterpret_cast<const uint4*>(
         source + row * kGlobalHeadDimension + dimension);
-    const std::uint32_t words[4] = {packed.x, packed.y, packed.z, packed.w};
-#pragma unroll
-    for (int word = 0; word < 4; ++word) {
-      __nv_bfloat16* output;
-      if constexpr (kValue) {
-        const int half = dimension / kGlobalOutputHalf;
-        output = destination +
-            (half * kGlobalKeyColumns + row) * kGlobalOutputHalf +
-            Swizzle(row, dimension % kGlobalOutputHalf + word * 4);
-      } else {
-        output = destination + row * kGlobalHeadDimension +
-            Swizzle(row, dimension + word * 4);
-      }
-      StoreScaledGlobalFp8x4(output, words[word], scale);
+    __nv_bfloat16* base;
+    int column;
+    if constexpr (kValue) {
+      const int half = dimension / kGlobalOutputHalf;
+      base = destination + (half * kGlobalKeyColumns + row) * kGlobalOutputHalf;
+      column = dimension % kGlobalOutputHalf;
+    } else {
+      base = destination + row * kGlobalHeadDimension;
+      column = dimension;
     }
+    // Each swizzled block of eight BF16 values is a 16-byte aligned span.
+    *reinterpret_cast<uint4*>(base + Swizzle(row, column)) =
+        ScaleGlobalFp8x8(packed.x, packed.y, scales);
+    *reinterpret_cast<uint4*>(base + Swizzle(row, column + 8)) =
+        ScaleGlobalFp8x8(packed.z, packed.w, scales);
   }
 }
 
@@ -552,7 +579,7 @@ __launch_bounds__(kGlobalThreads, 1) __global__
         key_shared, reinterpret_cast<const __nv_bfloat16*>(key_cache), 0,
         max_query_position, kv_head, thread);
   } else {
-    StageGlobalFp8RawAsync<KvHeads>(
+    StageGlobalFp8RawAsync<KvHeads, kShareQk>(
         raw_shared, chunk_key, key_cache, 0, max_query_position,
         start_position, kv_head, thread);
   }
@@ -578,7 +605,7 @@ __launch_bounds__(kGlobalThreads, 1) __global__
           value_shared, reinterpret_cast<const __nv_bfloat16*>(value_cache),
           key_start, max_query_position, kv_head, thread);
     } else {
-      StageGlobalFp8RawAsync<KvHeads>(
+      StageGlobalFp8RawAsync<KvHeads, kShareQk>(
           raw_shared + current_raw * kGlobalRawBytes, chunk_value, value_cache,
           key_start, max_query_position, start_position, kv_head, thread);
     }
@@ -852,7 +879,7 @@ __launch_bounds__(kGlobalThreads, 1) __global__
             key_start + kGlobalKeyColumns, max_query_position, kv_head,
             thread);
       } else {
-        StageGlobalFp8RawAsync<KvHeads>(
+        StageGlobalFp8RawAsync<KvHeads, kShareQk>(
             raw_shared + next_raw * kGlobalRawBytes, chunk_key, key_cache,
             key_start + kGlobalKeyColumns, max_query_position, start_position,
             kv_head, thread);
