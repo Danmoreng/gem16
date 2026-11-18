@@ -189,6 +189,17 @@ Result<MaterializedMessages> MaterializeMessages(
   return materialized;
 }
 
+std::vector<ChatToolDefinition> PromptTools(const ChatGenerationRequest& request) {
+  std::vector<ChatToolDefinition> tools;
+  if (request.tool_choice.mode != GenerationToolChoiceMode::kNone) {
+    tools.reserve(request.tools.size());
+    for (const auto& tool : request.tools) {
+      tools.push_back({tool.name, tool.description, tool.parameters_json});
+    }
+  }
+  return tools;
+}
+
 Result<std::vector<AudioEmbeddingSegment>> LocateAudioSegments(std::span<const std::uint32_t> prompt_ids,
                                                                const std::vector<std::vector<float>>& audio_frames) {
   std::vector<AudioEmbeddingSegment> segments;
@@ -477,6 +488,7 @@ Result<ChatSession> ChatSession::Create(
   session_options.sampling = options.sampling;
   session_options.mtp_draft_tokens = options.mtp_draft_tokens;
   session_options.mtp_adaptive = options.mtp_adaptive;
+  session_options.enable_prompt_checkpoint = options.enable_prompt_checkpoint;
   auto session = ConversationSession::Create(std::move(runtime), session_options);
   if (!session.ok()) return session.status();
 
@@ -488,7 +500,8 @@ Result<ChatSession> ChatSession::Create(
 
 Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest& request,
                                                      GenerationEventCallback callback, void* callback_context,
-                                                     GenerationCancellation cancellation) {
+                                                     GenerationCancellation cancellation,
+                                                     bool replay_from_prompt_checkpoint) {
   const Status cancelled = cancellation.Check();
   if (!cancelled.ok()) return cancelled;
   const Status penalties = ValidateSamplingPenalties(request.sampling_penalties);
@@ -523,23 +536,20 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
       request.messages.back().role != "tool") {
     return Status(StatusCode::kInvalidArgument, "generation request must end with a user or tool message");
   }
-  std::vector<ChatToolDefinition> tools;
-  if (request.tool_choice.mode != GenerationToolChoiceMode::kNone) {
-    tools.reserve(request.tools.size());
-    for (const GenerationToolDefinition& tool : request.tools) {
-      tools.push_back({tool.name, tool.description, tool.parameters_json});
-    }
+  const auto tools = PromptTools(request);
+  std::span<const GenerationMessage> canonical_prefix;
+  if (!replay_from_prompt_checkpoint) {
+    const Status continuation_status = ValidateContinuation(request);
+    if (!continuation_status.ok()) return continuation_status;
+    canonical_prefix = impl_->committed_messages;
   }
-  const Status continuation_status = ValidateContinuation(request);
-  if (!continuation_status.ok()) return continuation_status;
-  auto messages = MaterializeMessages(request.messages,
-                                      impl_->committed_messages);
+  auto messages = MaterializeMessages(request.messages, canonical_prefix);
   if (!messages.ok()) return messages.status();
   const bool tool_result_continuation =
       messages.value().messages.back().role == "tool";
 
   Result<std::vector<std::uint32_t>> prompt_ids = [&]() {
-    if (impl_->cached_prefix_token_ids.empty()) {
+    if (replay_from_prompt_checkpoint || impl_->cached_prefix_token_ids.empty()) {
       return impl_->processor.Encode(messages.value().messages, request.thinking.effort != ThinkingEffort::kOff, true,
                                      tools);
     }
@@ -626,6 +636,14 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
         std::max<std::uint64_t>(1U, max_generated_tokens - answer_reserve));
   }
 
+  if (replay_from_prompt_checkpoint) {
+    if (!audio_segments.value().empty() || !vision_segments.value().empty() ||
+        !moe26b_vision_segments.value().empty()) {
+      return Status(StatusCode::kInvalidArgument, "prompt checkpoint replay requires text");
+    }
+    const Status restored = impl_->session.RestorePromptCheckpoint(prompt_ids.value());
+    if (!restored.ok()) return restored;
+  }
   EventBridge bridge{callback, callback_context};
   auto inference = impl_->session.Generate(
       prompt_ids.value(), max_generated_tokens, reasoning, callback == nullptr ? nullptr : ForwardTokenEvent,
@@ -633,7 +651,7 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
       vision_segments.value(), moe26b_vision_segments.value(), cancellation,
       request.sampling_penalties);
   if (!inference.ok()) {
-    impl_->poisoned = impl_->session.is_poisoned();
+    impl_->poisoned = replay_from_prompt_checkpoint || impl_->session.is_poisoned();
     return inference.status();
   }
   if (!messages.value().moe26b_images.empty()) {
@@ -709,7 +727,7 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
                                                         : GenerationFinishReason::kLength;
   response.inference = std::move(inference).value();
 
-  if (impl_->committed_messages.empty()) {
+  if (replay_from_prompt_checkpoint || impl_->committed_messages.empty()) {
     impl_->committed_messages = request.messages;
   } else {
     impl_->committed_messages.insert(
@@ -731,6 +749,23 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   impl_->committed_tools = request.tools;
   impl_->committed_tool_choice = request.tool_choice;
   return response;
+}
+
+Result<bool> ChatSession::CanReplayFromPromptCheckpoint(
+    const ChatGenerationRequest& request) const {
+  if (is_poisoned() || impl_->session.prompt_checkpoint_tokens() == 0U) return false;
+  auto messages = MaterializeMessages(request.messages);
+  if (!messages.ok()) return messages.status();
+  if (!messages.value().audio_frames.empty() || !messages.value().images.empty() ||
+      !messages.value().moe26b_images.empty()) {
+    return false;
+  }
+  auto prompt = impl_->processor.Encode(
+      messages.value().messages, request.thinking.effort != ThinkingEffort::kOff,
+      true, PromptTools(request));
+  if (!prompt.ok()) return prompt.status();
+  return prompt.value().size() <= impl_->max_context_tokens &&
+         impl_->session.CanRestorePromptCheckpoint(prompt.value());
 }
 
 Status ChatSession::ValidateContinuation(const ChatGenerationRequest& request) const {

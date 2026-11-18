@@ -97,6 +97,19 @@ Status ConversationSession::Reset() {
 
 std::uint64_t ConversationSession::cached_token_count() const { return 0U; }
 
+std::uint64_t ConversationSession::prompt_checkpoint_tokens() const { return 0U; }
+
+bool ConversationSession::CanRestorePromptCheckpoint(
+    std::span<const std::uint32_t>) const {
+  return false;
+}
+
+Status ConversationSession::RestorePromptCheckpoint(
+    std::span<const std::uint32_t>) {
+  return Status(StatusCode::kUnsupported,
+                "conversation sessions require a CUDA build compiled for SM120a");
+}
+
 std::uint64_t ConversationSession::reserved_device_bytes() const { return 0U; }
 
 bool ConversationSession::is_poisoned() const { return true; }

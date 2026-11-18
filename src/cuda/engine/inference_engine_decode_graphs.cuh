@@ -533,6 +533,7 @@
   bool fast_d3_attention_ = false;
   internal::TwelveBD3MathSelection mtp_math_{};
   DeviceAllocation cache_;
+  DeviceAllocation prompt_checkpoint_;
   DeviceAllocation workspace_;
   DeviceAllocation prefill_workspace_;
   DeviceAllocation mtp_workspace_;
@@ -556,6 +557,7 @@
   cudaStream_t stream_ = nullptr;
   std::uint64_t max_context_ = 0;
   std::uint64_t prefill_chunk_tokens_ = kMinimumPrefillChunkTokens;
+  std::uint64_t prompt_checkpoint_tokens_ = 0U;
   std::uint64_t decode_graph_device_bytes_ = 0;
   std::uint64_t assistant_device_memory_delta_bytes_ = 0;
   std::uint32_t mtp_draft_tokens_ = 0U;

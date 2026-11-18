@@ -226,6 +226,7 @@ struct ConversationSessionOptions {
   bool mtp_adaptive = false;
   bool mtp_router_overlap_diagnostic = false;
   CudaProfilePhase cuda_profile_phase = CudaProfilePhase::kNone;
+  bool enable_prompt_checkpoint = false;
 };
 
 struct ModelRuntimeOptions {
@@ -345,6 +346,14 @@ class ConversationSession {
   [[nodiscard]] bool is_poisoned() const;
 
  private:
+  friend class ChatSession;
+  // A checkpoint retains local KV from a cold text prefill. Its global KV
+  // remains in the current slot. Restoration restarts sampling for a replay.
+  [[nodiscard]] std::uint64_t prompt_checkpoint_tokens() const;
+  [[nodiscard]] bool CanRestorePromptCheckpoint(
+      std::span<const std::uint32_t> full_prompt_token_ids) const;
+  [[nodiscard]] Status RestorePromptCheckpoint(
+      std::span<const std::uint32_t> full_prompt_token_ids);
   struct Impl;
   explicit ConversationSession(std::unique_ptr<Impl> impl);
   std::unique_ptr<Impl> impl_;

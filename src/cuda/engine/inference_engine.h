@@ -37,7 +37,8 @@ class InferenceEngine {
       const internal::AssistantModel* assistant,
       std::uint64_t max_context, KvCacheMode kv_cache_mode,
       const SamplingOptions& sampling = {},
-      std::uint32_t mtp_draft_tokens = 0U);
+      std::uint32_t mtp_draft_tokens = 0U,
+      bool enable_prompt_checkpoint = false);
   [[nodiscard]] Result<std::uint32_t> Forward(
       std::uint32_t token, std::uint64_t position, bool select_token,
       std::span<float> host_logits = {}, std::span<float> host_state = {});
@@ -80,6 +81,8 @@ class InferenceEngine {
   [[nodiscard]] Status ReplaceSamplingOutput(std::uint32_t sampled, std::uint32_t emitted);
   [[nodiscard]] Status BeginSamplingRequest(const SamplingPenalties& penalties);
   [[nodiscard]] Status ResetCache();
+  [[nodiscard]] std::uint64_t prompt_checkpoint_tokens() const;
+  [[nodiscard]] Status RestorePromptCheckpoint();
   [[nodiscard]] Status SetSampling(const SamplingOptions& options);
   [[nodiscard]] Status SetSuppressedTokens(
       std::span<const std::uint32_t> tokens);

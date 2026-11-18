@@ -598,6 +598,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   std::shared_ptr<SessionEntry> entry = std::move(acquired).value();
   SessionLease lease(state, entry);
   gem16::server::TestFaultPoint("acquired");
+  bool replay_from_prompt_checkpoint = false;
   {
     std::lock_guard inference_lock(entry->inference_mutex);
     const auto continuation = entry->session.ValidateContinuation(parsed.value().generation);
@@ -607,12 +608,23 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
         SetError(state, continuation, response);
         return;
       }
-      lease.Discard();
-      const auto restarted = entry->session.Restart(state.runtime, state.session_options, state.processor);
-      if (!restarted.ok()) { SetError(state, restarted, response); return; }
-      lease.Keep();
-      state.metrics.sessions_rebuilt.fetch_add(1U);
-      response.set_header("X-Gem16-Cache-Reset", "history_or_tools_changed");
+      const auto replay = entry->session.CanReplayFromPromptCheckpoint(parsed.value().generation);
+      if (!replay.ok()) {
+        state.metrics.requests_failed.fetch_add(1U);
+        SetError(state, replay.status(), response);
+        return;
+      }
+      replay_from_prompt_checkpoint = replay.value();
+      if (replay_from_prompt_checkpoint) {
+        response.set_header("X-Gem16-Cache-Reuse", "prompt_checkpoint");
+      } else {
+        lease.Discard();
+        const auto restarted = entry->session.Restart(state.runtime, state.session_options, state.processor);
+        if (!restarted.ok()) { SetError(state, restarted, response); return; }
+        lease.Keep();
+        state.metrics.sessions_rebuilt.fetch_add(1U);
+        response.set_header("X-Gem16-Cache-Reset", "history_or_tools_changed");
+      }
     }
   }
   response.set_header("X-Gem16-Session-Id", session_id);
@@ -625,7 +637,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     const auto generation_start = std::chrono::steady_clock::now();
     auto generated = entry->session.Generate(
         parsed.value().generation, CheckCancellation, &cancellation,
-        {CheckGenerationCancellation, &cancellation});
+        {CheckGenerationCancellation, &cancellation}, replay_from_prompt_checkpoint);
     gem16::server::TestFaultPoint("generation_after");
     if (!generated.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
@@ -651,6 +663,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     RequestAdmission admission;
     std::unique_ptr<SessionLease> lease;
     bool include_usage = false;
+    bool replay_from_prompt_checkpoint = false;
     bool ran = false;
   };
   auto provider = std::make_shared<ProviderState>();
@@ -661,6 +674,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   provider->admission = std::move(admission);
   provider->lease = std::make_unique<SessionLease>(std::move(lease));
   provider->include_usage = parsed.value().include_usage;
+  provider->replay_from_prompt_checkpoint = replay_from_prompt_checkpoint;
   response.set_header("Cache-Control", "no-cache");
   response.set_header("X-Accel-Buffering", "no");
   response.set_header("Transfer-Encoding", "chunked");
@@ -686,7 +700,8 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
           const auto generation_start = std::chrono::steady_clock::now();
           provider->lease->Discard();
           auto generated = stream.Generate(provider->entry->session,
-                                           provider->generation);
+                                           provider->generation,
+                                           provider->replay_from_prompt_checkpoint);
           gem16::server::TestFaultPoint("generation_after");
           const bool generation_completed = generated.ok();
           if (!generated.ok()) {
@@ -1123,6 +1138,7 @@ int ServerMain(int argc, char** argv) {
   session_options.sampling.seed = options.value().sampling_seed;
   session_options.mtp_draft_tokens = options.value().mtp_draft_tokens;
   session_options.mtp_adaptive = options.value().mtp_adaptive;
+  session_options.enable_prompt_checkpoint = !moe26b;
   gem16::internal::TwelveBD3MathSelection math_selection;
   if (!moe26b) {
     const auto selected = gem16::internal::SelectTwelveBD3Math(

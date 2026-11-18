@@ -218,6 +218,7 @@ struct ChatSessionOptions {
   SamplingOptions sampling;
   std::uint32_t mtp_draft_tokens = 0U;
   bool mtp_adaptive = false;
+  bool enable_prompt_checkpoint = false;
 };
 
 // High-level batch-one generation boundary shared by CLI and future protocol
@@ -243,9 +244,12 @@ class ChatSession {
       const ChatGenerationRequest& request,
       GenerationEventCallback callback = nullptr,
       void* callback_context = nullptr,
-      GenerationCancellation cancellation = {});
+      GenerationCancellation cancellation = {},
+      bool replay_from_prompt_checkpoint = false);
   // Adapter-level full-history reconciliation; callers serialize with generation.
   [[nodiscard]] Status ValidateContinuation(const ChatGenerationRequest& request) const;
+  [[nodiscard]] Result<bool> CanReplayFromPromptCheckpoint(
+      const ChatGenerationRequest& request) const;
   [[nodiscard]] Status Restart(std::shared_ptr<ModelRuntime> runtime,
                                const ChatSessionOptions& options,
                                GemmaChatProcessor processor);

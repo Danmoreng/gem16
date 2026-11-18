@@ -47,7 +47,8 @@ class ChatCompletionStream {
   ~ChatCompletionStream();
 
   [[nodiscard]] Result<ChatGenerationResponse> Generate(
-      ChatSession& session, const ChatGenerationRequest& request);
+      ChatSession& session, const ChatGenerationRequest& request,
+      bool replay_from_prompt_checkpoint = false);
   [[nodiscard]] Status WriteToolCalls(
       const ChatGenerationResponse& response);
 

@@ -149,12 +149,22 @@ their respective boundaries.
 Chat Completions accepts full history and may additionally reuse a resident
 session through `X-Gem16-Session-Id`, `session_id` or `x-session-affinity`.
 Supplied aliases must agree; empty, duplicate or malformed IDs fail. Compatible
-continuations reuse the resident prefix. Changed history/tools cause a full
-rebuild with `X-Gem16-Cache-Reset: history_or_tools_changed` and a
-`gem16_sessions_rebuilt_total` increment; no old KV is used for that request.
-The 26B reset retains its runtime arena; 12B recreates its slot after releasing
-the old one. This is not a per-turn weight load or a general prefix cache.
-Responses resident chains retain their stricter linear semantics.
+continuations reuse the resident prefix. On 12B with checkpoint FP8 KV and
+neutral repetition penalty, a cold text prompt spanning multiple prefill
+chunks can retain a same-slot checkpoint immediately before its final chunk.
+When history or tools change, the server can resume at that checkpoint if the
+fully rendered text prompt has exactly the same token IDs up to that position
+and has a nonempty suffix. The server restores the saved local KV ring, keeps
+the matching global KV prefix, and restarts sampling as for a full replay.
+`X-Gem16-Cache-Reuse: prompt_checkpoint` and `usage.prompt_tokens_details.cached_tokens`
+report reuse. The slot plan includes the extra local ring.
+
+Other history or tool changes cause a full rebuild with
+`X-Gem16-Cache-Reset: history_or_tools_changed` and a
+`gem16_sessions_rebuilt_total` increment. The 26B reset retains its runtime
+arena; 12B recreates its slot after releasing the old one. Checkpoint reuse is
+limited to the original resident session and Chat Completions. Responses
+resident chains retain their stricter linear semantics.
 
 Adjacent user messages are normalized into one Gemma user turn with two newline
 characters between their ordered content parts, including Pi compaction summaries.

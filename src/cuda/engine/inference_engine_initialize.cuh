@@ -61,7 +61,7 @@
       const internal::AssistantModel* assistant,
       std::uint64_t max_context, KvCacheMode kv_cache_mode,
       const SamplingOptions& sampling,
-      std::uint32_t mtp_draft_tokens) {
+      std::uint32_t mtp_draft_tokens, bool enable_prompt_checkpoint) {
     const NvtxRange range("gem16.initialize_shared");
     Status status = SetSampling(sampling);
     if (!status.ok()) return status;
@@ -98,10 +98,11 @@
                    "active MTP requires shared assistant weights");
     }
     assistant_device_memory_delta_bytes_ = 0U;
-    return InitializeSlot(mtp_draft_tokens);
+    return InitializeSlot(mtp_draft_tokens, enable_prompt_checkpoint);
   }
 
-  [[nodiscard]] Status InitializeSlot(std::uint32_t mtp_draft_tokens) {
+  [[nodiscard]] Status InitializeSlot(std::uint32_t mtp_draft_tokens,
+                                      bool enable_prompt_checkpoint = false) {
     mtp_draft_tokens_ = mtp_draft_tokens;
     const auto math = internal::SelectTwelveBD3Math(
         std::getenv("GEM16_12B_D3_ATTENTION"), mtp_draft_tokens,
@@ -145,7 +146,10 @@
       if (!status.ok()) return status;
     }
     cudaError_t error = cudaSuccess;
-    status = AllocateCache();
+    status = AllocateCache(enable_prompt_checkpoint &&
+                           kv_cache_mode_ == KvCacheMode::kCheckpointFp8 &&
+                           max_context_ > prefill_chunk_tokens_ &&
+                           (!sampling_.enabled || sampling_.repetition_penalty == 1.0F));
     if (!status.ok()) return status;
     status = AllocateWorkspace();
     if (!status.ok()) return status;

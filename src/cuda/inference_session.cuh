@@ -552,7 +552,7 @@ Result<ConversationSession> ConversationSession::Create(
           ? &impl->runtime->impl_->assistant
           : nullptr,
       options.max_context_tokens, options.kv_cache_mode, options.sampling,
-      options.mtp_draft_tokens);
+      options.mtp_draft_tokens, options.enable_prompt_checkpoint);
   if (!status.ok()) return status;
   status = impl->engine.SetSuppressedTokens(options.suppressed_token_ids);
   if (!status.ok()) return status;
@@ -1535,6 +1535,34 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
 
 std::uint64_t ConversationSession::cached_token_count() const {
   return impl_ == nullptr ? 0U : impl_->cached_token_ids.size();
+}
+
+std::uint64_t ConversationSession::prompt_checkpoint_tokens() const {
+  if (is_poisoned() || impl_->moe26b_slot_lease) return 0U;
+  return impl_->engine.prompt_checkpoint_tokens();
+}
+
+bool ConversationSession::CanRestorePromptCheckpoint(
+    std::span<const std::uint32_t> prompt) const {
+  const auto count = prompt_checkpoint_tokens();
+  return count > 0U && count <= impl_->cached_token_ids.size() &&
+         count < prompt.size() && std::equal(
+             impl_->cached_token_ids.begin(),
+             impl_->cached_token_ids.begin() + count, prompt.begin());
+}
+
+Status ConversationSession::RestorePromptCheckpoint(
+    std::span<const std::uint32_t> prompt) {
+  if (!CanRestorePromptCheckpoint(prompt)) {
+    return Error(StatusCode::kInvalidArgument, "prompt differs from the checkpoint prefix");
+  }
+  const Status status = impl_->engine.RestorePromptCheckpoint();
+  if (!status.ok()) {
+    impl_->poisoned = true;
+    return status;
+  }
+  impl_->cached_token_ids.resize(prompt_checkpoint_tokens());
+  return Status::Ok();
 }
 
 Status ConversationSession::Reset() {

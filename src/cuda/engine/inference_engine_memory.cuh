@@ -2,24 +2,44 @@
     cudaError_t error = cudaMemsetAsync(
         cache_.data(), 0, static_cast<std::size_t>(cache_.bytes()), stream_);
     if (error != cudaSuccess) return CudaFailure("clear KV cache", error);
+    prompt_checkpoint_tokens_ = 0U;
+    const Status sampling = ResetSamplingState();
+    if (!sampling.ok()) return sampling;
+    error = cudaStreamSynchronize(stream_);
+    return error == cudaSuccess ? Status::Ok() : CudaFailure("reset KV cache", error);
+  }
+
+  [[nodiscard]] std::uint64_t prompt_checkpoint_tokens() const {
+    return prompt_checkpoint_tokens_;
+  }
+
+  [[nodiscard]] Status RestorePromptCheckpoint() {
+    if (prompt_checkpoint_tokens_ == 0U) {
+      return Error(StatusCode::kInvalidArgument, "no resident prompt checkpoint");
+    }
+    const Status status = CopyPromptCheckpoint(true);
+    if (!status.ok()) return status;
+    // Full-history rebuilds restart sampling at step zero. Checkpoint slots
+    // only enable this path for neutral repetition or greedy selection.
+    return ResetSamplingState();
+  }
+
+  [[nodiscard]] Status ResetSamplingState() {
     if (sampling_.enabled) {
-      error = cudaMemsetAsync(
+      cudaError_t error = cudaMemsetAsync(
           Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask), 0,
           static_cast<std::size_t>(kRepetitionMaskWords * sizeof(std::uint32_t)),
           stream_);
       if (error != cudaSuccess) {
         return CudaFailure("clear repetition mask", error);
       }
-    }
-    if (sampling_.enabled) {
       error = cudaMemsetAsync(
           Pointer<std::uint32_t>(workspace_, offsets_.sampling_output_counts),
           0, kVocabulary * sizeof(std::uint32_t), stream_);
       if (error != cudaSuccess) return CudaFailure("clear output counts", error);
     }
     sampling_step_ = 0U;
-    error = cudaStreamSynchronize(stream_);
-    return error == cudaSuccess ? Status::Ok() : CudaFailure("reset KV cache", error);
+    return Status::Ok();
   }
 
   [[nodiscard]] Status SetSampling(const SamplingOptions& options) {
@@ -166,8 +186,29 @@
         nullptr, 0U, commit_selected);
   }
 
-  [[nodiscard]] Status AllocateCache() {
+  [[nodiscard]] Status CopyPromptCheckpoint(bool restore) {
+    std::size_t offset = 0U;
+    const auto local_tokens = std::min(max_context_, kSlidingWindow);
+    for (const auto& layer : model_.layers()) {
+      if (layer.global) continue;
+      const auto bytes = static_cast<std::size_t>(local_tokens * layer.kv_elements);
+      for (auto* live : {layer.key_cache_fp8, layer.value_cache_fp8}) {
+        auto* saved = prompt_checkpoint_.data() + offset;
+        const auto error = restore
+            ? cudaMemcpyAsync(live, saved, bytes, cudaMemcpyDeviceToDevice, stream_)
+            : cudaMemcpyAsync(saved, live, bytes, cudaMemcpyDeviceToDevice, stream_);
+        if (error != cudaSuccess) {
+          return CudaFailure(restore ? "restore local KV checkpoint" : "save local KV checkpoint", error);
+        }
+        offset += bytes;
+      }
+    }
+    return Status::Ok();
+  }
+
+  [[nodiscard]] Status AllocateCache(bool enable_prompt_checkpoint) {
     LayoutBuilder layout;
+    std::uint64_t checkpoint_bytes = 0U;
     struct CacheOffsets { std::uint64_t key; std::uint64_t value; };
     std::array<CacheOffsets, kLayers> offsets{};
     for (std::size_t index = 0; index < kLayers; ++index) {
@@ -185,6 +226,9 @@
       if (!key.ok()) return key.status();
       if (!value.ok()) return value.status();
       offsets[index] = {key.value(), value.value()};
+      if (enable_prompt_checkpoint && !layer.global) {
+        checkpoint_bytes += 2U * cache_tokens * layer.kv_elements;
+      }
     }
     auto size = AlignUp(layout.size(), kAlignment);
     if (!size.ok()) return size.status();
@@ -204,7 +248,8 @@
             Pointer<float>(cache_, offsets[index].value));
       }
     }
-    return Status::Ok();
+    return checkpoint_bytes == 0U ? Status::Ok()
+        : prompt_checkpoint_.Allocate(checkpoint_bytes, "allocate local KV checkpoint");
   }
 
   [[nodiscard]] Status AllocateWorkspace() {

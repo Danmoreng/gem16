@@ -526,6 +526,51 @@ def select_exact_blue(golden: Path) -> tuple[list[int], list[int]]:
     raise AssertionError
 
 
+def check_12b_prompt_checkpoint(executable: Path, model: Path) -> None:
+    prefix = "".join(
+        f"Warehouse inventory record {index}: shelf A contains working materials.\n"
+        for index in range(650)
+    )
+    with Server(executable, model, 24576, 1) as server:
+        server.wait()
+
+        def chat(messages: list[dict[str, Any]], session: str) -> tuple[dict[str, Any], Any]:
+            status, result, headers = json_call(
+                server.port, "POST", "/v1/chat/completions",
+                {"model": "m22-test", "messages": messages,
+                 "reasoning_effort": "none", "max_completion_tokens": 16},
+                {"X-Gem16-Session-Id": session},
+            )
+            if status != 200:
+                fail(f"12B checkpoint chat failed with HTTP {status}: {result}")
+            return result, headers
+
+        original = [{"role": "user", "content": prefix + "Give two words for task A."}]
+        edited = [{"role": "user", "content": prefix + "Give two words for task B."}]
+        chat(original, "editable")
+        replayed, headers = chat(edited, "editable")
+        if (headers.get("X-Gem16-Cache-Reuse") != "prompt_checkpoint"
+                or headers.get("X-Gem16-Cache-Reset")
+                or not replayed["usage"]["prompt_tokens_details"]["cached_tokens"]):
+            fail("12B late edit did not restore a matching prompt checkpoint")
+        continued, _ = chat(
+            edited + [assistant_message(replayed), {"role": "user", "content": "Thanks."}],
+            "editable",
+        )
+        if not continued["usage"]["prompt_tokens_details"]["cached_tokens"]:
+            fail("12B session did not continue after checkpoint replay")
+        cold, _ = chat(edited, "fresh")
+        if (cold["usage"]["prompt_tokens_details"]["cached_tokens"]
+                or replayed["choices"] != cold["choices"]):
+            fail("12B checkpoint replay differs from cold generation")
+        replaced, headers = chat(
+            [{"role": "user", "content": "Replacement history. Say ready."}], "fresh",
+        )
+        if (headers.get("X-Gem16-Cache-Reset") != "history_or_tools_changed"
+                or replaced["usage"]["prompt_tokens_details"]["cached_tokens"]):
+            fail("12B early edit reused a stale checkpoint")
+
+
 def run_12b(run_executable: Path, server_executable: Path, golden: Path) -> int:
     model_value = os.environ.get("GEM16_12B_MODEL")
     if not model_value:
@@ -615,6 +660,8 @@ def run_12b(run_executable: Path, server_executable: Path, golden: Path) -> int:
             fail("12B server used a fallback")
         if metric_value(metrics, "gem16_token_loop_allocation_total") != 0:
             fail("12B server reported token-loop allocation")
+
+    check_12b_prompt_checkpoint(server_executable, model)
 
     write_evidence(
         "m22-12b-product.json",

@@ -826,7 +826,8 @@ ChatCompletionStream::ChatCompletionStream(
 ChatCompletionStream::~ChatCompletionStream() = default;
 
 Result<ChatGenerationResponse> ChatCompletionStream::Generate(
-    ChatSession& session, const ChatGenerationRequest& request) {
+    ChatSession& session, const ChatGenerationRequest& request,
+    bool replay_from_prompt_checkpoint) {
   const bool tool_result_continuation =
       !request.messages.empty() && request.messages.back().role == "tool";
   impl_->context.flatten_reasoning_to_text =
@@ -838,7 +839,8 @@ Result<ChatGenerationResponse> ChatCompletionStream::Generate(
     impl_->context.channels.StartReasoningFromPrompt();
   }
   auto generated = session.Generate(request, StreamToken, &impl_->context,
-                                    {CheckStreamCancellation<StreamingContext>, &impl_->context});
+                                    {CheckStreamCancellation<StreamingContext>, &impl_->context},
+                                    replay_from_prompt_checkpoint);
   if (generated.ok()) {
     const Status status = FeedVisibleText(impl_->context, {}, true);
     if (!status.ok()) generated = status;

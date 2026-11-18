@@ -1,4 +1,6 @@
-  [[nodiscard]] std::uint64_t cache_bytes() const { return cache_.bytes(); }
+  [[nodiscard]] std::uint64_t cache_bytes() const {
+    return cache_.bytes() + prompt_checkpoint_.bytes();
+  }
   [[nodiscard]] std::uint64_t workspace_bytes() const {
     return workspace_.bytes() + prefill_workspace_.bytes() +
            mtp_workspace_.bytes();
@@ -49,6 +51,16 @@
       if (tokens == 0U || tokens > prefill_chunk_tokens_) {
         return Error(StatusCode::kInternal,
                      "vision-aware prefill chunk planning failed");
+      }
+      // Save only at the start of the final chunk of a cold text prefill.
+      // All saved positions then have the same chunk boundaries as a cold
+      // replay. Continuations and speculative decode cannot change the copy.
+      if (prompt_checkpoint_.bytes() != 0U && start_position == 0U &&
+          audio_segments.empty() && vision_segments.empty() &&
+          begin != 0U && begin + tokens == token_ids.size()) {
+        const Status status = CopyPromptCheckpoint(false);
+        if (!status.ok()) return status;
+        prompt_checkpoint_tokens_ = begin;
       }
       auto* device_tokens = Pointer<std::uint32_t>(prefill_workspace_, prefill_offsets_.token_ids);
       cudaError_t error = cudaMemcpyAsync(

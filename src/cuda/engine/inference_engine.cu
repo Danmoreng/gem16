@@ -593,7 +593,7 @@ InferenceEngine& InferenceEngine::operator=(InferenceEngine&&) noexcept = defaul
 InferenceEngine::~InferenceEngine() = default;
 
 Status InferenceEngine::Initialize(const std::filesystem::path& model_directory, std::uint64_t max_context, KvCacheMode kv_cache_mode, const SamplingOptions& sampling, const std::filesystem::path& assistant_model_directory, std::uint32_t mtp_draft_tokens) { return impl_->Initialize(model_directory, max_context, kv_cache_mode, sampling, assistant_model_directory, mtp_draft_tokens); }
-Status InferenceEngine::InitializeShared(const internal::LoadedTargetModel& model, const internal::AssistantModel* assistant, std::uint64_t max_context, KvCacheMode kv_cache_mode, const SamplingOptions& sampling, std::uint32_t mtp_draft_tokens) { return impl_->InitializeShared(model, assistant, max_context, kv_cache_mode, sampling, mtp_draft_tokens); }
+Status InferenceEngine::InitializeShared(const internal::LoadedTargetModel& model, const internal::AssistantModel* assistant, std::uint64_t max_context, KvCacheMode kv_cache_mode, const SamplingOptions& sampling, std::uint32_t mtp_draft_tokens, bool enable_prompt_checkpoint) { return impl_->InitializeShared(model, assistant, max_context, kv_cache_mode, sampling, mtp_draft_tokens, enable_prompt_checkpoint); }
 Result<std::uint32_t> InferenceEngine::Forward(std::uint32_t token, std::uint64_t position, bool select_token, std::span<float> host_logits, std::span<float> host_state) { return impl_->Forward(token, position, select_token, host_logits, host_state); }
 Result<std::uint32_t> InferenceEngine::Prefill(std::span<const std::uint32_t> token_ids, std::span<float> host_logits) { return impl_->Prefill(token_ids, host_logits); }
 Result<std::uint32_t> InferenceEngine::PrefillAt(std::span<const std::uint32_t> token_ids, std::uint64_t start_position, std::span<float> host_logits, std::span<const AudioEmbeddingSegment> audio_segments, std::span<const VisionEmbeddingSegment> vision_segments, GenerationCancellation cancellation) { return impl_->PrefillAt(token_ids, start_position, host_logits, audio_segments, vision_segments, cancellation); }
@@ -607,6 +607,12 @@ const std::uint32_t* InferenceEngine::mtp_chain_outputs() const { return impl_->
 const std::uint32_t* InferenceEngine::mtp_chain_proposals() const { return impl_->mtp_chain_proposals(); }
 Status InferenceEngine::CheckMtpDeviceControlParity(std::uint32_t input_token, std::uint64_t processed_position, std::uint64_t remaining_output_capacity, std::uint64_t output_write_position, bool stopped, std::uint32_t stop_token) const { return impl_->CheckMtpDeviceControlParity(input_token, processed_position, remaining_output_capacity, output_write_position, stopped, stop_token); }
 Status InferenceEngine::ResetCache() { return impl_->ResetCache(); }
+std::uint64_t InferenceEngine::prompt_checkpoint_tokens() const {
+  return impl_->prompt_checkpoint_tokens();
+}
+Status InferenceEngine::RestorePromptCheckpoint() {
+  return impl_->RestorePromptCheckpoint();
+}
 Status InferenceEngine::SetSampling(const SamplingOptions& options) { return impl_->SetSampling(options); }
 Status InferenceEngine::SetSuppressedTokens(std::span<const std::uint32_t> tokens) { return impl_->SetSuppressedTokens(tokens); }
 Status InferenceEngine::SetMtpStopTokens(std::span<const std::uint32_t> tokens) { return impl_->SetMtpStopTokens(tokens); }
