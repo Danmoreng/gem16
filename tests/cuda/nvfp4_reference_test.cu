@@ -5,6 +5,7 @@
 #include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
 #include "cuda/mtp/verify.h"
+#include "cuda/norm/twelve_b_verifier.h"
 #include "cuda/nvfp4/cutlass_sm120.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/gemv.h"
@@ -26,10 +27,12 @@
 #include <bit>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 namespace gem16::internal {
@@ -2894,6 +2897,69 @@ void TestLocalLayerReferenceOperators() {
   }
 }
 
+void TestTwelveBVerifierPostMlpInputFp8() {
+  using namespace gem16::internal;
+  constexpr std::size_t width = 3840U;
+  constexpr std::size_t max_rows = 5U;
+  constexpr std::size_t elements = max_rows * width;
+  std::vector<std::uint16_t> down(elements), post_weight(width), input_weight(width);
+  std::vector<float> residual(elements);
+  const std::array scalar{Bf16BitsReference(0.923F)};
+  for (std::size_t i = 0; i < elements; ++i) {
+    if (i < width) continue;  // One zero row exercises the FP8 scale fallback.
+    down[i] = Bf16BitsReference(static_cast<float>(int((i * 37) % 257) - 128) * 0.019731F);
+    residual[i] = Bf16FromBits(Bf16BitsReference(
+        static_cast<float>(int((i * 13) % 127) - 63) * 0.028607F));
+  }
+  for (std::size_t i = 0; i < width; ++i) {
+    post_weight[i] = Bf16BitsReference(0.8F + static_cast<float>(i % 47) * 0.0091F);
+    input_weight[i] = Bf16BitsReference(0.5F + static_cast<float>(i % 31) * 0.025F);
+  }
+  DeviceBuffer<std::uint16_t> d_down(elements), d_post(width), d_input(width), d_scalar(1);
+  DeviceBuffer<float> d_residual(elements), hidden_parent(elements), hidden_fused(elements);
+  DeviceBuffer<std::uint8_t> fp8_parent(elements), fp8_fused(elements);
+  DeviceBuffer<float> scale_parent(max_rows), scale_fused(max_rows);
+  const auto upload = [](auto& device, const auto& host) {
+    return device.get() != nullptr &&
+           CudaOk(cudaMemcpy(device.get(), host.data(), device.bytes(),
+                             cudaMemcpyHostToDevice), "copy verifier norm input");
+  };
+  if (!upload(d_down, down) || !upload(d_post, post_weight) ||
+      !upload(d_input, input_weight) || !upload(d_scalar, scalar) ||
+      !upload(d_residual, residual)) {
+    return;
+  }
+  const auto compare = [](const auto& parent, const auto& fused, std::size_t count) {
+    using T = std::remove_pointer_t<decltype(parent.get())>;
+    std::vector<T> a(count), b(count);
+    const auto bytes = count * sizeof(T);
+    if (CudaOk(cudaMemcpy(a.data(), parent.get(), bytes, cudaMemcpyDeviceToHost),
+               "copy verifier norm parent") &&
+        CudaOk(cudaMemcpy(b.data(), fused.get(), bytes, cudaMemcpyDeviceToHost),
+               "copy verifier norm fusion")) {
+      CUDA_TEST_CHECK(std::memcmp(a.data(), b.data(), bytes) == 0);
+    }
+  };
+  for (std::size_t rows = 2U; rows <= max_rows; ++rows) {
+    const auto post = LaunchRmsNormResidualBf16Input(
+        d_down.get(), d_post.get(), d_residual.get(), nullptr, hidden_parent.get(),
+        rows, width, 1.0e-6F, d_scalar.get(), nullptr);
+    const auto quant = LaunchRmsNormFp8TokenQuantizationBatch(
+        hidden_parent.get(), d_input.get(), fp8_parent.get(), scale_parent.get(),
+        rows, width, 1.0e-6F, nullptr);
+    const auto fused = LaunchTwelveBVerifierPostMlpInputFp8(
+        d_down.get(), d_post.get(), d_residual.get(), d_scalar.get(), d_input.get(),
+        hidden_fused.get(), fp8_fused.get(), scale_fused.get(), rows, nullptr);
+    CUDA_TEST_CHECK(post.ok());
+    CUDA_TEST_CHECK(quant.ok());
+    CUDA_TEST_CHECK(fused.ok());
+    if (!post.ok() || !quant.ok() || !fused.ok()) return;
+    compare(hidden_parent, hidden_fused, rows * width);
+    compare(fp8_parent, fp8_fused, rows * width);
+    compare(scale_parent, scale_fused, rows);
+  }
+}
+
 void TestFusedProjectionRmsNormRotaryBf16Batch() {
   const auto run_case = [](std::uint64_t head_dimension,
                            double rotary_factor, double theta,
@@ -5697,6 +5763,7 @@ int main(int argc, char** argv) {
   TestPhysicalBf16Fp8TokenQuantization();
   TestFp8CutlassPrefillGeometry();
   TestLocalLayerReferenceOperators();
+  TestTwelveBVerifierPostMlpInputFp8();
   TestFusedProjectionRmsNormRotaryBf16Batch();
   TestPhysicalFp8KvCache();
   TestWrappedKvRingAttention();

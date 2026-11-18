@@ -48,19 +48,23 @@
     auto* cutlass_workspace = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_workspace);
     constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
-    Status status =
-        fast_d3_attention_ && mtp_verification && tokens == 4U
-            ? internal::LaunchTwelveBD3FastInputNormFp8(hidden_a, layer.input_norm,
-                  fp8, fp8_scales, stream_)
-        : physical_hidden
-            ? internal::LaunchRmsNormFp8TokenQuantizationBf16Batch(
-                  hidden_a_bf16, layer.input_norm, fp8, fp8_scales, tokens,
-                  kHidden, kEpsilon, stream_)
-            : internal::LaunchRmsNormFp8TokenQuantizationBatch(
-                  hidden_a, layer.input_norm, fp8, fp8_scales, tokens,
-                  kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = mtp_verification
+    // The preceding verifier layer already prepared these buffers on the
+    // same stream. The first verifier layer still starts from the embedding.
+    if (!mtp_verification || mtp_layer_index == 0U) {
+      const Status status =
+          fast_d3_attention_ && mtp_verification && tokens == 4U
+              ? internal::LaunchTwelveBD3FastInputNormFp8(
+                    hidden_a, layer.input_norm, fp8, fp8_scales, stream_)
+          : physical_hidden
+              ? internal::LaunchRmsNormFp8TokenQuantizationBf16Batch(
+                    hidden_a_bf16, layer.input_norm, fp8, fp8_scales, tokens,
+                    kHidden, kEpsilon, stream_)
+              : internal::LaunchRmsNormFp8TokenQuantizationBatch(
+                    hidden_a, layer.input_norm, fp8, fp8_scales, tokens,
+                    kHidden, kEpsilon, stream_);
+      if (!status.ok()) return status;
+    }
+    Status status = mtp_verification
                  ? internal::LaunchFp8Sm120GroupedQkvProjectionBatch(
                        fp8, fp8_scales, layer.q.weight, layer.q.scales, q,
                        layer.q.rows, layer.k.weight, layer.k.scales, k,
@@ -466,12 +470,16 @@
           start_position, tokens, layer.kv_elements, capacity, stream_);
     }
     if (!status.ok()) return status;
-    return LaunchLayerBatchSuffix(layer, tokens, mtp_verification);
+    const LayerBinding* next_verifier_layer =
+        mtp_verification && mtp_layer_index + 1U < kLayers
+            ? &model_.layers()[mtp_layer_index + 1U] : nullptr;
+    return LaunchLayerBatchSuffix(layer, tokens, mtp_verification,
+                                  next_verifier_layer);
   }
 
   [[nodiscard]] Status LaunchLayerBatchSuffix(
       const LayerBinding& layer, std::uint64_t tokens,
-      bool mtp_verification) {
+      bool mtp_verification, const LayerBinding* next_verifier_layer) {
     const bool physical_hidden =
         !mtp_verification &&
         kv_cache_mode_ == KvCacheMode::kCheckpointFp8;
@@ -653,6 +661,14 @@
           layer.down.weight_divisor, stream_);
     }
     if (!status.ok()) return status;
+    if (next_verifier_layer != nullptr) {
+      return internal::LaunchTwelveBVerifierPostMlpInputFp8(
+          down_bf16, layer.post_mlp_norm, hidden_b, layer.layer_scalar,
+          next_verifier_layer->input_norm, hidden_a,
+          Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.fp8_activation),
+          Pointer<float>(prefill_workspace_, prefill_offsets_.fp8_scales),
+          tokens, stream_);
+    }
     if (fast_d3_attention_ && mtp_verification && tokens == 4U) {
       return internal::LaunchTwelveBD3FastPostMlp(down_bf16, layer.post_mlp_norm,
           hidden_b, nullptr, hidden_a, layer.layer_scalar, stream_);

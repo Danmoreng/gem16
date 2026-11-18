@@ -25,6 +25,7 @@
 #include "cuda/norm/twelve_b_ordinary.h"
 #include "cuda/norm/twelve_b_d3_fast.h"
 #include "cuda/norm/twelve_b_d3_paired.h"
+#include "cuda/norm/twelve_b_verifier.h"
 #include "cuda/sampling/sampling.h"
 #include "cuda/vision/projection.h"
 #include "gem16/model.h"

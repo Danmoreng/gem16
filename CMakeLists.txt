@@ -356,6 +356,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/norm/twelve_b_ordinary.cu
     src/cuda/norm/twelve_b_d3_fast.cu
     src/cuda/norm/twelve_b_d3_paired.cu
+    src/cuda/norm/twelve_b_verifier.cu
     src/cuda/rope/reference.cu
     src/cuda/vision/gemma4_26b.cu
     src/cuda/layer/checkpoint_probe.cu
