@@ -27,4 +27,18 @@ namespace gem16::internal {
     std::size_t workspace_bytes,
     cudaStream_t stream);
 
+// 12B prefill projections can select smaller FP8 tiles for short chunks.
+[[nodiscard]] Status LaunchTwelveBFp8PrefillProjection(
+    const std::uint8_t* activation_e4m3fn,
+    const float* activation_scales,
+    const std::uint8_t* weight_e4m3fn,
+    const std::uint16_t* weight_scales_bf16,
+    std::uint16_t* output_bf16,
+    std::uint64_t tokens,
+    std::uint64_t rows,
+    std::uint64_t contracting_elements,
+    void* workspace,
+    std::size_t workspace_bytes,
+    cudaStream_t stream);
+
 }  // namespace gem16::internal

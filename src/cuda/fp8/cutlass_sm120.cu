@@ -41,7 +41,6 @@ using ElementD = cutlass::bfloat16_t;
 using ElementAccumulator = float;
 using ArchTag = cutlass::arch::Sm120;
 using OperatorClass = cutlass::arch::OpClassTensorOp;
-using ThreadBlockShape = Shape<_128, _128, _64>;
 using ClusterShape = Shape<_1, _1, _1>;
 
 constexpr auto kRoundStyle = cutlass::FloatRoundStyle::round_to_nearest;
@@ -50,54 +49,64 @@ constexpr auto kRoundStyle = cutlass::FloatRoundStyle::round_to_nearest;
 // boundary inside the CUTLASS epilogue:
 //
 //   BF16((acc * activation_scale[token]) * weight_scale[row])
-using ScaledBf16Epilogue = cutlass::epilogue::fusion::Sm90EVT<
-    cutlass::epilogue::fusion::Sm90Compute<
-        cutlass::multiplies, ElementD, float, kRoundStyle>,
-    cutlass::epilogue::fusion::Sm90RowBroadcast<
-        0, ThreadBlockShape, cutlass::bfloat16_t, float>,
-    cutlass::epilogue::fusion::Sm90EVT<
-        cutlass::epilogue::fusion::Sm90Compute<
-            cutlass::multiplies, float, float, kRoundStyle>,
-        cutlass::epilogue::fusion::Sm90ColBroadcast<
-            0, ThreadBlockShape, float, float>,
-        cutlass::epilogue::fusion::Sm90AccFetch>>;
+template <class ThreadBlockShape,
+          class MainloopSchedule = cutlass::gemm::collective::KernelScheduleAuto,
+          class EpilogueSchedule = cutlass::epilogue::collective::EpilogueScheduleAuto>
+struct Fp8ProjectionGemm {
+  using ScaledBf16Epilogue = cutlass::epilogue::fusion::Sm90EVT<
+      cutlass::epilogue::fusion::Sm90Compute<
+          cutlass::multiplies, ElementD, float, kRoundStyle>,
+      cutlass::epilogue::fusion::Sm90RowBroadcast<
+          0, ThreadBlockShape, cutlass::bfloat16_t, float>,
+      cutlass::epilogue::fusion::Sm90EVT<
+          cutlass::epilogue::fusion::Sm90Compute<
+              cutlass::multiplies, float, float, kRoundStyle>,
+          cutlass::epilogue::fusion::Sm90ColBroadcast<
+              0, ThreadBlockShape, float, float>,
+          cutlass::epilogue::fusion::Sm90AccFetch>>;
 
-using CollectiveEpilogue =
-    typename cutlass::epilogue::collective::CollectiveBuilder<
-        ArchTag, OperatorClass, ThreadBlockShape, ClusterShape,
-        cutlass::epilogue::collective::EpilogueTileAuto,
-        ElementAccumulator, ElementAccumulator, void,
-        cutlass::layout::RowMajor, 1, ElementD,
-        cutlass::layout::RowMajor, 8,
-        cutlass::epilogue::collective::EpilogueScheduleAuto,
-        ScaledBf16Epilogue>::CollectiveOp;
+  using CollectiveEpilogue =
+      typename cutlass::epilogue::collective::CollectiveBuilder<
+          ArchTag, OperatorClass, ThreadBlockShape, ClusterShape,
+          cutlass::epilogue::collective::EpilogueTileAuto,
+          ElementAccumulator, ElementAccumulator, void,
+          cutlass::layout::RowMajor, 1, ElementD,
+          cutlass::layout::RowMajor, 8,
+          EpilogueSchedule, ScaledBf16Epilogue>::CollectiveOp;
 
-using CollectiveMainloop =
-    typename cutlass::gemm::collective::CollectiveBuilder<
-        ArchTag, OperatorClass, ElementA, cutlass::layout::RowMajor, 16,
-        ElementB, cutlass::layout::ColumnMajor, 16, ElementAccumulator,
-        ThreadBlockShape, ClusterShape,
-        cutlass::gemm::collective::StageCountAutoCarveout<
-            static_cast<int>(sizeof(typename CollectiveEpilogue::SharedStorage))>,
-        cutlass::gemm::collective::KernelScheduleAuto>::CollectiveOp;
+  using CollectiveMainloop =
+      typename cutlass::gemm::collective::CollectiveBuilder<
+          ArchTag, OperatorClass, ElementA, cutlass::layout::RowMajor, 16,
+          ElementB, cutlass::layout::ColumnMajor, 16, ElementAccumulator,
+          ThreadBlockShape, ClusterShape,
+          cutlass::gemm::collective::StageCountAutoCarveout<
+              static_cast<int>(sizeof(typename CollectiveEpilogue::SharedStorage))>,
+          MainloopSchedule>::CollectiveOp;
 
-using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
-    Shape<int, int, int, int>, CollectiveMainloop, CollectiveEpilogue,
-    cutlass::gemm::StaticPersistentScheduler>;
-using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
+  using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
+      Shape<int, int, int, int>, CollectiveMainloop, CollectiveEpilogue,
+      cutlass::gemm::StaticPersistentScheduler>;
+  using Type = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
+};
+using DefaultGemm = Fp8ProjectionGemm<Shape<_128, _128, _64>>::Type;
+using ShortGemm = Fp8ProjectionGemm<
+    Shape<_64, _64, _64>, cutlass::gemm::KernelTmaWarpSpecializedPingpong,
+    cutlass::epilogue::TmaWarpSpecialized>::Type;
 
+template <class Gemm>
 Status LaunchGemm(
     const std::uint8_t* activation, const float* activation_scales,
     const std::uint8_t* weight, const std::uint16_t* weight_scales,
     std::uint16_t* output, int m, int n, int k, void* workspace,
     std::size_t workspace_bytes, cudaStream_t stream) {
   const auto problem_shape = cute::make_shape(m, n, k, 1);
+  using Kernel = typename Gemm::GemmKernel;
   const auto stride_a = cutlass::make_cute_packed_stride(
-      typename Gemm::GemmKernel::StrideA{}, {m, k, 1});
+      typename Kernel::StrideA{}, {m, k, 1});
   const auto stride_b = cutlass::make_cute_packed_stride(
-      typename Gemm::GemmKernel::StrideB{}, {n, k, 1});
+      typename Kernel::StrideB{}, {n, k, 1});
   const auto stride_d = cutlass::make_cute_packed_stride(
-      typename Gemm::GemmKernel::StrideD{}, {m, n, 1});
+      typename Kernel::StrideD{}, {m, n, 1});
   typename Gemm::Arguments arguments{
       cutlass::gemm::GemmUniversalMode::kGemm,
       problem_shape,
@@ -154,9 +163,8 @@ Status LaunchGemm(
   return Status::Ok();
 }
 
-}  // namespace
-
-Status LaunchFp8CutlassProjectionBatch(
+template <class Gemm>
+Status LaunchProjectionBatch(
     const std::uint8_t* activation_e4m3fn,
     const float* activation_scales,
     const std::uint8_t* weight_e4m3fn,
@@ -178,10 +186,55 @@ Status LaunchFp8CutlassProjectionBatch(
           static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
     return Invalid("invalid CUTLASS FP8 projection arguments");
   }
-  return LaunchGemm(
+  return LaunchGemm<Gemm>(
       activation_e4m3fn, activation_scales, weight_e4m3fn,
       weight_scales_bf16, output_bf16, static_cast<int>(tokens),
       static_cast<int>(rows), static_cast<int>(contracting_elements), workspace,
+      workspace_bytes, stream);
+}
+
+}  // namespace
+
+Status LaunchFp8CutlassProjectionBatch(
+    const std::uint8_t* activation_e4m3fn,
+    const float* activation_scales,
+    const std::uint8_t* weight_e4m3fn,
+    const std::uint16_t* weight_scales_bf16,
+    std::uint16_t* output_bf16,
+    std::uint64_t tokens,
+    std::uint64_t rows,
+    std::uint64_t contracting_elements,
+    void* workspace,
+    std::size_t workspace_bytes,
+    cudaStream_t stream) {
+  return LaunchProjectionBatch<DefaultGemm>(
+      activation_e4m3fn, activation_scales, weight_e4m3fn, weight_scales_bf16,
+      output_bf16, tokens, rows, contracting_elements, workspace,
+      workspace_bytes, stream);
+}
+
+Status LaunchTwelveBFp8PrefillProjection(
+    const std::uint8_t* activation_e4m3fn,
+    const float* activation_scales,
+    const std::uint8_t* weight_e4m3fn,
+    const std::uint16_t* weight_scales_bf16,
+    std::uint16_t* output_bf16,
+    std::uint64_t tokens,
+    std::uint64_t rows,
+    std::uint64_t contracting_elements,
+    void* workspace,
+    std::size_t workspace_bytes,
+    cudaStream_t stream) {
+  // A 64-row ping-pong tile exposes more independent work for small appends.
+  if (tokens <= 128U) {
+    return LaunchProjectionBatch<ShortGemm>(
+        activation_e4m3fn, activation_scales, weight_e4m3fn, weight_scales_bf16,
+        output_bf16, tokens, rows, contracting_elements, workspace,
+        workspace_bytes, stream);
+  }
+  return LaunchFp8CutlassProjectionBatch(
+      activation_e4m3fn, activation_scales, weight_e4m3fn, weight_scales_bf16,
+      output_bf16, tokens, rows, contracting_elements, workspace,
       workspace_bytes, stream);
 }
 

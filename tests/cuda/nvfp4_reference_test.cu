@@ -2035,14 +2035,15 @@ void TestFp8Sm120SplitK2Projection(bool measure_performance) {
 
 void TestFp8CutlassPrefillGeometry() {
   constexpr std::size_t tokens = 128U;
+  constexpr std::size_t max_test_tokens = tokens + 1U;
   constexpr std::size_t rows = 4096U;
   constexpr std::size_t k_size = 3840U;
   constexpr std::size_t workspace_bytes = 8U * 1024U * 1024U;
   constexpr std::array<std::uint8_t, 7> fp8_values = {
       0x00U, 0x30U, 0x38U, 0x40U, 0xB0U, 0xB8U, 0xC0U};
-  std::vector<std::uint8_t> activation(tokens * k_size);
+  std::vector<std::uint8_t> activation(max_test_tokens * k_size);
   std::vector<std::uint8_t> weight(rows * k_size);
-  std::vector<float> activation_scales(tokens);
+  std::vector<float> activation_scales(max_test_tokens);
   std::vector<std::uint16_t> weight_scales(rows);
   for (std::size_t index = 0; index < activation.size(); ++index) {
     activation[index] = fp8_values[(index * 5U + index / k_size) %
@@ -2052,7 +2053,7 @@ void TestFp8CutlassPrefillGeometry() {
     weight[index] =
         fp8_values[(index * 3U + index / k_size) % fp8_values.size()];
   }
-  for (std::size_t token = 0; token < tokens; ++token) {
+  for (std::size_t token = 0; token < max_test_tokens; ++token) {
     activation_scales[token] =
         std::array<float, 4>{0.125F, 0.25F, 0.5F, 1.0F}[token % 4U];
   }
@@ -2067,7 +2068,7 @@ void TestFp8CutlassPrefillGeometry() {
   DeviceBuffer<std::uint8_t> device_weight(weight.size());
   DeviceBuffer<std::uint16_t> device_weight_scales(weight_scales.size());
   DeviceBuffer<float> device_native(tokens * rows);
-  DeviceBuffer<std::uint16_t> device_cutlass(tokens * rows);
+  DeviceBuffer<std::uint16_t> device_cutlass(max_test_tokens * rows);
   DeviceBuffer<std::uint8_t> device_workspace(workspace_bytes);
   if (device_activation.get() == nullptr ||
       device_activation_scales.get() == nullptr ||
@@ -2119,7 +2120,8 @@ void TestFp8CutlassPrefillGeometry() {
                          device_native.bytes(), cudaMemcpyDeviceToHost),
               "copy real native FP8 output") ||
       !CudaOk(cudaMemcpy(cutlass_bits.data(), device_cutlass.get(),
-                         device_cutlass.bytes(), cudaMemcpyDeviceToHost),
+                         cutlass_bits.size() * sizeof(std::uint16_t),
+                         cudaMemcpyDeviceToHost),
               "copy real CUTLASS FP8 output")) {
     return;
   }
@@ -2134,6 +2136,37 @@ void TestFp8CutlassPrefillGeometry() {
             << exact_mismatches << '/' << native.size() << '\n';
   CheckAttentionMetrics(native, cutlass, "CUTLASS FP8 128x4096x3840",
                         0.125F, 0.02, 0.99999);
+
+  for (std::size_t batch : {tokens - 1U, max_test_tokens}) {
+    cutlass_bits.resize(batch * rows);
+    std::vector<std::uint16_t> selected_bits(cutlass_bits.size());
+    const std::size_t output_bytes = cutlass_bits.size() * sizeof(std::uint16_t);
+    const auto baseline = gem16::internal::LaunchFp8CutlassProjectionBatch(
+        device_activation.get(), device_activation_scales.get(),
+        device_weight.get(), device_weight_scales.get(), device_cutlass.get(),
+        batch, rows, k_size, device_workspace.get(), device_workspace.bytes(),
+        nullptr);
+    CUDA_TEST_CHECK(baseline.ok());
+    if (!baseline.ok() ||
+        !CudaOk(cudaMemcpy(cutlass_bits.data(), device_cutlass.get(),
+                           output_bytes, cudaMemcpyDeviceToHost),
+                "copy CUTLASS FP8 baseline output")) {
+      return;
+    }
+    const auto selected = gem16::internal::LaunchTwelveBFp8PrefillProjection(
+        device_activation.get(), device_activation_scales.get(),
+        device_weight.get(), device_weight_scales.get(), device_cutlass.get(),
+        batch, rows, k_size, device_workspace.get(), device_workspace.bytes(),
+        nullptr);
+    CUDA_TEST_CHECK(selected.ok());
+    if (!selected.ok() ||
+        !CudaOk(cudaMemcpy(selected_bits.data(), device_cutlass.get(),
+                           output_bytes, cudaMemcpyDeviceToHost),
+                "copy selected 12B FP8 tile output")) {
+      return;
+    }
+    CUDA_TEST_CHECK(selected_bits == cutlass_bits);
+  }
 }
 
 void TestLocalLayerReferenceOperators() {

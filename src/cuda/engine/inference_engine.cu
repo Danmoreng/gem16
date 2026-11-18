@@ -530,7 +530,7 @@ Status LaunchFp8ProjectionBatch(const std::uint8_t* activation, const float* sca
                                 std::uint64_t tokens, void* cutlass_workspace,
                                 std::size_t cutlass_workspace_bytes,
                                 cudaStream_t stream) {
-  return internal::LaunchFp8CutlassProjectionBatch(
+  return internal::LaunchTwelveBFp8PrefillProjection(
       activation, scales, binding.weight, binding.scales, output_bf16, tokens,
       binding.rows, binding.contracting, cutlass_workspace,
       cutlass_workspace_bytes, stream);
@@ -550,19 +550,19 @@ Status LaunchFp8QkvProjectionBatch(
     return Status(StatusCode::kInvalidArgument,
                   "grouped FP8 Q/K/V projections require one contracting dimension");
   }
-  Status status = internal::LaunchFp8CutlassProjectionBatch(
+  Status status = internal::LaunchTwelveBFp8PrefillProjection(
       activation, scales, q_binding.weight, q_binding.scales,
       q_output_bf16, tokens, q_binding.rows, q_binding.contracting,
       cutlass_workspace,
       cutlass_workspace_bytes, stream);
   if (!status.ok()) return status;
-  status = internal::LaunchFp8CutlassProjectionBatch(
+  status = internal::LaunchTwelveBFp8PrefillProjection(
       activation, scales, k_binding.weight, k_binding.scales,
       k_output_bf16, tokens, k_binding.rows, k_binding.contracting,
       cutlass_workspace,
       cutlass_workspace_bytes, stream);
   if (!status.ok() || v_binding == nullptr) return status;
-  return internal::LaunchFp8CutlassProjectionBatch(
+  return internal::LaunchTwelveBFp8PrefillProjection(
       activation, scales, v_binding->weight, v_binding->scales,
       v_output_bf16,
       tokens, v_binding->rows, v_binding->contracting, cutlass_workspace,
