@@ -71,36 +71,57 @@ __global__ void Sm120D4DownFixedShapeKernel(
 }
 
 __global__ void Sm120D3DownFixedShapeKernel(
- const std::uint8_t*a,const std::uint8_t*sa,const std::uint8_t*b,
- const std::uint8_t*sb,std::uint16_t*y,float divisor){
+    const std::uint8_t* activation, const std::uint8_t* activation_scales,
+    const std::uint8_t* weight, const std::uint8_t* weight_scales,
+    std::uint16_t* output, float divisor) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
- constexpr unsigned KBlocks=240U,Width=15360U,Rows=3840U;
- const unsigned warp=threadIdx.x/32U,lane=threadIdx.x%32U;
- const unsigned group=lane>>2U,q=lane&3U;
- const unsigned tile0=blockIdx.x*8U+warp;
- float accum[1][4]={};
- for(unsigned k=0;k<KBlocks;++k){
-  const unsigned off=k*32U+q*4U;
-  const std::uint32_t a0=group<4U?LoadU32(a+group*(Width/2U)+off):0U;
-  const std::uint32_t a2=group<4U?LoadU32(a+group*(Width/2U)+off+16U):0U;
-  const std::uint32_t scale_a=q==0U&&group<4U?LoadU32(sa+group*(Width/16U)+k*4U):0U;
+  constexpr unsigned kBlocks = 240U;
+  constexpr unsigned kWidth = 15360U;
+  constexpr unsigned kRows = 3840U;
+  constexpr unsigned kWindow = 16U;
+  static_assert(kBlocks % kWindow == 0U);
+  const unsigned lane = threadIdx.x % 32U;
+  const unsigned group = lane / 4U;
+  const unsigned word = lane % 4U;
+  const unsigned tile = blockIdx.x * 8U + threadIdx.x / 32U;
+  const unsigned row = group < 4U ? group : 0U;
+  const auto* a = activation + row * (kWidth / 2U) + word * 4U;
+  const auto* sa = activation_scales + row * (kWidth / 16U);
+  const auto* b = weight + tile * kBlocks * 256U + group * 32U + word * 4U;
+  const auto* sb = weight_scales + tile * kBlocks * 32U + group * 4U;
+  float d0 = 0.0F;
+  float d1 = 0.0F;
+  float d2 = 0.0F;
+  float d3 = 0.0F;
+  // Issue independent weight reads together, then consume them in the
+  // original ascending K64 accumulation order.
+  for (unsigned k = 0; k < kBlocks; k += kWindow) {
+    std::uint32_t b0[kWindow];
+    std::uint32_t b1[kWindow];
+    std::uint32_t bs[kWindow];
 #pragma unroll
-  for(unsigned n=0;n<1U;++n){
-   const unsigned first_row=(tile0+n)*8U;
-   const unsigned bo=first_row*KBlocks*32U+(k*8U+group)*32U+q*4U;
-   const unsigned so=first_row*KBlocks*4U+(k*8U+group)*4U;
-   const std::uint32_t b0=LoadU32(b+bo),b1=LoadU32(b+bo+16U),scale_b=LoadU32(sb+so);
-   MmaNvfp4(accum[n][0],accum[n][1],accum[n][2],accum[n][3],a0,0U,a2,0U,b0,b1,scale_a,scale_b);
-  }
- }
- if(group<4U){
+    for (unsigned i = 0; i < kWindow; ++i) {
+      const auto* source = b + (k + i) * 256U;
+      b0[i] = LoadU32(source);
+      b1[i] = LoadU32(source + 16U);
+      bs[i] = LoadU32(sb + (k + i) * 32U);
+    }
 #pragma unroll
-  for(unsigned n=0;n<1U;++n){
-   const unsigned col=(tile0+n)*8U+q*2U;
-   const std::uint32_t low=__bfloat16_as_ushort(__float2bfloat16_rn(accum[n][0]/divisor));
-   const std::uint32_t high=__bfloat16_as_ushort(__float2bfloat16_rn(accum[n][1]/divisor));
-   *reinterpret_cast<std::uint32_t*>(y+group*Rows+col)=low|(high<<16U);
+    for (unsigned i = 0; i < kWindow; ++i) {
+      const unsigned offset = (k + i) * 32U;
+      const auto a0 = group < 4U ? LoadU32(a + offset) : 0U;
+      const auto a2 = group < 4U ? LoadU32(a + offset + 16U) : 0U;
+      const auto as = group < 4U && word == 0U
+          ? LoadU32(sa + (k + i) * 4U) : 0U;
+      MmaNvfp4(d0, d1, d2, d3, a0, 0U, a2, 0U, b0[i], b1[i], as, bs[i]);
+    }
   }
- }
+  if (group < 4U) {
+    const unsigned column = tile * 8U + word * 2U;
+    const auto low = __bfloat16_as_ushort(__float2bfloat16_rn(d0 / divisor));
+    const auto high = __bfloat16_as_ushort(__float2bfloat16_rn(d1 / divisor));
+    *reinterpret_cast<std::uint32_t*>(output + group * kRows + column) =
+        low | (static_cast<std::uint32_t>(high) << 16U);
+  }
 #endif
 }

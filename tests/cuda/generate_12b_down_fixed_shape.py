@@ -1,4 +1,4 @@
-"""Emit exactly the offline-tested fixed T3 Down kernel; no benchmark-file input."""
+"""Emit the fixed-shape 12B Down kernels without benchmark-file input."""
 from pathlib import Path
 import argparse
 import ast
@@ -26,7 +26,62 @@ fixed_t3 = s[start:end]
 assert fixed_t3.count('group<3U') == 4
 text += '\n' + fixed_t3.replace('Sm120D2DownFixedShapeKernel',
                                'Sm120D4DownFixedShapeKernel').replace('group<3U', 'group<5U') + '\n'
-text += '\n' + fixed_t3.replace('Sm120D2DownFixedShapeKernel',
-                               'Sm120D3DownFixedShapeKernel').replace('group<3U', 'group<4U') + '\n'
+text += r'''
+__global__ void Sm120D3DownFixedShapeKernel(
+    const std::uint8_t* activation, const std::uint8_t* activation_scales,
+    const std::uint8_t* weight, const std::uint8_t* weight_scales,
+    std::uint16_t* output, float divisor) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  constexpr unsigned kBlocks = 240U;
+  constexpr unsigned kWidth = 15360U;
+  constexpr unsigned kRows = 3840U;
+  constexpr unsigned kWindow = 16U;
+  static_assert(kBlocks % kWindow == 0U);
+  const unsigned lane = threadIdx.x % 32U;
+  const unsigned group = lane / 4U;
+  const unsigned word = lane % 4U;
+  const unsigned tile = blockIdx.x * 8U + threadIdx.x / 32U;
+  const unsigned row = group < 4U ? group : 0U;
+  const auto* a = activation + row * (kWidth / 2U) + word * 4U;
+  const auto* sa = activation_scales + row * (kWidth / 16U);
+  const auto* b = weight + tile * kBlocks * 256U + group * 32U + word * 4U;
+  const auto* sb = weight_scales + tile * kBlocks * 32U + group * 4U;
+  float d0 = 0.0F;
+  float d1 = 0.0F;
+  float d2 = 0.0F;
+  float d3 = 0.0F;
+  // Issue independent weight reads together, then consume them in the
+  // original ascending K64 accumulation order.
+  for (unsigned k = 0; k < kBlocks; k += kWindow) {
+    std::uint32_t b0[kWindow];
+    std::uint32_t b1[kWindow];
+    std::uint32_t bs[kWindow];
+#pragma unroll
+    for (unsigned i = 0; i < kWindow; ++i) {
+      const auto* source = b + (k + i) * 256U;
+      b0[i] = LoadU32(source);
+      b1[i] = LoadU32(source + 16U);
+      bs[i] = LoadU32(sb + (k + i) * 32U);
+    }
+#pragma unroll
+    for (unsigned i = 0; i < kWindow; ++i) {
+      const unsigned offset = (k + i) * 32U;
+      const auto a0 = group < 4U ? LoadU32(a + offset) : 0U;
+      const auto a2 = group < 4U ? LoadU32(a + offset + 16U) : 0U;
+      const auto as = group < 4U && word == 0U
+          ? LoadU32(sa + (k + i) * 4U) : 0U;
+      MmaNvfp4(d0, d1, d2, d3, a0, 0U, a2, 0U, b0[i], b1[i], as, bs[i]);
+    }
+  }
+  if (group < 4U) {
+    const unsigned column = tile * 8U + word * 2U;
+    const auto low = __bfloat16_as_ushort(__float2bfloat16_rn(d0 / divisor));
+    const auto high = __bfloat16_as_ushort(__float2bfloat16_rn(d1 / divisor));
+    *reinterpret_cast<std::uint32_t*>(output + group * kRows + column) =
+        low | (static_cast<std::uint32_t>(high) << 16U);
+  }
+#endif
+}
+'''
 a.destination.parent.mkdir(parents=True, exist_ok=True)
 with a.destination.open('x') as f: f.write(text)
